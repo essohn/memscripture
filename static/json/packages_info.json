@@ -1,0 +1,100 @@
+{
+	"5_krv": 
+	{
+		"name": "그리스도와의 새출발 5구절",
+		"verse_number": 5,
+		"translation": "krv",
+		"translation_name": "개역한글",
+		"abbreviation": "5구절",
+		"language":	"kor",
+		"copyright": "Korea NavPress",
+		"copyright-text": "Copyright 2013 Korea NavPress | All Rights Reserved.",
+		"version": 1,
+		"source": "json/5_krv.json",
+		"default": true
+	},
+	"8_krv": 
+	{
+		"name": "그리스도와의 동행 8구절",
+		"verse_number": 8,
+		"translation": "krv",
+		"translation_name": "개역한글",
+		"abbreviation": "8구절",
+		"language":	"kor",
+		"copyright": "Korea NavPress",
+		"copyright-text": "Copyright 2013 Korea NavPress | All Rights Reserved.",
+		"version": 1,
+		"source": "json/8_krv.json",
+		"default": true
+	},
+	"60_krv": 
+	{
+		"name": "주제별 성경 암송 60구절",
+		"verse_number": 60,
+		"translation": "krv",
+		"translation_name": "개역한글",
+		"abbreviation": "60구절",
+		"language":	"kor",
+		"copyright": "Korea NavPress",
+		"copyright-text": "Copyright 2013 Korea NavPress | All Rights Reserved.",
+		"version": 1,
+		"source": "json/60_krv.json",
+		"default": true
+	},
+	"180_krv": 
+	{
+		"name": "주제별 성경 암송 180구절",
+		"verse_number": 180,
+		"translation": "krv",
+		"translation_name": "개역한글",
+		"abbreviation": "180구절",
+		"language":	"kor",
+		"copyright": "Korea NavPress",
+		"copyright-text": "Copyright 2013 Korea NavPress | All Rights Reserved.",
+		"version": 1,
+		"source": "json/180_krv.json",
+		"default": true
+	},
+	"242_krv": 
+	{
+		"name": "DEP 242구절",
+		"verse_number": 242,
+		"translation": "krv",
+		"translation_name": "개역한글",
+		"abbreviation": "242구절",
+		"language":	"kor",
+		"copyright": "Korea NavPress",
+		"copyright-text": "Copyright 2013 Korea NavPress | All Rights Reserved.",
+		"version": 1,
+		"source": "json/242_krv.json",
+		"default": true
+	},
+	"100_krv": 
+	{
+		"name": "확립 100구절",
+		"verse_number": 100,
+		"translation": "krv",
+		"translation_name": "개역한글",
+		"abbreviation": "100구절",
+		"language":	"kor",
+		"copyright": "",
+		"copyright-text": "",
+		"version": 1,
+		"source": "json/100_krv.json",
+		"default": true
+	},
+	"900_krv": 
+	{
+		"name": "무장 900구절",
+		"verse_number": 900,
+		"translation": "krv",
+		"translation_name": "개역한글",
+		"abbreviation": "900구절",
+		"language":	"kor",
+		"copyright": "",
+		"copyright-text": "",
+		"version": 1,
+		"source": "json/900_krv.json",
+		"default": true
+	}
+}

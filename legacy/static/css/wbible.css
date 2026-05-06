@@ -1,0 +1,174 @@
+html {
+	font-family: 'Apple SD Gothic Neo','애플 SD 고딕 Neo','Malgun Gothic','맑은 고딕','NanumBarunGothic','나눔바른고딕','NanumGothic','나눔고딕',sans-serif;
+	font-size: default;
+	width:100%;
+	height: 100%;
+	
+}
+
+body {
+	width:100%;
+	height: 100%;
+}
+
+#panel_top {
+	position: fixed;
+	min-width: 500px;
+
+	
+	margin-left: 180px;
+	padding-top: 10px;
+	padding-right: 20px;
+	width: calc(100% - 180px);
+	background: #FFF;
+	z-index: 1000;	
+	height: 55px;
+	box-shadow: 0px 2px 2px 0px #E6E6E6;
+	-webkit-transition: all 0.2s ease;
+	-webkit-user-select: none;
+	
+}
+
+#panel_top .panel_top_large {
+}
+
+#panel_top_left {
+	position: absolute;
+	left: 10px;
+}
+
+#panel_top_right {
+	position: absolute;
+	right: 10px;
+}
+
+#part_top_center {
+	position: absolute;
+	left: 50%;
+	margin-left: -140px;
+}
+
+#btn_chapter_cur {
+	color: #000000;
+	font-weight: bold;
+	width: 160px;
+	
+}
+
+#btn_chapter_prev, #btn_chapter_next {
+	color: #666;
+	width: 60px;
+}
+
+#panel_bible {
+	position: fixed;
+	margin-left: 180px;
+	margin-top: 40px;
+	padding: 30px;
+	width: calc(100% - 180px);
+	height: calc(100% - 40px);
+	background: #FFF;
+	overflow-y: auto;
+}
+
+#panel_bible .verse {
+	color: #000000;
+	font-size:100%;
+}
+
+#panel_bible .verse:hover {
+	color: #4444BB;
+	cursor: pointer;
+}
+
+#panel_bible .verse_number {
+	-webkit-user-select: none;
+	color: #4499FF;
+	text-align: right;
+	vertical-align: text-top;
+	font-weight: bold;
+	padding-right: 7px;
+}
+
+#panel_bible ol.verse_list {
+	list-style-type: none;
+	margin-left: 10px;
+	padding-left: 20px;
+	position: relative;
+}
+
+#panel_bible ol.verse_list > li {
+	margin-left: 20px
+	padding-left: 20px
+}
+
+#panel_bible ol.verse_list > li:before {
+	content: counter(customlistcounter) " ";
+	position: absolute;
+	counter-increment: customlistcounter;
+	left: 0px;
+	width: 20px;
+	text-align: right;
+	padding-right: 10px;
+	color: #44D;
+	font-size: default;
+}
+
+#panel_bible ol.verse_list:first-child {
+	counter-reset: customlistcounter;
+}
+
+#wrapper_panel_side {
+	position: fixed;
+	margin-top: 0px;
+	height: 100%;
+	background: #FFF;
+}
+
+#panel_side {
+	float: left;
+	left: 0px;
+	top: 0px;
+	width: 180px;
+	height: 100%;
+	z-index: 1000;	
+	background: #333;
+	box-shadow: 3px 0px 5px 0px #808080;
+}
+
+#panel_side_lookup {
+	float: left;
+	left: 180px;
+	top: 0px;
+	width: 100px;
+	height: 100%;
+	overflow-y: auto;
+	background: #4C4C4C;
+	z-index: 900;	
+	box-shadow: 3px 0px 5px 0px #808080;
+}
+
+#panel_side_lookup table {
+	font-size: default;
+	min-width: 80px;
+}
+
+#panel_side_lookup table td {
+	color: #CCC;
+	padding-left: 3px;
+	-webkit-transition: color 0.2s ease;
+}
+
+#panel_side_lookup table td.filled:hover {
+	color: #FFF;
+	background: #0080FF;
+	cursor: pointer;
+}
+
+.inset10 {
+  padding: 10px;
+}
+
+.inset20 {
+  padding: 20px;
+}
