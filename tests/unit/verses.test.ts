@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { db } from '../../src/lib/db/local';
-import { listPackages, installPackage, readVerse } from '../../src/lib/db/verses';
+import { listPackages, installPackage, readVerse, listGroups } from '../../src/lib/db/verses';
 
 beforeEach(async () => {
 	await db.delete();
@@ -84,5 +84,32 @@ describe('readVerse', () => {
 		await installPackage('5_krv');
 		const v = await readVerse('5_krv', 2);
 		expect(v?.cite).toBe('c2');
+	});
+});
+
+const sampleGroups = [
+	{ package_id: '5_krv', group_name: '그리스도인의 확신 5구절', level: 1, index: [1, 2, 3, 4, 5] }
+];
+
+describe('listGroups', () => {
+	it('fetches groups for a package', async () => {
+		mockFetch({
+			'data/packages.json': samplePackages,
+			'data/packages_index.json': sampleGroups
+		});
+		await listPackages();
+		const groups = await listGroups('5_krv');
+		expect(groups).toHaveLength(1);
+		expect(groups[0].group_name).toContain('그리스도인의 확신');
+	});
+
+	it('returns empty array for unknown package', async () => {
+		mockFetch({
+			'data/packages.json': samplePackages,
+			'data/packages_index.json': sampleGroups
+		});
+		await listPackages();
+		const groups = await listGroups('unknown');
+		expect(groups).toEqual([]);
 	});
 });

@@ -1,7 +1,9 @@
 import { db, type StoredVerse } from './local';
-import type { PackageMeta, Verse } from '$lib/types';
+import type { IndexGroup, PackageMeta, Verse } from '$lib/types';
 
 const PACKAGES_URL = '/data/packages.json';
+const GROUPS_URL = '/data/packages_index.json';
+let groupsCache: IndexGroup[] | null = null;
 
 export async function listPackages(): Promise<PackageMeta[]> {
 	const cached = await db.packages.toArray();
@@ -47,4 +49,13 @@ export async function readVerse(
 
 export async function listVerses(packageId: string): Promise<StoredVerse[]> {
 	return db.verses.where('package_id').equals(packageId).sortBy('no');
+}
+
+export async function listGroups(packageId: string): Promise<IndexGroup[]> {
+	if (!groupsCache) {
+		const res = await fetch(GROUPS_URL);
+		if (!res.ok) throw new Error(`Failed to load groups: ${res.status}`);
+		groupsCache = (await res.json()) as IndexGroup[];
+	}
+	return groupsCache.filter((g) => g.package_id === packageId);
 }
