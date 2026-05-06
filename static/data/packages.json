@@ -10,7 +10,7 @@
 		"copyright": "Korea NavPress",
 		"copyright-text": "Copyright 2013 Korea NavPress | All Rights Reserved.",
 		"version": 1,
-		"source": "json/5_krv.json",
+		"source": "data/5_krv.json",
 		"default": true
 	},
 	"8_krv": 
@@ -24,7 +24,7 @@
 		"copyright": "Korea NavPress",
 		"copyright-text": "Copyright 2013 Korea NavPress | All Rights Reserved.",
 		"version": 1,
-		"source": "json/8_krv.json",
+		"source": "data/8_krv.json",
 		"default": true
 	},
 	"60_krv": 
@@ -38,7 +38,7 @@
 		"copyright": "Korea NavPress",
 		"copyright-text": "Copyright 2013 Korea NavPress | All Rights Reserved.",
 		"version": 1,
-		"source": "json/60_krv.json",
+		"source": "data/60_krv.json",
 		"default": true
 	},
 	"180_krv": 
@@ -52,7 +52,7 @@
 		"copyright": "Korea NavPress",
 		"copyright-text": "Copyright 2013 Korea NavPress | All Rights Reserved.",
 		"version": 1,
-		"source": "json/180_krv.json",
+		"source": "data/180_krv.json",
 		"default": true
 	},
 	"242_krv": 
@@ -66,7 +66,7 @@
 		"copyright": "Korea NavPress",
 		"copyright-text": "Copyright 2013 Korea NavPress | All Rights Reserved.",
 		"version": 1,
-		"source": "json/242_krv.json",
+		"source": "data/242_krv.json",
 		"default": true
 	},
 	"100_krv": 
@@ -80,7 +80,7 @@
 		"copyright": "",
 		"copyright-text": "",
 		"version": 1,
-		"source": "json/100_krv.json",
+		"source": "data/100_krv.json",
 		"default": true
 	},
 	"900_krv": 
@@ -94,7 +94,7 @@
 		"copyright": "",
 		"copyright-text": "",
 		"version": 1,
-		"source": "json/900_krv.json",
+		"source": "data/900_krv.json",
 		"default": true
 	}
 }
