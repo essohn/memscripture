@@ -30,7 +30,7 @@
 	{#each verses as v, i (v.no)}
 		{@const tags = tagsByVerseNo.get(v.no) ?? []}
 		<li class:border-t={i > 0} class="border-[var(--color-border)]">
-			<div class="verse-row group flex items-stretch gap-3 px-5 py-3">
+			<div class="verse-row group flex items-stretch gap-3 px-5 py-3 transition-colors">
 				<a
 					data-testid="verse-row"
 					href={`/library/${packageId}/${v.no}`}
@@ -46,7 +46,7 @@
 						<p class="mt-0.5 text-[12px] text-[var(--color-text-tertiary)]">{v.cite}</p>
 						{#if tags.length > 0}
 							<div class="mt-1.5 flex flex-wrap gap-1.5">
-								{#each tags as tag (tag.level + ':' + tag.group.group_name)}
+								{#each tags as tag (tag.level + ':' + tag.seriesIndex + ':' + (tag.groupIndex ?? -1))}
 									{@const active =
 										tag.level === 1
 											? activeSeriesIndex === tag.seriesIndex && activeGroupIndices.length === 0
