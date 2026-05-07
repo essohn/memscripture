@@ -49,7 +49,7 @@
 								{#each tags as tag (tag.level + ':' + tag.seriesIndex + ':' + ('groupIndex' in tag ? tag.groupIndex : -1))}
 									{@const active =
 										tag.level === 1
-											? activeSeriesIndex === tag.seriesIndex && activeGroupIndices.length === 0
+											? activeSeriesIndex === tag.seriesIndex
 											: activeSeriesIndex === tag.seriesIndex &&
 												activeGroupIndices.includes(tag.groupIndex)}
 									<CategoryTag
