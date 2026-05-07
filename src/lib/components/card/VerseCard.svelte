@@ -1,10 +1,31 @@
 <script lang="ts">
 	import type { StoredVerse } from '$lib/db/local';
+	import type { VerseTag } from '$lib/db/verses';
+	import CategoryTag from '$lib/components/filter/CategoryTag.svelte';
+	import { goto } from '$app/navigation';
+
 	interface Props {
 		verse: StoredVerse;
 		packageName?: string;
+		packageId?: string;
+		tags?: VerseTag[];
 	}
-	let { verse, packageName }: Props = $props();
+	let { verse, packageName, packageId, tags = [] }: Props = $props();
+
+	function tagHref(tag: VerseTag): string {
+		if (!packageId) return '#';
+		const params = new URLSearchParams();
+		params.set('s', String(tag.seriesIndex));
+		if (tag.level === 2) {
+			params.set('g', String(tag.groupIndex));
+		}
+		return `/library/${packageId}?${params.toString()}`;
+	}
+
+	function onTagClick(tag: VerseTag) {
+		const href = tagHref(tag);
+		goto(href);
+	}
 </script>
 
 <article
@@ -35,6 +56,18 @@
 	>
 		{verse.w}
 	</p>
+
+	{#if tags.length > 0}
+		<div class="mt-6 flex flex-wrap gap-1.5">
+			{#each tags as tag (tag.level + ':' + tag.seriesIndex + ':' + ('groupIndex' in tag ? tag.groupIndex : -1))}
+				<CategoryTag
+					label={tag.group.group_name}
+					level={tag.level}
+					onclick={() => onTagClick(tag)}
+				/>
+			{/each}
+		</div>
+	{/if}
 </article>
 
 <style>
