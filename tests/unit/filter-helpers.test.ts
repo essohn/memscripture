@@ -82,7 +82,7 @@ describe('tagsForVerse', () => {
 		const tags = tagsForVerse(seriesOnlyGroups, 1);
 		expect(tags).toHaveLength(1);
 		expect(tags[0]).toMatchObject({ level: 1, seriesIndex: 0 });
-		expect(tags[0].groupIndex).toBeUndefined();
+		expect('groupIndex' in tags[0]).toBe(false);
 	});
 
 	it('returns level-1 only for flat package (single group)', () => {

@@ -82,12 +82,9 @@ export function level2GroupsInSeries(
 	return groups.filter((g) => g.level === 2 && isSubset(g.index, series.index));
 }
 
-export interface VerseTag {
-	level: 1 | 2;
-	group: IndexGroup;
-	seriesIndex: number;
-	groupIndex?: number;
-}
+export type VerseTag =
+	| { level: 1; group: IndexGroup; seriesIndex: number }
+	| { level: 2; group: IndexGroup; seriesIndex: number; groupIndex: number };
 
 export function tagsForVerse(groups: IndexGroup[], verseNo: number): VerseTag[] {
 	const l1s = level1Groups(groups);

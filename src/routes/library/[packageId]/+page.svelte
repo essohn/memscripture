@@ -31,6 +31,12 @@
 
 	$effect(() => {
 		let active = true;
+		// Reset state on packageId change to avoid showing stale data while loading
+		loading = true;
+		verses = [];
+		groups = [];
+		pkg = null;
+		error = null;
 		(async () => {
 			try {
 				const all = await listPackages();
@@ -82,11 +88,12 @@
 	const subGroups = $derived(level2GroupsInSeries(groups, seriesIndex));
 	const filteredVerses = $derived(filterVerses(verses, groups, seriesIndex, groupIndices));
 
-	// Compute tags per verse — only when there's a meaningful category structure (>1 level-1 group)
+	// Compute tags per verse — derived from full `verses`, not `filteredVerses`,
+	// since tags are properties of verses (don't change with filter state).
 	const tagsByVerseNo = $derived.by(() => {
 		const map = new Map<number, VerseTag[]>();
 		if (series.length <= 1) return map; // suppress tags for flat packages (5_krv, 8_krv)
-		for (const v of filteredVerses) {
+		for (const v of verses) {
 			map.set(v.no, tagsForVerse(groups, v.no));
 		}
 		return map;
@@ -120,9 +127,9 @@
 		} else {
 			// level-2: ensure parent series is selected, then toggle the group
 			if (seriesIndex !== tag.seriesIndex) {
-				navigateFilter(tag.seriesIndex, [tag.groupIndex!]);
+				navigateFilter(tag.seriesIndex, [tag.groupIndex]);
 			} else {
-				toggleGroup(tag.groupIndex!);
+				toggleGroup(tag.groupIndex);
 			}
 		}
 	}
@@ -132,9 +139,9 @@
 
 <main class="mx-auto max-w-md px-5 pb-8 pt-2">
 	{#if error}
-		<p class="text-[var(--color-danger)]">{error}</p>
+		<p role="alert" class="text-[var(--color-danger)]">{error}</p>
 	{:else if loading || !pkg}
-		<p class="text-[var(--color-text-tertiary)]">불러오는 중...</p>
+		<p role="status" class="text-[var(--color-text-tertiary)]">불러오는 중...</p>
 	{:else}
 		<PackageTabStrip packages={allPackages} currentId={packageId} />
 
