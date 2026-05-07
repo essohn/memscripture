@@ -8,14 +8,9 @@
 </script>
 
 <article
-	class="verse-card relative overflow-hidden rounded-[26px] border border-[var(--color-border)] bg-[var(--color-card)] px-7 pb-9 pt-7"
+	class="verse-card overflow-hidden rounded-[26px] border border-[var(--color-border)] bg-[var(--color-card)] px-7 pb-9 pt-7"
 >
-	<span
-		class="pointer-events-none absolute -left-1 -top-6 select-none text-[160px] font-bold leading-none text-[var(--color-accent-soft)]"
-		aria-hidden="true">"</span
-	>
-
-	<header class="relative space-y-2">
+	<header class="space-y-2">
 		<div class="flex items-center justify-between gap-3">
 			<p class="text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--color-text-tertiary)]">
 				{packageName ?? ''}
@@ -36,7 +31,7 @@
 	</header>
 
 	<p
-		class="relative mt-6 whitespace-pre-line break-keep text-[17px] leading-[1.85] text-[var(--color-text)]"
+		class="mt-6 whitespace-pre-line break-keep text-[17px] leading-[1.85] text-[var(--color-text)]"
 	>
 		{verse.w}
 	</p>
