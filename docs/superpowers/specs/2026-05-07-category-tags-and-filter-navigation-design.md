@@ -126,19 +126,37 @@ The same components handle all cases by checking data shape; no per-package bran
 
 ### State & Routing
 
-URL is the source of truth for filter state. Query params:
+URL is the source of truth for filter state. Query params use **numeric indices** based on category order — short URLs, no Korean URL-encoding.
 
-- `?series=<groupName>` — level-1 series filter (URL-encoded)
-- `?groups=<groupName1>,<groupName2>` — level-2 group filters (comma-separated, URL-encoded)
+- `?s=<n>` — `seriesIndex`, position of the selected level-1 group within the package's level-1 list (in JSON order). Integer ≥ 0.
+- `?g=<a>,<b>` — `groupIndices`, comma-separated positions of level-2 groups within the **selected series's level-2 children** (in JSON order). Integer ≥ 0 each.
 
-Why `groupName` (not numeric id): the data has no stable numeric id; group_name is the natural key per (package, level).
+Examples:
+
+- `/library/60_krv?s=0` → series A. 새로운 삶 selected, no level-2 filter
+- `/library/60_krv?s=0&g=0` → series A + sub-group "중심되신 그리스도"
+- `/library/60_krv?s=0&g=0,1` → series A + sub-groups "중심되신 그리스도" AND "그리스도께 순종"
+- `/library/100_krv?s=3` → series at index 3, no level-2 (100_krv has none)
+
+**Indexing rules:**
+
+- Series index = position of the level-1 group when filtering `groups` to `level === 1` and keeping JSON order, scoped per package.
+- Group index = position of the level-2 group when filtering to `level === 2 AND it belongs to the selected series`, in JSON order, scoped per series.
+- A level-2 group "belongs to" a level-1 series iff its `index` array is a subset of the level-1's `index` array (verified across all 7 packages — every level-2 has exactly one level-1 parent by index containment).
+
+**Out-of-range fallback:** If `?s` exceeds the level-1 count, treat as no series filter. If any `?g` index exceeds the level-2 count for the current series, drop just that one (don't fail the whole filter). This is graceful degradation if the data file is updated and old URLs no longer match.
+
+**Trade-off note:** Numeric indices are stable as long as JSON order is stable. Reordering or removing entries in `packages_index.json` will silently shift URLs. We accept this trade-off for short, encoding-free URLs over Korean group names. If the data ever needs to be refactored, write a migration that maps old indices forward.
 
 State derived from URL:
 
 ```ts
-const seriesId = $derived(page.url.searchParams.get('series') ?? null);
-const groupIds = $derived(
-  (page.url.searchParams.get('groups') ?? '').split(',').filter(Boolean)
+const seriesIndex = $derived(parseIntOrNull(page.url.searchParams.get('s')));
+const groupIndices = $derived(
+  (page.url.searchParams.get('g') ?? '')
+    .split(',')
+    .map((s) => parseInt(s, 10))
+    .filter((n) => Number.isInteger(n) && n >= 0)
 );
 ```
 
@@ -165,27 +183,42 @@ src/routes/library/[packageId]/[verseNo]/+page.svelte  EDIT  — wire tags into 
 
 ### Filter helpers in `verses.ts`
 
+Pure functions — easy to unit test, no Dexie calls. All helpers operate on the loaded `IndexGroup[]` for one package.
+
 ```ts
-// New helpers — pure, no DB changes
+// Resolve groups by index (with out-of-range guards)
+export function level1Groups(groups: IndexGroup[]): IndexGroup[];
+//   returns level-1 groups in JSON order
+
+export function level2GroupsInSeries(
+  groups: IndexGroup[],
+  seriesIndex: number | null
+): IndexGroup[];
+//   returns level-2 groups whose index ⊂ level-1[seriesIndex].index, in JSON order
+//   returns [] if seriesIndex is null or out of range
+
+// Tags shown on a verse row, in display order (level-1 first, then level-2)
 export function tagsForVerse(
   groups: IndexGroup[],
   verseNo: number
-): IndexGroup[];                     // returns groups whose .index includes verseNo
+): { level: 1 | 2; group: IndexGroup; seriesIndex: number; groupIndex?: number }[];
+//   - For each group whose .index includes verseNo, return its level + the
+//     numeric indices needed to build a filter URL.
+//   - groupIndex is set only for level-2 entries (position within parent series).
 
+// Filter the verse list by current URL state
 export function filterVerses(
   verses: StoredVerse[],
   groups: IndexGroup[],
-  seriesId: string | null,
-  groupIds: string[]
+  seriesIndex: number | null,
+  groupIndices: number[]
 ): StoredVerse[];
-
-export function level2GroupsForSeries(
-  groups: IndexGroup[],
-  seriesId: string | null
-): IndexGroup[];                     // intersect by index range; returns level-2 groups within series
+//   - If seriesIndex is null or out of range: pass-through (all verses).
+//   - Else: keep verses whose number is in level-1[seriesIndex].index.
+//   - If groupIndices is non-empty: further filter to verses whose number is
+//     in the union of level-2 groups at those indices within the series.
+//   - Out-of-range group indices are silently dropped before evaluation.
 ```
-
-Pure functions — easy to unit test, no Dexie calls.
 
 ### Visual tokens
 
@@ -213,22 +246,32 @@ Active state for filter chips on strips: dark `--color-text` background with whi
 
 ### Unit (Vitest)
 
-- `tagsForVerse` — verse 1 of `60_krv` returns `[A. 새로운 삶, 중심되신 그리스도]`; verse 1 of `5_krv` returns single group; verse 1 of `100_krv` returns level-1 only.
-- `filterVerses` — series filter only; series + groups filter; null series passes through.
-- `level2GroupsForSeries` — level-2 list scoped to selected series; returns `[]` when series has no level-2 (e.g., `100_krv`).
-- `CategoryTag.svelte` — renders correct level styling; emits click; respects `interactive={false}` for read-only display.
-- `SeriesSubTabStrip.svelte` — does not render when `level1Groups.length <= 1`; renders `전체` chip first; active chip reflects URL state.
-- `GroupSubStrip.svelte` — does not render when no level-2 in current series; multi-toggle adds/removes from URL.
+- `tagsForVerse` —
+  - verse 1 of `60_krv` returns `[{level: 1, seriesIndex: 0, …}, {level: 2, seriesIndex: 0, groupIndex: 0, …}]`
+  - verse 1 of `5_krv` returns one entry (the single level-1 group); we'll choose to render or not based on the inline-tags-suppression rule for single-group packages
+  - verse 1 of `100_krv` returns level-1 only
+- `level2GroupsInSeries` — returns the right list scoped to selected series (e.g., `60_krv` series 0 → 6 level-2s); returns `[]` for `seriesIndex` out of range; returns `[]` when series has no level-2 (e.g., `100_krv`).
+- `filterVerses` —
+  - `seriesIndex = null` → pass-through
+  - `seriesIndex = 0` → only verses in series 0
+  - `seriesIndex = 0, groupIndices = [0]` → only verses in series 0's first level-2
+  - `seriesIndex = 0, groupIndices = [0, 1]` → union of those two level-2s
+  - out-of-range `seriesIndex` → pass-through; out-of-range `groupIndices` silently dropped
+- `CategoryTag.svelte` — renders correct level styling; emits click; respects `interactive={false}` for read-only display (used inside `VerseCard`).
+- `SeriesSubTabStrip.svelte` — does not render when `level1Groups.length <= 1`; renders `전체` chip first; active chip reflects URL state (`?s=`).
+- `GroupSubStrip.svelte` — does not render when no level-2 in current series; multi-toggle adds/removes indices from `?g=`.
 
 ### E2E (Playwright)
 
-- `/library/60_krv`: series strip visible, group strip hidden initially, click `A. 새로운 삶` → group strip appears with that series's level-2s, verse count drops.
-- `/library/60_krv?series=A.+새로운+삶&groups=중심되신+그리스도`: deep link renders correct filtered list.
+- `/library/60_krv`: series strip visible, group strip hidden initially, click `A. 새로운 삶` → URL becomes `?s=0`, group strip appears with that series's level-2s, verse count drops to 12.
+- `/library/60_krv?s=0&g=0`: deep link renders only the 2 verses in series 0's first level-2 group.
+- `/library/60_krv?s=99` (out-of-range): falls back to no filter — all 60 verses visible.
 - `/library/5_krv`: no series strip, no group strip, no inline tags on rows.
 - `/library/100_krv`: series strip visible, no group strip even after series selection.
-- Click level-1 tag on row in `60_krv` → series strip activates that series.
-- Click level-2 tag on row → corresponding group strip chip activates.
-- `VerseCard` tag tap navigates to filtered package detail.
+- Click level-1 tag on row in `60_krv` → URL becomes `?s=<n>`.
+- Click level-2 tag on row → URL becomes `?s=<n>&g=<m>` (parent series included automatically).
+- Click level-2 tag again on a row that already matches an active filter → that index is toggled OFF (`?s=<n>` only).
+- `VerseCard` tag tap navigates to `/library/[packageId]?s=<n>` or `?s=<n>&g=<m>`.
 
 ## Out of Scope
 
@@ -247,3 +290,4 @@ Active state for filter chips on strips: dark `--color-text` background with whi
 - ✅ Color palette: gold (L1) + cream outlined (L2) — paper aesthetic
 - ✅ VerseCard tags: shown at card bottom, clickable
 - ✅ Decorative quote on VerseCard: removed
+- ✅ URL keys: numeric indices (`?s=` / `?g=`) over group_name — stable as long as JSON order is stable
