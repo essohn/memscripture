@@ -140,3 +140,101 @@ export function filterVerses(
 
 	return kept;
 }
+
+// ─── Package-level caching for hot path optimization ───────────────────────
+
+interface PackageData {
+	verses: StoredVerse[];
+	groups: IndexGroup[];
+	tagsByVerseNo: Map<number, VerseTag[]>;
+}
+
+const packageDataCache = new Map<string, PackageData>();
+
+/**
+ * Optimized batch computation of tags-per-verse for a single package.
+ * Pre-builds index Sets and a parent-series map so the per-verse work is O(L1+L2)
+ * instead of O(L1+L2) × O(level2GroupsInSeries) per level-2 hit.
+ */
+function buildTagsByVerseNo(verses: StoredVerse[], groups: IndexGroup[]): Map<number, VerseTag[]> {
+	const map = new Map<number, VerseTag[]>();
+	const l1s = level1Groups(groups);
+	if (l1s.length <= 1) return map; // suppress for flat packages
+
+	// Pre-compute Sets for O(1) membership
+	const indexSet = new Map<IndexGroup, Set<number>>();
+	for (const g of groups) indexSet.set(g, new Set(g.index));
+
+	const l1Sets = l1s.map((g) => indexSet.get(g)!);
+
+	// Group level-2s by parent series, in JSON order
+	const l2Groups = groups.filter((g) => g.level === 2);
+	const parentByL2 = new Map<IndexGroup, number>();
+	for (const g of l2Groups) {
+		const parentIdx = l1Sets.findIndex((set) => g.index.every((n) => set.has(n)));
+		if (parentIdx >= 0) parentByL2.set(g, parentIdx);
+	}
+
+	const siblingsBySeries = new Map<number, IndexGroup[]>();
+	for (const g of l2Groups) {
+		const parentIdx = parentByL2.get(g);
+		if (parentIdx === undefined) continue;
+		let arr = siblingsBySeries.get(parentIdx);
+		if (!arr) {
+			arr = [];
+			siblingsBySeries.set(parentIdx, arr);
+		}
+		arr.push(g);
+	}
+
+	for (const v of verses) {
+		const tags: VerseTag[] = [];
+
+		// Level-1
+		l1s.forEach((g, i) => {
+			if (l1Sets[i].has(v.no)) tags.push({ level: 1, group: g, seriesIndex: i });
+		});
+
+		// Level-2
+		for (const g of l2Groups) {
+			if (!indexSet.get(g)!.has(v.no)) continue;
+			const parentIdx = parentByL2.get(g);
+			if (parentIdx === undefined) continue;
+			const siblings = siblingsBySeries.get(parentIdx)!;
+			const groupIndex = siblings.indexOf(g);
+			if (groupIndex >= 0) {
+				tags.push({ level: 2, group: g, seriesIndex: parentIdx, groupIndex });
+			}
+		}
+
+		if (tags.length > 0) map.set(v.no, tags);
+	}
+
+	return map;
+}
+
+/**
+ * Loads (and caches) all data needed by the package detail page.
+ * Subsequent calls for the same packageId return cached data instantly —
+ * survives back-navigation across the SPA without hitting Dexie or recomputing tags.
+ */
+export async function loadPackageData(packageId: string): Promise<PackageData> {
+	const cached = packageDataCache.get(packageId);
+	if (cached) return cached;
+
+	await installPackage(packageId);
+	const [verses, groups] = await Promise.all([listVerses(packageId), listGroups(packageId)]);
+	const tagsByVerseNo = buildTagsByVerseNo(verses, groups);
+
+	const data: PackageData = { verses, groups, tagsByVerseNo };
+	packageDataCache.set(packageId, data);
+	return data;
+}
+
+/**
+ * Synchronous accessor — returns cached data if loaded, else null.
+ * Useful for subsequent paths (verse detail) that need groups without awaiting.
+ */
+export function getCachedPackageData(packageId: string): PackageData | null {
+	return packageDataCache.get(packageId) ?? null;
+}

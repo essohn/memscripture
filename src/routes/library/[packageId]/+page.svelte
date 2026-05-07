@@ -4,16 +4,14 @@
 	import SeriesSubTabStrip from '$lib/components/filter/SeriesSubTabStrip.svelte';
 	import GroupSubStrip from '$lib/components/filter/GroupSubStrip.svelte';
 	import GroupList from '$lib/components/GroupList.svelte';
+	import { untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import {
 		listPackages,
-		installPackage,
-		listVerses,
-		listGroups,
+		loadPackageData,
 		level1Groups,
 		level2GroupsInSeries,
-		tagsForVerse,
 		filterVerses,
 		type VerseTag
 	} from '$lib/db/verses';
@@ -26,33 +24,43 @@
 	let pkg: PackageMeta | null = $state(null);
 	let verses: StoredVerse[] = $state([]);
 	let groups: IndexGroup[] = $state([]);
+	let tagsByVerseNo: Map<number, VerseTag[]> = $state(new Map());
 	let loading = $state(true);
 	let error: string | null = $state(null);
 
 	$effect(() => {
 		let active = true;
-		// Reset state on packageId change to avoid showing stale data while loading
+		const currentPackageId = packageId; // snapshot for effect closure
+		// Only reset transient state on packageId change (avoids stale flash, but also
+		// avoids unnecessary loading flash on back-nav for the same package).
+		// Use untrack to read pkg without subscribing to it (prevents effect re-entry loop).
+		const currentPkg = untrack(() => pkg);
+		if (currentPkg && currentPkg.id !== currentPackageId) {
+			pkg = null;
+			verses = [];
+			groups = [];
+			error = null;
+		}
 		loading = true;
-		verses = [];
-		groups = [];
-		pkg = null;
-		error = null;
 		(async () => {
 			try {
 				const all = await listPackages();
 				if (active) allPackages = all;
-				const found = all.find((p) => p.id === packageId);
+				const found = all.find((p) => p.id === currentPackageId);
 				if (!found) {
-					if (active) error = '패키지를 찾을 수 없습니다.';
+					if (active) {
+						error = '패키지를 찾을 수 없습니다.';
+						loading = false;
+					}
 					return;
 				}
 				if (active) pkg = found;
 
-				await installPackage(packageId);
-				const [v, g] = await Promise.all([listVerses(packageId), listGroups(packageId)]);
+				const data = await loadPackageData(currentPackageId);
 				if (active) {
-					verses = v;
-					groups = g;
+					verses = data.verses;
+					groups = data.groups;
+					tagsByVerseNo = data.tagsByVerseNo;
 					loading = false;
 				}
 			} catch (e) {
@@ -87,17 +95,6 @@
 	const series = $derived(level1Groups(groups));
 	const subGroups = $derived(level2GroupsInSeries(groups, seriesIndex));
 	const filteredVerses = $derived(filterVerses(verses, groups, seriesIndex, groupIndices));
-
-	// Compute tags per verse — derived from full `verses`, not `filteredVerses`,
-	// since tags are properties of verses (don't change with filter state).
-	const tagsByVerseNo = $derived.by(() => {
-		const map = new Map<number, VerseTag[]>();
-		if (series.length <= 1) return map; // suppress tags for flat packages (5_krv, 8_krv)
-		for (const v of verses) {
-			map.set(v.no, tagsForVerse(groups, v.no));
-		}
-		return map;
-	});
 
 	// URL mutation helpers
 	function navigateFilter(s: number | null, g: number[]) {

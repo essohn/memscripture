@@ -5,11 +5,9 @@
 	import { goto } from '$app/navigation';
 	import {
 		listPackages,
-		installPackage,
-		readVerse,
-		listGroups,
-		tagsForVerse,
+		loadPackageData,
 		level1Groups,
+		tagsForVerse,
 		type VerseTag
 	} from '$lib/db/verses';
 	import type { PackageMeta, IndexGroup } from '$lib/types';
@@ -25,29 +23,26 @@
 
 	$effect(() => {
 		let active = true;
-		// Reset state on packageId/verseNo change
-		pkg = null;
-		verse = null;
-		groups = [];
+		const currentPackageId = packageId;
+		const currentVerseNo = verseNo;
+		// Reset error only — let the verse value fall in place from the cached lookup
 		error = null;
 		(async () => {
 			try {
 				const all = await listPackages();
-				const found = all.find((p) => p.id === packageId);
+				const found = all.find((p) => p.id === currentPackageId);
 				if (!found) {
 					if (active) error = '패키지를 찾을 수 없습니다.';
 					return;
 				}
 				if (active) pkg = found;
-				await installPackage(packageId);
-				const [v, g] = await Promise.all([
-					readVerse(packageId, verseNo),
-					listGroups(packageId)
-				]);
+
+				const data = await loadPackageData(currentPackageId);
 				if (active) {
+					const v = data.verses.find((x) => x.no === currentVerseNo) ?? null;
 					if (!v) error = '구절을 찾을 수 없습니다.';
 					else verse = v;
-					groups = g;
+					groups = data.groups;
 				}
 			} catch (e) {
 				if (active) error = String(e);
