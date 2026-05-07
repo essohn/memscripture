@@ -9,8 +9,7 @@
 @import 'tailwindcss';
 
 @theme {
-	--font-sans:
-		'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+	--font-sans: 'Pretendard Variable', sans-serif;
 
 	/* Light (Paper) — default */
 	--color-canvas: #fbf7f1;
@@ -31,9 +30,19 @@
 	--radius-lg: 14px;
 	--radius-xl: 22px;
 
-	--shadow-soft: 0 1px 2px rgba(58, 46, 37, 0.04), 0 2px 6px rgba(58, 46, 37, 0.06);
-	--shadow-card: 0 2px 14px rgba(58, 46, 37, 0.08);
-	--shadow-popover: 0 8px 24px rgba(58, 46, 37, 0.12);
+	/* Layered natural shadows — ambient + contact + directional */
+	--shadow-soft:
+		0 1px 1px rgba(58, 46, 37, 0.03), 0 2px 4px rgba(58, 46, 37, 0.04),
+		0 4px 8px rgba(58, 46, 37, 0.03);
+	--shadow-card:
+		0 1px 2px rgba(58, 46, 37, 0.04), 0 4px 8px rgba(58, 46, 37, 0.05),
+		0 12px 24px rgba(58, 46, 37, 0.06);
+	--shadow-card-hover:
+		0 2px 4px rgba(58, 46, 37, 0.05), 0 8px 16px rgba(58, 46, 37, 0.07),
+		0 20px 40px rgba(58, 46, 37, 0.08);
+	--shadow-popover:
+		0 2px 4px rgba(58, 46, 37, 0.04), 0 12px 24px rgba(58, 46, 37, 0.1),
+		0 28px 56px rgba(58, 46, 37, 0.12);
 }
 
 /* Dark theme — class-based */
@@ -50,6 +59,14 @@
 	--color-success: #8fab7a;
 	--color-warn: #d9a66a;
 	--color-danger: #c97a65;
+	--shadow-soft:
+		0 1px 2px rgba(0, 0, 0, 0.2), 0 4px 8px rgba(0, 0, 0, 0.15);
+	--shadow-card:
+		0 1px 2px rgba(0, 0, 0, 0.2), 0 6px 12px rgba(0, 0, 0, 0.18),
+		0 16px 32px rgba(0, 0, 0, 0.18);
+	--shadow-card-hover:
+		0 2px 4px rgba(0, 0, 0, 0.25), 0 10px 20px rgba(0, 0, 0, 0.22),
+		0 24px 48px rgba(0, 0, 0, 0.22);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -73,9 +90,14 @@ html {
 }
 
 body {
-	background: var(--color-canvas);
+	background-color: var(--color-canvas);
+	background-image:
+		radial-gradient(at 12% -10%, rgba(201, 168, 106, 0.08) 0, transparent 55%),
+		radial-gradient(at 110% 110%, rgba(181, 101, 78, 0.05) 0, transparent 60%);
+	background-attachment: fixed;
 	color: var(--color-text);
 	font-family: var(--font-sans);
+	font-feature-settings: 'ss01', 'ss06';
 	min-height: 100dvh;
 	font-size: 16px;
 	line-height: 1.65;

@@ -1,8 +1,9 @@
 <script lang="ts">
 	import Header from '$lib/components/nav/Header.svelte';
+	import PackageCard from '$lib/components/PackageCard.svelte';
 	import { listPackages } from '$lib/db/verses';
 	import type { PackageMeta } from '$lib/types';
-	import { BookOpen } from 'lucide-svelte';
+	import { Sparkles } from 'lucide-svelte';
 
 	let packages: PackageMeta[] = $state([]);
 
@@ -21,33 +22,51 @@
 
 <Header title={today} />
 
-<main class="max-w-md mx-auto px-5 pt-12 pb-8 text-center space-y-6">
-	<div class="flex justify-center text-[var(--color-text-tertiary)]">
-		<BookOpen size={48} strokeWidth={1.25} />
-	</div>
-	<div class="space-y-2">
-		<h2 class="text-xl font-semibold">오늘은 학습할 구절이 없어요</h2>
-		<p class="text-sm text-[var(--color-text-secondary)]">
-			Phase 3에서 SRS가 추가되면 매일 복습할 구절이 여기에 나타나요.
+<main class="mx-auto max-w-md px-5 pb-8 pt-6">
+	<section
+		class="hero-card relative overflow-hidden rounded-[26px] border border-[var(--color-border)] bg-[var(--color-card)] px-6 pb-7 pt-8"
+	>
+		<span
+			class="absolute -right-10 -top-10 h-44 w-44 rounded-full bg-[var(--color-accent-soft)] opacity-70 blur-2xl"
+			aria-hidden="true"
+		></span>
+
+		<div
+			class="relative inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-elevated)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]"
+		>
+			<Sparkles size={12} class="text-[var(--color-accent)]" />
+			Today
+		</div>
+
+		<h2 class="relative mt-4 text-[24px] font-semibold leading-tight text-[var(--color-text)]">
+			오늘은 학습할 구절이<br />아직 없어요
+		</h2>
+		<p class="relative mt-3 text-[14px] leading-relaxed text-[var(--color-text-secondary)]">
+			SRS 복습은 곧 추가됩니다. 그 전에<br />아래 패키지를 먼저 둘러보세요.
 		</p>
-		<p class="text-sm text-[var(--color-text-secondary)]">그 전에 먼저 패키지를 둘러볼까요?</p>
+	</section>
+
+	<div class="mt-8 mb-3 flex items-baseline justify-between px-1">
+		<h3 class="text-[13px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-secondary)]">
+			추천 패키지
+		</h3>
+		<a
+			href="/library"
+			class="text-[12px] font-medium text-[var(--color-accent)] underline-offset-4 hover:underline"
+		>
+			전체 보기 →
+		</a>
 	</div>
-	<div class="space-y-2">
+
+	<div class="space-y-3">
 		{#each packages.slice(0, 3) as pkg (pkg.id)}
-			<a
-				href={`/library/${pkg.id}`}
-				class="block bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl
-				       px-4 py-3 text-left hover:bg-[var(--color-elevated)]"
-			>
-				<span class="font-medium">{pkg.name}</span>
-				<span class="text-[var(--color-text-tertiary)] float-right">→</span>
-			</a>
+			<PackageCard {pkg} />
 		{/each}
 	</div>
-	<a
-		href="/library"
-		class="inline-block text-sm text-[var(--color-accent)] underline-offset-4 hover:underline"
-	>
-		Library 전체 둘러보기
-	</a>
 </main>
+
+<style>
+	.hero-card {
+		box-shadow: var(--shadow-card);
+	}
+</style>

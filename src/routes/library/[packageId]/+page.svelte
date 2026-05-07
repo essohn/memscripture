@@ -46,12 +46,22 @@
 
 <Header title={pkg?.name ?? '...'} onBack={() => goto('/library')} />
 
-<main class="max-w-md mx-auto px-5 pt-4 pb-8">
+<main class="mx-auto max-w-md px-5 pb-8 pt-4">
 	{#if error}
 		<p class="text-[var(--color-danger)]">{error}</p>
 	{:else if loading || !pkg}
 		<p class="text-[var(--color-text-tertiary)]">불러오는 중...</p>
 	{:else}
+		<div class="mb-5 flex items-center gap-3 px-1 text-[12px] text-[var(--color-text-secondary)]">
+			<span class="font-medium uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]">
+				{pkg.translation_name}
+			</span>
+			<span class="h-3 w-px bg-[var(--color-border)]" aria-hidden="true"></span>
+			<span class="inline-flex items-center gap-1.5">
+				<span class="h-px w-4 bg-[var(--color-accent)]/60"></span>
+				{verses.length}개 구절
+			</span>
+		</div>
 		<GroupList {packageId} {verses} />
 	{/if}
 </main>

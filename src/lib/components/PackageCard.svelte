@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { PackageMeta } from '$lib/types';
-	import { ChevronRight } from 'lucide-svelte';
 
 	interface Props {
 		pkg: PackageMeta;
@@ -11,16 +10,60 @@
 <a
 	data-testid="package-card"
 	href={`/library/${pkg.id}`}
-	class="block bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl p-5 shadow-[var(--shadow-soft)]
-	       hover:shadow-[var(--shadow-card)] transition-shadow"
+	class="package-card group relative block overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-6 py-5"
 >
-	<div class="flex items-center justify-between gap-3">
-		<div class="min-w-0">
-			<h3 class="text-base font-semibold text-[var(--color-text)] truncate">{pkg.name}</h3>
-			<p class="text-xs text-[var(--color-text-tertiary)] mt-1 uppercase tracking-wide">
-				{pkg.abbreviation} · {pkg.translation_name}
+	{#if pkg.default}
+		<span
+			class="absolute left-0 top-6 bottom-6 w-[3px] rounded-r-full bg-gradient-to-b from-[var(--color-accent)] to-[color-mix(in_srgb,var(--color-accent)_55%,transparent)]"
+			aria-hidden="true"
+		></span>
+	{/if}
+
+	<div class="flex items-center justify-between gap-4">
+		<div class="min-w-0 flex-1">
+			<p
+				class="text-[10.5px] font-medium uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]"
+			>
+				{pkg.translation_name}
+				{#if pkg.default}
+					<span class="ml-1.5 text-[var(--color-accent)]">· 추천</span>
+				{/if}
+			</p>
+			<h3 class="mt-1.5 truncate text-[17px] font-semibold text-[var(--color-text)]">
+				{pkg.name}
+			</h3>
+			<p class="mt-1 text-xs text-[var(--color-text-secondary)]">
+				{pkg.abbreviation}
 			</p>
 		</div>
-		<ChevronRight size={20} class="text-[var(--color-text-tertiary)] shrink-0" />
+
+		<div
+			class="flex shrink-0 flex-col items-end leading-none text-[var(--color-text-tertiary)] transition-colors group-hover:text-[var(--color-accent)]"
+		>
+			<span class="text-[28px] font-semibold tracking-tight text-[var(--color-text)]">
+				{pkg.verse_number}
+			</span>
+			<span class="mt-0.5 text-[10px] uppercase tracking-[0.16em]">구절</span>
+		</div>
 	</div>
 </a>
+
+<style>
+	.package-card {
+		box-shadow: var(--shadow-soft);
+		transition:
+			transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+			box-shadow 240ms cubic-bezier(0.22, 1, 0.36, 1),
+			border-color 240ms ease;
+	}
+	.package-card:hover {
+		transform: translateY(-2px);
+		box-shadow: var(--shadow-card-hover);
+		border-color: color-mix(in srgb, var(--color-accent) 40%, var(--color-border));
+	}
+	.package-card:active {
+		transform: translateY(0);
+		box-shadow: var(--shadow-soft);
+		transition-duration: 80ms;
+	}
+</style>
