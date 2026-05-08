@@ -2,14 +2,19 @@
 	import Header from '$lib/components/nav/Header.svelte';
 	import PackageCard from '$lib/components/PackageCard.svelte';
 	import { listPackages } from '$lib/db/verses';
+	import { getRecentPackageIds } from '$lib/db/recent';
 	import type { PackageMeta } from '$lib/types';
 
 	let packages: PackageMeta[] = $state([]);
+	let recentIds: string[] = $state([]);
 	let error: string | null = $state(null);
 
 	$effect(() => {
 		listPackages()
-			.then((p) => (packages = p))
+			.then(async (p) => {
+				packages = p;
+				recentIds = await getRecentPackageIds();
+			})
 			.catch((e) => (error = String(e)));
 	});
 </script>
@@ -34,7 +39,7 @@
 			<p class="text-[var(--color-text-tertiary)]">불러오는 중...</p>
 		{:else}
 			{#each packages as pkg (pkg.id)}
-				<PackageCard {pkg} />
+				<PackageCard {pkg} recent={recentIds.includes(pkg.id)} />
 			{/each}
 		{/if}
 	</div>

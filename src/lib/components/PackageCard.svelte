@@ -3,8 +3,9 @@
 
 	interface Props {
 		pkg: PackageMeta;
+		recent?: boolean;
 	}
-	let { pkg }: Props = $props();
+	let { pkg, recent = false }: Props = $props();
 </script>
 
 <a
@@ -12,7 +13,7 @@
 	href={`/library/${pkg.id}`}
 	class="package-card group relative block overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-6 py-5"
 >
-	{#if pkg.default}
+	{#if recent}
 		<span
 			class="absolute left-0 top-6 bottom-6 w-[3px] rounded-r-full bg-gradient-to-b from-[var(--color-accent)] to-[color-mix(in_srgb,var(--color-accent)_55%,transparent)]"
 			aria-hidden="true"
@@ -25,8 +26,8 @@
 				class="text-[10.5px] font-medium uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]"
 			>
 				{pkg.translation_name}
-				{#if pkg.default}
-					<span class="ml-1.5 text-[var(--color-accent)]">· 추천</span>
+				{#if recent}
+					<span class="ml-1.5 text-[var(--color-accent)]">· 최근</span>
 				{/if}
 			</p>
 			<h3 class="mt-1.5 truncate text-[17px] font-semibold text-[var(--color-text)]">

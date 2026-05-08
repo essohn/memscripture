@@ -2,14 +2,19 @@
 	import Header from '$lib/components/nav/Header.svelte';
 	import PackageCard from '$lib/components/PackageCard.svelte';
 	import { listPackages } from '$lib/db/verses';
+	import { getRecentPackageIds } from '$lib/db/recent';
 	import type { PackageMeta } from '$lib/types';
 	import { Sparkles } from 'lucide-svelte';
 
 	let packages: PackageMeta[] = $state([]);
+	let recentIds: string[] = $state([]);
 
 	$effect(() => {
-		listPackages()
-			.then((p) => (packages = p))
+		Promise.all([listPackages(), getRecentPackageIds()])
+			.then(([p, ids]) => {
+				packages = p;
+				recentIds = ids;
+			})
 			.catch(() => {});
 	});
 
@@ -60,7 +65,7 @@
 
 	<div class="space-y-3">
 		{#each packages.slice(0, 3) as pkg (pkg.id)}
-			<PackageCard {pkg} />
+			<PackageCard {pkg} recent={recentIds.includes(pkg.id)} />
 		{/each}
 	</div>
 </main>

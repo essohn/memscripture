@@ -15,6 +15,7 @@
 		filterVerses,
 		type VerseTag
 	} from '$lib/db/verses';
+	import { recordPackageView } from '$lib/db/recent';
 	import type { PackageMeta, IndexGroup } from '$lib/types';
 	import type { StoredVerse } from '$lib/db/local';
 
@@ -55,6 +56,8 @@
 					return;
 				}
 				if (active) pkg = found;
+				// Fire-and-forget: record this package as recently viewed
+				recordPackageView(currentPackageId).catch(() => {});
 
 				const data = await loadPackageData(currentPackageId);
 				if (active) {
