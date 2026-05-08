@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { splitVerseText } from '../../src/lib/utils/chunk';
+import { splitVerseText, splitVerseWords } from '../../src/lib/utils/chunk';
 
 describe('splitVerseText', () => {
 	it('returns [] for empty input', () => {
@@ -92,5 +92,41 @@ describe('splitVerseText', () => {
 
 	it('handles trailing/leading whitespace by trimming', () => {
 		expect(splitVerseText('  hello world  ')).toEqual(['hello world']);
+	});
+});
+
+describe('splitVerseWords', () => {
+	it('returns [] for empty input', () => {
+		expect(splitVerseWords('')).toEqual([]);
+	});
+
+	it('returns [] for whitespace-only input', () => {
+		expect(splitVerseWords('   \n  ')).toEqual([]);
+	});
+
+	it('splits a Korean Bible verse on whitespace into individual word tokens', () => {
+		expect(
+			splitVerseWords('너는 마음을 다하여 여호와를 의뢰하고')
+		).toEqual(['너는', '마음을', '다하여', '여호와를', '의뢰하고']);
+	});
+
+	it('collapses runs of whitespace and trims edges', () => {
+		expect(splitVerseWords('  hello   world\n\nfoo  ')).toEqual([
+			'hello',
+			'world',
+			'foo'
+		]);
+	});
+
+	it('keeps trailing punctuation attached to the word', () => {
+		expect(splitVerseWords('첫 문장이라, 다음으로')).toEqual([
+			'첫',
+			'문장이라,',
+			'다음으로'
+		]);
+	});
+
+	it('returns a single-item array for one word with no whitespace', () => {
+		expect(splitVerseWords('말씀')).toEqual(['말씀']);
 	});
 });
