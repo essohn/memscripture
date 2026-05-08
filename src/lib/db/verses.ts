@@ -6,15 +6,17 @@ const GROUPS_URL = '/data/packages_index.json';
 let groupsCache: IndexGroup[] | null = null;
 
 export async function listPackages(): Promise<PackageMeta[]> {
+	const byVerseNumber = (a: PackageMeta, b: PackageMeta) => a.verse_number - b.verse_number;
+
 	const cached = await db.packages.toArray();
-	if (cached.length) return cached;
+	if (cached.length) return cached.sort(byVerseNumber);
 
 	const res = await fetch(PACKAGES_URL);
 	if (!res.ok) throw new Error(`Failed to load packages: ${res.status}`);
 	const map = (await res.json()) as Record<string, Omit<PackageMeta, 'id'>>;
 	const list: PackageMeta[] = Object.entries(map).map(([id, meta]) => ({ ...meta, id }));
 	await db.packages.bulkPut(list);
-	return list;
+	return list.sort(byVerseNumber);
 }
 
 export async function isPackageInstalled(packageId: string): Promise<boolean> {
