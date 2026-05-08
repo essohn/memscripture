@@ -16,7 +16,7 @@
 	// ─── Memorize mode state ──────────────────────────────────────────────
 	let mode: 'read' | 'memorize' = $state('read');
 	let revealedCount = $state(0);
-	let pxPerWord = $state(36); // overwritten on first measure
+	let pxPerWord = 36; // overwritten on first measure (plain let — only read in event handlers)
 	let paragraphEl: HTMLParagraphElement | undefined = $state();
 
 	const words = $derived(splitVerseWords(verse.w));
@@ -246,7 +246,7 @@
 	.word::after {
 		content: '';
 		position: absolute;
-		inset: 8% 0;
+		inset: 2px 0;
 		border-radius: 4px;
 		background: repeating-linear-gradient(
 			135deg,
