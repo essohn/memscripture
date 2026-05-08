@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('home renders and Pretendard is the active body font', async ({ page }) => {
 	await page.goto('/');
-	await expect(page.getByRole('heading', { name: /오늘은 학습할 구절이/ })).toBeVisible();
+	await expect(page.getByRole('heading', { name: /오늘은 암송할 구절이/ })).toBeVisible();
 
 	// Wait for fonts to settle
 	await page.evaluate(() => document.fonts.ready);

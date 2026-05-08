@@ -44,7 +44,7 @@
 		</div>
 
 		<h2 class="relative mt-4 text-[24px] font-semibold leading-tight text-[var(--color-text)]">
-			오늘은 학습할 구절이<br />아직 없어요
+			오늘은 암송할 구절이<br />아직 없어요
 		</h2>
 		<p class="relative mt-3 text-[14px] leading-relaxed text-[var(--color-text-secondary)]">
 			SRS 복습은 곧 추가됩니다. 그 전에<br />아래 패키지를 먼저 둘러보세요.
@@ -53,7 +53,7 @@
 
 	<div class="mt-8 mb-3 flex items-baseline justify-between px-1">
 		<h3 class="text-[13px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-secondary)]">
-			추천 패키지
+			최근 패키지
 		</h3>
 		<a
 			href="/library"
