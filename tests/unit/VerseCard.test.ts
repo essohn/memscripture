@@ -3,7 +3,6 @@ import { describe, it, expect } from 'vitest';
 import VerseCard from '../../src/lib/components/card/VerseCard.svelte';
 import type { StoredVerse } from '../../src/lib/db/local';
 
-// 4-chunk verse from 잠언 3:5-6 (chunks meet min=10 default)
 const verse: StoredVerse = {
 	package_id: 'p',
 	no: 1,
@@ -15,65 +14,52 @@ const verse: StoredVerse = {
 
 const shortVerse: StoredVerse = {
 	...verse,
-	w: '짧은 한 문장'
+	w: '말씀'
 };
 
-describe('VerseCard memorize mode', () => {
+function getCoveredCount(container: HTMLElement): number {
+	return container.querySelectorAll('.word.covered').length;
+}
+
+function getRevealedWordTexts(container: HTMLElement): string[] {
+	return Array.from(
+		container.querySelectorAll<HTMLElement>('.word:not(.covered) .word-text')
+	).map((el) => el.textContent ?? '');
+}
+
+describe('VerseCard swipe curtain memorize mode', () => {
 	it('starts in read mode showing full body and 암송 시작 button', () => {
 		render(VerseCard, { props: { verse } });
-		expect(screen.getByText('너는 마음을 다하여 여호와를 의뢰하고 네 명철을 의지하지 말라 너는 범사에 그를 인정하라 그리하면 네 길을 지도하시리라')).toBeInTheDocument();
+		expect(screen.getByText(verse.w)).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: '암송 시작' })).toBeInTheDocument();
 	});
 
-	it('암송 시작 hides the body and shows the cue', async () => {
-		render(VerseCard, { props: { verse } });
-		await fireEvent.click(screen.getByRole('button', { name: '암송 시작' }));
-		expect(screen.queryByText('너는 마음을 다하여 여호와를 의뢰하고 네 명철을 의지하지 말라 너는 범사에 그를 인정하라 그리하면 네 길을 지도하시리라')).toBeNull();
-		expect(screen.getByText(/구절을 떠올려보세요/)).toBeInTheDocument();
-	});
-
-	it('tapping the cue reveals chunks one by one', async () => {
-		render(VerseCard, { props: { verse } });
+	it('암송 시작 covers every word with a striped overlay', async () => {
+		const { container } = render(VerseCard, { props: { verse } });
 		await fireEvent.click(screen.getByRole('button', { name: '암송 시작' }));
 
-		await fireEvent.click(screen.getByRole('button', { name: /구절을 떠올려보세요/ }));
-		expect(screen.getByText('너는 마음을 다하여 여호와를 의뢰하고')).toBeInTheDocument();
-		expect(screen.queryByText('네 명철을 의지하지 말라')).toBeNull();
-
-		await fireEvent.click(screen.getByRole('button', { name: /다음 부분 보기/ }));
-		expect(screen.getByText('네 명철을 의지하지 말라')).toBeInTheDocument();
-
-		await fireEvent.click(screen.getByRole('button', { name: /다음 부분 보기/ }));
-		expect(screen.getByText('너는 범사에 그를 인정하라')).toBeInTheDocument();
-
-		await fireEvent.click(screen.getByRole('button', { name: /다음 부분 보기/ }));
-		expect(screen.getByText('그리하면 네 길을 지도하시리라')).toBeInTheDocument();
-
-		// All revealed: no more cue
-		expect(screen.queryByRole('button', { name: /다음 부분 보기/ })).toBeNull();
+		// 17 words in the canonical 잠언 3:5-6 verse text
+		expect(container.querySelectorAll('.word')).toHaveLength(17);
+		expect(getCoveredCount(container)).toBe(17);
 	});
 
-	it('전체 보기 reveals all chunks at once and removes itself', async () => {
-		render(VerseCard, { props: { verse } });
+	it('전체 보기 reveals all words at once', async () => {
+		const { container } = render(VerseCard, { props: { verse } });
 		await fireEvent.click(screen.getByRole('button', { name: '암송 시작' }));
 		await fireEvent.click(screen.getByRole('button', { name: '전체 보기' }));
 
-		expect(screen.getByText('너는 마음을 다하여 여호와를 의뢰하고')).toBeInTheDocument();
-		expect(screen.getByText('네 명철을 의지하지 말라')).toBeInTheDocument();
-		expect(screen.getByText('너는 범사에 그를 인정하라')).toBeInTheDocument();
-		expect(screen.getByText('그리하면 네 길을 지도하시리라')).toBeInTheDocument();
+		expect(getCoveredCount(container)).toBe(0);
+		// 전체 보기 button is hidden once everything is revealed
 		expect(screen.queryByRole('button', { name: '전체 보기' })).toBeNull();
-		expect(screen.queryByRole('button', { name: /구절을 떠올려보세요/ })).toBeNull();
 	});
 
-	it('처음부터 다시 resets revealed count and brings the cue back', async () => {
-		render(VerseCard, { props: { verse } });
+	it('처음부터 다시 re-covers all words', async () => {
+		const { container } = render(VerseCard, { props: { verse } });
 		await fireEvent.click(screen.getByRole('button', { name: '암송 시작' }));
 		await fireEvent.click(screen.getByRole('button', { name: '전체 보기' }));
 		await fireEvent.click(screen.getByRole('button', { name: '처음부터 다시' }));
 
-		expect(screen.queryByText('너는 마음을 다하여 여호와를 의뢰하고')).toBeNull();
-		expect(screen.getByText(/구절을 떠올려보세요/)).toBeInTheDocument();
+		expect(getCoveredCount(container)).toBe(17);
 	});
 
 	it('암송 종료 returns to read mode with full body visible', async () => {
@@ -81,22 +67,45 @@ describe('VerseCard memorize mode', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '암송 시작' }));
 		await fireEvent.click(screen.getByRole('button', { name: '암송 종료' }));
 
-		expect(screen.getByText('너는 마음을 다하여 여호와를 의뢰하고 네 명철을 의지하지 말라 너는 범사에 그를 인정하라 그리하면 네 길을 지도하시리라')).toBeInTheDocument();
+		expect(screen.getByText(verse.w)).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: '암송 시작' })).toBeInTheDocument();
 	});
 
-	it('single-chunk verse skips cue: enters memorize mode with text already revealed', async () => {
-		render(VerseCard, { props: { verse: shortVerse } });
+	it('renders revealed words in document order via 전체 보기', async () => {
+		const { container } = render(VerseCard, { props: { verse } });
+		await fireEvent.click(screen.getByRole('button', { name: '암송 시작' }));
+		await fireEvent.click(screen.getByRole('button', { name: '전체 보기' }));
+
+		expect(getRevealedWordTexts(container)).toEqual([
+			'너는',
+			'마음을',
+			'다하여',
+			'여호와를',
+			'의뢰하고',
+			'네',
+			'명철을',
+			'의지하지',
+			'말라',
+			'너는',
+			'범사에',
+			'그를',
+			'인정하라',
+			'그리하면',
+			'네',
+			'길을',
+			'지도하시리라'
+		]);
+	});
+
+	it('single-word verse: 암송 시작 immediately uncovers the word', async () => {
+		const { container } = render(VerseCard, { props: { verse: shortVerse } });
 		await fireEvent.click(screen.getByRole('button', { name: '암송 시작' }));
 
-		// Body shown as a single chunk paragraph
-		expect(screen.getByText('짧은 한 문장')).toBeInTheDocument();
-		// No cue button
-		expect(screen.queryByRole('button', { name: /구절을 떠올려보세요/ })).toBeNull();
-		expect(screen.queryByRole('button', { name: /다음 부분 보기/ })).toBeNull();
-		// 전체 보기 hidden because all already revealed
+		expect(container.querySelectorAll('.word')).toHaveLength(1);
+		expect(getCoveredCount(container)).toBe(0);
+		// 전체 보기 button hidden because allRevealed is true
 		expect(screen.queryByRole('button', { name: '전체 보기' })).toBeNull();
-		// Other controls still present
+		// Other controls present
 		expect(screen.getByRole('button', { name: '처음부터 다시' })).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: '암송 종료' })).toBeInTheDocument();
 	});
