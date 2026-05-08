@@ -25,20 +25,50 @@ describe('splitVerseText', () => {
 		expect(splitVerseText('짧은 한 문장')).toEqual(['짧은 한 문장']);
 	});
 
-	it('returns one chunk when only one clause-ending split would occur', () => {
-		// Single split point would yield 2 short chunks, but if either chunk's primary
-		// split is the only one, accept it.
+	it('merges adjacent short clauses below minChunkChars', () => {
+		// Each clause (6 and 7 chars) is below the default min (10),
+		// merge into a single chunk.
 		expect(splitVerseText('첫 부분이라 둘째 부분이다')).toEqual([
+			'첫 부분이라 둘째 부분이다'
+		]);
+	});
+
+	it('keeps short clauses separate when min is very low', () => {
+		// With min=1, no merging happens
+		expect(splitVerseText('첫 부분이라 둘째 부분이다', 40, 1)).toEqual([
 			'첫 부분이라',
 			'둘째 부분이다'
 		]);
+	});
+
+	it('does not merge when result would exceed maxChunkChars', () => {
+		// First clause is short (4 chars), but next clause is 30 chars.
+		// Merging would yield 35 chars — within max=40, OK to merge.
+		// Use max=20 to forbid merging.
+		const text = '짧다 정말로 긴 두번째 문장이라';
+		const result = splitVerseText(text, 20, 10);
+		// max forbids merging "짧다" (3) + "정말로 긴 두번째 문장이라" (16) = 20+1 = 21 chars > 20
+		expect(result.every((c) => c.length <= 20)).toBe(true);
+	});
+
+	it('merges trailing short chunk backward into previous', () => {
+		// Three clauses: long, long, short. Last one is too short — merge with 2nd.
+		const text =
+			'첫번째 부분이고 둘째 더 긴 부분이라 마지막 짧다';
+		const result = splitVerseText(text);
+		// Expect "마지막 짧다" merged with "둘째 더 긴 부분이라"
+		expect(result.length).toBeLessThanOrEqual(2);
+		// All chunks meet the minimum length OR are the only chunk
+		expect(result.every((c) => c.length >= 10 || result.length === 1)).toBe(
+			true
+		);
 	});
 
 	it('falls back to length-based when primary yields too few chunks', () => {
 		// No clause endings; primary returns 1 chunk; if too long, fallback splits
 		const longNoEndings =
 			'단어 단어 단어 단어 단어 단어 단어 단어 단어 단어 단어 단어 단어 단어 단어';
-		const result = splitVerseText(longNoEndings, 20);
+		const result = splitVerseText(longNoEndings, 20, 1);
 		expect(result.length).toBeGreaterThan(1);
 		expect(result.every((c) => c.length <= 20)).toBe(true);
 	});
@@ -47,7 +77,7 @@ describe('splitVerseText', () => {
 		// One clause is much longer than the limit — fallback grouping
 		const text =
 			'아주아주아주아주아주아주아주아주아주아주아주아주긴 단어 묶음이라 짧은 마무리';
-		const result = splitVerseText(text, 15);
+		const result = splitVerseText(text, 15, 1);
 		expect(result.every((c) => c.length <= 15)).toBe(true);
 	});
 

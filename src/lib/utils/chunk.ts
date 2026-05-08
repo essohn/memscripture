@@ -7,9 +7,17 @@
  *
  * Fallback: if the primary split yields fewer than 2 chunks OR any chunk
  * exceeds `maxChunkChars`, fall back to length-based grouping at whitespace
- * boundaries.
+ * boundaries (with hard-split for oversized single words).
+ *
+ * Post-pass: merge adjacent chunks that fall under `minChunkChars` so
+ * memorization isn't fragmented into trivially short pieces. Merging never
+ * exceeds `maxChunkChars`.
  */
-export function splitVerseText(text: string, maxChunkChars = 40): string[] {
+export function splitVerseText(
+	text: string,
+	maxChunkChars = 40,
+	minChunkChars = 10
+): string[] {
 	const trimmed = text.trim();
 	if (!trimmed) return [];
 
@@ -19,39 +27,85 @@ export function splitVerseText(text: string, maxChunkChars = 40): string[] {
 		.map((p) => p.trim())
 		.filter(Boolean);
 
-	if (primary.length >= 2 && primary.every((p) => p.length <= maxChunkChars)) {
-		return primary;
-	}
+	const raw =
+		primary.length >= 2 && primary.every((p) => p.length <= maxChunkChars)
+			? primary
+			: lengthBasedChunks(trimmed, maxChunkChars);
 
-	// Fallback: length-based grouping at word boundaries
-	const words = trimmed.split(/\s+/).filter(Boolean);
+	return mergeShortChunks(raw, minChunkChars, maxChunkChars);
+}
+
+function lengthBasedChunks(text: string, maxChunkChars: number): string[] {
+	const words = text.split(/\s+/).filter(Boolean);
 	if (words.length === 0) return [];
-
-	// Hard-split any word that itself exceeds maxChunkChars
-	const tokens: string[] = [];
-	for (const word of words) {
-		if (word.length <= maxChunkChars) {
-			tokens.push(word);
-		} else {
-			for (let i = 0; i < word.length; i += maxChunkChars) {
-				tokens.push(word.slice(i, i + maxChunkChars));
-			}
-		}
+	if (words.length === 1) {
+		// Hard-split a single oversized word into fixed-length pieces
+		return hardSplit(words[0], maxChunkChars);
 	}
 
-	if (tokens.length === 1) return [tokens[0]];
+	// Pre-pass: hard-split any word longer than maxChunkChars
+	const expanded: string[] = [];
+	for (const w of words) {
+		if (w.length > maxChunkChars) expanded.push(...hardSplit(w, maxChunkChars));
+		else expanded.push(w);
+	}
 
 	const chunks: string[] = [];
 	let current = '';
-	for (const token of tokens) {
-		const candidate = current ? `${current} ${token}` : token;
+	for (const word of expanded) {
+		const candidate = current ? `${current} ${word}` : word;
 		if (candidate.length > maxChunkChars && current) {
 			chunks.push(current);
-			current = token;
+			current = word;
 		} else {
 			current = candidate;
 		}
 	}
 	if (current) chunks.push(current);
-	return chunks.length > 0 ? chunks : [trimmed];
+	return chunks.length > 0 ? chunks : [text];
+}
+
+function hardSplit(word: string, maxChunkChars: number): string[] {
+	const out: string[] = [];
+	for (let i = 0; i < word.length; i += maxChunkChars) {
+		out.push(word.slice(i, i + maxChunkChars));
+	}
+	return out.length > 0 ? out : [word];
+}
+
+function mergeShortChunks(
+	chunks: string[],
+	minChunkChars: number,
+	maxChunkChars: number
+): string[] {
+	if (chunks.length <= 1) return chunks;
+
+	const result: string[] = [];
+	let buffer = chunks[0];
+
+	for (let i = 1; i < chunks.length; i++) {
+		const next = chunks[i];
+		const merged = `${buffer} ${next}`;
+		if (buffer.length < minChunkChars && merged.length <= maxChunkChars) {
+			buffer = merged;
+		} else {
+			result.push(buffer);
+			buffer = next;
+		}
+	}
+
+	// Final buffer: if it's too short, try merging backward into last result
+	if (buffer.length < minChunkChars && result.length > 0) {
+		const last = result[result.length - 1];
+		const merged = `${last} ${buffer}`;
+		if (merged.length <= maxChunkChars) {
+			result[result.length - 1] = merged;
+		} else {
+			result.push(buffer);
+		}
+	} else {
+		result.push(buffer);
+	}
+
+	return result;
 }
