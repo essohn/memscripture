@@ -24,7 +24,14 @@ export async function getShowVerseTextInList(): Promise<boolean> {
 	return typeof v === 'boolean' ? v : DEFAULTS.showVerseTextInList;
 }
 
+let writeQueue: Promise<unknown> = Promise.resolve();
+
 export async function setShowVerseTextInList(v: boolean): Promise<void> {
-	const raw = await readRaw();
-	await db.settings.put({ key: KEY, value: { ...raw, showVerseTextInList: v } });
+	const next = writeQueue.then(async () => {
+		const raw = await readRaw();
+		await db.settings.put({ key: KEY, value: { ...raw, showVerseTextInList: v } });
+	});
+	// Don't let a single failure poison the queue
+	writeQueue = next.catch(() => {});
+	return next;
 }

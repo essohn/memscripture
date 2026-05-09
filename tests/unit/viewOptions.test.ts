@@ -43,4 +43,11 @@ describe('viewOptions', () => {
 		const entry = await db.settings.get('view_options');
 		expect(entry?.value).toEqual({ showVerseTextInList: false, futureFlag: 42 });
 	});
+
+	it('serializes overlapping writes (last call wins)', async () => {
+		const a = setShowVerseTextInList(false);
+		const b = setShowVerseTextInList(true);
+		await Promise.all([a, b]);
+		expect(await getShowVerseTextInList()).toBe(true);
+	});
 });
