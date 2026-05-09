@@ -4,6 +4,7 @@
 	import SeriesSubTabStrip from '$lib/components/filter/SeriesSubTabStrip.svelte';
 	import GroupSubStrip from '$lib/components/filter/GroupSubStrip.svelte';
 	import GroupList from '$lib/components/GroupList.svelte';
+	import { Eye, EyeOff } from 'lucide-svelte';
 	import { untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -16,6 +17,7 @@
 		type VerseTag
 	} from '$lib/db/verses';
 	import { recordPackageView } from '$lib/db/recent';
+	import { getShowVerseTextInList, setShowVerseTextInList } from '$lib/db/viewOptions';
 	import type { PackageMeta, IndexGroup } from '$lib/types';
 	import type { StoredVerse } from '$lib/db/local';
 
@@ -28,6 +30,7 @@
 	let tagsByVerseNo: Map<number, VerseTag[]> = $state(new Map());
 	let loading = $state(true);
 	let error: string | null = $state(null);
+	let showVerseText = $state(true);
 
 	$effect(() => {
 		let active = true;
@@ -43,6 +46,12 @@
 			error = null;
 		}
 		loading = true;
+		// Load view preference (fire-and-forget, default already applied)
+		getShowVerseTextInList()
+			.then((v) => {
+				if (active) showVerseText = v;
+			})
+			.catch(() => {});
 		(async () => {
 			try {
 				const all = await listPackages();
@@ -133,6 +142,11 @@
 			}
 		}
 	}
+
+	function toggleVerseText() {
+		showVerseText = !showVerseText;
+		setShowVerseTextInList(showVerseText).catch(() => {});
+	}
 </script>
 
 <Header title={pkg?.name ?? '...'} onBack={() => goto('/library')} />
@@ -154,6 +168,19 @@
 				<span class="h-px w-4 bg-[var(--color-accent)]/60"></span>
 				{filteredVerses.length} / {verses.length}개
 			</span>
+			<button
+				type="button"
+				onclick={toggleVerseText}
+				aria-pressed={showVerseText}
+				aria-label={showVerseText ? '구절 본문 표시 끄기' : '구절 본문 표시 켜기'}
+				class="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
+			>
+				{#if showVerseText}
+					<Eye size={16} />
+				{:else}
+					<EyeOff size={16} />
+				{/if}
+			</button>
 		</div>
 
 		<SeriesSubTabStrip {series} activeIndex={seriesIndex} onSelect={selectSeries} />
@@ -166,6 +193,7 @@
 			activeSeriesIndex={seriesIndex}
 			activeGroupIndices={groupIndices}
 			{onTagClick}
+			{showVerseText}
 		/>
 	{/if}
 </main>
