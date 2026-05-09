@@ -27,7 +27,7 @@
 
 <Header title={today} />
 
-<main class="mx-auto max-w-md px-5 pb-8 pt-6">
+<main class="mx-auto max-w-lg px-5 pb-8 pt-6">
 	<section
 		class="hero-card relative overflow-hidden rounded-[26px] border border-[var(--color-border)] bg-[var(--color-card)] px-6 pb-7 pt-8"
 	>

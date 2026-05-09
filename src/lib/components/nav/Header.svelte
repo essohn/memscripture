@@ -13,7 +13,7 @@
 	class="sticky top-0 bg-[var(--color-canvas)]/90 backdrop-blur z-40 border-b border-[var(--color-border)]"
 	style="padding-top: env(safe-area-inset-top);"
 >
-	<div class="flex items-center justify-between h-14 max-w-md mx-auto px-5">
+	<div class="flex items-center justify-between h-14 max-w-lg mx-auto px-5">
 		{#if onBack}
 			<button
 				type="button"

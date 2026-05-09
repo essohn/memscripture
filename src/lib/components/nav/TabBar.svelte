@@ -18,7 +18,7 @@
 	style="padding-bottom: env(safe-area-inset-bottom);"
 	aria-label="주 네비게이션"
 >
-	<ul class="flex items-center justify-around h-16 max-w-md mx-auto">
+	<ul class="flex items-center justify-around h-16 max-w-lg mx-auto">
 		{#each tabs as tab}
 			{@const Icon = tab.icon}
 			{@const active = current === tab.id}

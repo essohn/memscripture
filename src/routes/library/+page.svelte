@@ -21,7 +21,7 @@
 
 <Header title="Library" />
 
-<main class="mx-auto max-w-md px-5 pb-8 pt-4">
+<main class="mx-auto max-w-lg px-5 pb-8 pt-4">
 	<div class="mb-5 px-1">
 		<p class="text-[13px] text-[var(--color-text-secondary)]">
 			{#if packages.length}
