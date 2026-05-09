@@ -13,6 +13,8 @@
 		activeSeriesIndex: number | null;
 		activeGroupIndices: number[];
 		onTagClick: (tag: VerseTag) => void;
+		/** When true, render the full Bible verse body (`v.w`) under the cite line. */
+		showVerseText: boolean;
 	}
 	let {
 		packageId,
@@ -20,7 +22,8 @@
 		tagsByVerseNo,
 		activeSeriesIndex,
 		activeGroupIndices,
-		onTagClick
+		onTagClick,
+		showVerseText
 	}: Props = $props();
 </script>
 
@@ -44,6 +47,9 @@
 					<div class="min-w-0 flex-1">
 						<p class="truncate text-[15px] font-medium text-[var(--color-text)]">{v.title}</p>
 						<p class="mt-0.5 text-[12px] text-[var(--color-text-tertiary)]">{v.cite}</p>
+						{#if showVerseText && v.w}
+							<p class="mt-1 text-[13px] leading-[1.55] text-[var(--color-text-secondary)]">{v.w}</p>
+						{/if}
 						{#if tags.length > 0}
 							<div class="mt-1.5 flex flex-wrap gap-1.5">
 								{#each tags as tag (tag.level + ':' + tag.seriesIndex + ':' + ('groupIndex' in tag ? tag.groupIndex : -1))}
