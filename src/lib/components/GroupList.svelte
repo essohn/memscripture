@@ -2,29 +2,16 @@
 	import type { StoredVerse } from '$lib/db/local';
 	import type { VerseTag } from '$lib/db/verses';
 	import { ChevronRight } from 'lucide-svelte';
-	import CategoryTag from './filter/CategoryTag.svelte';
 
 	interface Props {
 		packageId: string;
 		verses: StoredVerse[];
 		/** Tags to render inline per verse number. Pass empty map to suppress (e.g. flat packages). */
 		tagsByVerseNo: Map<number, VerseTag[]>;
-		/** Currently active filter — used to highlight matching tags. */
-		activeSeriesIndex: number | null;
-		activeGroupIndices: number[];
-		onTagClick: (tag: VerseTag) => void;
 		/** When true, render the full Bible verse body (`v.w`) under the cite line. */
 		showVerseText: boolean;
 	}
-	let {
-		packageId,
-		verses,
-		tagsByVerseNo,
-		activeSeriesIndex,
-		activeGroupIndices,
-		onTagClick,
-		showVerseText
-	}: Props = $props();
+	let { packageId, verses, tagsByVerseNo, showVerseText }: Props = $props();
 </script>
 
 <ul
@@ -51,23 +38,16 @@
 							<p class="mt-1 text-[13px] leading-[1.55] text-[var(--color-text-secondary)]">{v.w}</p>
 						{/if}
 						{#if tags.length > 0}
-							<div class="mt-1.5 flex flex-wrap gap-1.5">
+							<div class="mt-1.5 flex flex-wrap gap-1">
 								{#each tags as tag (tag.level + ':' + tag.seriesIndex + ':' + ('groupIndex' in tag ? tag.groupIndex : -1))}
-									{@const active =
-										tag.level === 1
-											? activeSeriesIndex === tag.seriesIndex
-											: activeSeriesIndex === tag.seriesIndex &&
-												activeGroupIndices.includes(tag.groupIndex)}
-									<CategoryTag
-										label={tag.group.group_name}
-										level={tag.level}
-										{active}
-										onclick={(e) => {
-											e.preventDefault();
-											e.stopPropagation();
-											onTagClick(tag);
-										}}
-									/>
+									<span
+										class="inline-flex items-center whitespace-nowrap rounded-md px-1.5 py-[2px] text-[9px] font-medium leading-none {tag.level ===
+										1
+											? 'bg-[var(--color-accent)]/15 text-[var(--color-accent)]'
+											: 'border border-[var(--color-border)]/60 bg-[var(--color-card)] text-[var(--color-text-tertiary)]'}"
+									>
+										{tag.group.group_name}
+									</span>
 								{/each}
 							</div>
 						{/if}

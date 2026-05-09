@@ -17,10 +17,7 @@ const verses: StoredVerse[] = [
 const baseProps = {
 	packageId: 'pkg',
 	verses,
-	tagsByVerseNo: new Map(),
-	activeSeriesIndex: null,
-	activeGroupIndices: [],
-	onTagClick: () => {}
+	tagsByVerseNo: new Map()
 };
 
 describe('GroupList', () => {

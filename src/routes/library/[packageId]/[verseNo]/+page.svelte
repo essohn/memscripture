@@ -2,7 +2,6 @@
 	import Header from '$lib/components/nav/Header.svelte';
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
 	import {
 		listPackages,
 		loadPackageData,
@@ -61,7 +60,7 @@
 	});
 </script>
 
-<Header title={pkg?.abbreviation ?? '...'} onBack={() => goto(`/library/${packageId}`)} />
+<Header title={pkg?.abbreviation ?? '...'} onBack={() => history.back()} />
 
 <main class="mx-auto max-w-md px-5 pb-8 pt-4">
 	{#if error}
