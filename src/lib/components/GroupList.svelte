@@ -26,13 +26,15 @@
 					href={`/library/${packageId}/${v.no}`}
 					class="row-link flex flex-1 items-center gap-3 min-w-0"
 				>
-					<span
-						class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-soft)] text-[13px] font-semibold tabular-nums text-[var(--color-accent)] transition-colors group-hover:bg-[var(--color-accent)] group-hover:text-white"
-					>
-						{v.no}
-					</span>
 					<div class="min-w-0 flex-1">
-						<p class="truncate text-[15px] font-medium text-[var(--color-text)]">{v.title}</p>
+						<div class="flex items-baseline gap-2">
+							<p class="min-w-0 flex-1 truncate text-[15px] font-medium text-[var(--color-text)]">
+								{v.title}
+							</p>
+							<span class="shrink-0 text-[11px] font-medium tabular-nums text-[var(--color-accent)]">
+								{v.no}
+							</span>
+						</div>
 						<p class="mt-0.5 text-[12px] text-[var(--color-text-tertiary)]">{v.cite}</p>
 						{#if showVerseText && v.w}
 							<p class="mt-1 text-[13px] leading-[1.55] text-[var(--color-text-secondary)]">{v.w}</p>
