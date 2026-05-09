@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { StoredVerse } from '$lib/db/local';
 	import type { VerseTag } from '$lib/db/verses';
-	import { ChevronRight } from 'lucide-svelte';
 
 	interface Props {
 		packageId: string;
@@ -24,9 +23,9 @@
 				<a
 					data-testid="verse-row"
 					href={`/library/${packageId}/${v.no}`}
-					class="row-link flex flex-1 items-center gap-3 min-w-0"
+					class="row-link block flex-1 min-w-0"
 				>
-					<div class="min-w-0 flex-1">
+					<div class="min-w-0">
 						<div class="flex items-baseline gap-2">
 							<p class="min-w-0 flex-1 truncate text-[15px] font-medium text-[var(--color-text)]">
 								{v.title}
@@ -54,10 +53,6 @@
 							</div>
 						{/if}
 					</div>
-					<ChevronRight
-						size={18}
-						class="shrink-0 self-center text-[var(--color-text-tertiary)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--color-accent)]"
-					/>
 				</a>
 			</div>
 		</li>
