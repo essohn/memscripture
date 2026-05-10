@@ -26,3 +26,21 @@ export interface IndexGroup {
 	level: 1 | 2;
 	index: number[];
 }
+
+export type Bucket = 'new' | 'current' | 'old' | 'mastered';
+
+export interface VerseProgress {
+	id: string; // composite key: `${packageId}:${verseNo}`
+	packageId: string;
+	verseNo: number;
+	bucket: Bucket;
+	enteredBucketAt: number; // ms timestamp; reset on bucket transition
+	daysActiveInBucket: number; // count of distinct active days while in current bucket
+	lastReviewedAt: number;
+	citeRatings: number[]; // sliding window: last 10 ratings (1=Again, 4=Easy)
+	recallRatings: number[]; // sliding window: last 10 ratings
+}
+
+export interface DailyActivity {
+	dateKey: string; // local-date 'YYYY-MM-DD'
+}
