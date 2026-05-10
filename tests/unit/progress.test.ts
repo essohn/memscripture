@@ -92,4 +92,37 @@ describe('progress I/O', () => {
 		expect(news).toHaveLength(1);
 		expect(news[0].bucket).toBe('new');
 	});
+
+	it('pushRating throws on invalid score (out of 1-4)', async () => {
+		await upsertProgress(mk());
+		await expect(pushRating('5_krv', 1, 'cite', 0)).rejects.toThrow();
+		await expect(pushRating('5_krv', 1, 'cite', 5)).rejects.toThrow();
+		await expect(pushRating('5_krv', 1, 'cite', 1.5)).rejects.toThrow();
+		await expect(pushRating('5_krv', 1, 'cite', NaN)).rejects.toThrow();
+	});
+
+	it('pushRating cap-at-10 keeps newest, drops oldest', async () => {
+		await upsertProgress(mk());
+		for (let i = 1; i <= 12; i++) {
+			// scores 1,2,3,4,1,2,3,4,1,2,3,4
+			await pushRating('5_krv', 1, 'cite', ((i - 1) % 4) + 1);
+		}
+		const p = await getProgress('5_krv', 1);
+		// last 10 of [1,2,3,4,1,2,3,4,1,2,3,4] = [3,4,1,2,3,4,1,2,3,4]
+		expect(p?.citeRatings).toEqual([3, 4, 1, 2, 3, 4, 1, 2, 3, 4]);
+	});
+
+	it('pushRating concurrent writes to same row do not lose ratings', async () => {
+		await upsertProgress(mk());
+		// Fire 5 concurrent writes — without transaction, several would be lost
+		await Promise.all([
+			pushRating('5_krv', 1, 'cite', 1),
+			pushRating('5_krv', 1, 'cite', 2),
+			pushRating('5_krv', 1, 'cite', 3),
+			pushRating('5_krv', 1, 'cite', 4),
+			pushRating('5_krv', 1, 'cite', 1)
+		]);
+		const p = await getProgress('5_krv', 1);
+		expect(p?.citeRatings).toHaveLength(5);
+	});
 });

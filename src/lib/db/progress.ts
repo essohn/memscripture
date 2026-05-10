@@ -24,15 +24,20 @@ export async function pushRating(
 	axis: 'cite' | 'recall',
 	score: number
 ): Promise<void> {
+	if (!Number.isInteger(score) || score < 1 || score > 4) {
+		throw new Error(`pushRating: invalid score ${score} (expected integer 1-4)`);
+	}
 	const id = progressId(packageId, verseNo);
-	const existing = await db.progress.get(id);
-	if (!existing) return;
-	const key = axis === 'cite' ? 'citeRatings' : 'recallRatings';
-	const next = [...existing[key], score].slice(-RATING_WINDOW);
-	await db.progress.put({
-		...existing,
-		[key]: next,
-		lastReviewedAt: Date.now()
+	await db.transaction('rw', db.progress, async () => {
+		const existing = await db.progress.get(id);
+		if (!existing) return;
+		const key = axis === 'cite' ? 'citeRatings' : 'recallRatings';
+		const next = [...existing[key], score].slice(-RATING_WINDOW);
+		await db.progress.put({
+			...existing,
+			[key]: next,
+			lastReviewedAt: Date.now()
+		});
 	});
 }
 
