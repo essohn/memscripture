@@ -167,10 +167,9 @@
 		</p>
 		<p
 			class="mt-3 text-center text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]"
-			class:invisible={allRevealed}
 			aria-hidden={allRevealed}
 		>
-			→ 좌→우로 드래그해서 단어를 열어보세요
+			{#if allRevealed}&nbsp;{:else}→ 좌→우로 드래그해서 단어를 열어보세요{/if}
 		</p>
 	{/if}
 
