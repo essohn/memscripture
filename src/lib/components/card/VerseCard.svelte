@@ -165,13 +165,13 @@
 					<span class="word-text">{word}</span>
 				</span>{' '}{/each}
 		</p>
-		{#if !allRevealed}
-			<p
-				class="mt-3 text-center text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]"
-			>
-				→ 좌→우로 드래그해서 단어를 열어보세요
-			</p>
-		{/if}
+		<p
+			class="mt-3 text-center text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]"
+			class:invisible={allRevealed}
+			aria-hidden={allRevealed}
+		>
+			→ 좌→우로 드래그해서 단어를 열어보세요
+		</p>
 	{/if}
 
 	{#if tags.length > 0}
