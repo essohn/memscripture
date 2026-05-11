@@ -62,7 +62,7 @@
 
 <Header title={pkg?.abbreviation ?? '...'} onBack={() => history.back()} />
 
-<main class="mx-auto max-w-lg px-5 pb-8 pt-4">
+<main class="mx-auto max-w-2xl px-5 pb-8 pt-4">
 	{#if error}
 		<p role="alert" class="text-[var(--color-danger)]">{error}</p>
 	{:else if !verse}

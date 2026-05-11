@@ -85,7 +85,7 @@
 
 <Header title={data.pkg.name} onBack={() => goto('/library')} />
 
-<main class="mx-auto max-w-lg px-5 pb-8 pt-2">
+<main class="mx-auto max-w-2xl px-5 pb-8 pt-2">
 	<PackageTabStrip packages={data.allPackages} currentId={packageId} />
 
 	<div class="mb-3 flex items-center gap-3 px-1 text-[12px] text-[var(--color-text-secondary)]">
