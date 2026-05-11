@@ -2,5 +2,15 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "memscripture",
 	"compatibility_date": "2026-05-11",
-	"pages_build_output_dir": ".svelte-kit/cloudflare"
+	"compatibility_flags": ["nodejs_compat"],
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare"
+	},
+	"workers_dev": true,
+	"preview_urls": true,
+	"observability": {
+		"enabled": true
+	}
 }
