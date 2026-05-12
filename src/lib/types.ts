@@ -39,6 +39,8 @@ export interface VerseProgress {
 	lastReviewedAt: number;
 	citeRatings: number[]; // sliding window: last 10 ratings (1=Again, 4=Easy)
 	recallRatings: number[]; // sliding window: last 10 ratings
+	/** 'YYYY-MM-DD' (local) of last review day; drives daysActiveInBucket increment. */
+	lastActiveDayKey?: string;
 }
 
 export interface DailyActivity {
