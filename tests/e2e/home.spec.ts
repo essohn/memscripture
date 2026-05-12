@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test';
 
 test('home renders and Pretendard is the active body font', async ({ page }) => {
 	await page.goto('/');
-	await expect(page.getByRole('heading', { name: /오늘은 암송할 구절이/ })).toBeVisible();
+	// Hero is always rendered with a Today pill at the top, regardless of hero state.
+	await expect(page.getByRole('main').getByText('Today')).toBeVisible();
 
 	// Wait for fonts to settle
 	await page.evaluate(() => document.fonts.ready);
