@@ -1,4 +1,5 @@
 import { db } from './local';
+import { todayLocalKey } from './activity';
 import type { VerseProgress } from '$lib/types';
 
 const RATING_WINDOW = 10;
@@ -22,7 +23,8 @@ export async function pushRating(
 	packageId: string,
 	verseNo: number,
 	axis: 'cite' | 'recall',
-	score: number
+	score: number,
+	options: { dateKey?: string } = {}
 ): Promise<void> {
 	if (!Number.isInteger(score) || score < 1 || score > 4) {
 		throw new Error(`pushRating: invalid score ${score} (expected integer 1-4)`);
@@ -31,12 +33,18 @@ export async function pushRating(
 	await db.transaction('rw', db.progress, async () => {
 		const existing = await db.progress.get(id);
 		if (!existing) return;
+		const today = options.dateKey ?? todayLocalKey();
+		const isFirstReviewToday = existing.lastActiveDayKey !== today;
 		const key = axis === 'cite' ? 'citeRatings' : 'recallRatings';
 		const next = [...existing[key], score].slice(-RATING_WINDOW);
 		await db.progress.put({
 			...existing,
 			[key]: next,
-			lastReviewedAt: Date.now()
+			lastReviewedAt: Date.now(),
+			lastActiveDayKey: today,
+			daysActiveInBucket: isFirstReviewToday
+				? existing.daysActiveInBucket + 1
+				: existing.daysActiveInBucket
 		});
 	});
 }

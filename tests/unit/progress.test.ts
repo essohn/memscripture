@@ -125,4 +125,38 @@ describe('progress I/O', () => {
 		const p = await getProgress('5_krv', 1);
 		expect(p?.citeRatings).toHaveLength(5);
 	});
+
+	it('pushRating sets lastActiveDayKey and increments daysActiveInBucket on first review of the day', async () => {
+		await upsertProgress(mk({ daysActiveInBucket: 0, lastActiveDayKey: undefined }));
+		await pushRating('5_krv', 1, 'cite', 3, { dateKey: '2026-05-12' });
+		const p = await getProgress('5_krv', 1);
+		expect(p?.lastActiveDayKey).toBe('2026-05-12');
+		expect(p?.daysActiveInBucket).toBe(1);
+	});
+
+	it('pushRating does NOT increment daysActiveInBucket on second rating same local day', async () => {
+		await upsertProgress(mk({ daysActiveInBucket: 0, lastActiveDayKey: undefined }));
+		await pushRating('5_krv', 1, 'cite', 3, { dateKey: '2026-05-12' });
+		await pushRating('5_krv', 1, 'recall', 4, { dateKey: '2026-05-12' });
+		const p = await getProgress('5_krv', 1);
+		expect(p?.daysActiveInBucket).toBe(1);
+	});
+
+	it('pushRating increments daysActiveInBucket again on new local day', async () => {
+		await upsertProgress(mk({ daysActiveInBucket: 0, lastActiveDayKey: undefined }));
+		await pushRating('5_krv', 1, 'cite', 3, { dateKey: '2026-05-12' });
+		await pushRating('5_krv', 1, 'cite', 3, { dateKey: '2026-05-13' });
+		const p = await getProgress('5_krv', 1);
+		expect(p?.daysActiveInBucket).toBe(2);
+		expect(p?.lastActiveDayKey).toBe('2026-05-13');
+	});
+
+	it('pushRating uses real todayLocalKey when dateKey option omitted', async () => {
+		await upsertProgress(mk({ daysActiveInBucket: 0, lastActiveDayKey: undefined }));
+		await pushRating('5_krv', 1, 'cite', 3);
+		const p = await getProgress('5_krv', 1);
+		// Pattern matches activity.todayLocalKey output
+		expect(p?.lastActiveDayKey).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+		expect(p?.daysActiveInBucket).toBe(1);
+	});
 });
