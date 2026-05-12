@@ -10,6 +10,7 @@
 	import { level1Groups, level2GroupsInSeries, filterVerses } from '$lib/db/verses';
 	import { recordPackageView } from '$lib/db/recent';
 	import { getShowVerseTextInList, setShowVerseTextInList } from '$lib/db/viewOptions';
+	import { getActivePackageId, setActivePackage } from '$lib/db/activePackage';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -17,6 +18,8 @@
 	const packageId = $derived(page.params.packageId!);
 
 	let showVerseText = $state(true);
+	let activePackageId: string | null = $state(null);
+	let bannerVisible = $state(false);
 
 	// Side effects: load preference + record recent view
 	$effect(() => {
@@ -28,6 +31,9 @@
 				if (active) showVerseText = v;
 			})
 			.catch(() => {});
+		(async () => {
+			activePackageId = await getActivePackageId();
+		})().catch(() => {});
 		return () => {
 			active = false;
 		};
@@ -81,12 +87,58 @@
 		showVerseText = !showVerseText;
 		setShowVerseTextInList(showVerseText).catch(() => {});
 	}
+
+	async function activatePackage() {
+		await setActivePackage(packageId);
+		activePackageId = packageId;
+		bannerVisible = true;
+		// auto-dismiss after 3s
+		setTimeout(() => {
+			bannerVisible = false;
+		}, 3000);
+	}
 </script>
 
 <Header title={data.pkg.name} onBack={() => goto('/library')} />
 
 <main class="mx-auto max-w-2xl px-5 pb-8 pt-2">
 	<PackageTabStrip packages={data.allPackages} currentId={packageId} />
+
+	<div class="mb-4 flex items-center justify-between gap-2 px-1">
+		<div class="text-[12px] text-[var(--color-text-secondary)]">
+			{#if activePackageId === packageId}
+				<span
+					class="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent-soft)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--color-accent)]"
+				>
+					학습 중
+				</span>
+			{/if}
+		</div>
+		{#if activePackageId !== packageId}
+			<button
+				type="button"
+				onclick={activatePackage}
+				class="inline-flex items-center rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
+			>
+				이 패키지로 학습 시작
+			</button>
+		{/if}
+	</div>
+
+	{#if bannerVisible}
+		<div
+			role="status"
+			class="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-[var(--color-accent)]/30 bg-[var(--color-accent-soft)] px-4 py-3 text-[13px] text-[var(--color-text)]"
+		>
+			<span>활성 패키지로 설정되었어요.</span>
+			<a
+				href="/today"
+				class="rounded-full bg-[var(--color-accent)] px-3 py-1 text-[12px] font-medium text-white hover:opacity-90"
+			>
+				오늘의 큐 →
+			</a>
+		</div>
+	{/if}
 
 	<div class="mb-3 flex items-center gap-3 px-1 text-[12px] text-[var(--color-text-secondary)]">
 		<span class="font-medium uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]">
