@@ -1,14 +1,15 @@
 <script lang="ts">
-	import { BookOpen, Library, BarChart3 } from 'lucide-svelte';
+	import { BookOpen, Library, Bookmark, BarChart3 } from 'lucide-svelte';
 
 	interface Props {
-		current: 'today' | 'library' | 'stats';
+		current: 'today' | 'library' | 'bookmarks' | 'stats';
 	}
 	let { current }: Props = $props();
 
 	const tabs = [
 		{ id: 'today', href: '/', label: 'Today', icon: BookOpen },
 		{ id: 'library', href: '/library', label: 'Library', icon: Library },
+		{ id: 'bookmarks', href: '/bookmarks', label: 'Marks', icon: Bookmark },
 		{ id: 'stats', href: '/stats', label: 'Stats', icon: BarChart3 }
 	] as const;
 </script>

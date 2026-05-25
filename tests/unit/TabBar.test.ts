@@ -3,10 +3,11 @@ import { describe, it, expect } from 'vitest';
 import TabBar from '../../src/lib/components/nav/TabBar.svelte';
 
 describe('TabBar', () => {
-	it('renders three tabs', () => {
+	it('renders four tabs', () => {
 		render(TabBar, { props: { current: 'today' } });
 		expect(screen.getByRole('link', { name: /today/i })).toBeInTheDocument();
 		expect(screen.getByRole('link', { name: /library/i })).toBeInTheDocument();
+		expect(screen.getByRole('link', { name: /marks/i })).toBeInTheDocument();
 		expect(screen.getByRole('link', { name: /stats/i })).toBeInTheDocument();
 	});
 
@@ -14,5 +15,11 @@ describe('TabBar', () => {
 		render(TabBar, { props: { current: 'library' } });
 		const lib = screen.getByRole('link', { name: /library/i });
 		expect(lib).toHaveAttribute('aria-current', 'page');
+	});
+
+	it('marks bookmarks tab as active when current=bookmarks', () => {
+		render(TabBar, { props: { current: 'bookmarks' } });
+		const marks = screen.getByRole('link', { name: /marks/i });
+		expect(marks).toHaveAttribute('aria-current', 'page');
 	});
 });

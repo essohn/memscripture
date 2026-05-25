@@ -7,10 +7,17 @@ beforeEach(async () => {
 	await db.open();
 });
 
-describe('local db schema v2', () => {
-	it('exposes all 5 tables', () => {
+describe('local db schema v3', () => {
+	it('exposes all 6 tables', () => {
 		const names = db.tables.map((t) => t.name).sort();
-		expect(names).toEqual(['activity', 'packages', 'progress', 'settings', 'verses']);
+		expect(names).toEqual([
+			'activity',
+			'bookmarks',
+			'packages',
+			'progress',
+			'settings',
+			'verses'
+		]);
 	});
 
 	it('round-trips a verse', async () => {

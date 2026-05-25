@@ -5,7 +5,8 @@
 	import QueueProgress from '$lib/components/srs/QueueProgress.svelte';
 	import { goto } from '$app/navigation';
 	import { upsertProgress, pushRating, progressId } from '$lib/db/progress';
-	import type { VerseProgress } from '$lib/types';
+	import { setBookmark, clearBookmark } from '$lib/db/bookmarks';
+	import type { BookmarkColor, VerseProgress } from '$lib/types';
 	import type { TodayLoadData } from './+page';
 
 	let { data }: { data: TodayLoadData } = $props();
@@ -23,6 +24,10 @@
 				(s): QueueItem => ({ kind: 'suggest', packageId: s.packageId, verseNo: s.verseNo })
 			)
 		]
+	);
+
+	const bookmarks = $state<Map<number, BookmarkColor>>(
+		new Map(Object.entries(data.bookmarksByVerseNo).map(([n, c]) => [Number(n), c]))
 	);
 
 	let index = $state(0);
@@ -56,6 +61,20 @@
 			score
 		).catch(() => {});
 		next();
+	}
+
+	async function onBookmarkPick(color: BookmarkColor) {
+		if (!current || current.kind !== 'review') return;
+		const { packageId, verseNo } = current.progress;
+		bookmarks.set(verseNo, color);
+		await setBookmark(packageId, verseNo, color).catch(() => {});
+	}
+
+	async function onBookmarkClear() {
+		if (!current || current.kind !== 'review') return;
+		const { packageId, verseNo } = current.progress;
+		bookmarks.delete(verseNo);
+		await clearBookmark(packageId, verseNo).catch(() => {});
 	}
 
 	async function onCommitSuggestion() {
@@ -121,7 +140,14 @@
 			{#if current && current.kind === 'review'}
 				{@const v = verseByNo.get(current.progress.verseNo)}
 				{#if v}
-					<ReviewCard verse={v} {onCiteRated} {onRecallRated} />
+					<ReviewCard
+						verse={v}
+						bookmark={bookmarks.get(current.progress.verseNo) ?? null}
+						{onCiteRated}
+						{onRecallRated}
+						{onBookmarkPick}
+						{onBookmarkClear}
+					/>
 				{/if}
 			{:else if current && current.kind === 'suggest'}
 				{@const v = verseByNo.get(current.verseNo)}

@@ -14,18 +14,23 @@ const verse: StoredVerse = {
 
 const baseProps = {
 	verse,
+	bookmark: null,
 	onCiteRated: () => {},
-	onRecallRated: () => {}
+	onRecallRated: () => {},
+	onBookmarkPick: () => {},
+	onBookmarkClear: () => {}
 };
 
 describe('ReviewCard', () => {
-	it('Stage 1: shows citation, hides title and body, shows Title 힌트 button', () => {
+	it('Stage 1: shows citation, hides title and body, shows Title 힌트 + cite rating', () => {
 		render(ReviewCard, { props: baseProps });
 		expect(screen.getByText('고후 5:17')).toBeInTheDocument();
 		expect(screen.queryByText('중심되신 그리스도')).toBeNull();
 		expect(screen.queryByText(/그런즉 누구든지/)).toBeNull();
 		expect(screen.getByRole('button', { name: 'Title 힌트 보기' })).toBeInTheDocument();
-		expect(screen.getByRole('button', { name: /구절 보기/ })).toBeInTheDocument();
+		expect(screen.getByText('시작 부분을 떠올리는데 느꼈던 난이도')).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: '떠오르지 않음' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: '빨리 떠오름' })).toBeInTheDocument();
 	});
 
 	it('Stage 1: Title 힌트 button reveals title in place', async () => {
@@ -34,35 +39,21 @@ describe('ReviewCard', () => {
 		expect(screen.getByText('중심되신 그리스도')).toBeInTheDocument();
 	});
 
-	it('Stage 1 → Stage 2 on 구절 보기 tap; shows first clause + rating buttons', async () => {
-		render(ReviewCard, { props: baseProps });
-		await fireEvent.click(screen.getByRole('button', { name: /구절 보기/ }));
-		// First clause (5 words: ceil(15/3)=5)
-		expect(screen.getByText('그런즉 누구든지 그리스도 안에 있으면')).toBeInTheDocument();
-		// Rating buttons present
-		expect(screen.getByRole('button', { name: '다시' })).toBeInTheDocument();
-		expect(screen.getByRole('button', { name: '쉬움' })).toBeInTheDocument();
-	});
-
-	it('Stage 2 cite rating: emits onCiteRated with score and advances to Stage 3', async () => {
+	it('Stage 1 → Stage 2 on cite rating: emits onCiteRated and reveals full verse', async () => {
 		const onCiteRated = vi.fn();
 		render(ReviewCard, { props: { ...baseProps, onCiteRated } });
-		await fireEvent.click(screen.getByRole('button', { name: /구절 보기/ }));
-		await fireEvent.click(screen.getByRole('button', { name: '좋음' }));
+		await fireEvent.click(screen.getByRole('button', { name: '적절히 떠오름' }));
 		expect(onCiteRated).toHaveBeenCalledWith(3);
-		// Stage 3: full text visible
 		expect(screen.getByText(verse.w)).toBeInTheDocument();
-		// Rating row still present for recall axis
-		expect(screen.getByRole('button', { name: '쉬움' })).toBeInTheDocument();
+		expect(screen.getByText('암송 구절 전체가 일치했던 정도')).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: '완벽히 일치함' })).toBeInTheDocument();
 	});
 
-	it('Stage 3 recall rating: emits onRecallRated with score', async () => {
+	it('Stage 2 recall rating: emits onRecallRated with score', async () => {
 		const onRecallRated = vi.fn();
 		render(ReviewCard, { props: { ...baseProps, onRecallRated } });
-		// advance through Stage 1 → 2 → 3
-		await fireEvent.click(screen.getByRole('button', { name: /구절 보기/ }));
-		await fireEvent.click(screen.getByRole('button', { name: '좋음' })); // cite
-		await fireEvent.click(screen.getByRole('button', { name: '쉬움' })); // recall
+		await fireEvent.click(screen.getByRole('button', { name: '적절히 떠오름' })); // cite
+		await fireEvent.click(screen.getByRole('button', { name: '완벽히 일치함' })); // recall
 		expect(onRecallRated).toHaveBeenCalledWith(4);
 	});
 });

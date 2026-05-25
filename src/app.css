@@ -25,6 +25,13 @@
 	--color-warn: #c9954e;
 	--color-danger: #b5654e;
 
+	/* Bookmark ribbons — same values in both themes; chosen for mid-saturation legibility */
+	--color-ribbon-red: #b5654e;
+	--color-ribbon-amber: #d4a55a;
+	--color-ribbon-green: #6b8e5a;
+	--color-ribbon-blue: #6a8aa8;
+	--color-ribbon-purple: #9a7aa8;
+
 	--radius-sm: 6px;
 	--radius-md: 10px;
 	--radius-lg: 14px;

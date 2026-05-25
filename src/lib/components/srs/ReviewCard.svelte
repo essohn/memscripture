@@ -1,33 +1,37 @@
 <script lang="ts">
 	import type { StoredVerse } from '$lib/db/local';
-	import { extractFirstClause } from '$lib/srs/firstClause';
+	import type { BookmarkColor } from '$lib/types';
 	import RatingButtons from './RatingButtons.svelte';
+	import BookmarkControl from './BookmarkControl.svelte';
 
 	interface Props {
 		verse: StoredVerse;
+		bookmark: BookmarkColor | null;
 		onCiteRated: (score: number) => void;
 		onRecallRated: (score: number) => void;
+		onBookmarkPick: (color: BookmarkColor) => void;
+		onBookmarkClear: () => void;
 	}
-	let { verse, onCiteRated, onRecallRated }: Props = $props();
+	let {
+		verse,
+		bookmark,
+		onCiteRated,
+		onRecallRated,
+		onBookmarkPick,
+		onBookmarkClear
+	}: Props = $props();
 
-	type Stage = 1 | 2 | 3;
+	type Stage = 1 | 2;
 	let stage = $state<Stage>(1);
 	let titleHintShown = $state(false);
 
-	const firstClause = $derived(extractFirstClause(verse.w));
-
-	function advance() {
-		stage = 2;
-	}
-
 	function rateCite(score: number) {
 		onCiteRated(score);
-		stage = 3;
+		stage = 2;
 	}
 
 	function rateRecall(score: number) {
 		onRecallRated(score);
-		// stage stays at 3; parent will swap to next card
 	}
 </script>
 
@@ -36,14 +40,14 @@
 >
 	<header class="flex flex-col items-center gap-3 text-center">
 		<p class="text-[24px] font-semibold tabular-nums text-[var(--color-text)]">{verse.cite}</p>
-		{#if stage === 1 && titleHintShown}
+		{#if titleHintShown}
 			<p class="text-[16px] text-[var(--color-text-secondary)]">{verse.title}</p>
 		{/if}
 	</header>
 
 	{#if stage === 1}
-		<div class="mt-10 flex flex-col items-center gap-3">
-			{#if !titleHintShown}
+		{#if !titleHintShown}
+			<div class="mt-6 flex justify-center">
 				<button
 					type="button"
 					onclick={() => (titleHintShown = true)}
@@ -51,21 +55,10 @@
 				>
 					Title 힌트 보기
 				</button>
-			{/if}
-			<button
-				type="button"
-				onclick={advance}
-				class="mt-2 inline-flex items-center gap-1 rounded-full bg-[var(--color-accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-opacity hover:opacity-90"
-			>
-				구절 보기 →
-			</button>
-		</div>
-	{:else if stage === 2}
-		<p class="mt-8 break-keep text-center text-[17px] leading-[1.85] text-[var(--color-text)]">
-			{firstClause}
-		</p>
+			</div>
+		{/if}
 		<div class="mt-8">
-			<RatingButtons onrate={rateCite} />
+			<RatingButtons phase="cite" onrate={rateCite} />
 		</div>
 	{:else}
 		<p
@@ -74,7 +67,10 @@
 			{verse.w}
 		</p>
 		<div class="mt-8">
-			<RatingButtons onrate={rateRecall} />
+			<RatingButtons phase="recall" onrate={rateRecall} />
+		</div>
+		<div class="mt-6">
+			<BookmarkControl current={bookmark} onpick={onBookmarkPick} onclear={onBookmarkClear} />
 		</div>
 	{/if}
 </article>

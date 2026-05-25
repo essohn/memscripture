@@ -46,3 +46,14 @@ export interface VerseProgress {
 export interface DailyActivity {
 	dateKey: string; // local-date 'YYYY-MM-DD'
 }
+
+export const BOOKMARK_COLORS = ['red', 'amber', 'green', 'blue', 'purple'] as const;
+export type BookmarkColor = (typeof BOOKMARK_COLORS)[number];
+
+export interface Bookmark {
+	id: string; // composite key: `${packageId}:${verseNo}`
+	packageId: string;
+	verseNo: number;
+	color: BookmarkColor;
+	createdAt: number; // ms timestamp
+}
