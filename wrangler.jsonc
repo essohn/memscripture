@@ -10,6 +10,9 @@
 	},
 	"workers_dev": true,
 	"preview_urls": true,
+	"routes": [
+		{ "pattern": "mem.lifescripture.org", "custom_domain": true }
+	],
 	"observability": {
 		"enabled": true
 	}
