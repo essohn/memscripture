@@ -1,7 +1,9 @@
 <script lang="ts">
 	import type { StoredVerse } from '$lib/db/local';
 	import type { VerseTag } from '$lib/db/verses';
+	import type { BookmarkColor } from '$lib/types';
 	import CategoryTag from '$lib/components/filter/CategoryTag.svelte';
+	import BookmarkControl from '$lib/components/srs/BookmarkControl.svelte';
 	import { splitVerseWords } from '$lib/utils/chunk';
 	import { goto } from '$app/navigation';
 
@@ -10,8 +12,21 @@
 		packageName?: string;
 		packageId?: string;
 		tags?: VerseTag[];
+		bookmark?: BookmarkColor | null;
+		onBookmarkPick?: (color: BookmarkColor) => void;
+		onBookmarkClear?: () => void;
 	}
-	let { verse, packageName, packageId, tags = [] }: Props = $props();
+	let {
+		verse,
+		packageName,
+		packageId,
+		tags = [],
+		bookmark = null,
+		onBookmarkPick,
+		onBookmarkClear
+	}: Props = $props();
+
+	const bookmarksEnabled = $derived(Boolean(onBookmarkPick && onBookmarkClear));
 
 	// ─── Memorize mode state ──────────────────────────────────────────────
 	let mode: 'read' | 'memorize' = $state('read');
@@ -119,7 +134,7 @@
 </script>
 
 <article
-	class="verse-card overflow-hidden rounded-[26px] border border-[var(--color-border)] bg-[var(--color-card)] px-7 pb-9 pt-7"
+	class="verse-card rounded-[26px] border border-[var(--color-border)] bg-[var(--color-card)] px-7 pb-9 pt-7"
 >
 	<header class="space-y-2">
 		<div class="flex items-center justify-between gap-3">
@@ -185,8 +200,18 @@
 		</div>
 	{/if}
 
-	<!-- Mode controls -->
-	<div class="mt-6 flex items-center justify-end gap-3 text-[12px]">
+	<!-- Mode controls + bookmark -->
+	<div class="mt-6 flex flex-wrap items-center justify-between gap-3 text-[12px]">
+		<div class="flex items-center">
+			{#if bookmarksEnabled}
+				<BookmarkControl
+					current={bookmark}
+					onpick={onBookmarkPick!}
+					onclear={onBookmarkClear!}
+				/>
+			{/if}
+		</div>
+		<div class="flex items-center gap-3">
 		{#if mode === 'read'}
 			<button
 				type="button"
@@ -223,6 +248,7 @@
 				✕
 			</button>
 		{/if}
+		</div>
 	</div>
 </article>
 

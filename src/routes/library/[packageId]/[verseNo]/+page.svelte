@@ -9,7 +9,8 @@
 		tagsForVerse,
 		type VerseTag
 	} from '$lib/db/verses';
-	import type { PackageMeta, IndexGroup } from '$lib/types';
+	import { getBookmark, setBookmark, clearBookmark } from '$lib/db/bookmarks';
+	import type { BookmarkColor, PackageMeta, IndexGroup } from '$lib/types';
 	import type { StoredVerse } from '$lib/db/local';
 
 	const packageId = $derived(page.params.packageId!);
@@ -18,6 +19,7 @@
 	let pkg: PackageMeta | null = $state(null);
 	let verse: StoredVerse | null = $state(null);
 	let groups: IndexGroup[] = $state([]);
+	let bookmark: BookmarkColor | null = $state(null);
 	let error: string | null = $state(null);
 
 	$effect(() => {
@@ -36,12 +38,16 @@
 				}
 				if (active) pkg = found;
 
-				const data = await loadPackageData(currentPackageId);
+				const [data, currentBookmark] = await Promise.all([
+					loadPackageData(currentPackageId),
+					getBookmark(currentPackageId, currentVerseNo)
+				]);
 				if (active) {
 					const v = data.verses.find((x) => x.no === currentVerseNo) ?? null;
 					if (!v) error = '구절을 찾을 수 없습니다.';
 					else verse = v;
 					groups = data.groups;
+					bookmark = currentBookmark?.color ?? null;
 				}
 			} catch (e) {
 				if (active) error = String(e);
@@ -51,6 +57,20 @@
 			active = false;
 		};
 	});
+
+	async function onBookmarkPick(color: BookmarkColor) {
+		const pkgId = packageId;
+		const vNo = verseNo;
+		bookmark = color;
+		await setBookmark(pkgId, vNo, color).catch(() => {});
+	}
+
+	async function onBookmarkClear() {
+		const pkgId = packageId;
+		const vNo = verseNo;
+		bookmark = null;
+		await clearBookmark(pkgId, vNo).catch(() => {});
+	}
 
 	// Suppress tags for flat single-group packages
 	const tags = $derived.by(() => {
@@ -68,6 +88,14 @@
 	{:else if !verse}
 		<p role="status" class="text-[var(--color-text-tertiary)]">불러오는 중...</p>
 	{:else}
-		<VerseCard {verse} packageName={pkg?.abbreviation} {packageId} {tags} />
+		<VerseCard
+			{verse}
+			packageName={pkg?.abbreviation}
+			{packageId}
+			{tags}
+			{bookmark}
+			{onBookmarkPick}
+			{onBookmarkClear}
+		/>
 	{/if}
 </main>

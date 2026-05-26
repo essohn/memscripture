@@ -1,25 +1,13 @@
 <script lang="ts">
 	import type { StoredVerse } from '$lib/db/local';
-	import type { BookmarkColor } from '$lib/types';
 	import RatingButtons from './RatingButtons.svelte';
-	import BookmarkControl from './BookmarkControl.svelte';
 
 	interface Props {
 		verse: StoredVerse;
-		bookmark: BookmarkColor | null;
 		onCiteRated: (score: number) => void;
 		onRecallRated: (score: number) => void;
-		onBookmarkPick: (color: BookmarkColor) => void;
-		onBookmarkClear: () => void;
 	}
-	let {
-		verse,
-		bookmark,
-		onCiteRated,
-		onRecallRated,
-		onBookmarkPick,
-		onBookmarkClear
-	}: Props = $props();
+	let { verse, onCiteRated, onRecallRated }: Props = $props();
 
 	type Stage = 1 | 2;
 	let stage = $state<Stage>(1);
@@ -68,9 +56,6 @@
 		</p>
 		<div class="mt-8">
 			<RatingButtons phase="recall" onrate={rateRecall} />
-		</div>
-		<div class="mt-6">
-			<BookmarkControl current={bookmark} onpick={onBookmarkPick} onclear={onBookmarkClear} />
 		</div>
 	{/if}
 </article>

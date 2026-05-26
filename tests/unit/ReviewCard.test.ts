@@ -14,11 +14,8 @@ const verse: StoredVerse = {
 
 const baseProps = {
 	verse,
-	bookmark: null,
 	onCiteRated: () => {},
-	onRecallRated: () => {},
-	onBookmarkPick: () => {},
-	onBookmarkClear: () => {}
+	onRecallRated: () => {}
 };
 
 describe('ReviewCard', () => {
