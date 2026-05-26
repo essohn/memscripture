@@ -25,13 +25,6 @@
 	--color-warn: #c9954e;
 	--color-danger: #b5654e;
 
-	/* Bookmark ribbons — same values in both themes; chosen for mid-saturation legibility */
-	--color-ribbon-red: #b5654e;
-	--color-ribbon-amber: #d4a55a;
-	--color-ribbon-green: #6b8e5a;
-	--color-ribbon-blue: #6a8aa8;
-	--color-ribbon-purple: #9a7aa8;
-
 	--radius-sm: 6px;
 	--radius-md: 10px;
 	--radius-lg: 14px;
@@ -88,6 +81,21 @@
 		--color-accent-soft: rgba(212, 180, 122, 0.12);
 		--color-border: #2f2a22;
 	}
+}
+
+/*
+ * Bookmark ribbon palette — same values in both themes.
+ * Lives outside @theme on purpose: these vars are only referenced via dynamic
+ * inline `style="...var(--color-ribbon-{c})..."` interpolation, which Tailwind v4's
+ * static scanner can't see — so if defined inside @theme they get tree-shaken
+ * from the prod build and the bookmark UI renders with transparent dots.
+ */
+:root {
+	--color-ribbon-red: #b5654e;
+	--color-ribbon-amber: #d4a55a;
+	--color-ribbon-green: #6b8e5a;
+	--color-ribbon-blue: #6a8aa8;
+	--color-ribbon-purple: #9a7aa8;
 }
 
 /* Base reset & ergonomics */
