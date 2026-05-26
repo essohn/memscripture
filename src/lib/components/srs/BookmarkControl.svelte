@@ -64,14 +64,14 @@
 		class="ribbon-trigger block transition-opacity hover:opacity-85"
 	>
 		<svg
-			viewBox="0 0 14 52"
-			width="14"
+			viewBox="0 0 18 52"
+			width="18"
 			height="52"
 			aria-hidden="true"
 			focusable="false"
 		>
 			<path
-				d="M0 0 H14 V52 L7 45 L0 52 Z"
+				d="M0 0 H18 V52 L9 45 L0 52 Z"
 				fill={current ? `var(--color-ribbon-${current})` : 'transparent'}
 				stroke={current ? 'none' : 'var(--color-text-tertiary)'}
 				stroke-width="1.5"
@@ -146,5 +146,14 @@
 	}
 	.ribbon-trigger {
 		line-height: 0;
+	}
+	/* drop-shadow follows the V-notch silhouette; box-shadow would draw a rectangle. */
+	.ribbon-trigger svg {
+		filter: drop-shadow(0 1px 1.5px rgba(58, 46, 37, 0.18))
+			drop-shadow(0 3px 4px rgba(58, 46, 37, 0.12));
+	}
+	:global(.theme-dark) .ribbon-trigger svg {
+		filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.4))
+			drop-shadow(0 3px 4px rgba(0, 0, 0, 0.3));
 	}
 </style>
