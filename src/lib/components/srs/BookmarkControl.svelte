@@ -10,6 +10,8 @@
 	let { current, onpick, onclear }: Props = $props();
 
 	let expanded = $state(false);
+	let triggerEl: HTMLButtonElement | undefined = $state();
+	let popoverStyle = $state('');
 
 	const COLOR_LABELS: Record<BookmarkColor, string> = {
 		red: '빨강',
@@ -18,6 +20,26 @@
 		blue: '파랑',
 		purple: '보라'
 	};
+
+	function open() {
+		if (!triggerEl) return;
+		const iconRect = triggerEl.getBoundingClientRect();
+		// Anchor popover BELOW the enclosing card (article) so it visibly drops
+		// past the card's bottom edge, not inside its bottom padding.
+		const card = triggerEl.closest('article');
+		const top = (card ? card.getBoundingClientRect().bottom : iconRect.bottom) + 8;
+		const left = iconRect.left;
+		popoverStyle = `top: ${top}px; left: ${left}px;`;
+		expanded = true;
+	}
+
+	function toggle() {
+		if (expanded) {
+			expanded = false;
+		} else {
+			open();
+		}
+	}
 
 	function pick(c: BookmarkColor) {
 		if (current === c) {
@@ -42,10 +64,11 @@
 
 <svelte:window onkeydown={onKey} />
 
-<div class="bookmark-control relative">
+<div class="bookmark-control">
 	<button
+		bind:this={triggerEl}
 		type="button"
-		onclick={() => (expanded = !expanded)}
+		onclick={toggle}
 		aria-haspopup="menu"
 		aria-expanded={expanded}
 		aria-label={current ? `${COLOR_LABELS[current]} 리본 (변경)` : '북마크 추가'}
@@ -60,9 +83,9 @@
 	</button>
 
 	{#if expanded}
-		<!-- backdrop catches outside clicks; transparent -->
+		<!-- Backdrop: catches outside clicks. Above TabBar (z-50) and Header (z-40). -->
 		<div
-			class="fixed inset-0 z-20"
+			class="fixed inset-0 z-[55]"
 			onclick={() => (expanded = false)}
 			role="presentation"
 			aria-hidden="true"
@@ -71,7 +94,8 @@
 		<div
 			role="menu"
 			aria-label="북마크 색상 선택"
-			class="popover absolute left-0 top-full z-30 mt-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-3"
+			class="popover fixed z-[60] rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-3"
+			style={popoverStyle}
 		>
 			<div class="flex items-center gap-3">
 				<div role="group" aria-label="리본 색상" class="flex items-center gap-2">
