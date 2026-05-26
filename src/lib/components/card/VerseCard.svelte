@@ -134,7 +134,7 @@
 </script>
 
 <article
-	class="verse-card rounded-[26px] border border-[var(--color-border)] bg-[var(--color-card)] px-7 pb-9 pt-7"
+	class="verse-card relative rounded-[26px] border border-[var(--color-border)] bg-[var(--color-card)] px-7 pb-9 pt-7"
 >
 	<header class="space-y-2">
 		<div class="flex items-center justify-between gap-3">
@@ -200,18 +200,8 @@
 		</div>
 	{/if}
 
-	<!-- Mode controls + bookmark -->
-	<div class="mt-6 flex flex-wrap items-center justify-between gap-3 text-[12px]">
-		<div class="flex items-center">
-			{#if bookmarksEnabled}
-				<BookmarkControl
-					current={bookmark}
-					onpick={onBookmarkPick!}
-					onclear={onBookmarkClear!}
-				/>
-			{/if}
-		</div>
-		<div class="flex items-center gap-3">
+	<!-- Mode controls -->
+	<div class="mt-6 flex flex-wrap items-center justify-end gap-3 text-[12px]">
 		{#if mode === 'read'}
 			<button
 				type="button"
@@ -248,8 +238,15 @@
 				✕
 			</button>
 		{/if}
-		</div>
 	</div>
+
+	{#if bookmarksEnabled}
+		<!-- Draping ribbon: anchored at the card's bottom-left, hangs 14px past the bottom edge.
+		     The article must be position:relative and not overflow-hidden for this to show. -->
+		<div class="absolute -bottom-3.5 left-7">
+			<BookmarkControl current={bookmark} onpick={onBookmarkPick!} onclear={onBookmarkClear!} />
+		</div>
+	{/if}
 </article>
 
 <style>

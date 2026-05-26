@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Bookmark, BookmarkCheck, X } from 'lucide-svelte';
+	import { X } from 'lucide-svelte';
 	import { BOOKMARK_COLORS, type BookmarkColor } from '$lib/types';
 
 	interface Props {
@@ -23,30 +23,21 @@
 
 	function open() {
 		if (!triggerEl) return;
-		const iconRect = triggerEl.getBoundingClientRect();
-		// Anchor popover BELOW the enclosing card (article) so it visibly drops
-		// past the card's bottom edge, not inside its bottom padding.
-		const card = triggerEl.closest('article');
-		const top = (card ? card.getBoundingClientRect().bottom : iconRect.bottom) + 8;
-		const left = iconRect.left;
-		popoverStyle = `top: ${top}px; left: ${left}px;`;
+		const rect = triggerEl.getBoundingClientRect();
+		// Drop below the ribbon's own bottom tip — not the card's bottom — because
+		// the ribbon now drapes past the card edge.
+		popoverStyle = `top: ${rect.bottom + 8}px; left: ${rect.left}px;`;
 		expanded = true;
 	}
 
 	function toggle() {
-		if (expanded) {
-			expanded = false;
-		} else {
-			open();
-		}
+		if (expanded) expanded = false;
+		else open();
 	}
 
 	function pick(c: BookmarkColor) {
-		if (current === c) {
-			onclear();
-		} else {
-			onpick(c);
-		}
+		if (current === c) onclear();
+		else onpick(c);
 		expanded = false;
 	}
 
@@ -56,9 +47,7 @@
 	}
 
 	function onKey(e: KeyboardEvent) {
-		if (expanded && e.key === 'Escape') {
-			expanded = false;
-		}
+		if (expanded && e.key === 'Escape') expanded = false;
 	}
 </script>
 
@@ -72,14 +61,22 @@
 		aria-haspopup="menu"
 		aria-expanded={expanded}
 		aria-label={current ? `${COLOR_LABELS[current]} 리본 (변경)` : '북마크 추가'}
-		class="inline-flex items-center justify-center gap-1.5 rounded-md p-1.5 text-[12px] font-medium transition-colors hover:bg-[var(--color-elevated)]"
+		class="ribbon-trigger block transition-opacity hover:opacity-85"
 	>
-		{#if current}
-			<BookmarkCheck size={18} strokeWidth={2} color={`var(--color-ribbon-${current})`} />
-			<span style="color: var(--color-ribbon-{current})">{COLOR_LABELS[current]}</span>
-		{:else}
-			<Bookmark size={18} strokeWidth={1.75} color="var(--color-text-tertiary)" />
-		{/if}
+		<svg
+			viewBox="0 0 14 52"
+			width="14"
+			height="52"
+			aria-hidden="true"
+			focusable="false"
+		>
+			<path
+				d="M0 0 H14 V52 L7 45 L0 52 Z"
+				fill={current ? `var(--color-ribbon-${current})` : 'transparent'}
+				stroke={current ? 'none' : 'var(--color-text-tertiary)'}
+				stroke-width="1.5"
+			/>
+		</svg>
 	</button>
 
 	{#if expanded}
@@ -146,5 +143,8 @@
 <style>
 	.popover {
 		box-shadow: var(--shadow-popover);
+	}
+	.ribbon-trigger {
+		line-height: 0;
 	}
 </style>
