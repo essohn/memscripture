@@ -64,14 +64,14 @@
 		class="ribbon-trigger block transition-opacity hover:opacity-85"
 	>
 		<svg
-			viewBox="0 0 18 52"
-			width="18"
+			viewBox="0 0 24 52"
+			width="24"
 			height="52"
 			aria-hidden="true"
 			focusable="false"
 		>
 			<path
-				d="M0 0 H18 V52 L9 45 L0 52 Z"
+				d="M0 0 H24 V52 L12 45 L0 52 Z"
 				fill={current ? `var(--color-ribbon-${current})` : 'transparent'}
 				stroke={current ? 'none' : 'var(--color-text-tertiary)'}
 				stroke-width="1.5"
