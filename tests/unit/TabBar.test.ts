@@ -3,9 +3,9 @@ import { describe, it, expect } from 'vitest';
 import TabBar from '../../src/lib/components/nav/TabBar.svelte';
 
 describe('TabBar', () => {
-	it('renders four tabs', () => {
-		render(TabBar, { props: { current: 'today' } });
-		expect(screen.getByRole('link', { name: /today/i })).toBeInTheDocument();
+	it('renders three tabs (Today disabled)', () => {
+		render(TabBar, { props: { current: 'library' } });
+		expect(screen.queryByRole('link', { name: /today/i })).toBeNull();
 		expect(screen.getByRole('link', { name: /library/i })).toBeInTheDocument();
 		expect(screen.getByRole('link', { name: /marks/i })).toBeInTheDocument();
 		expect(screen.getByRole('link', { name: /stats/i })).toBeInTheDocument();

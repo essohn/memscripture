@@ -1,6 +1,9 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Today + intake e2e', () => {
+// Skipped while the Today section is disabled (TabBar entry removed, / redirects
+// to /library). The flow depends on the hero CTA "오늘의 큐 →" which no longer
+// renders. Re-enable together with TabBar's Today tab.
+test.describe.skip('Today + intake e2e', () => {
 	test('first-time user: activates package and commits first suggestion', async ({ page }) => {
 		// Clear Dexie before each navigation to start fresh
 		await page.goto('/library');

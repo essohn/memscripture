@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
 
-test('home renders and Pretendard is the active body font', async ({ page }) => {
+test('home redirects to /library and Pretendard is the active body font', async ({ page }) => {
 	await page.goto('/');
-	// Hero is always rendered with a Today pill at the top, regardless of hero state.
-	await expect(page.getByRole('main').getByText('Today')).toBeVisible();
+	// With the Today section disabled, / 307s to /library — Playwright follows it.
+	await expect(page).toHaveURL(/\/library$/);
 
 	// Wait for fonts to settle
 	await page.evaluate(() => document.fonts.ready);
