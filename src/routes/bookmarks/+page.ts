@@ -31,7 +31,10 @@ export const load: PageLoad = async (): Promise<BookmarksLoadData> => {
 		Promise.all(uniquePkgIds.map((id) => listVerses(id)))
 	]);
 
-	const pkgNameById = new Map<string, string>(packages.map((p: PackageMeta) => [p.id, p.name]));
+	// Use abbreviation so the package label on VerseCard matches library detail.
+	const pkgNameById = new Map<string, string>(
+		packages.map((p: PackageMeta) => [p.id, p.abbreviation])
+	);
 	const verseByKey = new Map<string, StoredVerse>();
 	versesPerPkg.flat().forEach((v) => verseByKey.set(`${v.package_id}:${v.no}`, v));
 

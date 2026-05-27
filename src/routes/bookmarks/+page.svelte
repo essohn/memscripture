@@ -1,9 +1,8 @@
 <script lang="ts">
 	import Header from '$lib/components/nav/Header.svelte';
-	import { BookmarkCheck, X } from 'lucide-svelte';
-	import { clearBookmark, clearAllOfColor } from '$lib/db/bookmarks';
+	import VerseCard from '$lib/components/card/VerseCard.svelte';
+	import { setBookmark, clearBookmark, clearAllOfColor } from '$lib/db/bookmarks';
 	import { BOOKMARK_COLORS, type BookmarkColor } from '$lib/types';
-	import { extractFirstClause } from '$lib/srs/firstClause';
 	import type { BookmarksLoadData, BookmarkedRow } from './+page';
 
 	let { data }: { data: BookmarksLoadData } = $props();
@@ -29,6 +28,17 @@
 	});
 
 	const visibleRows = $derived(rows.filter((r) => r.bookmark.color === selected));
+
+	async function pickColor(row: BookmarkedRow, color: BookmarkColor) {
+		// Rebuild the row so the $state array reactively notices the color change
+		// (mutating row.bookmark.color in place wouldn't re-trigger derived counts).
+		rows = rows.map((r) =>
+			r.bookmark.id === row.bookmark.id
+				? { ...r, bookmark: { ...r.bookmark, color } }
+				: r
+		);
+		await setBookmark(row.bookmark.packageId, row.bookmark.verseNo, color).catch(() => {});
+	}
 
 	async function removeRow(row: BookmarkedRow) {
 		const { packageId, verseNo } = row.bookmark;
@@ -85,7 +95,7 @@
 				{COLOR_LABELS[selected]} 리본으로 북마크한 구절이 아직 없어요.
 			</p>
 			<p class="mt-2 text-[13px] text-[var(--color-text-tertiary)]">
-				오늘 화면에서 구절을 외운 뒤 카드 아래 북마크 영역을 눌러 추가할 수 있어요.
+				라이브러리에서 구절을 열고 카드 모서리의 리본을 탭해 추가할 수 있어요.
 			</p>
 		</section>
 	{:else}
@@ -102,58 +112,17 @@
 			</button>
 		</div>
 
-		<ul class="space-y-3">
+		<div class="space-y-5">
 			{#each visibleRows as row (row.bookmark.id)}
-				<li
-					class="row-card relative rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-5 py-4"
-				>
-					<div class="flex items-start gap-3">
-						<BookmarkCheck
-							size={18}
-							strokeWidth={2}
-							color={`var(--color-ribbon-${row.bookmark.color})`}
-							class="mt-0.5 shrink-0"
-						/>
-						<div class="min-w-0 flex-1">
-							<div class="flex items-baseline gap-2">
-								<p class="text-[15px] font-semibold tabular-nums text-[var(--color-text)]">
-									{row.verse.cite}
-								</p>
-								<p class="truncate text-[12px] text-[var(--color-text-tertiary)]">
-									{row.packageName}
-								</p>
-							</div>
-							{#if row.verse.title}
-								<p class="mt-0.5 text-[13px] text-[var(--color-text-secondary)]">
-									{row.verse.title}
-								</p>
-							{/if}
-							<p
-								class="mt-2 break-keep text-[14px] leading-relaxed text-[var(--color-text-secondary)]"
-							>
-								{extractFirstClause(row.verse.w)}…
-							</p>
-						</div>
-						<button
-							type="button"
-							onclick={() => removeRow(row)}
-							aria-label="이 북마크 지우기"
-							class="-mr-1 -mt-1 shrink-0 rounded-md p-1.5 text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-danger)]"
-						>
-							<X size={16} strokeWidth={1.75} />
-						</button>
-					</div>
-				</li>
+				<VerseCard
+					verse={row.verse}
+					packageName={row.packageName}
+					packageId={row.bookmark.packageId}
+					bookmark={row.bookmark.color}
+					onBookmarkPick={(c) => pickColor(row, c)}
+					onBookmarkClear={() => removeRow(row)}
+				/>
 			{/each}
-		</ul>
+		</div>
 	{/if}
 </main>
-
-<style>
-	.row-card {
-		box-shadow: var(--shadow-soft);
-	}
-	.empty-card {
-		box-shadow: var(--shadow-soft);
-	}
-</style>
