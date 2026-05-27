@@ -110,7 +110,7 @@
 				<span
 					class="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent-soft)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--color-accent)]"
 				>
-					학습 중
+					암송 중
 				</span>
 			{/if}
 		</div>
@@ -120,7 +120,7 @@
 				onclick={activatePackage}
 				class="inline-flex items-center rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
 			>
-				이 패키지로 학습 시작
+				이 패키지로 암송 시작
 			</button>
 		{/if}
 	</div>

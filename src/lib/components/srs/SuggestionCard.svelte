@@ -37,7 +37,7 @@
 			onclick={oncommit}
 			class="inline-flex items-center justify-center rounded-full bg-[var(--color-accent)] px-8 py-3 text-[14px] font-medium text-white transition-opacity hover:opacity-90"
 		>
-			학습 시작
+			암송 시작
 		</button>
 		<button
 			type="button"

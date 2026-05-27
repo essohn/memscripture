@@ -86,10 +86,10 @@
 
 		{#if heroState === 'no-active'}
 			<h2 class="relative mt-4 text-[24px] font-semibold leading-tight text-[var(--color-text)]">
-				학습할 패키지를 골라보세요
+				암송할 패키지를 선택해주세요
 			</h2>
 			<p class="relative mt-3 text-[14px] leading-relaxed text-[var(--color-text-secondary)]">
-				라이브러리에서 패키지를 열고<br />「이 패키지로 학습 시작」을 누르세요.
+				라이브러리에서 패키지를 열고<br />「이 패키지로 암송 시작」을 누르세요.
 			</p>
 			<a
 				href="/library"

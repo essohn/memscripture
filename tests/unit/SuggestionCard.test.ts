@@ -20,16 +20,16 @@ describe('SuggestionCard', () => {
 		expect(screen.getByText(/그런즉 누구든지 그리스도 안에 있으면/)).toBeInTheDocument();
 	});
 
-	it('renders 학습 시작 and Skip buttons', () => {
+	it('renders 암송 시작 and Skip buttons', () => {
 		render(SuggestionCard, { props: { verse, oncommit: () => {}, onskip: () => {} } });
-		expect(screen.getByRole('button', { name: '학습 시작' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: '암송 시작' })).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument();
 	});
 
-	it('학습 시작 tap emits oncommit', async () => {
+	it('암송 시작 tap emits oncommit', async () => {
 		const oncommit = vi.fn();
 		render(SuggestionCard, { props: { verse, oncommit, onskip: () => {} } });
-		await fireEvent.click(screen.getByRole('button', { name: '학습 시작' }));
+		await fireEvent.click(screen.getByRole('button', { name: '암송 시작' }));
 		expect(oncommit).toHaveBeenCalledOnce();
 	});
 

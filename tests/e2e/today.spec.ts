@@ -23,9 +23,9 @@ test.describe('Today + intake e2e', () => {
 		await expect(page.getByTestId('verse-row').first()).toBeVisible();
 
 		// Activate this package
-		await page.getByRole('button', { name: '이 패키지로 학습 시작' }).click();
+		await page.getByRole('button', { name: '이 패키지로 암송 시작' }).click();
 		await expect(page.getByText('활성 패키지로 설정되었어요.')).toBeVisible();
-		await expect(page.getByText('학습 중')).toBeVisible();
+		await expect(page.getByText('암송 중')).toBeVisible();
 
 		// Tap CTA → /today
 		await page.getByRole('link', { name: '오늘의 큐 →' }).click();
@@ -33,10 +33,10 @@ test.describe('Today + intake e2e', () => {
 
 		// Should see suggestion card for verseNo 1
 		await expect(page.getByText('다음 추천')).toBeVisible();
-		await expect(page.getByRole('button', { name: '학습 시작' })).toBeVisible();
+		await expect(page.getByRole('button', { name: '암송 시작' })).toBeVisible();
 
 		// Commit first suggestion
-		await page.getByRole('button', { name: '학습 시작' }).click();
+		await page.getByRole('button', { name: '암송 시작' }).click();
 
 		// Should advance to next item (second suggestion or done screen)
 		// Either way, the initial suggestion's button text should no longer be visible
