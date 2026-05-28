@@ -15,6 +15,9 @@
 		bookmark?: BookmarkColor | null;
 		onBookmarkPick?: (color: BookmarkColor) => void;
 		onBookmarkClear?: () => void;
+		/** When false, hide the verse body in read mode. Memorize mode ignores this
+		 *  and always renders the body so the curtain UI has something to drag over. */
+		showBody?: boolean;
 	}
 	let {
 		verse,
@@ -23,7 +26,8 @@
 		tags = [],
 		bookmark = null,
 		onBookmarkPick,
-		onBookmarkClear
+		onBookmarkClear,
+		showBody = true
 	}: Props = $props();
 
 	const bookmarksEnabled = $derived(Boolean(onBookmarkPick && onBookmarkClear));
@@ -159,11 +163,13 @@
 	</header>
 
 	{#if mode === 'read'}
-		<p
-			class="mt-6 whitespace-pre-line break-keep text-[17px] leading-[1.85] text-[var(--color-text)]"
-		>
-			{verse.w}
-		</p>
+		{#if showBody}
+			<p
+				class="mt-6 whitespace-pre-line break-keep text-[17px] leading-[1.85] text-[var(--color-text)]"
+			>
+				{verse.w}
+			</p>
+		{/if}
 	{:else}
 		<p
 			class="paragraph mt-6 break-keep text-[17px] leading-[2] text-[var(--color-text)] select-none touch-pan-y"

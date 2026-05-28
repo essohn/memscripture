@@ -2,7 +2,9 @@
 	import Header from '$lib/components/nav/Header.svelte';
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
+	import { Eye, EyeOff } from 'lucide-svelte';
 	import { setBookmark, clearBookmark, clearAllOfColor } from '$lib/db/bookmarks';
+	import { getShowVerseTextInList, setShowVerseTextInList } from '$lib/db/viewOptions';
 	import { BOOKMARK_COLORS, type BookmarkColor } from '$lib/types';
 	import type { BookmarksLoadData, BookmarkedRow } from './+page';
 
@@ -10,9 +12,26 @@
 
 	let rows = $state<BookmarkedRow[]>(data.rows);
 	let selected = $state<BookmarkColor>('red');
+	let showVerseText = $state(true);
 	let toast = $state<{ message: string; actionLabel?: string; onAction?: () => void } | null>(
 		null
 	);
+
+	$effect(() => {
+		let active = true;
+		(async () => {
+			const v = await getShowVerseTextInList();
+			if (active) showVerseText = v;
+		})().catch(() => {});
+		return () => {
+			active = false;
+		};
+	});
+
+	function toggleVerseText() {
+		showVerseText = !showVerseText;
+		setShowVerseTextInList(showVerseText).catch(() => {});
+	}
 
 	const COLOR_LABELS: Record<BookmarkColor, string> = {
 		red: '빨강',
@@ -125,13 +144,28 @@
 			<p class="text-[13px] text-[var(--color-text-secondary)]">
 				총 <span class="font-semibold text-[var(--color-text)]">{visibleRows.length}개</span>
 			</p>
-			<button
-				type="button"
-				onclick={clearAllSelected}
-				class="text-[12px] font-medium text-[var(--color-danger)] underline-offset-4 hover:underline"
-			>
-				이 색 전부 지우기
-			</button>
+			<div class="flex items-center gap-3">
+				<button
+					type="button"
+					onclick={clearAllSelected}
+					class="text-[12px] font-medium text-[var(--color-danger)] underline-offset-4 hover:underline"
+				>
+					이 색 전부 지우기
+				</button>
+				<button
+					type="button"
+					onclick={toggleVerseText}
+					aria-pressed={showVerseText}
+					aria-label={showVerseText ? '구절 본문 표시 끄기' : '구절 본문 표시 켜기'}
+					class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
+				>
+					{#if showVerseText}
+						<Eye size={16} />
+					{:else}
+						<EyeOff size={16} />
+					{/if}
+				</button>
+			</div>
 		</div>
 
 		<div class="space-y-5">
@@ -143,6 +177,7 @@
 					bookmark={row.bookmark.color}
 					onBookmarkPick={(c) => pickColor(row, c)}
 					onBookmarkClear={() => removeRow(row)}
+					showBody={showVerseText}
 				/>
 			{/each}
 		</div>
