@@ -35,7 +35,10 @@
 	// ─── Memorize mode state ──────────────────────────────────────────────
 	let mode: 'read' | 'memorize' = $state('read');
 	let revealedCount = $state(0);
-	let pxPerWord = 36; // overwritten on first measure (plain let — only read in event handlers)
+	// Drag tuning — overwritten on first measure. `pxPerWord` is sized so that
+	// one full row-width of horizontal drag reveals exactly one row of words.
+	let pxPerWord = 36;
+	let wordsPerLine = 5;
 	let paragraphEl: HTMLParagraphElement | undefined = $state();
 
 	const words = $derived(splitVerseWords(verse.w));
@@ -95,10 +98,14 @@
 			dragHorizontal = true;
 		}
 
-		revealedCount = Math.max(
-			0,
-			Math.min(totalWords, dragBaseline + Math.round(dx / pxPerWord))
-		);
+		// Per-gesture cap: one drag advances at most one row's words in either
+		// direction, regardless of how far the pointer travels. The user finishes
+		// long verses by lifting and dragging again — keeps reveal speed stable
+		// instead of letting a single fast swipe burn through everything.
+		const raw = Math.round(dx / pxPerWord);
+		const advance =
+			raw > wordsPerLine ? wordsPerLine : raw < -wordsPerLine ? -wordsPerLine : raw;
+		revealedCount = Math.max(0, Math.min(totalWords, dragBaseline + advance));
 	}
 
 	function onPointerUp(e: PointerEvent) {
@@ -109,15 +116,30 @@
 		}
 	}
 
-	// Recompute pxPerWord on memorize entry + paragraph resizes
+	// Recompute drag tuning on memorize entry + paragraph resizes.
+	// `wordsPerLine` is derived from rendered height/line-height; `pxPerWord` is
+	// then set so a full-row-width horizontal drag = one row's worth of words.
 	$effect(() => {
 		if (mode !== 'memorize' || !paragraphEl || totalWords === 0) return;
+		const el = paragraphEl;
 		const measure = () => {
-			pxPerWord = paragraphEl!.getBoundingClientRect().width / totalWords;
+			const rect = el.getBoundingClientRect();
+			const cs = getComputedStyle(el);
+			const fontSize = parseFloat(cs.fontSize) || 17;
+			const lhStr = cs.lineHeight;
+			const lineHeight =
+				lhStr === 'normal'
+					? fontSize * 1.4
+					: lhStr.endsWith('px')
+						? parseFloat(lhStr)
+						: fontSize * parseFloat(lhStr);
+			const lineCount = Math.max(1, Math.round(rect.height / lineHeight));
+			wordsPerLine = Math.max(1, Math.ceil(totalWords / lineCount));
+			pxPerWord = rect.width / wordsPerLine;
 		};
 		measure();
 		const ro = new ResizeObserver(measure);
-		ro.observe(paragraphEl);
+		ro.observe(el);
 		return () => ro.disconnect();
 	});
 
