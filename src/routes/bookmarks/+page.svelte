@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Header from '$lib/components/nav/Header.svelte';
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
+	import Toast from '$lib/components/feedback/Toast.svelte';
 	import { setBookmark, clearBookmark, clearAllOfColor } from '$lib/db/bookmarks';
 	import { BOOKMARK_COLORS, type BookmarkColor } from '$lib/types';
 	import type { BookmarksLoadData, BookmarkedRow } from './+page';
@@ -9,6 +10,9 @@
 
 	let rows = $state<BookmarkedRow[]>(data.rows);
 	let selected = $state<BookmarkColor>('red');
+	let toast = $state<{ message: string; actionLabel?: string; onAction?: () => void } | null>(
+		null
+	);
 
 	const COLOR_LABELS: Record<BookmarkColor, string> = {
 		red: '빨강',
@@ -48,14 +52,32 @@
 
 	async function clearAllSelected() {
 		const color = selected;
-		const target = rows.filter((r) => r.bookmark.color === color);
-		if (target.length === 0) return;
-		const ok = window.confirm(
-			`${COLOR_LABELS[color]} 리본 ${target.length}개를 모두 지울까요?`
-		);
-		if (!ok) return;
+		const removed = rows.filter((r) => r.bookmark.color === color);
+		if (removed.length === 0) return;
+
+		// Optimistic: remove from UI + DB immediately, then offer undo via toast.
+		// Closing the tab before tapping 실행 취소 finalizes the delete (DB already
+		// matches the UI), which is the right tradeoff for a single-device PWA.
 		rows = rows.filter((r) => r.bookmark.color !== color);
 		await clearAllOfColor(color).catch(() => {});
+
+		toast = {
+			message: `${COLOR_LABELS[color]} 리본 ${removed.length}개를 지웠어요`,
+			actionLabel: '실행 취소',
+			onAction: async () => {
+				// Re-insert each bookmark. createdAt is reset to "now" — minor loss
+				// vs preserving original timestamps; rebuilds via the public API
+				// rather than touching the Dexie schema for an undo edge case.
+				rows = [...rows, ...removed];
+				await Promise.all(
+					removed.map((r) =>
+						setBookmark(r.bookmark.packageId, r.bookmark.verseNo, r.bookmark.color).catch(
+							() => {}
+						)
+					)
+				);
+			}
+		};
 	}
 </script>
 
@@ -126,3 +148,12 @@
 		</div>
 	{/if}
 </main>
+
+{#if toast}
+	<Toast
+		message={toast.message}
+		actionLabel={toast.actionLabel}
+		onAction={toast.onAction}
+		onClose={() => (toast = null)}
+	/>
+{/if}
