@@ -5,7 +5,7 @@
 		type VerseEditValues
 	} from '$lib/components/oyo/VerseEditSheet.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
-	import { Plus, Eye, EyeOff, Download, Upload } from 'lucide-svelte';
+	import { Plus, Eye, EyeOff, FolderInput, FolderOutput } from 'lucide-svelte';
 	import { getShowVerseTextInList, setShowVerseTextInList } from '$lib/db/viewOptions';
 	import {
 		createOyoVerse,
@@ -140,11 +140,10 @@
 		</p>
 		<div class="flex items-center gap-1">
 			<!--
-				Icon ↔ action mapping reflects the "data direction" mental model:
-				the Upload arrow (↑) sends data out of the app (= 내보내기), the
-				Download arrow (↓) pulls data in (= 가져오기). Each button wraps
-				in a `group` so the sibling tooltip span can animate on hover
-				without needing a tooltip component.
+				FolderOutput / FolderInput show the box-and-arrow shape explicitly
+				so the meaning isn't ambiguous: arrow out of folder = 내보내기,
+				arrow into folder = 가져오기. Hover tooltips reinforce the label
+				for desktop users; mobile users get the action via aria-label.
 			-->
 			<div class="group relative">
 				<button
@@ -153,7 +152,7 @@
 					aria-label="내보내기"
 					class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
 				>
-					<Upload size={16} strokeWidth={1.75} />
+					<FolderOutput size={16} strokeWidth={1.75} />
 				</button>
 				<span
 					role="tooltip"
@@ -169,7 +168,7 @@
 					aria-label="가져오기"
 					class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
 				>
-					<Download size={16} strokeWidth={1.75} />
+					<FolderInput size={16} strokeWidth={1.75} />
 				</button>
 				<span
 					role="tooltip"
