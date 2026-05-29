@@ -1,5 +1,6 @@
 import { db } from './local';
 import type { PackageMeta } from '$lib/types';
+import type { StoredVerse } from './local';
 
 export const OYO_PACKAGE_ID = 'oyo' as const;
 
@@ -29,4 +30,64 @@ export async function seedOyoPackageIfMissing(): Promise<void> {
 	const existing = await db.packages.get(OYO_PACKAGE_ID);
 	if (existing) return;
 	await db.packages.put(OYO_SEED);
+}
+
+export interface OyoVerseInput {
+	cite: string;
+	title: string;
+	w: string;
+}
+
+// Full-scan max — Dexie has no aggregate, and OYO partitions are small
+// (single user, expected <1000 rows) so the in-memory reduce is the right call.
+async function nextVerseNo(): Promise<number> {
+	const rows = await db.verses.where('package_id').equals(OYO_PACKAGE_ID).toArray();
+	if (rows.length === 0) return 1;
+	const maxNo = rows.reduce((m, r) => (r.no > m ? r.no : m), 0);
+	return maxNo + 1;
+}
+
+// Single-tab PWA: no concurrent writers, so the read-then-write across
+// nextVerseNo + put is safe without a Dexie transaction.
+export async function createOyoVerse(input: OyoVerseInput): Promise<StoredVerse> {
+	const no = await nextVerseNo();
+	const row: StoredVerse = {
+		package_id: OYO_PACKAGE_ID,
+		no,
+		i: no,
+		title: input.title,
+		cite: input.cite,
+		w: input.w
+	};
+	await db.verses.put(row);
+	return row;
+}
+
+export async function listOyoVerses(): Promise<StoredVerse[]> {
+	return db.verses.where('package_id').equals(OYO_PACKAGE_ID).sortBy('no');
+}
+
+// Silent no-op on missing verseNo is intentional: undo / debounced edit flows
+// may target a row that was concurrently deleted; throwing would force every
+// caller into try/catch noise.
+export async function updateOyoVerse(
+	verseNo: number,
+	patch: Partial<OyoVerseInput>
+): Promise<void> {
+	const row = await db.verses.get([OYO_PACKAGE_ID, verseNo]);
+	if (!row) return;
+	await db.verses.put({ ...row, ...patch });
+}
+
+export async function deleteOyoVerse(verseNo: number): Promise<StoredVerse | null> {
+	const row = await db.verses.get([OYO_PACKAGE_ID, verseNo]);
+	if (!row) return null;
+	await db.verses.delete([OYO_PACKAGE_ID, verseNo]);
+	return row;
+}
+
+// Guard against accidentally re-homing a non-OYO snapshot into the OYO partition.
+export async function restoreOyoVerse(verse: StoredVerse): Promise<void> {
+	if (verse.package_id !== OYO_PACKAGE_ID) return;
+	await db.verses.put(verse);
 }
