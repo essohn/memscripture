@@ -152,7 +152,7 @@
 					aria-label="내보내기"
 					class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
 				>
-					<FolderOutput size={16} strokeWidth={1.75} />
+					<FolderInput size={16} strokeWidth={1.75} />
 				</button>
 				<span
 					role="tooltip"
@@ -168,7 +168,7 @@
 					aria-label="가져오기"
 					class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
 				>
-					<FolderInput size={16} strokeWidth={1.75} />
+					<FolderOutput size={16} strokeWidth={1.75} />
 				</button>
 				<span
 					role="tooltip"
