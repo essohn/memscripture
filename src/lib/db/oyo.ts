@@ -47,6 +47,18 @@ async function nextVerseNo(): Promise<number> {
 	return maxNo + 1;
 }
 
+// Keep the count badge on the library OYO card honest. PackageMeta.verse_number
+// is what PackageCard renders, so mutations have to nudge it alongside the
+// verses table. Recompute from a live count rather than mutating a stored
+// counter — cheaper to reason about and a hole-allowed delete sequence won't
+// drift from reality.
+async function syncOyoVerseCount(): Promise<void> {
+	const count = await db.verses.where('package_id').equals(OYO_PACKAGE_ID).count();
+	const pkg = await db.packages.get(OYO_PACKAGE_ID);
+	if (!pkg || pkg.verse_number === count) return;
+	await db.packages.put({ ...pkg, verse_number: count });
+}
+
 // Single-tab PWA: no concurrent writers, so the read-then-write across
 // nextVerseNo + put is safe without a Dexie transaction.
 export async function createOyoVerse(input: OyoVerseInput): Promise<StoredVerse> {
@@ -60,6 +72,7 @@ export async function createOyoVerse(input: OyoVerseInput): Promise<StoredVerse>
 		w: input.w
 	};
 	await db.verses.put(row);
+	await syncOyoVerseCount();
 	return row;
 }
 
@@ -83,6 +96,7 @@ export async function deleteOyoVerse(verseNo: number): Promise<StoredVerse | nul
 	const row = await db.verses.get([OYO_PACKAGE_ID, verseNo]);
 	if (!row) return null;
 	await db.verses.delete([OYO_PACKAGE_ID, verseNo]);
+	await syncOyoVerseCount();
 	return row;
 }
 
@@ -90,4 +104,5 @@ export async function deleteOyoVerse(verseNo: number): Promise<StoredVerse | nul
 export async function restoreOyoVerse(verse: StoredVerse): Promise<void> {
 	if (verse.package_id !== OYO_PACKAGE_ID) return;
 	await db.verses.put(verse);
+	await syncOyoVerseCount();
 }

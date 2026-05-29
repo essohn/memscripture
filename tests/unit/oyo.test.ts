@@ -171,4 +171,19 @@ describe('OYO verse CRUD', () => {
 		await restoreOyoVerse(foreign);
 		expect(await listOyoVerses()).toHaveLength(0);
 	});
+
+	it('CRUD keeps PackageMeta.verse_number in sync with the live count', async () => {
+		await seedOyoPackageIfMissing();
+		expect((await db.packages.get(OYO_PACKAGE_ID))?.verse_number).toBe(0);
+
+		await createOyoVerse({ cite: 'a', title: '', w: 'aa' });
+		await createOyoVerse({ cite: 'b', title: '', w: 'bb' });
+		expect((await db.packages.get(OYO_PACKAGE_ID))?.verse_number).toBe(2);
+
+		const snapshot = await deleteOyoVerse(1);
+		expect((await db.packages.get(OYO_PACKAGE_ID))?.verse_number).toBe(1);
+
+		await restoreOyoVerse(snapshot!);
+		expect((await db.packages.get(OYO_PACKAGE_ID))?.verse_number).toBe(2);
+	});
 });
