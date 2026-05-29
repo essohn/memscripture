@@ -29,9 +29,11 @@
 
 	const canSave = $derived(cite.trim().length > 0 && w.trim().length > 0);
 
-	function submit() {
+	async function submit() {
 		if (!canSave) return;
-		onSubmit({ cite: cite.trim(), title: title.trim(), w: w.trim() });
+		// Await in case the parent's onSubmit performs async DB work — we want
+		// the list to refresh BEFORE the sheet animates out, not after.
+		await onSubmit({ cite: cite.trim(), title: title.trim(), w: w.trim() });
 		onClose();
 	}
 
