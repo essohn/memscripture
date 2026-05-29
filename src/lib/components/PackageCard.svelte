@@ -22,14 +22,23 @@
 
 	<div class="flex items-center justify-between gap-4">
 		<div class="min-w-0 flex-1">
-			<p
-				class="text-[10.5px] font-medium uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]"
-			>
-				{pkg.translation_name}
-				{#if recent}
-					<span class="ml-1.5 text-[var(--color-accent)]">· 최근</span>
+			<div class="inline-flex items-center">
+				<span
+					class="text-[10.5px] font-medium uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]"
+				>
+					{pkg.translation_name}
+					{#if recent}
+						<span class="ml-1.5 text-[var(--color-accent)]">· 최근</span>
+					{/if}
+				</span>
+				{#if pkg.kind === 'user'}
+					<span
+						class="ml-2 inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-elevated)] px-2 py-0.5 text-[10px] font-medium tracking-wider text-[var(--color-text-tertiary)]"
+					>
+						사용자 정의
+					</span>
 				{/if}
-			</p>
+			</div>
 			<h3 class="mt-1.5 truncate text-[17px] font-semibold text-[var(--color-text)]">
 				{pkg.name}
 			</h3>
