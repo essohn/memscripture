@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Header from '$lib/components/nav/Header.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
+	import ConfirmDialog from '$lib/components/feedback/ConfirmDialog.svelte';
 	import { goto } from '$app/navigation';
 	import { Cloud, CloudOff, RotateCcw } from 'lucide-svelte';
 	import { getGoogleOauthClientId } from '$lib/sync/clientId';
@@ -21,6 +22,27 @@
 
 	const clientId = getGoogleOauthClientId();
 	let auth = $state<GoogleAuthState | null>(null);
+
+	let confirmState = $state<{
+		open: boolean;
+		resolve: ((ok: boolean) => void) | null;
+	}>({ open: false, resolve: null });
+
+	function showOverwriteConfirm(): Promise<boolean> {
+		return new Promise((resolve) => {
+			confirmState = { open: true, resolve };
+		});
+	}
+
+	function onConfirm() {
+		confirmState.resolve?.(true);
+		confirmState = { open: false, resolve: null };
+	}
+
+	function onCancel() {
+		confirmState.resolve?.(false);
+		confirmState = { open: false, resolve: null };
+	}
 	let hasBackup = $state(false);
 	let syncing = $state(false);
 	let toast = $state<{ message: string; actionLabel?: string; onAction?: () => void } | null>(null);
@@ -64,10 +86,7 @@
 		if (syncing) return;
 		syncing = true;
 		try {
-			const result = await performSync({
-				confirmOverwrite: async () =>
-					window.confirm('Drive에 더 최신 데이터가 있어요. 로컬 변경사항을 덮어쓸까요?')
-			});
+			const result = await performSync({ confirmOverwrite: showOverwriteConfirm });
 			hasBackup = (await loadPreSyncBackup()) !== null;
 			toast = { message: messageFor(result) };
 		} finally {
@@ -179,3 +198,13 @@
 		onClose={() => (toast = null)}
 	/>
 {/if}
+
+<ConfirmDialog
+	open={confirmState.open}
+	title="Drive에서 받아오기"
+	body="Drive에 더 최신 데이터가 있어요. 가져오면 로컬 변경사항이 덮어쓰여집니다."
+	confirmLabel="덮어쓰고 받기"
+	cancelLabel="취소"
+	onConfirm={onConfirm}
+	onCancel={onCancel}
+/>
