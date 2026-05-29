@@ -9,12 +9,18 @@ export async function listPackages(): Promise<PackageMeta[]> {
 	const byVerseNumber = (a: PackageMeta, b: PackageMeta) => a.verse_number - b.verse_number;
 
 	const cached = await db.packages.toArray();
-	if (cached.length) return cached.sort(byVerseNumber);
+	if (cached.length) {
+		return cached.map((p) => ({ ...p, kind: p.kind ?? 'builtin' })).sort(byVerseNumber);
+	}
 
 	const res = await fetch(PACKAGES_URL);
 	if (!res.ok) throw new Error(`Failed to load packages: ${res.status}`);
 	const map = (await res.json()) as Record<string, Omit<PackageMeta, 'id'>>;
-	const list: PackageMeta[] = Object.entries(map).map(([id, meta]) => ({ ...meta, id }));
+	const list: PackageMeta[] = Object.entries(map).map(([id, meta]) => ({
+		...meta,
+		id,
+		kind: meta.kind ?? 'builtin'
+	}));
 	await db.packages.bulkPut(list);
 	return list.sort(byVerseNumber);
 }
@@ -29,6 +35,9 @@ export async function installPackage(packageId: string): Promise<void> {
 
 	const pkg = await db.packages.get(packageId);
 	if (!pkg) throw new Error(`Unknown package: ${packageId}`);
+
+	// User-owned packages have no JSON source — their data is created at runtime.
+	if (pkg.kind === 'user') return;
 
 	const res = await fetch(`/${pkg.source}`);
 	if (!res.ok) throw new Error(`Failed to load ${pkg.source}: ${res.status}`);

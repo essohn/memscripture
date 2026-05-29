@@ -18,6 +18,12 @@ export interface PackageMeta {
 	version: number;
 	source: string;
 	default: boolean;
+	/**
+	 * Distinguishes shipped (curated JSON) packages from user-owned packages
+	 * like OYO. Defaults to 'builtin' when absent for backward compatibility
+	 * with rows installed before this field existed.
+	 */
+	kind?: 'builtin' | 'user';
 }
 
 export interface IndexGroup {
