@@ -139,24 +139,45 @@
 			총 <span class="font-semibold text-[var(--color-text)]">{verses.length}개</span>
 		</p>
 		<div class="flex items-center gap-1">
-			<button
-				type="button"
-				onclick={handleExport}
-				aria-label="내보내기"
-				title="내보내기"
-				class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
-			>
-				<Download size={16} strokeWidth={1.75} />
-			</button>
-			<button
-				type="button"
-				onclick={handleImport}
-				aria-label="가져오기"
-				title="가져오기"
-				class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
-			>
-				<Upload size={16} strokeWidth={1.75} />
-			</button>
+			<!--
+				Icon ↔ action mapping reflects the "data direction" mental model:
+				the Upload arrow (↑) sends data out of the app (= 내보내기), the
+				Download arrow (↓) pulls data in (= 가져오기). Each button wraps
+				in a `group` so the sibling tooltip span can animate on hover
+				without needing a tooltip component.
+			-->
+			<div class="group relative">
+				<button
+					type="button"
+					onclick={handleExport}
+					aria-label="내보내기"
+					class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
+				>
+					<Upload size={16} strokeWidth={1.75} />
+				</button>
+				<span
+					role="tooltip"
+					class="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-[var(--color-text)] px-2 py-1 text-[11px] font-medium text-[var(--color-card)] opacity-0 transition-opacity group-hover:opacity-100"
+				>
+					내보내기
+				</span>
+			</div>
+			<div class="group relative">
+				<button
+					type="button"
+					onclick={handleImport}
+					aria-label="가져오기"
+					class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
+				>
+					<Download size={16} strokeWidth={1.75} />
+				</button>
+				<span
+					role="tooltip"
+					class="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-[var(--color-text)] px-2 py-1 text-[11px] font-medium text-[var(--color-card)] opacity-0 transition-opacity group-hover:opacity-100"
+				>
+					가져오기
+				</span>
+			</div>
 			<button
 				type="button"
 				onclick={openCreate}
