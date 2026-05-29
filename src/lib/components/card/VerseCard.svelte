@@ -185,13 +185,18 @@
 	</header>
 
 	{#if mode === 'read'}
-		{#if showBody}
-			<p
-				class="mt-6 whitespace-pre-line break-keep text-[17px] leading-[1.85] text-[var(--color-text)]"
-			>
-				{verse.w}
-			</p>
-		{/if}
+		<!--
+			Always render the body so the card height is stable when toggling Eye.
+			!showBody just makes the glyphs transparent — layout (line wrap, padding)
+			stays identical, screen readers still get the text.
+		-->
+		<p
+			class="mt-6 whitespace-pre-line break-keep text-[17px] leading-[1.85] {showBody
+				? 'text-[var(--color-text)]'
+				: 'text-transparent'}"
+		>
+			{verse.w}
+		</p>
 	{:else}
 		<p
 			class="paragraph mt-6 break-keep text-[17px] leading-[2] text-[var(--color-text)] select-none touch-pan-y"
