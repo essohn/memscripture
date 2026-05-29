@@ -1,6 +1,7 @@
 import { db } from './local';
 import { progressId } from './progress';
 import type { Bookmark, BookmarkColor } from '$lib/types';
+import { touchDataModified } from './touchData';
 
 export async function getBookmark(
 	packageId: string,
@@ -21,10 +22,15 @@ export async function setBookmark(
 		color,
 		createdAt: Date.now()
 	});
+	await touchDataModified();
 }
 
 export async function clearBookmark(packageId: string, verseNo: number): Promise<void> {
-	await db.bookmarks.delete(progressId(packageId, verseNo));
+	const id = progressId(packageId, verseNo);
+	const existing = await db.bookmarks.get(id);
+	if (!existing) return;
+	await db.bookmarks.delete(id);
+	await touchDataModified();
 }
 
 export async function listBookmarksByColor(color: BookmarkColor): Promise<Bookmark[]> {
@@ -36,7 +42,9 @@ export async function listAllBookmarks(): Promise<Bookmark[]> {
 }
 
 export async function clearAllOfColor(color: BookmarkColor): Promise<number> {
-	return db.bookmarks.where('color').equals(color).delete();
+	const count = await db.bookmarks.where('color').equals(color).delete();
+	if (count > 0) await touchDataModified();
+	return count;
 }
 
 export async function countByColor(): Promise<Record<BookmarkColor, number>> {

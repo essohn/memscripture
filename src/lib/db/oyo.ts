@@ -1,6 +1,7 @@
 import { db } from './local';
 import type { PackageMeta } from '$lib/types';
 import type { StoredVerse } from './local';
+import { touchDataModified } from './touchData';
 
 export const OYO_PACKAGE_ID = 'oyo' as const;
 
@@ -73,6 +74,7 @@ export async function createOyoVerse(input: OyoVerseInput): Promise<StoredVerse>
 	};
 	await db.verses.put(row);
 	await syncOyoVerseCount();
+	await touchDataModified();
 	return row;
 }
 
@@ -90,6 +92,7 @@ export async function updateOyoVerse(
 	const row = await db.verses.get([OYO_PACKAGE_ID, verseNo]);
 	if (!row) return;
 	await db.verses.put({ ...row, ...patch });
+	await touchDataModified();
 }
 
 export async function deleteOyoVerse(verseNo: number): Promise<StoredVerse | null> {
@@ -97,6 +100,7 @@ export async function deleteOyoVerse(verseNo: number): Promise<StoredVerse | nul
 	if (!row) return null;
 	await db.verses.delete([OYO_PACKAGE_ID, verseNo]);
 	await syncOyoVerseCount();
+	await touchDataModified();
 	return row;
 }
 
@@ -105,4 +109,5 @@ export async function restoreOyoVerse(verse: StoredVerse): Promise<void> {
 	if (verse.package_id !== OYO_PACKAGE_ID) return;
 	await db.verses.put(verse);
 	await syncOyoVerseCount();
+	await touchDataModified();
 }

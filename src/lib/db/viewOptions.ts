@@ -1,4 +1,5 @@
 import { db } from './local';
+import { touchDataModified } from './touchData';
 
 const KEY = 'view_options';
 
@@ -30,6 +31,7 @@ export async function setShowVerseTextInList(v: boolean): Promise<void> {
 	const next = writeQueue.then(async () => {
 		const raw = await readRaw();
 		await db.settings.put({ key: KEY, value: { ...raw, showVerseTextInList: v } });
+		await touchDataModified();
 	});
 	// Don't let a single failure poison the queue
 	writeQueue = next.catch(() => {});
