@@ -148,8 +148,8 @@
 			<div class="group relative">
 				<button
 					type="button"
-					onclick={handleExport}
-					aria-label="내보내기"
+					onclick={handleImport}
+					aria-label="가져오기"
 					class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
 				>
 					<FolderInput size={16} strokeWidth={1.75} />
@@ -158,14 +158,14 @@
 					role="tooltip"
 					class="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-[var(--color-text)] px-2 py-1 text-[11px] font-medium text-[var(--color-card)] opacity-0 transition-opacity group-hover:opacity-100"
 				>
-					내보내기
+					가져오기
 				</span>
 			</div>
 			<div class="group relative">
 				<button
 					type="button"
-					onclick={handleImport}
-					aria-label="가져오기"
+					onclick={handleExport}
+					aria-label="내보내기"
 					class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
 				>
 					<FolderOutput size={16} strokeWidth={1.75} />
@@ -174,7 +174,7 @@
 					role="tooltip"
 					class="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-[var(--color-text)] px-2 py-1 text-[11px] font-medium text-[var(--color-card)] opacity-0 transition-opacity group-hover:opacity-100"
 				>
-					가져오기
+					내보내기
 				</span>
 			</div>
 			<button
