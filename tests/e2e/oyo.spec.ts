@@ -17,6 +17,13 @@ test.describe('OYO package — phase 1', () => {
 		});
 		await page.reload();
 		await page.waitForLoadState('networkidle');
+
+		// Stub the KRV text endpoint so the autofill flow is deterministic and
+		// doesn't actually hit bolls.life from CI. Returning an empty array lets
+		// the silent-fail branch run (body stays empty for the test to fill).
+		await page.route('https://bolls.life/**', (route) =>
+			route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+		);
 	});
 
 	test('add → view → edit → delete (with undo) on /library/oyo', async ({ page }) => {
@@ -31,14 +38,15 @@ test.describe('OYO package — phase 1', () => {
 
 		// Add a verse
 		await page.getByRole('button', { name: /구절 추가/ }).click();
-		await page.getByLabel('인용').fill('요 3:16');
+		await page.getByLabel('장절').fill('요 3:16');
 		await page.getByLabel('제목 (선택)').fill('영생');
 		await page.getByRole('textbox', { name: '본문' }).fill('하나님이 세상을 이처럼 사랑하사…');
 		await page.getByRole('button', { name: '저장' }).click();
 
-		// Verse renders
+		// Verse renders. The blur on 장절 normalizes the freehand input to the
+		// project-standard form (요한복음 3 : 16).
 		await expect(page.getByText('영생')).toBeVisible();
-		await expect(page.getByText('요 3:16')).toBeVisible();
+		await expect(page.getByText('요한복음 3 : 16')).toBeVisible();
 		await expect(page.getByText('총 1개')).toBeVisible();
 
 		// Edit it

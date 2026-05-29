@@ -1,13 +1,25 @@
 import { render, screen, fireEvent } from '@testing-library/svelte';
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import VerseEditSheet from '../../src/lib/components/oyo/VerseEditSheet.svelte';
+import {
+	__clearChapterCacheForTest,
+	__setChapterCacheForTest
+} from '../../src/lib/bible/fetch';
 
 describe('VerseEditSheet', () => {
+	beforeEach(() => {
+		__clearChapterCacheForTest();
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
 	it('renders empty fields in create mode', () => {
 		render(VerseEditSheet, {
 			props: { mode: 'create', onSubmit: () => {}, onClose: () => {} }
 		});
-		expect(screen.getByLabelText('인용')).toHaveValue('');
+		expect(screen.getByLabelText('장절')).toHaveValue('');
 		expect(screen.getByLabelText('제목 (선택)')).toHaveValue('');
 		expect(screen.getByLabelText('본문')).toHaveValue('');
 	});
@@ -21,7 +33,7 @@ describe('VerseEditSheet', () => {
 				onClose: () => {}
 			}
 		});
-		expect(screen.getByLabelText('인용')).toHaveValue('시편 23:1');
+		expect(screen.getByLabelText('장절')).toHaveValue('시편 23:1');
 		expect(screen.getByLabelText('제목 (선택)')).toHaveValue('목자');
 		expect(screen.getByLabelText('본문')).toHaveValue('주는 나의 목자');
 	});
@@ -33,7 +45,7 @@ describe('VerseEditSheet', () => {
 		const save = screen.getByRole('button', { name: '저장' });
 		expect(save).toBeDisabled();
 
-		await fireEvent.input(screen.getByLabelText('인용'), { target: { value: '요 3:16' } });
+		await fireEvent.input(screen.getByLabelText('장절'), { target: { value: '요 3:16' } });
 		expect(save).toBeDisabled();
 
 		await fireEvent.input(screen.getByLabelText('본문'), { target: { value: '하나님이' } });
@@ -45,7 +57,7 @@ describe('VerseEditSheet', () => {
 		const onClose = vi.fn();
 		render(VerseEditSheet, { props: { mode: 'create', onSubmit, onClose } });
 
-		await fireEvent.input(screen.getByLabelText('인용'), { target: { value: '  요 3:16  ' } });
+		await fireEvent.input(screen.getByLabelText('장절'), { target: { value: '  요 3:16  ' } });
 		await fireEvent.input(screen.getByLabelText('제목 (선택)'), { target: { value: '' } });
 		await fireEvent.input(screen.getByLabelText('본문'), { target: { value: '하나님이 …' } });
 		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
@@ -78,5 +90,61 @@ describe('VerseEditSheet', () => {
 		render(VerseEditSheet, { props: { mode: 'create', onSubmit: () => {}, onClose } });
 		await fireEvent.keyDown(window, { key: 'Escape' });
 		expect(onClose).toHaveBeenCalled();
+	});
+
+	it('on blur, normalizes the 장절 to the standard form and autofills 본문', async () => {
+		__setChapterCacheForTest(43, 3, [
+			{ verse: 14, text: '본문 14' },
+			{ verse: 15, text: '본문 15' },
+			{ verse: 16, text: '하나님이 세상을 이처럼 사랑하사' }
+		]);
+		render(VerseEditSheet, {
+			props: { mode: 'create', onSubmit: () => {}, onClose: () => {} }
+		});
+		const cite = screen.getByLabelText('장절') as HTMLInputElement;
+		const body = screen.getByLabelText('본문') as HTMLTextAreaElement;
+
+		await fireEvent.input(cite, { target: { value: '요3:16' } });
+		await fireEvent.blur(cite);
+		// Let the awaited fetch promise resolve
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(cite).toHaveValue('요한복음 3 : 16');
+		expect(body).toHaveValue('하나님이 세상을 이처럼 사랑하사');
+	});
+
+	it('on blur, leaves cite untouched and does not autofill when the book is unknown', async () => {
+		render(VerseEditSheet, {
+			props: { mode: 'create', onSubmit: () => {}, onClose: () => {} }
+		});
+		const cite = screen.getByLabelText('장절') as HTMLInputElement;
+		const body = screen.getByLabelText('본문') as HTMLTextAreaElement;
+
+		await fireEvent.input(cite, { target: { value: '알수없음 3:16' } });
+		await fireEvent.blur(cite);
+
+		expect(cite).toHaveValue('알수없음 3:16');
+		expect(body).toHaveValue('');
+	});
+
+	it('on blur, normalizes but does NOT overwrite a non-empty 본문', async () => {
+		__setChapterCacheForTest(43, 3, [
+			{ verse: 16, text: 'KRV 자동 채움' }
+		]);
+		render(VerseEditSheet, {
+			props: { mode: 'create', onSubmit: () => {}, onClose: () => {} }
+		});
+		const cite = screen.getByLabelText('장절') as HTMLInputElement;
+		const body = screen.getByLabelText('본문') as HTMLTextAreaElement;
+
+		await fireEvent.input(body, { target: { value: '사용자가 직접 적은 내용' } });
+		await fireEvent.input(cite, { target: { value: '요3:16' } });
+		await fireEvent.blur(cite);
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(cite).toHaveValue('요한복음 3 : 16');
+		expect(body).toHaveValue('사용자가 직접 적은 내용');
 	});
 });
