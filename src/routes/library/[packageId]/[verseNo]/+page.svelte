@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Header from '$lib/components/nav/Header.svelte';
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
-	import { Eye, EyeOff } from 'lucide-svelte';
+	import { Eye, EyeOff, ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import { page } from '$app/state';
 	import {
 		listPackages,
@@ -20,10 +20,22 @@
 
 	let pkg: PackageMeta | null = $state(null);
 	let verse: StoredVerse | null = $state(null);
+	let verses: StoredVerse[] = $state([]);
 	let groups: IndexGroup[] = $state([]);
 	let bookmark: BookmarkColor | null = $state(null);
 	let error: string | null = $state(null);
 	let showVerseText = $state(true);
+
+	// Verse numbers can be sparse (e.g., 1, 2, 5, 7) — sort by `no` so prev/next
+	// reflect the package's natural order, not the storage order.
+	const sortedVerses = $derived([...verses].sort((a, b) => a.no - b.no));
+	const currentIdx = $derived(sortedVerses.findIndex((v) => v.no === verseNo));
+	const prevVerse = $derived(currentIdx > 0 ? sortedVerses[currentIdx - 1] : null);
+	const nextVerse = $derived(
+		currentIdx >= 0 && currentIdx < sortedVerses.length - 1
+			? sortedVerses[currentIdx + 1]
+			: null
+	);
 
 	$effect(() => {
 		let active = true;
@@ -65,6 +77,7 @@
 					const v = data.verses.find((x) => x.no === currentVerseNo) ?? null;
 					if (!v) error = '구절을 찾을 수 없습니다.';
 					else verse = v;
+					verses = data.verses;
 					groups = data.groups;
 					bookmark = currentBookmark?.color ?? null;
 				}
@@ -122,15 +135,52 @@
 				{/if}
 			</button>
 		</div>
-		<VerseCard
-			{verse}
-			packageName={pkg?.abbreviation}
-			{packageId}
-			{tags}
-			{bookmark}
-			{onBookmarkPick}
-			{onBookmarkClear}
-			showBody={showVerseText}
-		/>
+		<!--
+			Re-key on verse number so memorize mode + reveal state reset cleanly
+			when the user navigates prev/next — otherwise the new verse inherits
+			the previous gesture's "half-revealed" state.
+		-->
+		{#key verse.no}
+			<VerseCard
+				{verse}
+				packageName={pkg?.abbreviation}
+				{packageId}
+				{tags}
+				{bookmark}
+				{onBookmarkPick}
+				{onBookmarkClear}
+				showBody={showVerseText}
+			/>
+		{/key}
+
+		{#if prevVerse || nextVerse}
+			<nav
+				class="mt-8 flex items-center justify-between gap-2"
+				aria-label="구절 이동"
+			>
+				{#if prevVerse}
+					<a
+						href={`/library/${packageId}/${prevVerse.no}`}
+						class="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-elevated)] px-3.5 py-2 text-[13px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-border)] hover:text-[var(--color-text)]"
+					>
+						<ChevronLeft size={16} strokeWidth={1.75} />
+						<span>{prevVerse.no}구절</span>
+					</a>
+				{:else}
+					<span aria-hidden="true"></span>
+				{/if}
+				{#if nextVerse}
+					<a
+						href={`/library/${packageId}/${nextVerse.no}`}
+						class="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-elevated)] px-3.5 py-2 text-[13px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-border)] hover:text-[var(--color-text)]"
+					>
+						<span>{nextVerse.no}구절</span>
+						<ChevronRight size={16} strokeWidth={1.75} />
+					</a>
+				{:else}
+					<span aria-hidden="true"></span>
+				{/if}
+			</nav>
+		{/if}
 	{/if}
 </main>
