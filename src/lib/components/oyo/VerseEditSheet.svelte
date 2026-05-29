@@ -30,6 +30,13 @@
 	let w = $state(initial?.w ?? '');
 	let autofilling = $state(false);
 
+	// Tracks the last successful autofill so a cite edit can re-fetch without
+	// blowing away body content the user typed by hand. Replaced on every
+	// successful fetch; never set in edit mode (initial body comes from disk,
+	// not an autofill), so editing a verse always preserves its saved text
+	// unless the user explicitly clears the body first.
+	let lastAutofill: { cite: string; body: string } | null = $state(null);
+
 	const canSave = $derived(cite.trim().length > 0 && w.trim().length > 0);
 
 	async function submit() {
@@ -44,23 +51,40 @@
 		if (e.key === 'Escape') onClose();
 	}
 
-	// On blur of the 장절 input: try to parse the freehand reference, rewrite
-	// it in the project-standard format (e.g. "창12:1-3" → "창세기 12 : 1-3"),
-	// and — if the body is still empty — fetch the KRV text from bolls.life
-	// and populate it. Silent fail on network errors; the user can always
-	// type the body manually.
+	// On blur of the 장절 input: parse the freehand reference, rewrite it in
+	// the project-standard format (e.g. "창12:1-3" → "창세기 12 : 1-3"), and
+	// fetch the KRV text. Body update rules:
+	//   - empty body → fill (first-time autofill).
+	//   - body still matches the previous autofill → overwrite (user edited
+	//     the cite, expects the text to follow).
+	//   - body has any other content (manual typing, prefilled edit-mode
+	//     state) → preserve, autofill is a no-op.
+	// Silent fail on network errors; the user can always type the body
+	// manually. Re-blur with the same normalized cite skips the fetch.
 	async function onCiteBlur() {
 		const parsed = parsePassageRef(cite);
 		if (!parsed) return;
-		cite = formatStandardRef(parsed);
-		if (w.trim().length > 0) return;
+		const normalized = formatStandardRef(parsed);
+		cite = normalized;
+		if (lastAutofill?.cite === normalized) return;
+
+		const bodyIsAutofilled = lastAutofill !== null && w === lastAutofill.body;
+		const bodyIsEmpty = w.trim().length === 0;
+		if (!bodyIsAutofilled && !bodyIsEmpty) return;
+
 		autofilling = true;
 		try {
 			const text = await fetchPassageText(parsed);
-			// Re-check that the user didn't start typing into 본문 mid-fetch.
-			if (w.trim().length === 0) w = text;
+			// Re-check: the user may have started editing the body mid-fetch.
+			// Only apply if body is still in the same "owned by autofill" state.
+			const stillOwned =
+				w.trim().length === 0 || (lastAutofill !== null && w === lastAutofill.body);
+			if (stillOwned) {
+				w = text;
+				lastAutofill = { cite: normalized, body: text };
+			}
 		} catch {
-			// Silent — leave body empty for manual entry.
+			// Silent — leave body alone for manual entry.
 		} finally {
 			autofilling = false;
 		}

@@ -147,4 +147,53 @@ describe('VerseEditSheet', () => {
 		expect(cite).toHaveValue('요한복음 3 : 16');
 		expect(body).toHaveValue('사용자가 직접 적은 내용');
 	});
+
+	it('on blur, re-fetches and overwrites the body when the cite changes after an earlier autofill', async () => {
+		__setChapterCacheForTest(43, 3, [{ verse: 16, text: '요한복음 본문' }]);
+		__setChapterCacheForTest(19, 23, [{ verse: 1, text: '시편 본문' }]);
+		render(VerseEditSheet, {
+			props: { mode: 'create', onSubmit: () => {}, onClose: () => {} }
+		});
+		const cite = screen.getByLabelText('장절') as HTMLInputElement;
+		const body = screen.getByLabelText('본문') as HTMLTextAreaElement;
+
+		// First autofill — body picks up 요한복음
+		await fireEvent.input(cite, { target: { value: '요3:16' } });
+		await fireEvent.blur(cite);
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(body).toHaveValue('요한복음 본문');
+
+		// Edit cite — body should follow the new reference
+		await fireEvent.input(cite, { target: { value: '시23:1' } });
+		await fireEvent.blur(cite);
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(cite).toHaveValue('시편 23 : 1');
+		expect(body).toHaveValue('시편 본문');
+	});
+
+	it('on re-blur with the same normalized cite, does not re-fetch', async () => {
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			json: async () => [{ verse: 16, text: '단 한 번' }]
+		});
+		vi.stubGlobal('fetch', fetchMock);
+
+		render(VerseEditSheet, {
+			props: { mode: 'create', onSubmit: () => {}, onClose: () => {} }
+		});
+		const cite = screen.getByLabelText('장절') as HTMLInputElement;
+
+		await fireEvent.input(cite, { target: { value: '요3:16' } });
+		await fireEvent.blur(cite);
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+
+		// Re-blur with the same value — already normalized, no new fetch.
+		await fireEvent.blur(cite);
+		await Promise.resolve();
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
 });
