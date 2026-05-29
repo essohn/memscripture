@@ -35,15 +35,17 @@ function mockFetch(map: Record<string, unknown>) {
 }
 
 describe('listPackages', () => {
-	it('fetches and caches packages', async () => {
+	it('fetches curated and includes the OYO row, then serves cached on repeat', async () => {
 		mockFetch({ 'data/packages.json': samplePackages });
 		const packs = await listPackages();
-		expect(packs).toHaveLength(1);
-		expect(packs[0].name).toBe('그리스도인의 확신 5구절');
+		// 1 curated (mocked) + 1 OYO (seeded inside listPackages).
+		expect(packs).toHaveLength(2);
+		expect(packs.find((p) => p.kind === 'builtin')?.name).toBe('그리스도인의 확신 5구절');
+		expect(packs.find((p) => p.kind === 'user')?.id).toBe('oyo');
 
 		(global.fetch as any).mockClear();
 		const cached = await listPackages();
-		expect(cached).toHaveLength(1);
+		expect(cached).toHaveLength(2);
 		expect(global.fetch).not.toHaveBeenCalled();
 	});
 });

@@ -15,15 +15,6 @@ test.describe('OYO package — phase 1', () => {
 					});
 			}
 		});
-		// TODO(app): seedOyoPackageIfMissing in +layout.svelte and listPackages in
-		// the library +page.svelte both run inside concurrent $effects on first
-		// mount — the page can read the packages table before the seed lands.
-		// Fix at the app level by awaiting the seed before listPackages (e.g.
-		// have listPackages call seedOyoPackageIfMissing internally, or do it in
-		// +layout.ts). Until then, reload twice so the seed has settled when the
-		// library effect re-runs.
-		await page.reload();
-		await page.waitForLoadState('networkidle');
 		await page.reload();
 		await page.waitForLoadState('networkidle');
 	});

@@ -1,4 +1,5 @@
 import { db, type StoredVerse } from './local';
+import { seedOyoPackageIfMissing } from './oyo';
 import type { IndexGroup, PackageMeta, Verse } from '$lib/types';
 
 const PACKAGES_URL = '/data/packages.json';
@@ -8,21 +9,33 @@ let groupsCache: IndexGroup[] | null = null;
 export async function listPackages(): Promise<PackageMeta[]> {
 	const byVerseNumber = (a: PackageMeta, b: PackageMeta) => a.verse_number - b.verse_number;
 
+	// Always make sure the OYO row exists before any read. listPackages is the
+	// canonical entry point for the library list + recent-package widgets, so
+	// this is the right chokepoint — avoids the layout-effect / page-effect
+	// race where the library could render without the OYO card on a fresh IDB.
+	await seedOyoPackageIfMissing();
+
 	const cached = await db.packages.toArray();
-	if (cached.length) {
+	const hasCurated = cached.some((p) => (p.kind ?? 'builtin') === 'builtin');
+	if (hasCurated) {
 		return cached.map((p) => ({ ...p, kind: p.kind ?? 'builtin' })).sort(byVerseNumber);
 	}
 
+	// First time on this device: curated packages not yet installed. Fetch and
+	// upsert them; OYO (the only user-kind row at this point) survives bulkPut.
 	const res = await fetch(PACKAGES_URL);
 	if (!res.ok) throw new Error(`Failed to load packages: ${res.status}`);
 	const map = (await res.json()) as Record<string, Omit<PackageMeta, 'id'>>;
-	const list: PackageMeta[] = Object.entries(map).map(([id, meta]) => ({
+	const curated: PackageMeta[] = Object.entries(map).map(([id, meta]) => ({
 		...meta,
 		id,
 		kind: meta.kind ?? 'builtin'
 	}));
-	await db.packages.bulkPut(list);
-	return list.sort(byVerseNumber);
+	await db.packages.bulkPut(curated);
+
+	// Re-read so any user-kind rows (OYO seeded above) come along.
+	const all = await db.packages.toArray();
+	return all.map((p) => ({ ...p, kind: p.kind ?? 'builtin' })).sort(byVerseNumber);
 }
 
 export async function isPackageInstalled(packageId: string): Promise<boolean> {
