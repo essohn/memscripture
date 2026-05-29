@@ -4,6 +4,7 @@
 	import type { BookmarkColor } from '$lib/types';
 	import CategoryTag from '$lib/components/filter/CategoryTag.svelte';
 	import BookmarkControl from '$lib/components/srs/BookmarkControl.svelte';
+	import VerseOverflowMenu from '$lib/components/oyo/VerseOverflowMenu.svelte';
 	import { splitVerseWords } from '$lib/utils/chunk';
 	import { goto } from '$app/navigation';
 
@@ -18,6 +19,9 @@
 		/** When false, hide the verse body in read mode. Memorize mode ignores this
 		 *  and always renders the body so the curtain UI has something to drag over. */
 		showBody?: boolean;
+		/** When provided, render an overflow `…` menu with edit/delete actions. OYO only. */
+		onEdit?: () => void;
+		onDelete?: () => void;
 	}
 	let {
 		verse,
@@ -27,10 +31,13 @@
 		bookmark = null,
 		onBookmarkPick,
 		onBookmarkClear,
-		showBody = true
+		showBody = true,
+		onEdit,
+		onDelete
 	}: Props = $props();
 
 	const bookmarksEnabled = $derived(Boolean(onBookmarkPick && onBookmarkClear));
+	const editingEnabled = $derived(Boolean(onEdit) || Boolean(onDelete));
 
 	// ─── Memorize mode state ──────────────────────────────────────────────
 	let mode: 'read' | 'memorize' = $state('read');
@@ -169,11 +176,16 @@
 			>
 				{packageName ?? ''}
 			</p>
-			<span
-				class="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-[var(--color-accent-soft)] px-2 text-[12px] font-semibold tabular-nums text-[var(--color-accent)]"
-			>
-				{verse.no}
-			</span>
+			<div class="flex items-center gap-1">
+				<span
+					class="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-[var(--color-accent-soft)] px-2 text-[12px] font-semibold tabular-nums text-[var(--color-accent)]"
+				>
+					{verse.no}
+				</span>
+				{#if editingEnabled}
+					<VerseOverflowMenu {onEdit} {onDelete} />
+				{/if}
+			</div>
 		</div>
 		<h2 class="text-[22px] font-semibold leading-tight text-[var(--color-text)]">
 			{verse.title}

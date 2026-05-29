@@ -66,7 +66,7 @@
 		}
 	}
 
-	async function onDelete(verse: StoredVerse) {
+	async function handleDelete(verse: StoredVerse) {
 		const snapshot = await deleteOyoVerse(verse.no);
 		verses = verses.filter((v) => v.no !== verse.no);
 		if (!snapshot) return;
@@ -138,6 +138,8 @@
 					packageName="OYO"
 					packageId="oyo"
 					showBody={showVerseText}
+					onEdit={() => openEdit(verse)}
+					onDelete={() => handleDelete(verse)}
 				/>
 			{/each}
 		</div>
