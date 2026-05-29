@@ -53,11 +53,14 @@ single-user use both point toward the lightweight model.
   ```
   { id: 'oyo', name: '내 구절', abbreviation: 'OYO',
     translation: 'krv', translation_name: '사용자', language: 'kor',
-    source: 'user', version: 1, default: false, … }
+    kind: 'user', source: '', version: 1, default: false, … }
   ```
-- Add a `source: 'builtin' | 'user'` field to `PackageMeta`. All shipped
-  packages get `source: 'builtin'`; OYO gets `'user'`. The library list
+- Add a `kind: 'builtin' | 'user'` field to `PackageMeta`. All shipped
+  packages get `kind: 'builtin'`; OYO gets `'user'`. The library list
   uses this to decide whether to show an edit affordance.
+  - Note: `source` was the natural name for this discriminator, but
+    `PackageMeta.source` already exists as the JSON file path for
+    curated packages. Using `kind` avoids the collision.
 - Built-in package loaders ignore `package_id = 'oyo'` (no JSON file to
   install). The package always exists in Dexie regardless of how many
   verses it contains.
@@ -232,9 +235,9 @@ enough that loss would matter.
   bumps the Dexie schema version. The migration is additive only (no
   changes to existing tables), so risk is low — but the v-bump must land
   with Phase 2.
-- **`source` field on `PackageMeta`**: shipped packages don't have it in
+- **`kind` field on `PackageMeta`**: shipped packages don't have it in
   their JSON. Handled by defaulting to `'builtin'` when absent — backfill
-  during `installPackage`.
+  during `listPackages`.
 - **Citation parsing**: deferred. If users start writing inconsistent
   citations, we may revisit with a parser/picker, but free text is a
   reasonable first cut.
@@ -244,7 +247,7 @@ enough that loss would matter.
 
 ## What Phase 1 covers
 
-1. `source` field on `PackageMeta` + backfill on existing installs.
+1. `kind` field on `PackageMeta` + backfill on existing installs.
 2. `seedOyoPackageIfMissing()` runs on app startup.
 3. Library list: OYO card with `사용자 정의` chip; tap goes to `/library/oyo`.
 4. `/library/oyo` page: list of OYO verses sorted by `no`, `+ 구절 추가`
