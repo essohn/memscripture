@@ -5,7 +5,7 @@
 		type VerseEditValues
 	} from '$lib/components/oyo/VerseEditSheet.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
-	import { Plus, Eye, EyeOff } from 'lucide-svelte';
+	import { Plus, Eye, EyeOff, Download, Upload } from 'lucide-svelte';
 	import { getShowVerseTextInList, setShowVerseTextInList } from '$lib/db/viewOptions';
 	import {
 		createOyoVerse,
@@ -14,6 +14,7 @@
 		restoreOyoVerse,
 		updateOyoVerse
 	} from '$lib/db/oyo';
+	import { applyOyoBackup, buildOyoBackup } from '$lib/db/oyoBackup';
 	import type { StoredVerse } from '$lib/db/local';
 
 	let verses = $state<StoredVerse[]>([]);
@@ -79,6 +80,55 @@
 			}
 		};
 	}
+
+	let fileInputEl: HTMLInputElement | undefined = $state();
+
+	async function handleExport() {
+		const backup = await buildOyoBackup();
+		const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		const dateKey = new Date().toISOString().slice(0, 10);
+		a.href = url;
+		a.download = `oyo-backup-${dateKey}.json`;
+		document.body.appendChild(a);
+		a.click();
+		a.remove();
+		URL.revokeObjectURL(url);
+		toast = {
+			message:
+				backup.verses.length === 0
+					? '내보낼 구절이 없어요'
+					: `${backup.verses.length}개를 내보냈어요`
+		};
+	}
+
+	function handleImport() {
+		fileInputEl?.click();
+	}
+
+	async function onFileChosen(e: Event) {
+		const el = e.target as HTMLInputElement;
+		const file = el.files?.[0];
+		if (!file) return;
+		try {
+			const text = await file.text();
+			const parsed = JSON.parse(text);
+			const { imported, skipped } = await applyOyoBackup(parsed);
+			verses = await listOyoVerses();
+			toast = {
+				message:
+					skipped > 0
+						? `${imported}개를 가져왔어요 (중복 ${skipped}개 건너뜀)`
+						: `${imported}개를 가져왔어요`
+			};
+		} catch (err) {
+			toast = { message: '가져오기 실패: 파일 형식을 확인해주세요' };
+		} finally {
+			// Reset so re-picking the same file still fires a change event.
+			el.value = '';
+		}
+	}
 </script>
 
 <Header title="내 구절" onBack={() => history.back()} />
@@ -88,11 +138,29 @@
 		<p class="text-[13px] text-[var(--color-text-secondary)]">
 			총 <span class="font-semibold text-[var(--color-text)]">{verses.length}개</span>
 		</p>
-		<div class="flex items-center gap-2">
+		<div class="flex items-center gap-1">
+			<button
+				type="button"
+				onclick={handleExport}
+				aria-label="내보내기"
+				title="내보내기"
+				class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
+			>
+				<Download size={16} strokeWidth={1.75} />
+			</button>
+			<button
+				type="button"
+				onclick={handleImport}
+				aria-label="가져오기"
+				title="가져오기"
+				class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
+			>
+				<Upload size={16} strokeWidth={1.75} />
+			</button>
 			<button
 				type="button"
 				onclick={openCreate}
-				class="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent)] px-3.5 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
+				class="ml-1 inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent)] px-3.5 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
 			>
 				<Plus size={14} strokeWidth={2} />
 				구절 추가
@@ -112,6 +180,20 @@
 			</button>
 		</div>
 	</div>
+
+	<!--
+		Hidden file input the Upload button proxies into. accept restricts the
+		picker; resetting `el.value = ''` after each read lets the user re-pick
+		the same file and fire change again (e.g. after a parse failure).
+	-->
+	<input
+		bind:this={fileInputEl}
+		type="file"
+		accept="application/json,.json"
+		class="hidden"
+		aria-hidden="true"
+		onchange={onFileChosen}
+	/>
 
 	{#if verses.length === 0}
 		<section
