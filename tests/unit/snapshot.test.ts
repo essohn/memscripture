@@ -29,8 +29,24 @@ describe('buildSyncSnapshot', () => {
 		expect(snap.bookmarks).toEqual([]);
 		expect(snap.progress).toEqual([]);
 		expect(snap.activity).toEqual([]);
-		// settings should hold at least the device id we just minted
-		expect(snap.settings.length).toBeGreaterThan(0);
+		// Device-local rows (sync_device_id, google_drive_auth, pre_sync_backup)
+		// are stripped before serialization.
+		expect(snap.settings).toEqual([]);
+	});
+
+	it('strips device-local settings rows from the envelope', async () => {
+		await db.settings.put({ key: 'view_options', value: { showVerseTextInList: true } });
+		await db.settings.put({
+			key: 'google_drive_auth',
+			value: { email: 'x@y.com', accessToken: 't', expiresAt: Date.now() + 1000 }
+		});
+
+		const snap = await buildSyncSnapshot();
+		// view_options survives; google_drive_auth (and the device id) do not.
+		expect(snap.settings.find((s) => s.key === 'view_options')).toBeDefined();
+		expect(snap.settings.find((s) => s.key === 'google_drive_auth')).toBeUndefined();
+		expect(snap.settings.find((s) => s.key === 'sync_device_id')).toBeUndefined();
+		expect(snap.settings.find((s) => s.key === 'pre_sync_backup')).toBeUndefined();
 	});
 
 	it('includes OYO verses + bookmarks + lastModifiedAt timestamp', async () => {
@@ -122,5 +138,46 @@ describe('applySyncSnapshot', () => {
 
 	it('rejects unsupported versions', async () => {
 		await expect(applySyncSnapshot({ version: 99 } as any)).rejects.toThrow(/version/);
+	});
+
+	it('preserves device-local settings rows across the apply', async () => {
+		// Stage: local device has its own auth + device id + a freshly-written
+		// pre_sync_backup blob saved by the orchestrator immediately before
+		// applySyncSnapshot would run.
+		await db.settings.put({
+			key: 'google_drive_auth',
+			value: { email: 'local@x.com', accessToken: 'local-tok', expiresAt: Date.now() + 1000 }
+		});
+		await db.settings.put({ key: 'sync_device_id', value: 'local-device-uuid' });
+		await db.settings.put({ key: 'pre_sync_backup', value: { version: 1, marker: 'undo-slot' } });
+
+		// Remote snapshot from a different device. Its settings array does NOT
+		// contain those keys (build-time filter), and even if it did the apply
+		// should still preserve the local rows.
+		const remoteSnap = {
+			version: 1 as const,
+			exportedAt: '2026-05-29T00:00:00Z',
+			lastModifiedAt: '2026-05-29T00:00:00Z',
+			device: 'other-device',
+			oyo: { package: null, verses: [] },
+			bookmarks: [],
+			progress: [],
+			activity: [],
+			settings: [{ key: 'view_options', value: { showVerseTextInList: false } }]
+		};
+
+		await applySyncSnapshot(remoteSnap);
+
+		// Local auth and device id survive.
+		const auth = await db.settings.get('google_drive_auth');
+		expect((auth?.value as { email: string }).email).toBe('local@x.com');
+		const devId = await db.settings.get('sync_device_id');
+		expect(devId?.value).toBe('local-device-uuid');
+		// pre_sync_backup must still be present so the user can undo.
+		const backup = await db.settings.get('pre_sync_backup');
+		expect(backup).toBeDefined();
+		// view_options from the snapshot is applied.
+		const viewOpts = await db.settings.get('view_options');
+		expect((viewOpts?.value as { showVerseTextInList: boolean }).showVerseTextInList).toBe(false);
 	});
 });

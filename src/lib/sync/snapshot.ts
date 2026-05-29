@@ -6,6 +6,19 @@ import type { StoredSetting, StoredVerse } from '$lib/db/local';
 
 const DEVICE_KEY = 'sync_device_id';
 
+/** Settings rows that are per-device by design and must not travel between
+ *  installs nor be wiped when applying a remote snapshot:
+ *  - sync_device_id: the local device's UUID
+ *  - google_drive_auth: the local OAuth token + email
+ *  - pre_sync_backup: the local "undo last sync" snapshot, written by
+ *    savePreSyncBackup immediately before applySyncSnapshot is called.
+ *
+ *  buildSyncSnapshot filters these out so they're never serialized;
+ *  applySyncSnapshot preserves the local rows across the clear/restore so
+ *  the user's auth state, device id, and just-saved undo backup all survive
+ *  a remote-newer import. */
+const DEVICE_LOCAL_KEYS = ['sync_device_id', 'google_drive_auth', 'pre_sync_backup'] as const;
+
 export interface SyncSnapshot {
 	version: 1;
 	exportedAt: string;
@@ -47,6 +60,7 @@ export async function buildSyncSnapshot(): Promise<SyncSnapshot> {
 		db.settings.toArray()
 	]);
 
+	const localKeySet = new Set<string>(DEVICE_LOCAL_KEYS);
 	return {
 		version: 1,
 		exportedAt: new Date().toISOString(),
@@ -59,7 +73,8 @@ export async function buildSyncSnapshot(): Promise<SyncSnapshot> {
 		bookmarks,
 		progress,
 		activity,
-		settings
+		// Strip device-local rows so they never leak to other installs.
+		settings: settings.filter((row) => !localKeySet.has(row.key))
 	};
 }
 
@@ -81,6 +96,14 @@ export async function applySyncSnapshot(input: unknown): Promise<void> {
 		'rw',
 		[db.packages, db.verses, db.bookmarks, db.progress, db.activity, db.settings],
 		async () => {
+			// Preserve device-local settings (auth, device id, pre-sync backup)
+			// so they survive the settings.clear() below — otherwise the user
+			// loses their OAuth token AND the just-saved undo backup, neither
+			// of which should be replaced by the source device's values.
+			const preserved = (
+				await Promise.all(DEVICE_LOCAL_KEYS.map((k) => db.settings.get(k)))
+			).filter((row): row is StoredSetting => Boolean(row));
+
 			// Clear in-scope rows. We intentionally leave built-in packages and
 			// their verses alone; listPackages will repopulate them on first read.
 			await db.bookmarks.clear();
@@ -96,6 +119,11 @@ export async function applySyncSnapshot(input: unknown): Promise<void> {
 			if (snap.progress?.length) await db.progress.bulkPut(snap.progress);
 			if (snap.activity?.length) await db.activity.bulkPut(snap.activity);
 			if (snap.settings?.length) await db.settings.bulkPut(snap.settings);
+
+			// Re-put device-local rows last so they override any same-key entries
+			// from the snapshot's settings array (defensive; build-time filter
+			// already removes them, but this guards against malformed envelopes).
+			if (preserved.length) await db.settings.bulkPut(preserved);
 		}
 	);
 }
