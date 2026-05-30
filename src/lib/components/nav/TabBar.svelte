@@ -1,15 +1,15 @@
 <script lang="ts">
-	import { Library, Bookmark, BarChart3 } from 'lucide-svelte';
+	import { Home, Library, Bookmark, BarChart3 } from 'lucide-svelte';
 
 	interface Props {
-		current: 'library' | 'bookmarks' | 'stats';
+		current: 'home' | 'library' | 'bookmarks' | 'stats';
 	}
 	let { current }: Props = $props();
 
-	// Today tab temporarily disabled. To re-enable, restore the BookOpen import
-	// and the { id: 'today', href: '/', label: 'Today', icon: BookOpen } entry —
-	// and reverse the / -> /library redirect in src/routes/+page.ts.
+	// "Home" leads to the dashboard (recent verses) at /. "Today" (SRS daily
+	// review) remains disabled — see plan notes if re-enabling is desired.
 	const tabs = [
+		{ id: 'home', href: '/', label: 'Home', icon: Home },
 		{ id: 'library', href: '/library', label: 'Library', icon: Library },
 		{ id: 'bookmarks', href: '/bookmarks', label: 'Marks', icon: Bookmark },
 		{ id: 'stats', href: '/stats', label: 'Stats', icon: BarChart3 }

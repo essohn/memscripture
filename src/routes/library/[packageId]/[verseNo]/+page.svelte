@@ -12,6 +12,7 @@
 		type VerseTag
 	} from '$lib/db/verses';
 	import { getBookmark, setBookmark, clearBookmark } from '$lib/db/bookmarks';
+	import { recordRecentVerse } from '$lib/db/recentVerses';
 	import {
 		getShowVerseTextInList,
 		setShowVerseTextInList,
@@ -96,6 +97,11 @@
 					verses = data.verses;
 					groups = data.groups;
 					bookmark = currentBookmark?.color ?? null;
+				}
+				// Best-effort: stamp the recents table so the dashboard surfaces
+				// this verse. Fire-and-forget; failures don't block the page.
+				if (active && verse) {
+					recordRecentVerse(currentPackageId, currentVerseNo).catch(() => {});
 				}
 			} catch (e) {
 				if (active) error = String(e);

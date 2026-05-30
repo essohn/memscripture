@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
 
-test('home redirects to /library and Pretendard is the active body font', async ({ page }) => {
+test('home renders the dashboard at / and Pretendard is the active body font', async ({ page }) => {
 	await page.goto('/');
-	// With the Today section disabled, / 307s to /library — Playwright follows it.
-	await expect(page).toHaveURL(/\/library$/);
+	// Dashboard route — stays at /, no redirect.
+	await expect(page).toHaveURL(/\/$/);
+	await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
 
 	// Wait for fonts to settle
 	await page.evaluate(() => document.fonts.ready);

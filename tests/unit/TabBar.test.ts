@@ -3,12 +3,20 @@ import { describe, it, expect } from 'vitest';
 import TabBar from '../../src/lib/components/nav/TabBar.svelte';
 
 describe('TabBar', () => {
-	it('renders three tabs (Today disabled)', () => {
-		render(TabBar, { props: { current: 'library' } });
-		expect(screen.queryByRole('link', { name: /today/i })).toBeNull();
+	it('renders four tabs (Home / Library / Marks / Stats)', () => {
+		render(TabBar, { props: { current: 'home' } });
+		expect(screen.getByRole('link', { name: /home/i })).toBeInTheDocument();
 		expect(screen.getByRole('link', { name: /library/i })).toBeInTheDocument();
 		expect(screen.getByRole('link', { name: /marks/i })).toBeInTheDocument();
 		expect(screen.getByRole('link', { name: /stats/i })).toBeInTheDocument();
+		// Today tab is intentionally absent.
+		expect(screen.queryByRole('link', { name: /today/i })).toBeNull();
+	});
+
+	it('marks Home tab as active when current=home', () => {
+		render(TabBar, { props: { current: 'home' } });
+		const home = screen.getByRole('link', { name: /home/i });
+		expect(home).toHaveAttribute('aria-current', 'page');
 	});
 
 	it('marks current tab as active via aria-current', () => {

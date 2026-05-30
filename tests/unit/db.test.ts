@@ -7,14 +7,15 @@ beforeEach(async () => {
 	await db.open();
 });
 
-describe('local db schema v3', () => {
-	it('exposes all 6 tables', () => {
+describe('local db schema v4', () => {
+	it('exposes all 7 tables', () => {
 		const names = db.tables.map((t) => t.name).sort();
 		expect(names).toEqual([
 			'activity',
 			'bookmarks',
 			'packages',
 			'progress',
+			'recentVerses',
 			'settings',
 			'verses'
 		]);

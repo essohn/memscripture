@@ -1,165 +1,177 @@
 <script lang="ts">
 	import Header from '$lib/components/nav/Header.svelte';
-	import PackageCard from '$lib/components/PackageCard.svelte';
-	import { listPackages, listVerses } from '$lib/db/verses';
-	import { getRecentPackageIds } from '$lib/db/recent';
-	import { getActivePackageId } from '$lib/db/activePackage';
-	import { listProgressByPackage } from '$lib/db/progress';
-	import { getActivityHistory } from '$lib/db/activity';
-	import { applyGraduations } from '$lib/srs/orchestrate';
-	import { buildTodayQueue } from '$lib/srs/scheduler';
-	import { buildSuggestions } from '$lib/srs/suggestions';
-	import type { PackageMeta } from '$lib/types';
 	import { Sparkles } from 'lucide-svelte';
+	import { listRecentVerses } from '$lib/db/recentVerses';
+	import { listPackages, loadPackageData } from '$lib/db/verses';
+	import type { PackageMeta } from '$lib/types';
+	import type { StoredVerse } from '$lib/db/local';
 
-	let packages: PackageMeta[] = $state([]);
-	let recentIds: string[] = $state([]);
-	let activePackageId: string | null = $state(null);
-	let queueLen = $state(0);
-	let newCount = $state(0);
-	let reviewCount = $state(0);
-	let suggestionCount = $state(0);
-	let allMemorized = $state(false);
+	interface RecentRow {
+		packageId: string;
+		verseNo: number;
+		viewedAt: number;
+		verse: StoredVerse | null;
+		packageAbbreviation: string;
+	}
+
+	let rows = $state<RecentRow[]>([]);
+	let loaded = $state(false);
 
 	$effect(() => {
+		let active = true;
 		(async () => {
-			const [pkgs, recent, activeId] = await Promise.all([
-				listPackages(),
-				getRecentPackageIds(),
-				getActivePackageId()
-			]);
-			packages = pkgs;
-			recentIds = recent;
-			activePackageId = activeId;
-			if (!activeId) return;
+			const recents = await listRecentVerses(10);
+			if (recents.length === 0) {
+				if (active) {
+					rows = [];
+					loaded = true;
+				}
+				return;
+			}
 
-			const [progress, packageVerses, activity] = await Promise.all([
-				listProgressByPackage(activeId),
-				listVerses(activeId),
-				getActivityHistory()
-			]);
-			const { current } = applyGraduations(progress);
-			const queue = buildTodayQueue(current, activity);
-			const suggestions = buildSuggestions(current, packageVerses);
-			queueLen = queue.length;
-			newCount = queue.filter((p) => p.bucket === 'new').length;
-			reviewCount = queue.length - newCount;
-			suggestionCount = suggestions.length;
-			allMemorized = packageVerses.length > 0 && suggestions.length === 0 && queue.length === 0;
-		})().catch(() => {});
+			// Resolve verse + package abbreviation for each entry. listPackages
+			// triggers the OYO seed + curated fetch, so we don't need a separate
+			// install step.
+			const allPackages = await listPackages();
+			const pkgById = new Map<string, PackageMeta>(allPackages.map((p) => [p.id, p]));
+
+			// Load each referenced package's verse data once.
+			const uniquePackageIds = Array.from(new Set(recents.map((r) => r.packageId)));
+			const dataByPkg = new Map(
+				await Promise.all(
+					uniquePackageIds.map(
+						async (id) => [id, await loadPackageData(id).catch(() => null)] as const
+					)
+				)
+			);
+
+			const resolved: RecentRow[] = recents.map((r) => {
+				const pkgData = dataByPkg.get(r.packageId);
+				const verse = pkgData?.verses.find((v) => v.no === r.verseNo) ?? null;
+				return {
+					packageId: r.packageId,
+					verseNo: r.verseNo,
+					viewedAt: r.viewedAt,
+					verse,
+					packageAbbreviation: pkgById.get(r.packageId)?.abbreviation ?? r.packageId
+				};
+			});
+
+			if (active) {
+				// Drop rows whose verse no longer exists (package uninstalled or
+				// verse renumbered) — better to omit than show a broken card.
+				rows = resolved.filter((r) => r.verse !== null);
+				loaded = true;
+			}
+		})().catch(() => {
+			if (active) loaded = true;
+		});
+		return () => {
+			active = false;
+		};
 	});
 
-	const today = new Intl.DateTimeFormat('ko-KR', {
-		month: 'long',
-		day: 'numeric',
-		weekday: 'long'
-	}).format(new Date());
-
-	const heroState = $derived(
-		!activePackageId
-			? 'no-active'
-			: allMemorized
-				? 'all-done-package'
-				: queueLen + suggestionCount === 0
-					? 'all-done-today'
-					: 'has-queue'
-	);
+	function relativeTimeKo(ms: number): string {
+		const delta = Date.now() - ms;
+		const min = Math.floor(delta / 60_000);
+		if (min < 1) return '방금 전';
+		if (min < 60) return `${min}분 전`;
+		const hr = Math.floor(min / 60);
+		if (hr < 24) return `${hr}시간 전`;
+		const day = Math.floor(hr / 24);
+		if (day < 7) return `${day}일 전`;
+		return `${Math.floor(day / 7)}주 전`;
+	}
 </script>
 
-<Header title={today} />
+<Header title="Home" />
 
 <main class="mx-auto max-w-2xl px-5 pb-8 pt-6">
 	<section
-		class="hero-card relative overflow-hidden rounded-[26px] border border-[var(--color-border)] bg-[var(--color-card)] px-6 pb-7 pt-8"
+		class="hero-card relative overflow-hidden rounded-[26px] border border-[var(--color-border)] bg-[var(--color-card)] px-6 pb-6 pt-7"
 	>
 		<span
 			class="absolute -right-10 -top-10 h-44 w-44 rounded-full bg-[var(--color-accent-soft)] opacity-70 blur-2xl"
 			aria-hidden="true"
 		></span>
-
 		<div
 			class="relative inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-elevated)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]"
 		>
 			<Sparkles size={12} class="text-[var(--color-accent)]" />
-			Today
+			최근
 		</div>
-
-		{#if heroState === 'no-active'}
-			<h2 class="relative mt-4 text-[24px] font-semibold leading-tight text-[var(--color-text)]">
-				암송할 패키지를 선택해주세요
-			</h2>
-			<p class="relative mt-3 text-[14px] leading-relaxed text-[var(--color-text-secondary)]">
-				라이브러리에서 패키지를 열고<br />「이 패키지로 암송 시작」을 누르세요.
-			</p>
-			<a
-				href="/library"
-				class="relative mt-6 inline-flex items-center rounded-full bg-[var(--color-accent)] px-4 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-90"
-			>
-				라이브러리로 →
-			</a>
-		{:else if heroState === 'has-queue'}
-			<h2 class="relative mt-4 text-[24px] font-semibold leading-tight text-[var(--color-text)]">
-				{queueLen + suggestionCount}장 남음
-			</h2>
-			<p class="relative mt-3 text-[14px] leading-relaxed text-[var(--color-text-secondary)]">
-				{#if newCount > 0 || reviewCount > 0}
-					새 {newCount} · 복습 {reviewCount}{#if suggestionCount > 0} · 추천 {suggestionCount}{/if}
-				{:else if suggestionCount > 0}
-					추천 구절 {suggestionCount}장
-				{/if}
-			</p>
-			<a
-				href="/today"
-				class="relative mt-6 inline-flex items-center rounded-full bg-[var(--color-accent)] px-4 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-90"
-			>
-				시작 →
-			</a>
-		{:else if heroState === 'all-done-today'}
-			<h2 class="relative mt-4 text-[24px] font-semibold leading-tight text-[var(--color-text)]">
-				🎉 오늘은 다 했어요
-			</h2>
-			<p class="relative mt-3 text-[14px] leading-relaxed text-[var(--color-text-secondary)]">
-				내일 다시 만나요.
-			</p>
-		{:else}
-			<h2 class="relative mt-4 text-[24px] font-semibold leading-tight text-[var(--color-text)]">
-				이 패키지를 다 외웠어요
-			</h2>
-			<p class="relative mt-3 text-[14px] leading-relaxed text-[var(--color-text-secondary)]">
-				다른 패키지를 시작해 보세요.
-			</p>
-			<a
-				href="/library"
-				class="relative mt-6 inline-flex items-center rounded-full bg-[var(--color-accent)] px-4 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-90"
-			>
-				라이브러리로 →
-			</a>
-		{/if}
+		<h2 class="relative mt-4 text-[20px] font-semibold leading-tight text-[var(--color-text)]">
+			보던 구절로 돌아가기
+		</h2>
+		<p class="relative mt-2 text-[13px] leading-relaxed text-[var(--color-text-secondary)]">
+			최근에 열어본 구절을 탭하면 그 구절로 바로 이동해요.
+		</p>
 	</section>
 
-	<div class="mt-8 mb-3 flex items-baseline justify-between px-1">
-		<h3
-			class="text-[13px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-secondary)]"
-		>
-			최근 패키지
-		</h3>
-		<a
-			href="/library"
-			class="text-[12px] font-medium text-[var(--color-accent)] underline-offset-4 hover:underline"
-		>
-			전체 보기 →
-		</a>
-	</div>
-
-	<div class="space-y-3">
-		{#each packages.slice(0, 3) as pkg (pkg.id)}
-			<PackageCard {pkg} recent={recentIds.includes(pkg.id)} />
-		{/each}
+	<div class="mt-6 px-1">
+		{#if !loaded}
+			<p class="text-[13px] text-[var(--color-text-tertiary)]">불러오는 중…</p>
+		{:else if rows.length === 0}
+			<section
+				class="empty-card rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] px-7 py-12 text-center"
+			>
+				<p class="text-[15px] text-[var(--color-text-secondary)]">
+					아직 본 구절이 없어요.
+				</p>
+				<p class="mt-2 text-[13px] text-[var(--color-text-tertiary)]">
+					Library에서 구절을 열면 여기에 모여요.
+				</p>
+			</section>
+		{:else}
+			<ul class="space-y-3">
+				{#each rows as row (`${row.packageId}:${row.verseNo}`)}
+					<li>
+						<a
+							href={`/library/${row.packageId}/${row.verseNo}`}
+							class="recent-card group block rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-5 py-4 transition-all hover:border-[var(--color-accent)]/50"
+						>
+							<div class="flex items-baseline justify-between gap-2">
+								<p
+									class="text-[10.5px] font-medium uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]"
+								>
+									{row.packageAbbreviation}
+								</p>
+								<p class="text-[11px] text-[var(--color-text-tertiary)]">
+									{relativeTimeKo(row.viewedAt)}
+								</p>
+							</div>
+							{#if row.verse?.title}
+								<h3
+									class="mt-1.5 truncate text-[16px] font-semibold text-[var(--color-text)]"
+								>
+									{row.verse.title}
+								</h3>
+							{/if}
+							<p class="mt-1 text-[12px] text-[var(--color-text-secondary)]">
+								{row.verse?.cite}
+							</p>
+						</a>
+					</li>
+				{/each}
+			</ul>
+		{/if}
 	</div>
 </main>
 
 <style>
-	.hero-card {
-		box-shadow: var(--shadow-card);
+	.hero-card,
+	.empty-card {
+		box-shadow: var(--shadow-soft);
+	}
+	.recent-card {
+		box-shadow: var(--shadow-soft);
+		transition:
+			transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+			box-shadow 240ms cubic-bezier(0.22, 1, 0.36, 1),
+			border-color 240ms ease;
+	}
+	.recent-card:hover {
+		transform: translateY(-2px);
+		box-shadow: var(--shadow-card-hover);
 	}
 </style>
