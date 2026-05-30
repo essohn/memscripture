@@ -22,6 +22,9 @@
 		/** When provided, render an overflow `…` menu with edit/delete actions. OYO only. */
 		onEdit?: () => void;
 		onDelete?: () => void;
+		/** Multiplier applied to every text size inside the card via the --vfs
+		 *  CSS variable. 1.0 is the default; the picker offers 0.9 / 1.0 / 1.15 / 1.3. */
+		fontScale?: number;
 	}
 	let {
 		verse,
@@ -33,7 +36,8 @@
 		onBookmarkClear,
 		showBody = true,
 		onEdit,
-		onDelete
+		onDelete,
+		fontScale = 1.0
 	}: Props = $props();
 
 	const bookmarksEnabled = $derived(Boolean(onBookmarkPick && onBookmarkClear));
@@ -167,12 +171,13 @@
 </script>
 
 <article
+	style="--vfs: {fontScale};"
 	class="verse-card relative rounded-[26px] border border-[var(--color-border)] bg-[var(--color-card)] px-7 pb-9 pt-7"
 >
 	<header class="space-y-2">
 		<div class="flex items-center justify-between gap-3">
 			<p
-				class="text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--color-text-tertiary)]"
+				class="text-[calc(11px*var(--vfs))] font-medium uppercase tracking-[0.2em] text-[var(--color-text-tertiary)]"
 			>
 				{packageName ?? ''}
 			</p>
@@ -187,10 +192,14 @@
 				{/if}
 			</div>
 		</div>
-		<h2 class="text-[22px] font-semibold leading-tight text-[var(--color-text)]">
+		<h2
+			class="text-[calc(22px*var(--vfs))] font-semibold leading-tight text-[var(--color-text)]"
+		>
 			{verse.title}
 		</h2>
-		<p class="flex items-center gap-2 text-[13px] text-[var(--color-text-secondary)]">
+		<p
+			class="flex items-center gap-2 text-[calc(13px*var(--vfs))] text-[var(--color-text-secondary)]"
+		>
 			<span class="h-px w-5 bg-[var(--color-accent)]/60"></span>
 			{verse.cite}
 		</p>
@@ -203,7 +212,7 @@
 			stays identical, screen readers still get the text.
 		-->
 		<p
-			class="mt-6 whitespace-pre-line break-keep text-[17px] leading-[1.85] {showBody
+			class="mt-6 whitespace-pre-line break-keep text-[calc(17px*var(--vfs))] leading-[1.85] {showBody
 				? 'text-[var(--color-text)]'
 				: 'text-transparent'}"
 		>
@@ -211,7 +220,7 @@
 		</p>
 	{:else}
 		<p
-			class="paragraph mt-6 break-keep text-[17px] leading-[2] text-[var(--color-text)] select-none touch-pan-y"
+			class="paragraph mt-6 break-keep text-[calc(17px*var(--vfs))] leading-[2] text-[var(--color-text)] select-none touch-pan-y"
 			bind:this={paragraphEl}
 			onpointerdown={onPointerDown}
 			onpointermove={onPointerMove}

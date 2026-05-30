@@ -1,12 +1,19 @@
 <script lang="ts">
 	import Header from '$lib/components/nav/Header.svelte';
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
+	import FontScalePicker from '$lib/components/card/FontScalePicker.svelte';
 	import VerseEditSheet, {
 		type VerseEditValues
 	} from '$lib/components/oyo/VerseEditSheet.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
 	import { Plus, Eye, EyeOff, FolderInput, FolderOutput } from 'lucide-svelte';
-	import { getShowVerseTextInList, setShowVerseTextInList } from '$lib/db/viewOptions';
+	import {
+		getShowVerseTextInList,
+		setShowVerseTextInList,
+		getVerseFontScale,
+		setVerseFontScale,
+		type VerseFontScale
+	} from '$lib/db/viewOptions';
 	import {
 		createOyoVerse,
 		deleteOyoVerse,
@@ -19,19 +26,22 @@
 
 	let verses = $state<StoredVerse[]>([]);
 	let showVerseText = $state(true);
+	let fontScale = $state<VerseFontScale>(1.0);
 	let sheet = $state<{ mode: 'create' | 'edit'; initial?: VerseEditValues; editingNo?: number } | null>(null);
 	let toast = $state<{ message: string; actionLabel?: string; onAction?: () => void } | null>(null);
 
 	$effect(() => {
 		let active = true;
 		(async () => {
-			const [list, eyeState] = await Promise.all([
+			const [list, eyeState, scale] = await Promise.all([
 				listOyoVerses(),
-				getShowVerseTextInList()
+				getShowVerseTextInList(),
+				getVerseFontScale()
 			]);
 			if (active) {
 				verses = list;
 				showVerseText = eyeState;
+				fontScale = scale;
 			}
 		})().catch(() => {});
 		return () => {
@@ -42,6 +52,11 @@
 	function toggleVerseText() {
 		showVerseText = !showVerseText;
 		setShowVerseTextInList(showVerseText).catch(() => {});
+	}
+
+	function pickFontScale(scale: VerseFontScale) {
+		fontScale = scale;
+		setVerseFontScale(scale).catch(() => {});
 	}
 
 	function openCreate() {
@@ -185,6 +200,7 @@
 				<Plus size={14} strokeWidth={2} />
 				구절 추가
 			</button>
+			<FontScalePicker value={fontScale} onpick={pickFontScale} />
 			<button
 				type="button"
 				onclick={toggleVerseText}
@@ -240,6 +256,7 @@
 					packageName="OYO"
 					packageId="oyo"
 					showBody={showVerseText}
+					{fontScale}
 					onEdit={() => openEdit(verse)}
 					onDelete={() => handleDelete(verse)}
 				/>

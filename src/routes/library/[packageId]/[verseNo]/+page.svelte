@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Header from '$lib/components/nav/Header.svelte';
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
+	import FontScalePicker from '$lib/components/card/FontScalePicker.svelte';
 	import { Eye, EyeOff, ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import { page } from '$app/state';
 	import {
@@ -11,7 +12,13 @@
 		type VerseTag
 	} from '$lib/db/verses';
 	import { getBookmark, setBookmark, clearBookmark } from '$lib/db/bookmarks';
-	import { getShowVerseTextInList, setShowVerseTextInList } from '$lib/db/viewOptions';
+	import {
+		getShowVerseTextInList,
+		setShowVerseTextInList,
+		getVerseFontScale,
+		setVerseFontScale,
+		type VerseFontScale
+	} from '$lib/db/viewOptions';
 	import type { BookmarkColor, PackageMeta, IndexGroup } from '$lib/types';
 	import type { StoredVerse } from '$lib/db/local';
 
@@ -25,6 +32,7 @@
 	let bookmark: BookmarkColor | null = $state(null);
 	let error: string | null = $state(null);
 	let showVerseText = $state(true);
+	let fontScale = $state<VerseFontScale>(1.0);
 
 	// Verse numbers can be sparse (e.g., 1, 2, 5, 7) — sort by `no` so prev/next
 	// reflect the package's natural order, not the storage order.
@@ -40,8 +48,11 @@
 	$effect(() => {
 		let active = true;
 		(async () => {
-			const v = await getShowVerseTextInList();
-			if (active) showVerseText = v;
+			const [v, scale] = await Promise.all([getShowVerseTextInList(), getVerseFontScale()]);
+			if (active) {
+				showVerseText = v;
+				fontScale = scale;
+			}
 		})().catch(() => {});
 		return () => {
 			active = false;
@@ -51,6 +62,11 @@
 	function toggleVerseText() {
 		showVerseText = !showVerseText;
 		setShowVerseTextInList(showVerseText).catch(() => {});
+	}
+
+	function pickFontScale(scale: VerseFontScale) {
+		fontScale = scale;
+		setVerseFontScale(scale).catch(() => {});
 	}
 
 	$effect(() => {
@@ -120,7 +136,8 @@
 	{:else if !verse}
 		<p role="status" class="text-[var(--color-text-tertiary)]">불러오는 중...</p>
 	{:else}
-		<div class="mb-3 flex items-center justify-end px-1">
+		<div class="mb-3 flex items-center justify-end gap-1 px-1">
+			<FontScalePicker value={fontScale} onpick={pickFontScale} />
 			<button
 				type="button"
 				onclick={toggleVerseText}
@@ -150,6 +167,7 @@
 				{onBookmarkPick}
 				{onBookmarkClear}
 				showBody={showVerseText}
+				{fontScale}
 			/>
 		{/key}
 

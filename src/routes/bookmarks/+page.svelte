@@ -1,10 +1,17 @@
 <script lang="ts">
 	import Header from '$lib/components/nav/Header.svelte';
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
+	import FontScalePicker from '$lib/components/card/FontScalePicker.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
 	import { Eye, EyeOff } from 'lucide-svelte';
 	import { setBookmark, clearBookmark, clearAllOfColor } from '$lib/db/bookmarks';
-	import { getShowVerseTextInList, setShowVerseTextInList } from '$lib/db/viewOptions';
+	import {
+		getShowVerseTextInList,
+		setShowVerseTextInList,
+		getVerseFontScale,
+		setVerseFontScale,
+		type VerseFontScale
+	} from '$lib/db/viewOptions';
 	import { BOOKMARK_COLORS, type BookmarkColor } from '$lib/types';
 	import type { BookmarksLoadData, BookmarkedRow } from './+page';
 
@@ -13,6 +20,7 @@
 	let rows = $state<BookmarkedRow[]>(data.rows);
 	let selected = $state<BookmarkColor>('red');
 	let showVerseText = $state(true);
+	let fontScale = $state<VerseFontScale>(1.0);
 	let toast = $state<{ message: string; actionLabel?: string; onAction?: () => void } | null>(
 		null
 	);
@@ -20,8 +28,11 @@
 	$effect(() => {
 		let active = true;
 		(async () => {
-			const v = await getShowVerseTextInList();
-			if (active) showVerseText = v;
+			const [v, scale] = await Promise.all([getShowVerseTextInList(), getVerseFontScale()]);
+			if (active) {
+				showVerseText = v;
+				fontScale = scale;
+			}
 		})().catch(() => {});
 		return () => {
 			active = false;
@@ -31,6 +42,11 @@
 	function toggleVerseText() {
 		showVerseText = !showVerseText;
 		setShowVerseTextInList(showVerseText).catch(() => {});
+	}
+
+	function pickFontScale(scale: VerseFontScale) {
+		fontScale = scale;
+		setVerseFontScale(scale).catch(() => {});
 	}
 
 	const COLOR_LABELS: Record<BookmarkColor, string> = {
@@ -152,6 +168,7 @@
 				>
 					이 색 전부 지우기
 				</button>
+				<FontScalePicker value={fontScale} onpick={pickFontScale} />
 				<button
 					type="button"
 					onclick={toggleVerseText}
@@ -178,6 +195,7 @@
 					onBookmarkPick={(c) => pickColor(row, c)}
 					onBookmarkClear={() => removeRow(row)}
 					showBody={showVerseText}
+					{fontScale}
 				/>
 			{/each}
 		</div>
