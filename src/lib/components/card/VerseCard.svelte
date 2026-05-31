@@ -79,7 +79,7 @@
 	<header class="space-y-2">
 		<div class="flex items-center justify-between gap-3">
 			<p
-				class="text-[calc(11px*var(--vfs))] font-medium uppercase tracking-[0.2em] text-[var(--color-text-tertiary)]"
+				class="text-[calc(13px*var(--vfs))] font-medium uppercase tracking-[0.2em] text-[var(--color-text-tertiary)]"
 			>
 				{packageName ?? ''}
 			</p>
@@ -109,12 +109,12 @@
 			</div>
 		</div>
 		<h2
-			class="text-[calc(22px*var(--vfs))] font-semibold leading-tight text-[var(--color-text)]"
+			class="text-[calc(19px*var(--vfs))] font-bold leading-tight text-[var(--color-text)]"
 		>
 			{verse.title}
 		</h2>
 		<p
-			class="flex items-center gap-2 text-[calc(13px*var(--vfs))] text-[var(--color-text-secondary)]"
+			class="flex items-center gap-2 text-[calc(19px*var(--vfs))] text-[var(--color-text-secondary)]"
 		>
 			<span class="h-px w-5 bg-[var(--color-accent)]/60"></span>
 			{verse.cite}
@@ -127,7 +127,7 @@
 		stays identical, screen readers still get the text.
 	-->
 	<p
-		class="mt-6 whitespace-pre-line break-keep text-[calc(17px*var(--vfs))] leading-[1.85] {showBody
+		class="mt-6 whitespace-pre-line break-keep text-[calc(19px*var(--vfs))] leading-[1.85] {showBody
 			? 'text-[var(--color-text)]'
 			: 'text-transparent'}"
 	>
