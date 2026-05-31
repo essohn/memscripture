@@ -26,6 +26,7 @@ function fixture(overrides: Partial<SyncSnapshot> = {}): SyncSnapshot {
 		progress: [],
 		activity: [],
 		settings: [],
+		verseRatings: [],
 		...overrides
 	};
 }

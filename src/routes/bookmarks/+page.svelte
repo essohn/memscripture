@@ -6,6 +6,12 @@
 	import { Eye, EyeOff } from 'lucide-svelte';
 	import { setBookmark, clearBookmark, clearAllOfColor } from '$lib/db/bookmarks';
 	import {
+		getVerseRating,
+		setStartDifficulty,
+		setFullDifficulty,
+		type DifficultyLevel
+	} from '$lib/db/verseRatings';
+	import {
 		getShowVerseTextInList,
 		setShowVerseTextInList,
 		getVerseFontScale,
@@ -21,23 +27,57 @@
 	let selected = $state<BookmarkColor>('red');
 	let showVerseText = $state(true);
 	let fontScale = $state<VerseFontScale>(1.0);
+	// Composite-keyed difficulty cache. Bookmarks span packages, so verse.no
+	// alone isn't unique — `${packageId}:${verseNo}` is.
+	let startDifficulties = $state<Record<string, DifficultyLevel | null>>({});
+	let fullDifficulties = $state<Record<string, DifficultyLevel | null>>({});
 	let toast = $state<{ message: string; actionLabel?: string; onAction?: () => void } | null>(
 		null
 	);
+
+	function ratingKey(packageId: string, verseNo: number): string {
+		return `${packageId}:${verseNo}`;
+	}
 
 	$effect(() => {
 		let active = true;
 		(async () => {
 			const [v, scale] = await Promise.all([getShowVerseTextInList(), getVerseFontScale()]);
-			if (active) {
-				showVerseText = v;
-				fontScale = scale;
-			}
+			if (!active) return;
+			showVerseText = v;
+			fontScale = scale;
+
+			// Hydrate difficulty maps for every bookmarked row in one pass.
+			const ratings = await Promise.all(
+				data.rows.map((r) => getVerseRating(r.bookmark.packageId, r.bookmark.verseNo))
+			);
+			if (!active) return;
+			const starts: Record<string, DifficultyLevel | null> = {};
+			const fulls: Record<string, DifficultyLevel | null> = {};
+			data.rows.forEach((r, i) => {
+				const key = ratingKey(r.bookmark.packageId, r.bookmark.verseNo);
+				starts[key] = (ratings[i]?.startDifficulty ?? null) as DifficultyLevel | null;
+				fulls[key] = (ratings[i]?.fullDifficulty ?? null) as DifficultyLevel | null;
+			});
+			startDifficulties = starts;
+			fullDifficulties = fulls;
 		})().catch(() => {});
 		return () => {
 			active = false;
 		};
 	});
+
+	function pickStart(packageId: string, verseNo: number, level: DifficultyLevel | null) {
+		const key = ratingKey(packageId, verseNo);
+		startDifficulties = { ...startDifficulties, [key]: level };
+		setStartDifficulty(packageId, verseNo, level).catch(() => {});
+	}
+
+	function pickFull(packageId: string, verseNo: number, level: DifficultyLevel | null) {
+		const key = ratingKey(packageId, verseNo);
+		fullDifficulties = { ...fullDifficulties, [key]: level };
+		setFullDifficulty(packageId, verseNo, level).catch(() => {});
+	}
 
 	function toggleVerseText() {
 		showVerseText = !showVerseText;
@@ -194,6 +234,16 @@
 					bookmark={row.bookmark.color}
 					onBookmarkPick={(c) => pickColor(row, c)}
 					onBookmarkClear={() => removeRow(row)}
+					startDifficulty={startDifficulties[
+						ratingKey(row.bookmark.packageId, row.bookmark.verseNo)
+					] ?? null}
+					fullDifficulty={fullDifficulties[
+						ratingKey(row.bookmark.packageId, row.bookmark.verseNo)
+					] ?? null}
+					onPickStartDifficulty={(l) =>
+						pickStart(row.bookmark.packageId, row.bookmark.verseNo, l)}
+					onPickFullDifficulty={(l) =>
+						pickFull(row.bookmark.packageId, row.bookmark.verseNo, l)}
 					showBody={showVerseText}
 					{fontScale}
 				/>

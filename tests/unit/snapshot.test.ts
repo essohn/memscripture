@@ -9,6 +9,11 @@ import {
 import { setBookmark } from '../../src/lib/db/bookmarks';
 import { setShowVerseTextInList } from '../../src/lib/db/viewOptions';
 import { touchDataModified } from '../../src/lib/db/touchData';
+import {
+	getVerseRating,
+	setFullDifficulty,
+	setStartDifficulty
+} from '../../src/lib/db/verseRatings';
 import { applySyncSnapshot, buildSyncSnapshot } from '../../src/lib/sync/snapshot';
 
 beforeEach(async () => {
@@ -138,6 +143,27 @@ describe('applySyncSnapshot', () => {
 
 	it('rejects unsupported versions', async () => {
 		await expect(applySyncSnapshot({ version: 99 } as any)).rejects.toThrow(/version/);
+	});
+
+	it('round-trips verseRatings (build → wipe → apply preserves both fields)', async () => {
+		await setStartDifficulty('5_krv', 1, 2);
+		await setFullDifficulty('5_krv', 1, 4);
+		await setStartDifficulty('5_krv', 3, 5);
+
+		const snap = await buildSyncSnapshot();
+		expect(snap.verseRatings).toHaveLength(2);
+
+		await db.delete();
+		await db.open();
+		await seedOyoPackageIfMissing();
+
+		await applySyncSnapshot(snap);
+
+		const r1 = await getVerseRating('5_krv', 1);
+		const r3 = await getVerseRating('5_krv', 3);
+		expect(r1?.startDifficulty).toBe(2);
+		expect(r1?.fullDifficulty).toBe(4);
+		expect(r3?.startDifficulty).toBe(5);
 	});
 
 	it('preserves device-local settings rows across the apply', async () => {

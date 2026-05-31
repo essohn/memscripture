@@ -45,7 +45,8 @@ function snap(lastModifiedAt: string) {
 		bookmarks: [],
 		progress: [],
 		activity: [],
-		settings: []
+		settings: [],
+		verseRatings: []
 	};
 }
 

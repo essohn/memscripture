@@ -81,8 +81,11 @@ test.describe('category filters', () => {
 
 	test('VerseCard tag tap navigates to filtered package detail', async ({ page }) => {
 		await page.goto('/library/60_krv/1');
-		// Tag for level-1 series A appears on the card. Click the first tag button.
-		const tagButtons = page.locator('article button');
+		// CategoryTag is the only article button with aria-pressed; difficulty
+		// badges use aria-haspopup, bookmark/overflow controls use aria-label.
+		// Anchoring on aria-pressed keeps the test stable as new badges are
+		// added to the card header.
+		const tagButtons = page.locator('article button[aria-pressed]');
 		await expect(tagButtons.first()).toBeVisible();
 		await tagButtons.first().click();
 		await expect(page).toHaveURL(/\/library\/60_krv\?s=0/);

@@ -18,15 +18,26 @@
 		createOyoVerse,
 		deleteOyoVerse,
 		listOyoVerses,
+		OYO_PACKAGE_ID,
 		restoreOyoVerse,
 		updateOyoVerse
 	} from '$lib/db/oyo';
 	import { applyOyoBackup, buildOyoBackup } from '$lib/db/oyoBackup';
+	import {
+		getVerseRating,
+		setStartDifficulty,
+		setFullDifficulty,
+		type DifficultyLevel
+	} from '$lib/db/verseRatings';
 	import type { StoredVerse } from '$lib/db/local';
 
 	let verses = $state<StoredVerse[]>([]);
 	let showVerseText = $state(true);
 	let fontScale = $state<VerseFontScale>(1.0);
+	// Per-verse difficulty cache keyed by verse.no — separate maps for each
+	// dimension so a write to one doesn't blow away the other.
+	let startDifficulties = $state<Record<number, DifficultyLevel | null>>({});
+	let fullDifficulties = $state<Record<number, DifficultyLevel | null>>({});
 	let sheet = $state<{ mode: 'create' | 'edit'; initial?: VerseEditValues; editingNo?: number } | null>(null);
 	let toast = $state<{ message: string; actionLabel?: string; onAction?: () => void } | null>(null);
 
@@ -38,16 +49,40 @@
 				getShowVerseTextInList(),
 				getVerseFontScale()
 			]);
-			if (active) {
-				verses = list;
-				showVerseText = eyeState;
-				fontScale = scale;
-			}
+			if (!active) return;
+			verses = list;
+			showVerseText = eyeState;
+			fontScale = scale;
+
+			// Hydrate difficulty maps after the list lands. Done in a second
+			// pass so the list renders fast even if there are many verses.
+			const ratings = await Promise.all(
+				list.map((v) => getVerseRating(OYO_PACKAGE_ID, v.no))
+			);
+			if (!active) return;
+			const starts: Record<number, DifficultyLevel | null> = {};
+			const fulls: Record<number, DifficultyLevel | null> = {};
+			list.forEach((v, i) => {
+				starts[v.no] = (ratings[i]?.startDifficulty ?? null) as DifficultyLevel | null;
+				fulls[v.no] = (ratings[i]?.fullDifficulty ?? null) as DifficultyLevel | null;
+			});
+			startDifficulties = starts;
+			fullDifficulties = fulls;
 		})().catch(() => {});
 		return () => {
 			active = false;
 		};
 	});
+
+	function pickStart(verseNo: number, level: DifficultyLevel | null) {
+		startDifficulties = { ...startDifficulties, [verseNo]: level };
+		setStartDifficulty(OYO_PACKAGE_ID, verseNo, level).catch(() => {});
+	}
+
+	function pickFull(verseNo: number, level: DifficultyLevel | null) {
+		fullDifficulties = { ...fullDifficulties, [verseNo]: level };
+		setFullDifficulty(OYO_PACKAGE_ID, verseNo, level).catch(() => {});
+	}
 
 	function toggleVerseText() {
 		showVerseText = !showVerseText;
@@ -257,6 +292,10 @@
 					packageId="oyo"
 					showBody={showVerseText}
 					{fontScale}
+					startDifficulty={startDifficulties[verse.no] ?? null}
+					fullDifficulty={fullDifficulties[verse.no] ?? null}
+					onPickStartDifficulty={(l) => pickStart(verse.no, l)}
+					onPickFullDifficulty={(l) => pickFull(verse.no, l)}
 					onEdit={() => openEdit(verse)}
 					onDelete={() => handleDelete(verse)}
 				/>

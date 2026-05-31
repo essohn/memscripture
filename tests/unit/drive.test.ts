@@ -18,7 +18,8 @@ function snapshotFixture(): SyncSnapshot {
 		bookmarks: [],
 		progress: [],
 		activity: [],
-		settings: []
+		settings: [],
+		verseRatings: []
 	};
 }
 

@@ -14,6 +14,12 @@
 	import { getBookmark, setBookmark, clearBookmark } from '$lib/db/bookmarks';
 	import { recordRecentVerse } from '$lib/db/recentVerses';
 	import {
+		getVerseRating,
+		setStartDifficulty,
+		setFullDifficulty,
+		type DifficultyLevel
+	} from '$lib/db/verseRatings';
+	import {
 		getShowVerseTextInList,
 		setShowVerseTextInList,
 		getVerseFontScale,
@@ -31,6 +37,8 @@
 	let verses: StoredVerse[] = $state([]);
 	let groups: IndexGroup[] = $state([]);
 	let bookmark: BookmarkColor | null = $state(null);
+	let startDifficulty = $state<DifficultyLevel | null>(null);
+	let fullDifficulty = $state<DifficultyLevel | null>(null);
 	let error: string | null = $state(null);
 	let showVerseText = $state(true);
 	let fontScale = $state<VerseFontScale>(1.0);
@@ -86,9 +94,10 @@
 				}
 				if (active) pkg = found;
 
-				const [data, currentBookmark] = await Promise.all([
+				const [data, currentBookmark, currentRating] = await Promise.all([
 					loadPackageData(currentPackageId),
-					getBookmark(currentPackageId, currentVerseNo)
+					getBookmark(currentPackageId, currentVerseNo),
+					getVerseRating(currentPackageId, currentVerseNo)
 				]);
 				if (active) {
 					const v = data.verses.find((x) => x.no === currentVerseNo) ?? null;
@@ -97,6 +106,8 @@
 					verses = data.verses;
 					groups = data.groups;
 					bookmark = currentBookmark?.color ?? null;
+					startDifficulty = (currentRating?.startDifficulty ?? null) as DifficultyLevel | null;
+					fullDifficulty = (currentRating?.fullDifficulty ?? null) as DifficultyLevel | null;
 				}
 				// Best-effort: stamp the recents table so the dashboard surfaces
 				// this verse. Fire-and-forget; failures don't block the page.
@@ -124,6 +135,20 @@
 		const vNo = verseNo;
 		bookmark = null;
 		await clearBookmark(pkgId, vNo).catch(() => {});
+	}
+
+	async function onPickStartDifficulty(level: DifficultyLevel | null) {
+		const pkgId = packageId;
+		const vNo = verseNo;
+		startDifficulty = level;
+		await setStartDifficulty(pkgId, vNo, level).catch(() => {});
+	}
+
+	async function onPickFullDifficulty(level: DifficultyLevel | null) {
+		const pkgId = packageId;
+		const vNo = verseNo;
+		fullDifficulty = level;
+		await setFullDifficulty(pkgId, vNo, level).catch(() => {});
 	}
 
 	// Suppress tags for flat single-group packages
@@ -172,6 +197,10 @@
 				{bookmark}
 				{onBookmarkPick}
 				{onBookmarkClear}
+				{startDifficulty}
+				{fullDifficulty}
+				{onPickStartDifficulty}
+				{onPickFullDifficulty}
 				showBody={showVerseText}
 				{fontScale}
 			/>

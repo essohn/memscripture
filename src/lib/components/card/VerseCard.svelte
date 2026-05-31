@@ -5,6 +5,8 @@
 	import CategoryTag from '$lib/components/filter/CategoryTag.svelte';
 	import BookmarkControl from '$lib/components/srs/BookmarkControl.svelte';
 	import VerseOverflowMenu from '$lib/components/oyo/VerseOverflowMenu.svelte';
+	import DifficultyBadge from '$lib/components/card/DifficultyBadge.svelte';
+	import type { DifficultyLevel } from '$lib/db/verseRatings';
 	import { splitVerseWords } from '$lib/utils/chunk';
 	import { goto } from '$app/navigation';
 
@@ -25,6 +27,12 @@
 		/** Multiplier applied to every text size inside the card via the --vfs
 		 *  CSS variable. 1.0 is the default; the picker offers 0.9 / 1.0 / 1.15 / 1.3. */
 		fontScale?: number;
+		/** User self-assessment: difficulty of recalling the START of the verse. */
+		startDifficulty?: DifficultyLevel | null;
+		/** User self-assessment: difficulty of memorizing the WHOLE verse. */
+		fullDifficulty?: DifficultyLevel | null;
+		onPickStartDifficulty?: (level: DifficultyLevel | null) => void;
+		onPickFullDifficulty?: (level: DifficultyLevel | null) => void;
 	}
 	let {
 		verse,
@@ -37,11 +45,18 @@
 		showBody = true,
 		onEdit,
 		onDelete,
-		fontScale = 1.0
+		fontScale = 1.0,
+		startDifficulty = null,
+		fullDifficulty = null,
+		onPickStartDifficulty,
+		onPickFullDifficulty
 	}: Props = $props();
 
 	const bookmarksEnabled = $derived(Boolean(onBookmarkPick && onBookmarkClear));
 	const editingEnabled = $derived(Boolean(onEdit) || Boolean(onDelete));
+	const ratingsEnabled = $derived(
+		Boolean(onPickStartDifficulty) && Boolean(onPickFullDifficulty)
+	);
 
 	// ─── Memorize mode state ──────────────────────────────────────────────
 	let mode: 'read' | 'memorize' = $state('read');
@@ -182,6 +197,26 @@
 				{packageName ?? ''}
 			</p>
 			<div class="flex items-center gap-1">
+				{#if ratingsEnabled}
+					<!--
+						Two self-assessment badges sit slightly apart from the
+						verse-number pill (mr-1 gives the requested separation).
+						Order matches the user spec: leftmost = 첫 시작 난이도,
+						next = 전체 암송 난이도, then verse number.
+					-->
+					<div class="mr-1 flex items-center gap-1">
+						<DifficultyBadge
+							value={startDifficulty}
+							label="첫 시작 난이도"
+							onpick={onPickStartDifficulty!}
+						/>
+						<DifficultyBadge
+							value={fullDifficulty}
+							label="전체 암송 난이도"
+							onpick={onPickFullDifficulty!}
+						/>
+					</div>
+				{/if}
 				<span
 					class="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-[var(--color-accent-soft)] px-2 text-[12px] font-semibold tabular-nums text-[var(--color-accent)]"
 				>
