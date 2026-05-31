@@ -104,7 +104,7 @@
 			보던 구절로 돌아가기
 		</h2>
 		<p class="relative mt-2 text-[13px] leading-relaxed text-[var(--color-text-secondary)]">
-			최근에 열어본 구절을 탭하면 그 구절로 바로 이동해요.
+			최근에 열어본 구절을 탭하면 그 구절로 바로 이동합니다.
 		</p>
 	</section>
 
@@ -116,10 +116,10 @@
 				class="empty-card rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] px-7 py-12 text-center"
 			>
 				<p class="text-[15px] text-[var(--color-text-secondary)]">
-					아직 본 구절이 없어요.
+					아직 본 구절이 없습니다.
 				</p>
 				<p class="mt-2 text-[13px] text-[var(--color-text-tertiary)]">
-					Library에서 구절을 열면 여기에 모여요.
+					Library에서 구절을 열면 여기에 표시됩니다.
 				</p>
 			</section>
 		{:else}
