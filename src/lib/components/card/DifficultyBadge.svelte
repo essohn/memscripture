@@ -70,7 +70,7 @@
 		: `background-color: ${DIFFICULTY_COLORS[value]}; color: white;`}
 	class="inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-[12px] font-semibold tabular-nums transition-opacity hover:opacity-85"
 >
-	{value ?? '·'}
+	{value ?? ''}
 </button>
 
 {#if expanded}

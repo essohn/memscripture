@@ -147,10 +147,11 @@
 	{/if}
 
 	{#if bookmarksEnabled}
-		<!-- Draping ribbon: anchored at the card's bottom-right, hangs 14px past the
-		     bottom edge. The article must be position:relative and not overflow-hidden
-		     for this to show. -->
-		<div class="absolute -bottom-3.5 right-7">
+		<!-- Draping ribbon: anchored at the card's bottom-right, hangs ~8px past the
+		     bottom edge. right-9 aligns the ribbon roughly with the body's right edge
+		     instead of overhanging it. The article must be position:relative and not
+		     overflow-hidden for this to show. -->
+		<div class="absolute -bottom-2 right-9">
 			<BookmarkControl current={bookmark} onpick={onBookmarkPick!} onclear={onBookmarkClear!} />
 		</div>
 	{/if}

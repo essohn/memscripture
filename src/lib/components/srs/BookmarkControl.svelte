@@ -65,17 +65,24 @@
 		class="ribbon-trigger block transition-opacity hover:opacity-85"
 	>
 		<svg
-			viewBox="0 0 30 60"
-			width="30"
-			height="60"
+			viewBox="0 0 26 50"
+			width="26"
+			height="50"
 			aria-hidden="true"
 			focusable="false"
 		>
+			<!--
+				Rounded top (radius 4): start offset by r, arc into the top-right
+				corner. The notch tip stays at the horizontal midpoint, ~8px above
+				the bottom edge.
+			-->
 			<path
-				d="M0 0 H30 V60 L15 52 L0 60 Z"
+				d="M4 0 H22 A4 4 0 0 1 26 4 V50 L13 42 L0 50 V4 A4 4 0 0 1 4 0 Z"
 				fill={current ? `var(--color-ribbon-${current})` : 'transparent'}
 				stroke={current ? 'none' : 'var(--color-text-tertiary)'}
-				stroke-width="1.5"
+				stroke-width="1.25"
+				stroke-dasharray={current ? undefined : '3 2.5'}
+				stroke-opacity={current ? undefined : '0.55'}
 			/>
 		</svg>
 	</button>
