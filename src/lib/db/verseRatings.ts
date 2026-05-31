@@ -14,6 +14,17 @@ export const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
 	5: 'xEasy'
 };
 
+/** Red → blue ramp, increasing easiness. Reuses the ribbon palette so the
+ *  page only ships one set of color tokens. Shared by the interactive picker
+ *  (DifficultyBadge) and the read-only list dot (DifficultyDot). */
+export const DIFFICULTY_COLORS: Record<DifficultyLevel, string> = {
+	1: 'var(--color-ribbon-red)',
+	2: 'var(--color-ribbon-amber)',
+	3: 'var(--color-text-tertiary)',
+	4: 'var(--color-ribbon-green)',
+	5: 'var(--color-ribbon-blue)'
+};
+
 function rowId(packageId: string, verseNo: number): string {
 	return `${packageId}:${verseNo}`;
 }

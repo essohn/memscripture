@@ -1,6 +1,13 @@
 <script lang="ts">
 	import type { StoredVerse } from '$lib/db/local';
 	import type { VerseTag } from '$lib/db/verses';
+	import type { DifficultyLevel } from '$lib/db/verseRatings';
+	import DifficultyDot from '$lib/components/card/DifficultyDot.svelte';
+
+	export interface VerseRowRating {
+		start: DifficultyLevel | null;
+		full: DifficultyLevel | null;
+	}
 
 	interface Props {
 		packageId: string;
@@ -9,8 +16,17 @@
 		tagsByVerseNo: Map<number, VerseTag[]>;
 		/** When true, render the full Bible verse body (`v.w`) under the cite line. */
 		showVerseText: boolean;
+		/** Read-only difficulty per verse. Rows render the start+full dots only
+		 *  when at least one of the two is set, so unrated verses stay clean. */
+		ratingsByVerseNo?: Map<number, VerseRowRating>;
 	}
-	let { packageId, verses, tagsByVerseNo, showVerseText }: Props = $props();
+	let {
+		packageId,
+		verses,
+		tagsByVerseNo,
+		showVerseText,
+		ratingsByVerseNo
+	}: Props = $props();
 </script>
 
 <ul
@@ -18,6 +34,8 @@
 >
 	{#each verses as v, i (v.no)}
 		{@const tags = tagsByVerseNo.get(v.no) ?? []}
+		{@const rating = ratingsByVerseNo?.get(v.no)}
+		{@const hasRating = !!rating && (rating.start !== null || rating.full !== null)}
 		<li class:border-t={i > 0} class="border-[var(--color-border)]">
 			<div class="verse-row group flex items-stretch gap-3 px-5 py-3 transition-colors">
 				<a
@@ -30,6 +48,16 @@
 							<p class="min-w-0 flex-1 truncate text-[15px] font-medium text-[var(--color-text)]">
 								{v.title}
 							</p>
+							{#if hasRating}
+								<!--
+									Read-only dots: left = 첫 시작, right = 전체 암송. Only render
+									when at least one is set, so unrated rows stay visually clean.
+								-->
+								<span class="inline-flex shrink-0 items-center gap-0.5">
+									<DifficultyDot value={rating!.start} label="첫 시작 난이도" />
+									<DifficultyDot value={rating!.full} label="전체 암송 난이도" />
+								</span>
+							{/if}
 							<span class="shrink-0 text-[11px] font-medium tabular-nums text-[var(--color-accent)]">
 								{v.no}
 							</span>

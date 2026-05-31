@@ -1,5 +1,6 @@
 <script lang="ts">
 	import {
+		DIFFICULTY_COLORS,
 		DIFFICULTY_LABELS,
 		DIFFICULTY_LEVELS,
 		type DifficultyLevel
@@ -14,16 +15,6 @@
 		onpick: (level: DifficultyLevel | null) => void;
 	}
 	let { value, label, onpick }: Props = $props();
-
-	// Red → blue ramp, increasing easiness. Reuses the existing ribbon palette
-	// so the page only ships one set of color tokens.
-	const LEVEL_COLORS: Record<DifficultyLevel, string> = {
-		1: 'var(--color-ribbon-red)',
-		2: 'var(--color-ribbon-amber)',
-		3: 'var(--color-text-tertiary)',
-		4: 'var(--color-ribbon-green)',
-		5: 'var(--color-ribbon-blue)'
-	};
 
 	let expanded = $state(false);
 	let triggerEl: HTMLButtonElement | undefined = $state();
@@ -76,7 +67,7 @@
 		: `${label} ${value} ${DIFFICULTY_LABELS[value]} (변경)`}
 	style={value === null
 		? 'border: 1.5px dashed var(--color-border); color: var(--color-text-tertiary);'
-		: `background-color: ${LEVEL_COLORS[value]}; color: white;`}
+		: `background-color: ${DIFFICULTY_COLORS[value]}; color: white;`}
 	class="inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-[12px] font-semibold tabular-nums transition-opacity hover:opacity-85"
 >
 	{value ?? '·'}
@@ -112,7 +103,7 @@
 					: ''}"
 			>
 				<span
-					style={`background-color: ${LEVEL_COLORS[level]}; color: white;`}
+					style={`background-color: ${DIFFICULTY_COLORS[level]}; color: white;`}
 					class="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold tabular-nums"
 				>
 					{level}

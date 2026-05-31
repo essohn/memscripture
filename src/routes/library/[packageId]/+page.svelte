@@ -11,6 +11,9 @@
 	import { recordPackageView } from '$lib/db/recent';
 	import { getShowVerseTextInList, setShowVerseTextInList } from '$lib/db/viewOptions';
 	import { getActivePackageId, setActivePackage } from '$lib/db/activePackage';
+	import { db } from '$lib/db/local';
+	import type { DifficultyLevel } from '$lib/db/verseRatings';
+	import type { VerseRowRating } from '$lib/components/GroupList.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -20,6 +23,7 @@
 	let showVerseText = $state(true);
 	let activePackageId: string | null = $state(null);
 	let bannerVisible = $state(false);
+	let ratingsByVerseNo = $state<Map<number, VerseRowRating>>(new Map());
 
 	// Side effects: load preference + record recent view
 	$effect(() => {
@@ -33,6 +37,25 @@
 			.catch(() => {});
 		(async () => {
 			activePackageId = await getActivePackageId();
+		})().catch(() => {});
+
+		// One bulk read per package — avoids N round-trips for long lists.
+		// Whole-table scan is fine here because verseRatings is small (a row
+		// only exists once the user rates something).
+		(async () => {
+			const rows = await db.verseRatings
+				.where('packageId')
+				.equals(currentPackageId)
+				.toArray();
+			if (!active) return;
+			const next = new Map<number, VerseRowRating>();
+			for (const r of rows) {
+				next.set(r.verseNo, {
+					start: (r.startDifficulty ?? null) as DifficultyLevel | null,
+					full: (r.fullDifficulty ?? null) as DifficultyLevel | null
+				});
+			}
+			ratingsByVerseNo = next;
 		})().catch(() => {});
 		return () => {
 			active = false;
@@ -172,5 +195,6 @@
 		verses={filteredVerses}
 		tagsByVerseNo={data.tagsByVerseNo}
 		{showVerseText}
+		{ratingsByVerseNo}
 	/>
 </main>
