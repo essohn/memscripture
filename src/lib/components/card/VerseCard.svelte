@@ -74,7 +74,7 @@
 <article
 	data-testid="verse-row"
 	style="--vfs: {fontScale};"
-	class="verse-card relative rounded-[26px] border border-[var(--color-border)] bg-[var(--color-card)] px-7 pb-4 pt-7"
+	class="verse-card relative rounded-[26px] border border-[var(--color-border)] bg-[var(--color-card)] pb-4 pl-7 pr-9 pt-7"
 >
 	<header class="space-y-2">
 		<div class="flex items-center justify-between gap-3">
@@ -147,9 +147,10 @@
 	{/if}
 
 	{#if bookmarksEnabled}
-		<!-- Draping ribbon: anchored at the card's bottom-left, hangs 14px past the bottom edge.
-		     The article must be position:relative and not overflow-hidden for this to show. -->
-		<div class="absolute -bottom-3.5 left-7">
+		<!-- Draping ribbon: anchored at the card's bottom-right, hangs 14px past the
+		     bottom edge. The article must be position:relative and not overflow-hidden
+		     for this to show. -->
+		<div class="absolute -bottom-3.5 right-7">
 			<BookmarkControl current={bookmark} onpick={onBookmarkPick!} onclear={onBookmarkClear!} />
 		</div>
 	{/if}

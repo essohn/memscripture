@@ -24,9 +24,10 @@
 	function open() {
 		if (!triggerEl) return;
 		const rect = triggerEl.getBoundingClientRect();
-		// Drop below the ribbon's own bottom tip — not the card's bottom — because
-		// the ribbon now drapes past the card edge.
-		popoverStyle = `top: ${rect.bottom + 8}px; left: ${rect.left}px;`;
+		// Drop below the ribbon's own bottom tip and right-anchor so the popover
+		// stays inside the viewport even when the trigger is near the right edge
+		// of the screen (the ribbon now sits at the card's bottom-right corner).
+		popoverStyle = `top: ${rect.bottom + 8}px; right: ${Math.max(8, window.innerWidth - rect.right)}px;`;
 		expanded = true;
 	}
 
@@ -64,14 +65,14 @@
 		class="ribbon-trigger block transition-opacity hover:opacity-85"
 	>
 		<svg
-			viewBox="0 0 24 52"
-			width="24"
-			height="52"
+			viewBox="0 0 30 60"
+			width="30"
+			height="60"
 			aria-hidden="true"
 			focusable="false"
 		>
 			<path
-				d="M0 0 H24 V52 L12 45 L0 52 Z"
+				d="M0 0 H30 V60 L15 52 L0 60 Z"
 				fill={current ? `var(--color-ribbon-${current})` : 'transparent'}
 				stroke={current ? 'none' : 'var(--color-text-tertiary)'}
 				stroke-width="1.5"
