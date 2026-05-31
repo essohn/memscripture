@@ -34,8 +34,7 @@
 >
 	{#each verses as v, i (v.no)}
 		{@const tags = tagsByVerseNo.get(v.no) ?? []}
-		{@const rating = ratingsByVerseNo?.get(v.no)}
-		{@const hasRating = !!rating && (rating.start !== null || rating.full !== null)}
+		{@const rating = ratingsByVerseNo?.get(v.no) ?? null}
 		<li class:border-t={i > 0} class="border-[var(--color-border)]">
 			<div class="verse-row group flex items-stretch gap-3 px-5 py-3 transition-colors">
 				<a
@@ -48,16 +47,16 @@
 							<p class="min-w-0 flex-1 truncate text-[15px] font-medium text-[var(--color-text)]">
 								{v.title}
 							</p>
-							{#if hasRating}
-								<!--
-									Read-only dots: left = 첫 시작, right = 전체 암송. Only render
-									when at least one is set, so unrated rows stay visually clean.
-								-->
-								<span class="inline-flex shrink-0 items-center gap-0.5">
-									<DifficultyDot value={rating!.start} label="첫 시작 난이도" />
-									<DifficultyDot value={rating!.full} label="전체 암송 난이도" />
-								</span>
-							{/if}
+							<!--
+								Always render both dots so the UI is visible from the start
+								(dashed = unset, colored = set). Mirrors the OYO card list,
+								which always shows the two-badge slot. Left = 첫 시작, right
+								= 전체 암송.
+							-->
+							<span class="inline-flex shrink-0 items-center gap-0.5">
+								<DifficultyDot value={rating?.start ?? null} label="첫 시작 난이도" />
+								<DifficultyDot value={rating?.full ?? null} label="전체 암송 난이도" />
+							</span>
 							<span class="shrink-0 text-[11px] font-medium tabular-nums text-[var(--color-accent)]">
 								{v.no}
 							</span>
