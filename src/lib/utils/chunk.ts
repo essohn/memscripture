@@ -73,17 +73,6 @@ function hardSplit(word: string, maxChunkChars: number): string[] {
 	return out.length > 0 ? out : [word];
 }
 
-/**
- * Split a verse body into individual whitespace-delimited words.
- * Each token (including any trailing punctuation) becomes one item.
- * Empty/whitespace-only input returns an empty array.
- */
-export function splitVerseWords(text: string): string[] {
-	const trimmed = text.trim();
-	if (!trimmed) return [];
-	return trimmed.split(/\s+/).filter(Boolean);
-}
-
 function mergeShortChunks(
 	chunks: string[],
 	minChunkChars: number,

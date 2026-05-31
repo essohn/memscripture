@@ -7,10 +7,14 @@ test.describe('category filters', () => {
 		await page.goto('/library/60_krv');
 		await expect(page.getByTestId('verse-row').first()).toBeVisible();
 
-		// Series strip exists with 전체 + at least one series
+		// Series strip exists with 전체 + at least one series. `exact: true` —
+		// difficulty badges in the new card list use aria-labels containing the
+		// substring "전체 암송 난이도", so a substring match would over-resolve.
 		const seriesStrip = page.getByRole('group', { name: '시리즈 선택' });
 		await expect(seriesStrip).toBeVisible();
-		await expect(page.getByRole('button', { name: '전체' })).toBeVisible();
+		await expect(
+			seriesStrip.getByRole('button', { name: '전체', exact: true })
+		).toBeVisible();
 
 		// Group SUB label not visible initially
 		await expect(page.getByText('SUB', { exact: true })).not.toBeVisible();

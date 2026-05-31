@@ -184,9 +184,9 @@
 			</button>
 		</div>
 		<!--
-			Re-key on verse number so memorize mode + reveal state reset cleanly
-			when the user navigates prev/next — otherwise the new verse inherits
-			the previous gesture's "half-revealed" state.
+			Re-key on verse number so per-card popover state (bookmark, difficulty
+			pickers) resets cleanly when the user navigates prev/next instead of
+			carrying over an open menu to the new verse.
 		-->
 		{#key verse.no}
 			<VerseCard
@@ -217,7 +217,7 @@
 						class="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-elevated)] px-3.5 py-2 text-[13px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-border)] hover:text-[var(--color-text)]"
 					>
 						<ChevronLeft size={16} strokeWidth={1.75} />
-						<span>{prevVerse.no}구절</span>
+						<span>이전 구절</span>
 					</a>
 				{:else}
 					<span aria-hidden="true"></span>
@@ -227,7 +227,7 @@
 						href={`/library/${packageId}/${nextVerse.no}`}
 						class="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-elevated)] px-3.5 py-2 text-[13px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-border)] hover:text-[var(--color-text)]"
 					>
-						<span>{nextVerse.no}구절</span>
+						<span>다음 구절</span>
 						<ChevronRight size={16} strokeWidth={1.75} />
 					</a>
 				{:else}
