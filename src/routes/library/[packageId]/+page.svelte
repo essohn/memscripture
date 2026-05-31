@@ -130,7 +130,7 @@
 			role="status"
 			class="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-[var(--color-accent)]/30 bg-[var(--color-accent-soft)] px-4 py-3 text-[13px] text-[var(--color-text)]"
 		>
-			<span>활성 패키지로 설정되었어요.</span>
+			<span>활성 패키지로 설정되었습니다.</span>
 			<a
 				href="/today"
 				class="rounded-full bg-[var(--color-accent)] px-3 py-1 text-[12px] font-medium text-white hover:opacity-90"

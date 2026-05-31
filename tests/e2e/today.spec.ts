@@ -27,7 +27,7 @@ test.describe.skip('Today + intake e2e', () => {
 
 		// Activate this package
 		await page.getByRole('button', { name: '이 패키지로 암송 시작' }).click();
-		await expect(page.getByText('활성 패키지로 설정되었어요.')).toBeVisible();
+		await expect(page.getByText('활성 패키지로 설정되었습니다.')).toBeVisible();
 		await expect(page.getByText('암송 중')).toBeVisible();
 
 		// Tap CTA → /today

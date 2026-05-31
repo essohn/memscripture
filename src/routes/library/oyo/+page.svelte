@@ -87,7 +87,7 @@
 		verses = verses.filter((v) => v.no !== verse.no);
 		if (!snapshot) return;
 		toast = {
-			message: '구절을 지웠어요',
+			message: '구절을 지웠습니다',
 			actionLabel: '실행 취소',
 			onAction: async () => {
 				await restoreOyoVerse(snapshot);
@@ -113,8 +113,8 @@
 		toast = {
 			message:
 				backup.verses.length === 0
-					? '내보낼 구절이 없어요'
-					: `${backup.verses.length}개를 내보냈어요`
+					? '내보낼 구절이 없습니다'
+					: `${backup.verses.length}개를 내보냈습니다`
 		};
 	}
 
@@ -134,8 +134,8 @@
 			toast = {
 				message:
 					skipped > 0
-						? `${imported}개를 가져왔어요 (중복 ${skipped}개 건너뜀)`
-						: `${imported}개를 가져왔어요`
+						? `${imported}개를 가져왔습니다 (중복 ${skipped}개 건너뜀)`
+						: `${imported}개를 가져왔습니다`
 			};
 		} catch (err) {
 			toast = { message: '가져오기 실패: 파일 형식을 확인해주세요' };
@@ -236,7 +236,7 @@
 			class="empty-card rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] px-7 py-12 text-center"
 		>
 			<p class="text-[15px] text-[var(--color-text-secondary)]">
-				아직 추가된 구절이 없어요.
+				아직 추가된 구절이 없습니다.
 			</p>
 			<p class="mt-2 text-[13px] text-[var(--color-text-tertiary)]">
 				위의 "구절 추가" 버튼을 눌러 첫 구절을 만들어 보세요.

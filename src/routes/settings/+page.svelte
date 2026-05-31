@@ -65,7 +65,7 @@
 		if (!clientId) return;
 		try {
 			auth = await connectGoogleDrive(clientId);
-			toast = { message: `${auth.email} 으로 연결됐어요` };
+			toast = { message: `${auth.email}으로 연결되었습니다` };
 		} catch (err) {
 			toast = { message: '연결 실패: 다시 시도해주세요' };
 		}
@@ -75,7 +75,7 @@
 		try {
 			await disconnectGoogleDrive();
 			auth = null;
-			toast = { message: 'Drive 연결이 해제됐어요' };
+			toast = { message: 'Drive 연결이 해제되었습니다' };
 		} catch (err) {
 			console.error('[sync] disconnect failed:', err);
 			toast = { message: '연결 해제 실패: 다시 시도해주세요' };
@@ -98,15 +98,15 @@
 	function messageFor(result: SyncResult): string {
 		switch (result.kind) {
 			case 'no-remote-uploaded':
-				return 'Drive에 처음 저장했어요';
+				return 'Drive에 처음 저장했습니다';
 			case 'remote-equal':
-				return '이미 최신 상태예요';
+				return '이미 최신 상태입니다';
 			case 'local-newer-uploaded':
-				return 'Drive로 올렸어요';
+				return 'Drive로 올렸습니다';
 			case 'remote-newer-imported':
-				return 'Drive에서 받아왔어요';
+				return 'Drive에서 받아왔습니다';
 			case 'remote-newer-declined':
-				return '동기화를 취소했어요';
+				return '동기화를 취소했습니다';
 			case 'error':
 				return `동기화 실패: ${result.message}`;
 		}
@@ -119,7 +119,7 @@
 			await applySyncSnapshot(backup);
 			await clearPreSyncBackup();
 			hasBackup = false;
-			toast = { message: '직전 동기화를 되돌렸어요' };
+			toast = { message: '직전 동기화를 되돌렸습니다' };
 		} catch (err) {
 			console.error('[sync] undo failed:', err);
 			toast = { message: '되돌리기 실패: 다시 시도해주세요' };
@@ -202,7 +202,7 @@
 <ConfirmDialog
 	open={confirmState.open}
 	title="Drive에서 받아오기"
-	body="Drive에 더 최신 데이터가 있어요. 가져오면 로컬 변경사항이 덮어쓰여집니다."
+	body="Drive에 더 최신 데이터가 있습니다. 가져오면 로컬 변경사항이 덮어쓰여집니다."
 	confirmLabel="덮어쓰고 받기"
 	cancelLabel="취소"
 	onConfirm={onConfirm}

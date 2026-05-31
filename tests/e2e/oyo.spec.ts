@@ -34,7 +34,7 @@ test.describe('OYO package — phase 1', () => {
 		// Tap OYO card
 		await page.getByRole('link', { name: /OYO/i }).click();
 		await expect(page).toHaveURL(/\/library\/oyo$/);
-		await expect(page.getByText('아직 추가된 구절이 없어요.')).toBeVisible();
+		await expect(page.getByText('아직 추가된 구절이 없습니다.')).toBeVisible();
 
 		// Add a verse
 		await page.getByRole('button', { name: /구절 추가/ }).click();
@@ -59,9 +59,9 @@ test.describe('OYO package — phase 1', () => {
 		// Delete with undo
 		await page.getByRole('button', { name: '구절 메뉴' }).click();
 		await page.getByRole('menuitem', { name: /삭제/ }).click();
-		await expect(page.getByText('아직 추가된 구절이 없어요.')).toBeVisible();
+		await expect(page.getByText('아직 추가된 구절이 없습니다.')).toBeVisible();
 		await expect(page.getByText('영생 (요한복음)')).not.toBeVisible();
-		await expect(page.getByRole('status')).toContainText('구절을 지웠어요');
+		await expect(page.getByRole('status')).toContainText('구절을 지웠습니다');
 		await page.getByRole('button', { name: '실행 취소' }).click();
 		await expect(page.getByText('영생 (요한복음)')).toBeVisible();
 	});

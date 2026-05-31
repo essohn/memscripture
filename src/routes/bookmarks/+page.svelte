@@ -97,7 +97,7 @@
 		await clearAllOfColor(color).catch(() => {});
 
 		toast = {
-			message: `${COLOR_LABELS[color]} 리본 ${removed.length}개를 지웠어요`,
+			message: `${COLOR_LABELS[color]} 리본 ${removed.length}개를 지웠습니다`,
 			actionLabel: '실행 취소',
 			onAction: async () => {
 				// Re-insert each bookmark. createdAt is reset to "now" — minor loss
@@ -149,10 +149,10 @@
 			class="empty-card rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] px-7 py-12 text-center"
 		>
 			<p class="text-[15px] text-[var(--color-text-secondary)]">
-				{COLOR_LABELS[selected]} 리본으로 북마크한 구절이 아직 없어요.
+				{COLOR_LABELS[selected]} 리본으로 북마크한 구절이 아직 없습니다.
 			</p>
 			<p class="mt-2 text-[13px] text-[var(--color-text-tertiary)]">
-				라이브러리에서 구절을 열고 카드 모서리의 리본을 탭해 추가할 수 있어요.
+				라이브러리에서 구절을 열고 카드 모서리의 리본을 탭해 추가할 수 있습니다.
 			</p>
 		</section>
 	{:else}

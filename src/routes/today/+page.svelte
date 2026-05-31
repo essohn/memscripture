@@ -88,7 +88,7 @@
 			class="hero-card relative overflow-hidden rounded-[26px] border border-[var(--color-border)] bg-[var(--color-card)] px-7 py-12 text-center"
 		>
 			<h2 class="text-[24px] font-semibold leading-tight text-[var(--color-text)]">
-				🎉 오늘은 다 했어요
+				🎉 오늘은 다 했습니다
 			</h2>
 			<p class="mt-3 text-[14px] leading-relaxed text-[var(--color-text-secondary)]">
 				총 {total}장 완료
@@ -106,7 +106,7 @@
 			class="hero-card relative overflow-hidden rounded-[26px] border border-[var(--color-border)] bg-[var(--color-card)] px-7 py-12 text-center"
 		>
 			<h2 class="text-[20px] font-semibold leading-tight text-[var(--color-text)]">
-				오늘은 카드가 없어요
+				오늘은 카드가 없습니다
 			</h2>
 			<p class="mt-3 text-[14px] leading-relaxed text-[var(--color-text-secondary)]">
 				활성 패키지를 다 외웠거나, 추가할 New 슬롯이 가득찼습니다.

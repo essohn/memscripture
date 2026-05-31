@@ -32,7 +32,7 @@ export interface SyncHandlers {
  *  - remote newer      → confirm → save backup + apply remote (or decline) */
 export async function performSync(handlers: SyncHandlers): Promise<SyncResult> {
 	const auth = await getCurrentAuth();
-	if (!auth) return { kind: 'error', message: '연결된 Google Drive 계정이 없어요' };
+	if (!auth) return { kind: 'error', message: '연결된 Google Drive 계정이 없습니다' };
 
 	try {
 		const found = await findSyncFile(auth.accessToken);
