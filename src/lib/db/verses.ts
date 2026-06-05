@@ -9,19 +9,23 @@ let groupsCache: IndexGroup[] | null = null;
 
 export async function listPackages(): Promise<PackageMeta[]> {
 	// Ordering rules, in priority order:
-	//  1. OYO ("내 구절", the user-kind row) is always pinned to the front.
-	//  2. Then the user's custom drag-order, if any (rank = index in that list).
-	//  3. Anything unranked (new packages, or before the user ever reorders)
-	//     falls back to ascending verse-count order.
+	//  1. The user's custom drag-order (rank = index in that list) — this now
+	//     includes OYO, so the user can place it anywhere.
+	//  2. Ranked packages always precede unranked ones (newly added packages).
+	//  3. Among unranked packages — including the default state before the user
+	//     ever reorders — OYO ("내 구절", the user-kind row) comes first, then
+	//     curated packages in ascending verse-count order.
 	const order = await getPackageOrder();
 	const rank = new Map(order.map((id, i) => [id, i] as const));
 	const byOrder = (a: PackageMeta, b: PackageMeta) => {
+		const ra = rank.get(a.id);
+		const rb = rank.get(b.id);
+		if (ra !== undefined && rb !== undefined) return ra - rb;
+		if (ra !== undefined) return -1;
+		if (rb !== undefined) return 1;
 		const aUser = (a.kind ?? 'builtin') === 'user';
 		const bUser = (b.kind ?? 'builtin') === 'user';
 		if (aUser !== bUser) return aUser ? -1 : 1;
-		const ra = rank.get(a.id) ?? Infinity;
-		const rb = rank.get(b.id) ?? Infinity;
-		if (ra !== rb) return ra - rb;
 		return a.verse_number - b.verse_number;
 	};
 

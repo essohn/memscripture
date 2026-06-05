@@ -1,18 +1,16 @@
 <script lang="ts">
 	import type { PackageMeta } from '$lib/types';
-	import { GripVertical, Lock } from 'lucide-svelte';
+	import { GripVertical } from 'lucide-svelte';
 	import { flip } from 'svelte/animate';
 	import { tick } from 'svelte';
 
 	interface Props {
-		/** Curated packages in their current order — the reorderable set. */
+		/** All packages (OYO included) in their current order — the reorderable set. */
 		packages: PackageMeta[];
-		/** OYO (user-kind) row, rendered pinned at the top and not draggable. */
-		pinned?: PackageMeta | null;
 		/** Called with the new ID order whenever the user finishes a move. */
 		onReorder: (ids: string[]) => void;
 	}
-	let { packages, pinned = null, onReorder }: Props = $props();
+	let { packages, onReorder }: Props = $props();
 
 	// Local working copy so drag reorders feel instant. Re-seeds whenever the
 	// parent hands down a different list (e.g. after a reset to default order).
@@ -99,23 +97,6 @@
 </script>
 
 <div bind:this={listEl} class="space-y-3">
-	{#if pinned}
-		<div
-			class="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-elevated)] px-4 py-4 opacity-90"
-		>
-			<Lock size={16} class="shrink-0 text-[var(--color-text-tertiary)]" />
-			<div class="min-w-0 flex-1">
-				<h3 class="truncate text-[15px] font-semibold text-[var(--color-text)]">{pinned.name}</h3>
-				<p class="text-[11px] text-[var(--color-text-tertiary)]">{pinned.abbreviation}</p>
-			</div>
-			<span
-				class="shrink-0 rounded-full bg-[var(--color-card)] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]"
-			>
-				항상 먼저
-			</span>
-		</div>
-	{/if}
-
 	{#each items as pkg (pkg.id)}
 		<div
 			data-reorder-row

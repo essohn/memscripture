@@ -12,10 +12,6 @@
 	let error: string | null = $state(null);
 	let editMode = $state(false);
 
-	// OYO is pinned; everything else is reorderable.
-	const pinned = $derived(packages.find((p) => (p.kind ?? 'builtin') === 'user') ?? null);
-	const orderable = $derived(packages.filter((p) => (p.kind ?? 'builtin') !== 'user'));
-
 	$effect(() => {
 		listPackages()
 			.then(async (p) => {
@@ -90,7 +86,7 @@
 	{:else if packages.length === 0}
 		<p class="text-[var(--color-text-tertiary)]">불러오는 중...</p>
 	{:else if editMode}
-		<PackageReorderList packages={orderable} {pinned} onReorder={handleReorder} />
+		<PackageReorderList {packages} onReorder={handleReorder} />
 	{:else}
 		<div class="space-y-3">
 			{#each packages as pkg (pkg.id)}
