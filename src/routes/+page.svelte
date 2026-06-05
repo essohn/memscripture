@@ -1,7 +1,13 @@
 <script lang="ts">
 	import Header from '$lib/components/nav/Header.svelte';
-	import { Sparkles } from 'lucide-svelte';
-	import { listRecentBundles } from '$lib/db/recentBundles';
+	import Toast from '$lib/components/feedback/Toast.svelte';
+	import { Sparkles, X } from 'lucide-svelte';
+	import {
+		listRecentBundles,
+		deleteRecentBundle,
+		clearRecentBundles,
+		restoreRecentBundle
+	} from '$lib/db/recentBundles';
 	import { listPackages, loadPackageData } from '$lib/db/verses';
 	import type { PackageMeta } from '$lib/types';
 	import type { StoredVerse } from '$lib/db/local';
@@ -10,6 +16,8 @@
 		id: string;
 		packageId: string;
 		verseNos: number[];
+		seriesIndex: number | null;
+		groupIndices: number[];
 		createdAt: number;
 		frontVerse: StoredVerse | null;
 		packageAbbreviation: string;
@@ -17,6 +25,8 @@
 
 	let rows = $state<BundleRow[]>([]);
 	let loaded = $state(false);
+	let editMode = $state(false);
+	let toast = $state<{ message: string; actionLabel?: string; onAction?: () => void } | null>(null);
 
 	$effect(() => {
 		let active = true;
@@ -52,6 +62,8 @@
 					id: b.id,
 					packageId: b.packageId,
 					verseNos: b.verseNos,
+					seriesIndex: b.seriesIndex ?? null,
+					groupIndices: b.groupIndices ?? [],
 					createdAt: b.createdAt,
 					frontVerse,
 					packageAbbreviation: pkgById.get(b.packageId)?.abbreviation ?? b.packageId
@@ -83,18 +95,105 @@
 		if (day < 7) return `${day}일 전`;
 		return `${Math.floor(day / 7)}주 전`;
 	}
+
+	// Link that restores both the selection (?sel) and the package filter (?s/?g)
+	// captured when the bundle was committed.
+	function bundleHref(row: BundleRow): string {
+		const params = new URLSearchParams();
+		params.set('sel', row.verseNos.join(','));
+		if (row.seriesIndex !== null && row.seriesIndex !== undefined) {
+			params.set('s', String(row.seriesIndex));
+		}
+		if (row.groupIndices.length > 0) params.set('g', row.groupIndices.join(','));
+		return `/library/${row.packageId}?${params.toString()}`;
+	}
+
+	// Strip the resolved view-model fields back to the stored bundle shape. Arrays
+	// must be plain copies — `row.verseNos`/`row.groupIndices` are Svelte $state
+	// proxies, and IndexedDB can't structured-clone a Proxy (put would throw and
+	// be swallowed by the .catch).
+	function toBundle(row: BundleRow) {
+		return {
+			id: row.id,
+			packageId: row.packageId,
+			verseNos: [...row.verseNos],
+			seriesIndex: row.seriesIndex,
+			groupIndices: [...row.groupIndices],
+			createdAt: row.createdAt
+		};
+	}
+
+	// Optimistic delete + undo, mirroring the bookmarks page. Re-inserts preserve
+	// the original createdAt so undo restores the bundle in its place.
+	async function deleteBundle(row: BundleRow) {
+		rows = rows.filter((r) => r.id !== row.id);
+		if (rows.length === 0) editMode = false;
+		await deleteRecentBundle(row.id).catch(() => {});
+		toast = {
+			message: '묶음을 지웠습니다',
+			actionLabel: '실행 취소',
+			onAction: async () => {
+				rows = [...rows, row].sort((a, b) => b.createdAt - a.createdAt);
+				await restoreRecentBundle(toBundle(row)).catch(() => {});
+			}
+		};
+	}
+
+	async function clearAll() {
+		const removed = rows;
+		if (removed.length === 0) return;
+		rows = [];
+		editMode = false;
+		await clearRecentBundles().catch(() => {});
+		toast = {
+			message: `최근 ${removed.length}개를 지웠습니다`,
+			actionLabel: '실행 취소',
+			onAction: async () => {
+				rows = [...removed];
+				await Promise.all(removed.map((r) => restoreRecentBundle(toBundle(r)).catch(() => {})));
+			}
+		};
+	}
 </script>
 
 <Header title="Home" />
 
 <main class="mx-auto max-w-2xl px-5 pb-8 pt-6">
-	<section class="px-1">
+	<section class="flex items-center justify-between gap-3 px-1">
 		<div
 			class="inline-flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]"
 		>
 			<Sparkles size={13} class="text-[var(--color-accent)]" />
 			최근
 		</div>
+		{#if loaded && rows.length > 0}
+			{#if editMode}
+				<div class="flex items-center gap-3">
+					<button
+						type="button"
+						onclick={clearAll}
+						class="text-[12px] font-medium text-[var(--color-danger)] underline-offset-4 hover:underline"
+					>
+						전체 지우기
+					</button>
+					<button
+						type="button"
+						onclick={() => (editMode = false)}
+						class="text-[12px] font-medium text-[var(--color-accent)]"
+					>
+						완료
+					</button>
+				</div>
+			{:else}
+				<button
+					type="button"
+					onclick={() => (editMode = true)}
+					class="text-[12px] font-medium text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-text)]"
+				>
+					편집
+				</button>
+			{/if}
+		{/if}
 	</section>
 
 	<div class="mt-6 px-1">
@@ -122,18 +221,36 @@
 							{/if}
 						{/if}
 						<a
-							href={`/library/${row.packageId}?sel=${row.verseNos.join(',')}`}
+							href={bundleHref(row)}
+							onclick={(e) => {
+								if (editMode) e.preventDefault();
+							}}
 							class="recent-card relative block rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-5 py-4 transition-all hover:border-[var(--color-accent)]/50"
 						>
-							<div class="flex items-baseline justify-between gap-2">
+							<div class="flex items-center justify-between gap-2">
 								<p
 									class="text-[10.5px] font-medium uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]"
 								>
 									{row.packageAbbreviation}
 								</p>
-								<p class="text-[11px] text-[var(--color-text-tertiary)]">
-									{relativeTimeKo(row.createdAt)}
-								</p>
+								{#if editMode}
+									<button
+										type="button"
+										onclick={(e) => {
+											e.preventDefault();
+											e.stopPropagation();
+											deleteBundle(row);
+										}}
+										aria-label="이 묶음 지우기"
+										class="-mr-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-danger)]"
+									>
+										<X size={16} />
+									</button>
+								{:else}
+									<p class="text-[11px] text-[var(--color-text-tertiary)]">
+										{relativeTimeKo(row.createdAt)}
+									</p>
+								{/if}
 							</div>
 							<div class="mt-1.5 flex items-center justify-between gap-3">
 								<h3 class="truncate text-[16px] font-semibold text-[var(--color-text)]">
@@ -157,6 +274,15 @@
 		{/if}
 	</div>
 </main>
+
+{#if toast}
+	<Toast
+		message={toast.message}
+		actionLabel={toast.actionLabel}
+		onAction={toast.onAction}
+		onClose={() => (toast = null)}
+	/>
+{/if}
 
 <style>
 	.empty-card {

@@ -15,11 +15,23 @@ function bundleId(packageId: string, sortedNos: number[]): string {
  *
  *  Best-effort, per-device telemetry: not routed through touchDataModified and
  *  excluded from the sync envelope (see buildSyncSnapshot), same as recentVerses. */
-export async function recordRecentBundle(packageId: string, verseNos: number[]): Promise<void> {
+export async function recordRecentBundle(
+	packageId: string,
+	verseNos: number[],
+	seriesIndex: number | null = null,
+	groupIndices: number[] = []
+): Promise<void> {
 	if (verseNos.length === 0) return;
 	const sorted = [...new Set(verseNos)].sort((a, b) => a - b);
 	const id = bundleId(packageId, sorted);
-	await db.recentBundles.put({ id, packageId, verseNos: sorted, createdAt: Date.now() });
+	await db.recentBundles.put({
+		id,
+		packageId,
+		verseNos: sorted,
+		seriesIndex,
+		groupIndices: [...groupIndices],
+		createdAt: Date.now()
+	});
 
 	// Cap table growth, mirroring recentVerses.
 	const total = await db.recentBundles.count();
@@ -34,4 +46,20 @@ export async function recordRecentBundle(packageId: string, verseNos: number[]):
 /** Returns the most-recently-committed bundles (descending createdAt). */
 export async function listRecentBundles(limit: number = RECENT_LIMIT): Promise<RecentBundle[]> {
 	return db.recentBundles.orderBy('createdAt').reverse().limit(limit).toArray();
+}
+
+/** Removes a single bundle by id. */
+export async function deleteRecentBundle(id: string): Promise<void> {
+	await db.recentBundles.delete(id);
+}
+
+/** Removes every bundle. */
+export async function clearRecentBundles(): Promise<void> {
+	await db.recentBundles.clear();
+}
+
+/** Re-inserts a bundle verbatim (preserving its original createdAt) — used to
+ *  undo a delete without bumping it to the top of the list. */
+export async function restoreRecentBundle(bundle: RecentBundle): Promise<void> {
+	await db.recentBundles.put(bundle);
 }

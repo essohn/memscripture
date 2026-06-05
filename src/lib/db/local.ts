@@ -25,6 +25,11 @@ export interface RecentBundle {
 	id: string;
 	packageId: string;
 	verseNos: number[];
+	/** Package filter (series / group indices) active when the bundle was
+	 *  committed, so tapping it can restore the same filtered view. Optional —
+	 *  bundles saved before this existed simply restore with no filter. */
+	seriesIndex?: number | null;
+	groupIndices?: number[];
 	createdAt: number;
 }
 

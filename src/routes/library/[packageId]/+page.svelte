@@ -104,7 +104,7 @@
 	async function confirmSelection() {
 		const nos = [...selectedVerseNos];
 		if (nos.length === 0) return;
-		await recordRecentBundle(packageId, nos).catch(() => {});
+		await recordRecentBundle(packageId, nos, seriesIndex, groupIndices).catch(() => {});
 		toast = { message: `최근 구절에 ${nos.length}개 담았습니다` };
 		// Keep the selection on screen after committing — just stop the auto-commit
 		// countdown so it can't re-fire. Editing the selection resumes it.

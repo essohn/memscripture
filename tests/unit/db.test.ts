@@ -23,15 +23,19 @@ describe('local db schema v6', () => {
 		]);
 	});
 
-	it('round-trips a recent bundle', async () => {
+	it('round-trips a recent bundle with its captured filter', async () => {
 		await db.recentBundles.put({
 			id: '5_krv:1-2-3',
 			packageId: '5_krv',
 			verseNos: [1, 2, 3],
+			seriesIndex: 0,
+			groupIndices: [1, 2],
 			createdAt: 1000
 		});
 		const b = await db.recentBundles.get('5_krv:1-2-3');
 		expect(b?.verseNos).toEqual([1, 2, 3]);
+		expect(b?.seriesIndex).toBe(0);
+		expect(b?.groupIndices).toEqual([1, 2]);
 	});
 
 	it('round-trips a verse', async () => {
