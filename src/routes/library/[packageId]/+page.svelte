@@ -56,6 +56,13 @@
 	let toast = $state<{ message: string } | null>(null);
 	const selectionActive = $derived(selectedVerseNos.size > 0);
 
+	// Idle window after which a standing selection auto-commits to recents. The
+	// confirm button surfaces the remaining time (number + fill).
+	const AUTO_CONFIRM_MS = 10_000;
+	let countdownMs = $state(0);
+	const countdownSec = $derived(Math.ceil(countdownMs / 1000));
+	const countdownPct = $derived(((AUTO_CONFIRM_MS - countdownMs) / AUTO_CONFIRM_MS) * 100);
+
 	// Deep-link target from the home dashboard: /library/{id}?v={no} scrolls the
 	// list to that verse and flashes it, instead of opening the single-verse view.
 	let highlightVerseNo = $state<number | null>(null);
@@ -107,6 +114,28 @@
 		toast = { message: `${COLOR_LABELS[color]} 리본으로 ${nos.length}개 북마크했습니다` };
 		clearSelection();
 	}
+
+	// Auto-commit the selection after AUTO_CONFIRM_MS of no changes. The effect
+	// re-reads selectedVerseNos.size, so any add/remove restarts the countdown;
+	// opening the bookmark palette pauses it so a colour pick can't be cut off.
+	$effect(() => {
+		const count = selectedVerseNos.size;
+		if (count === 0 || bookmarkPaletteOpen) {
+			countdownMs = count === 0 ? 0 : AUTO_CONFIRM_MS;
+			return;
+		}
+		countdownMs = AUTO_CONFIRM_MS;
+		const start = performance.now();
+		const id = setInterval(() => {
+			const remaining = Math.max(0, AUTO_CONFIRM_MS - (performance.now() - start));
+			countdownMs = remaining;
+			if (remaining <= 0) {
+				clearInterval(id);
+				confirmSelection();
+			}
+		}, 100);
+		return () => clearInterval(id);
+	});
 
 	// React to the ?v= deep-link: scroll the matching card to center and flash it.
 	// requestAnimationFrame waits for the list to paint; the cleanup cancels a
@@ -424,9 +453,20 @@
 					<button
 						type="button"
 						onclick={confirmSelection}
-						class="rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
+						class="relative overflow-hidden rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
 					>
-						최근 구절에 담기
+						<!-- Countdown fill: sweeps left→right as the auto-commit window elapses. -->
+						<span
+							class="absolute inset-y-0 left-0 bg-white/25"
+							style="width: {countdownPct}%; transition: width 100ms linear;"
+							aria-hidden="true"
+						></span>
+						<span class="relative inline-flex items-center gap-1.5">
+							최근 구절에 담기
+							{#if countdownMs > 0}
+								<span class="inline-block w-[1.4em] text-center tabular-nums">{countdownSec}</span>
+							{/if}
+						</span>
 					</button>
 				</div>
 			</div>
