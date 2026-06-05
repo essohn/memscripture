@@ -6,7 +6,7 @@
 		type VerseEditValues
 	} from '$lib/components/oyo/VerseEditSheet.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
-	import { Plus, Eye, EyeOff, FolderInput, FolderOutput } from 'lucide-svelte';
+	import { Plus, Eye, EyeOff, FolderInput, FolderOutput, ArrowDownUp } from 'lucide-svelte';
 	import {
 		getShowVerseTextInList,
 		setShowVerseTextInList,
@@ -40,6 +40,13 @@
 	let fullDifficulties = $state<Record<number, DifficultyLevel | null>>({});
 	let sheet = $state<{ mode: 'create' | 'edit'; initial?: VerseEditValues; editingNo?: number } | null>(null);
 	let toast = $state<{ message: string; actionLabel?: string; onAction?: () => void } | null>(null);
+
+	// Display order: newest-first by default (verse.no is assigned max+1, so a
+	// higher number means more recently added). The toggle flips to oldest-first.
+	let newestFirst = $state(true);
+	const displayedVerses = $derived(
+		[...verses].sort((a, b) => (newestFirst ? b.no - a.no : a.no - b.no))
+	);
 
 	$effect(() => {
 		let active = true;
@@ -185,9 +192,22 @@
 
 <main class="mx-auto max-w-2xl px-5 pb-8 pt-4">
 	<div class="mb-3 flex items-center justify-between px-1">
-		<p class="text-[13px] text-[var(--color-text-secondary)]">
-			총 <span class="font-semibold text-[var(--color-text)]">{verses.length}개</span>
-		</p>
+		<div class="flex items-center gap-3">
+			<p class="text-[13px] text-[var(--color-text-secondary)]">
+				총 <span class="font-semibold text-[var(--color-text)]">{verses.length}개</span>
+			</p>
+			{#if verses.length > 1}
+				<button
+					type="button"
+					onclick={() => (newestFirst = !newestFirst)}
+					aria-label="정렬 순서 바꾸기"
+					class="inline-flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-elevated)] px-2.5 py-1 text-[11px] font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
+				>
+					<ArrowDownUp size={12} strokeWidth={1.75} />
+					{newestFirst ? '최신순' : '오래된순'}
+				</button>
+			{/if}
+		</div>
 		<div class="flex items-center gap-1">
 			<!--
 				FolderOutput / FolderInput show the box-and-arrow shape explicitly
@@ -279,7 +299,7 @@
 		</section>
 	{:else}
 		<div class="space-y-5">
-			{#each verses as verse (verse.no)}
+			{#each displayedVerses as verse (verse.no)}
 				<!--
 					No {#key} wrapper here: the {#each} key on verse.no already
 					triggers a full remount when the row's identity changes. The
