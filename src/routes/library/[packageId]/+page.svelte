@@ -5,11 +5,13 @@
 	import GroupSubStrip from '$lib/components/filter/GroupSubStrip.svelte';
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
 	import FontScalePicker from '$lib/components/card/FontScalePicker.svelte';
+	import Toast from '$lib/components/feedback/Toast.svelte';
 	import { Eye, EyeOff } from 'lucide-svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { level1Groups, level2GroupsInSeries, filterVerses } from '$lib/db/verses';
 	import { recordPackageView } from '$lib/db/recent';
+	import { recordRecentVerse } from '$lib/db/recentVerses';
 	import {
 		getShowVerseTextInList,
 		setShowVerseTextInList,
@@ -37,12 +39,74 @@
 
 	const packageId = $derived(page.params.packageId!);
 
+	// '이 패키지로 암송 시작' 흐름이 아직 연결되지 않아 버튼을 숨겨 둔다.
+	// 기능이 준비되면 이 플래그만 true 로 바꾸면 버튼이 다시 노출된다.
+	const ENABLE_ACTIVATE_PACKAGE = false;
+
 	let showVerseText = $state(true);
 	let fontScale = $state<VerseFontScale>(1.0);
 	let activePackageId: string | null = $state(null);
 	let bannerVisible = $state(false);
 	let ratingsByVerseNo = $state<Map<number, VerseRowRating>>(new Map());
 	let bookmarksByVerseNo = $state<Map<number, BookmarkColor>>(new Map());
+
+	// Multi-select: a Set of verse.no the user has tapped. When non-empty, the
+	// selected cards stay bright while the rest dim, and a confirm bar appears.
+	let selectedVerseNos = $state<Set<number>>(new Set());
+	let toast = $state<{ message: string } | null>(null);
+	const selectionActive = $derived(selectedVerseNos.size > 0);
+
+	// Deep-link target from the home dashboard: /library/{id}?v={no} scrolls the
+	// list to that verse and flashes it, instead of opening the single-verse view.
+	let highlightVerseNo = $state<number | null>(null);
+
+	function toggleSelect(no: number) {
+		// Reassign (not mutate) so Svelte's $state reactivity fires.
+		const next = new Set(selectedVerseNos);
+		if (next.has(no)) next.delete(no);
+		else next.add(no);
+		selectedVerseNos = next;
+	}
+
+	function clearSelection() {
+		selectedVerseNos = new Set();
+	}
+
+	// Confirm: write each selected verse into the recent-verses store so it
+	// surfaces on the home dashboard's history. Best-effort per verse — a single
+	// failed put shouldn't abort the rest.
+	async function confirmSelection() {
+		const nos = [...selectedVerseNos];
+		if (nos.length === 0) return;
+		await Promise.all(nos.map((no) => recordRecentVerse(packageId, no).catch(() => {})));
+		toast = { message: `본 구절에 ${nos.length}개 담았습니다` };
+		clearSelection();
+	}
+
+	// React to the ?v= deep-link: scroll the matching card to center and flash it.
+	// requestAnimationFrame waits for the list to paint; the cleanup cancels a
+	// pending frame if the param changes again before it fires.
+	$effect(() => {
+		const raw = page.url.searchParams.get('v');
+		if (raw === null) return;
+		const no = parseInt(raw, 10);
+		if (!Number.isInteger(no)) return;
+		let cancelled = false;
+		const raf = requestAnimationFrame(() => {
+			if (cancelled) return;
+			const el = document.getElementById(`verse-${no}`);
+			if (!el) return;
+			el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+			highlightVerseNo = no;
+			setTimeout(() => {
+				if (highlightVerseNo === no) highlightVerseNo = null;
+			}, 1800);
+		});
+		return () => {
+			cancelled = true;
+			cancelAnimationFrame(raf);
+		};
+	});
 
 	// Side effects: load preferences, record recent view, hydrate per-verse state
 	$effect(() => {
@@ -186,29 +250,31 @@
 
 <Header title={data.pkg.name} onBack={() => goto('/library')} />
 
-<main class="mx-auto max-w-2xl px-5 pb-8 pt-2">
+<main class="mx-auto max-w-2xl px-5 pt-2 {selectionActive ? 'pb-28' : 'pb-8'}">
 	<PackageTabStrip packages={data.allPackages} currentId={packageId} />
 
-	<div class="mb-4 flex items-center justify-between gap-2 px-1">
-		<div class="text-[12px] text-[var(--color-text-secondary)]">
-			{#if activePackageId === packageId}
-				<span
-					class="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent-soft)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--color-accent)]"
+	{#if ENABLE_ACTIVATE_PACKAGE || activePackageId === packageId}
+		<div class="mb-4 flex items-center justify-between gap-2 px-1">
+			<div class="text-[12px] text-[var(--color-text-secondary)]">
+				{#if activePackageId === packageId}
+					<span
+						class="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent-soft)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--color-accent)]"
+					>
+						암송 중
+					</span>
+				{/if}
+			</div>
+			{#if ENABLE_ACTIVATE_PACKAGE && activePackageId !== packageId}
+				<button
+					type="button"
+					onclick={activatePackage}
+					class="inline-flex items-center rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
 				>
-					암송 중
-				</span>
+					이 패키지로 암송 시작
+				</button>
 			{/if}
 		</div>
-		{#if activePackageId !== packageId}
-			<button
-				type="button"
-				onclick={activatePackage}
-				class="inline-flex items-center rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
-			>
-				이 패키지로 암송 시작
-			</button>
-		{/if}
-	</div>
+	{/if}
 
 	{#if bannerVisible}
 		<div
@@ -259,21 +325,63 @@
 		{#each filteredVerses as v (v.no)}
 			{@const tags = data.tagsByVerseNo.get(v.no) ?? []}
 			{@const rating = ratingsByVerseNo.get(v.no)}
-			<VerseCard
-				verse={v}
-				packageName={data.pkg.abbreviation}
-				{packageId}
-				{tags}
-				bookmark={bookmarksByVerseNo.get(v.no) ?? null}
-				onBookmarkPick={(c) => pickBookmark(v.no, c)}
-				onBookmarkClear={() => clearVerseBookmark(v.no)}
-				startDifficulty={rating?.start ?? null}
-				fullDifficulty={rating?.full ?? null}
-				onPickStartDifficulty={(l) => pickStart(v.no, l)}
-				onPickFullDifficulty={(l) => pickFull(v.no, l)}
-				showBody={showVerseText}
-				{fontScale}
-			/>
+			<div id={`verse-${v.no}`} class="scroll-mt-24">
+				<VerseCard
+					verse={v}
+					packageName={data.pkg.abbreviation}
+					{packageId}
+					{tags}
+					bookmark={bookmarksByVerseNo.get(v.no) ?? null}
+					onBookmarkPick={(c) => pickBookmark(v.no, c)}
+					onBookmarkClear={() => clearVerseBookmark(v.no)}
+					startDifficulty={rating?.start ?? null}
+					fullDifficulty={rating?.full ?? null}
+					onPickStartDifficulty={(l) => pickStart(v.no, l)}
+					onPickFullDifficulty={(l) => pickFull(v.no, l)}
+					showBody={showVerseText}
+					{fontScale}
+					selected={selectedVerseNos.has(v.no)}
+					dimmed={selectionActive && !selectedVerseNos.has(v.no)}
+					onToggleSelect={() => toggleSelect(v.no)}
+					highlighted={highlightVerseNo === v.no}
+				/>
+			</div>
 		{/each}
 	</div>
 </main>
+
+<!-- Selection confirm bar: floats just above the TabBar while ≥1 verse is
+     selected. '본 구절에 담기' records the picks into the home history. -->
+{#if selectionActive}
+	<div class="fixed inset-x-0 z-40" style="bottom: calc(64px + env(safe-area-inset-bottom));">
+		<div class="mx-auto max-w-2xl px-5 pb-3">
+			<div
+				class="flex items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 shadow-lg"
+			>
+				<span class="text-[13px] text-[var(--color-text-secondary)]">
+					<span class="font-semibold text-[var(--color-text)]">{selectedVerseNos.size}개</span> 선택됨
+				</span>
+				<div class="flex items-center gap-2">
+					<button
+						type="button"
+						onclick={clearSelection}
+						class="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)]"
+					>
+						해제
+					</button>
+					<button
+						type="button"
+						onclick={confirmSelection}
+						class="rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
+					>
+						본 구절에 담기
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}
+
+{#if toast}
+	<Toast message={toast.message} onClose={() => (toast = null)} />
+{/if}

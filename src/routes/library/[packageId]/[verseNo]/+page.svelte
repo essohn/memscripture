@@ -192,6 +192,7 @@
 			<VerseCard
 				{verse}
 				packageName={pkg?.abbreviation}
+				packageHref={`/library/${packageId}`}
 				{packageId}
 				{tags}
 				{bookmark}

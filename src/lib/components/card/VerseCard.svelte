@@ -31,6 +31,16 @@
 		fullDifficulty?: DifficultyLevel | null;
 		onPickStartDifficulty?: (level: DifficultyLevel | null) => void;
 		onPickFullDifficulty?: (level: DifficultyLevel | null) => void;
+		/** Multi-select (package list): true when this card is in the selected set. */
+		selected?: boolean;
+		/** Multi-select: dim this card because another card is selected and this one isn't. */
+		dimmed?: boolean;
+		/** When provided, tapping the card body toggles its selection. */
+		onToggleSelect?: () => void;
+		/** Transient flash to draw the eye when the list is deep-linked to this verse. */
+		highlighted?: boolean;
+		/** When set, the package label becomes a link (e.g. back to the package list). */
+		packageHref?: string;
 	}
 	let {
 		verse,
@@ -47,13 +57,63 @@
 		startDifficulty = null,
 		fullDifficulty = null,
 		onPickStartDifficulty,
-		onPickFullDifficulty
+		onPickFullDifficulty,
+		selected = false,
+		dimmed = false,
+		onToggleSelect,
+		highlighted = false,
+		packageHref
 	}: Props = $props();
 
 	const bookmarksEnabled = $derived(Boolean(onBookmarkPick && onBookmarkClear));
 	const editingEnabled = $derived(Boolean(onEdit) || Boolean(onDelete));
 	const ratingsEnabled = $derived(
 		Boolean(onPickStartDifficulty) && Boolean(onPickFullDifficulty)
+	);
+	const selectable = $derived(Boolean(onToggleSelect));
+
+	// The card hosts its own interactive controls (bookmark ribbon, difficulty
+	// badges, tags) plus their full-screen popover backdrops. Selection-toggle
+	// must ignore clicks that originate from any of those — match the elements
+	// and ARIA roles they render so a tap on a control never flips selection.
+	// The card itself also carries role="button" when selectable, so the match
+	// is only treated as a control when it's something *other than* the card.
+	function innerControlClicked(e: MouseEvent): boolean {
+		const el = e.target as HTMLElement | null;
+		const hit = el?.closest(
+			'button, a, [role="button"], [role="menu"], [role="menuitem"], [role="menuitemradio"], [role="presentation"], [role="group"]'
+		);
+		return Boolean(hit && hit !== e.currentTarget);
+	}
+
+	function handleCardClick(e: MouseEvent) {
+		if (!onToggleSelect || innerControlClicked(e)) return;
+		onToggleSelect();
+	}
+
+	function handleCardKey(e: KeyboardEvent) {
+		if (!onToggleSelect) return;
+		// Only the card itself toggles on Enter/Space — let inner controls keep
+		// their own keyboard behaviour.
+		if (e.target !== e.currentTarget) return;
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			onToggleSelect();
+		}
+	}
+
+	const cardClass = $derived(
+		[
+			'verse-card relative rounded-[26px] border bg-[var(--color-card)] pb-4 pl-7 pr-9 pt-7 transition-[opacity,border-color,box-shadow] duration-200',
+			selected
+				? 'border-[var(--color-accent)] ring-2 ring-[var(--color-accent)]'
+				: 'border-[var(--color-border)]',
+			dimmed ? 'opacity-50' : '',
+			selectable ? 'cursor-pointer select-none' : '',
+			highlighted ? 'verse-card--highlight' : ''
+		]
+			.filter(Boolean)
+			.join(' ')
 	);
 
 	function tagHref(tag: VerseTag): string {
@@ -71,18 +131,36 @@
 	}
 </script>
 
+<!-- role/tabindex are applied dynamically (button only when selectable); the
+     static a11y check can't see that, so the noninteractive-tabindex rule is a
+     false positive here. -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <article
 	data-testid="verse-row"
 	style="--vfs: {fontScale};"
-	class="verse-card relative rounded-[26px] border border-[var(--color-border)] bg-[var(--color-card)] pb-4 pl-7 pr-9 pt-7"
+	class={cardClass}
+	role={selectable ? 'button' : undefined}
+	tabindex={selectable ? 0 : undefined}
+	aria-pressed={selectable ? selected : undefined}
+	onclick={selectable ? handleCardClick : undefined}
+	onkeydown={selectable ? handleCardKey : undefined}
 >
 	<header class="space-y-2">
 		<div class="flex items-center justify-between gap-3">
-			<p
-				class="text-[calc(13px*var(--vfs))] font-medium uppercase tracking-[0.2em] text-[var(--color-text-tertiary)]"
-			>
-				{packageName ?? ''}
-			</p>
+			{#if packageHref}
+				<a
+					href={packageHref}
+					class="text-[calc(13px*var(--vfs))] font-medium uppercase tracking-[0.2em] text-[var(--color-text-tertiary)] underline-offset-4 transition-colors hover:text-[var(--color-accent)] hover:underline"
+				>
+					{packageName ?? ''}
+				</a>
+			{:else}
+				<p
+					class="text-[calc(13px*var(--vfs))] font-medium uppercase tracking-[0.2em] text-[var(--color-text-tertiary)]"
+				>
+					{packageName ?? ''}
+				</p>
+			{/if}
 			<div class="flex items-center gap-1">
 				{#if ratingsEnabled}
 					<div class="mr-1 flex items-center gap-1">
@@ -160,5 +238,22 @@
 <style>
 	.verse-card {
 		box-shadow: var(--shadow-card);
+	}
+	/* One-shot flash when the list is deep-linked to this verse. Reverts to the
+	   base card styling once the animation completes (no fill-forwards). */
+	.verse-card--highlight {
+		animation: verse-card-flash 1.7s ease-out;
+	}
+	@keyframes verse-card-flash {
+		0% {
+			background-color: var(--color-accent-soft);
+			box-shadow: 0 0 0 3px var(--color-accent), var(--shadow-card);
+		}
+		60% {
+			background-color: var(--color-card);
+		}
+		100% {
+			box-shadow: var(--shadow-card);
+		}
 	}
 </style>

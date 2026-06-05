@@ -4,6 +4,7 @@
 	import FontScalePicker from '$lib/components/card/FontScalePicker.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
 	import { Eye, EyeOff } from 'lucide-svelte';
+	import { goto } from '$app/navigation';
 	import { setBookmark, clearBookmark, clearAllOfColor } from '$lib/db/bookmarks';
 	import {
 		getVerseRating,
@@ -37,6 +38,14 @@
 
 	function ratingKey(packageId: string, verseNo: number): string {
 		return `${packageId}:${verseNo}`;
+	}
+
+	// Bookmarks is reachable from the TabBar (no inherent parent), so return the
+	// user to wherever they came from. Fall back to home on a cold/direct load
+	// where there's no in-app history to pop.
+	function goBack() {
+		if (typeof history !== 'undefined' && history.length > 1) history.back();
+		else goto('/');
 	}
 
 	$effect(() => {
@@ -156,7 +165,7 @@
 	}
 </script>
 
-<Header title="북마크" />
+<Header title="북마크" onBack={goBack} />
 
 <main class="mx-auto max-w-2xl px-5 pb-8 pt-4">
 	<div role="tablist" aria-label="리본 색상" class="mb-5 flex flex-wrap gap-2">

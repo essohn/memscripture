@@ -87,25 +87,16 @@
 <Header title="Home" />
 
 <main class="mx-auto max-w-2xl px-5 pb-8 pt-6">
-	<section
-		class="hero-card relative overflow-hidden rounded-[26px] border border-[var(--color-border)] bg-[var(--color-card)] px-6 pb-6 pt-7"
-	>
-		<span
-			class="absolute -right-10 -top-10 h-44 w-44 rounded-full bg-[var(--color-accent-soft)] opacity-70 blur-2xl"
-			aria-hidden="true"
-		></span>
+	<section class="px-1">
 		<div
-			class="relative inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-elevated)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]"
+			class="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]"
 		>
 			<Sparkles size={12} class="text-[var(--color-accent)]" />
 			최근
 		</div>
-		<h2 class="relative mt-4 text-[20px] font-semibold leading-tight text-[var(--color-text)]">
+		<h2 class="mt-1.5 text-[20px] font-semibold leading-tight text-[var(--color-text)]">
 			보던 구절로 돌아가기
 		</h2>
-		<p class="relative mt-2 text-[13px] leading-relaxed text-[var(--color-text-secondary)]">
-			최근에 열어본 구절을 탭하면 그 구절로 바로 이동합니다.
-		</p>
 	</section>
 
 	<div class="mt-6 px-1">
@@ -127,7 +118,7 @@
 				{#each rows as row (`${row.packageId}:${row.verseNo}`)}
 					<li>
 						<a
-							href={`/library/${row.packageId}/${row.verseNo}`}
+							href={`/library/${row.packageId}?v=${row.verseNo}`}
 							class="recent-card group block rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-5 py-4 transition-all hover:border-[var(--color-accent)]/50"
 						>
 							<div class="flex items-baseline justify-between gap-2">
@@ -159,7 +150,6 @@
 </main>
 
 <style>
-	.hero-card,
 	.empty-card {
 		box-shadow: var(--shadow-soft);
 	}
