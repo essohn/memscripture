@@ -106,7 +106,10 @@
 		if (nos.length === 0) return;
 		await recordRecentBundle(packageId, nos).catch(() => {});
 		toast = { message: `최근 구절에 ${nos.length}개 담았습니다` };
-		clearSelection();
+		// Keep the selection on screen after committing — just stop the auto-commit
+		// countdown so it can't re-fire. Editing the selection resumes it.
+		suppressCountdown = true;
+		bookmarkPaletteOpen = false;
 	}
 
 	// Apply one ribbon color to every selected verse at once. Optimistically
