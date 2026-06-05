@@ -19,7 +19,6 @@
 		setVerseFontScale,
 		type VerseFontScale
 	} from '$lib/db/viewOptions';
-	import { getActivePackageId, setActivePackage } from '$lib/db/activePackage';
 	import { db } from '$lib/db/local';
 	import { setBookmark, clearBookmark } from '$lib/db/bookmarks';
 	import {
@@ -39,14 +38,8 @@
 
 	const packageId = $derived(page.params.packageId!);
 
-	// '이 패키지로 암송 시작' 흐름이 아직 연결되지 않아 버튼을 숨겨 둔다.
-	// 기능이 준비되면 이 플래그만 true 로 바꾸면 버튼이 다시 노출된다.
-	const ENABLE_ACTIVATE_PACKAGE = false;
-
 	let showVerseText = $state(true);
 	let fontScale = $state<VerseFontScale>(1.0);
-	let activePackageId: string | null = $state(null);
-	let bannerVisible = $state(false);
 	let ratingsByVerseNo = $state<Map<number, VerseRowRating>>(new Map());
 	let bookmarksByVerseNo = $state<Map<number, BookmarkColor>>(new Map());
 
@@ -197,9 +190,6 @@
 				fontScale = scale;
 			}
 		})().catch(() => {});
-		(async () => {
-			activePackageId = await getActivePackageId();
-		})().catch(() => {});
 
 		// One bulk read each for ratings + bookmarks — avoids N round-trips for
 		// long lists. Both tables are indexed on packageId; rows only exist after
@@ -310,60 +300,12 @@
 		showVerseText = !showVerseText;
 		setShowVerseTextInList(showVerseText).catch(() => {});
 	}
-
-	async function activatePackage() {
-		await setActivePackage(packageId);
-		activePackageId = packageId;
-		bannerVisible = true;
-		// auto-dismiss after 3s
-		setTimeout(() => {
-			bannerVisible = false;
-		}, 3000);
-	}
 </script>
 
 <Header title={data.pkg.name} onBack={() => goto('/library')} />
 
 <main class="mx-auto max-w-2xl px-5 pt-2 {selectionActive ? 'pb-28' : 'pb-8'}">
 	<PackageTabStrip packages={data.allPackages} currentId={packageId} />
-
-	{#if ENABLE_ACTIVATE_PACKAGE || activePackageId === packageId}
-		<div class="mb-4 flex items-center justify-between gap-2 px-1">
-			<div class="text-[12px] text-[var(--color-text-secondary)]">
-				{#if activePackageId === packageId}
-					<span
-						class="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent-soft)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--color-accent)]"
-					>
-						암송 중
-					</span>
-				{/if}
-			</div>
-			{#if ENABLE_ACTIVATE_PACKAGE && activePackageId !== packageId}
-				<button
-					type="button"
-					onclick={activatePackage}
-					class="inline-flex items-center rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
-				>
-					이 패키지로 암송 시작
-				</button>
-			{/if}
-		</div>
-	{/if}
-
-	{#if bannerVisible}
-		<div
-			role="status"
-			class="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-[var(--color-accent)]/30 bg-[var(--color-accent-soft)] px-4 py-3 text-[13px] text-[var(--color-text)]"
-		>
-			<span>활성 패키지로 설정되었습니다.</span>
-			<a
-				href="/today"
-				class="rounded-full bg-[var(--color-accent)] px-3 py-1 text-[12px] font-medium text-white hover:opacity-90"
-			>
-				오늘의 큐 →
-			</a>
-		</div>
-	{/if}
 
 	<div class="mb-3 flex items-center gap-3 px-1 text-[12px] text-[var(--color-text-secondary)]">
 		<span class="font-medium uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]">

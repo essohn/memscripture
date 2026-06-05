@@ -72,6 +72,110 @@
 	);
 	const selectable = $derived(Boolean(onToggleSelect));
 
+	// ─── Memorize mode: drag a curtain left→right to reveal words one at a time ──
+	let mode = $state<'read' | 'memorize'>('read');
+	// While memorizing, the card stops acting as a select target so drags reveal
+	// words instead of toggling the selection.
+	const interactive = $derived(selectable && mode === 'read');
+
+	let revealedCount = $state(0);
+	// Drag tuning — overwritten on first measure. `pxPerWord` is sized so one full
+	// row-width of horizontal drag reveals exactly one row of words.
+	let pxPerWord = 36;
+	let wordsPerLine = 5;
+	let paragraphEl: HTMLParagraphElement | undefined = $state();
+
+	const words = $derived(verse.w.split(/\s+/).filter(Boolean));
+	const totalWords = $derived(words.length);
+	const allRevealed = $derived(revealedCount >= totalWords);
+
+	function enterMemorize() {
+		mode = 'memorize';
+		// Single-word verses have no curtain to drag — show immediately.
+		revealedCount = totalWords <= 1 ? totalWords : 0;
+	}
+	function resetReveal() {
+		revealedCount = totalWords <= 1 ? totalWords : 0;
+	}
+	function revealAll() {
+		revealedCount = totalWords;
+	}
+	function exitMemorize() {
+		mode = 'read';
+		revealedCount = 0;
+	}
+
+	let dragBaseline = 0;
+	let dragStartX = 0;
+	let dragStartY = 0;
+	let dragActive = false;
+	let dragHorizontal = false;
+
+	function onPointerDown(e: PointerEvent) {
+		if (mode !== 'memorize' || totalWords <= 1) return;
+		dragBaseline = revealedCount;
+		dragStartX = e.clientX;
+		dragStartY = e.clientY;
+		dragActive = true;
+		dragHorizontal = false;
+		(e.currentTarget as Element).setPointerCapture(e.pointerId);
+	}
+
+	function onPointerMove(e: PointerEvent) {
+		if (!dragActive) return;
+		const dx = e.clientX - dragStartX;
+		const dy = e.clientY - dragStartY;
+		// Direction lock: a vertical-leaning gesture releases so the page scrolls.
+		if (!dragHorizontal) {
+			if (Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx)) {
+				dragActive = false;
+				const t = e.currentTarget as Element;
+				if (t.hasPointerCapture(e.pointerId)) t.releasePointerCapture(e.pointerId);
+				return;
+			}
+			if (Math.abs(dx) < 4) return;
+			dragHorizontal = true;
+		}
+		// Cap one drag to a single row's words either way, so a fast swipe can't
+		// burn through a long verse — lift and drag again to continue.
+		const raw = Math.round(dx / pxPerWord);
+		const advance = raw > wordsPerLine ? wordsPerLine : raw < -wordsPerLine ? -wordsPerLine : raw;
+		revealedCount = Math.max(0, Math.min(totalWords, dragBaseline + advance));
+	}
+
+	function onPointerUp(e: PointerEvent) {
+		dragActive = false;
+		const t = e.currentTarget as Element;
+		if (t.hasPointerCapture(e.pointerId)) t.releasePointerCapture(e.pointerId);
+	}
+
+	// Recompute drag tuning on memorize entry + paragraph resizes. `wordsPerLine`
+	// comes from rendered height / line-height; `pxPerWord` is then sized so a
+	// full-row-width drag reveals one row's worth of words.
+	$effect(() => {
+		if (mode !== 'memorize' || !paragraphEl || totalWords === 0) return;
+		const el = paragraphEl;
+		const measure = () => {
+			const rect = el.getBoundingClientRect();
+			const cs = getComputedStyle(el);
+			const fontSize = parseFloat(cs.fontSize) || 19;
+			const lhStr = cs.lineHeight;
+			const lineHeight =
+				lhStr === 'normal'
+					? fontSize * 1.4
+					: lhStr.endsWith('px')
+						? parseFloat(lhStr)
+						: fontSize * parseFloat(lhStr);
+			const lineCount = Math.max(1, Math.round(rect.height / lineHeight));
+			wordsPerLine = Math.max(1, Math.ceil(totalWords / lineCount));
+			pxPerWord = rect.width / wordsPerLine;
+		};
+		measure();
+		const ro = new ResizeObserver(measure);
+		ro.observe(el);
+		return () => ro.disconnect();
+	});
+
 	// The card hosts its own interactive controls (bookmark ribbon, difficulty
 	// badges, tags) plus their full-screen popover backdrops. Selection-toggle
 	// must ignore clicks that originate from any of those — match the elements
@@ -109,7 +213,7 @@
 				? 'border-[var(--color-accent)] ring-2 ring-[var(--color-accent)]'
 				: 'border-[var(--color-border)]',
 			dimmed ? 'opacity-50' : '',
-			selectable ? 'cursor-pointer select-none' : '',
+			interactive ? 'cursor-pointer select-none' : '',
 			highlighted ? 'verse-card--highlight' : ''
 		]
 			.filter(Boolean)
@@ -139,11 +243,11 @@
 	data-testid="verse-row"
 	style="--vfs: {fontScale};"
 	class={cardClass}
-	role={selectable ? 'button' : undefined}
-	tabindex={selectable ? 0 : undefined}
-	aria-pressed={selectable ? selected : undefined}
-	onclick={selectable ? handleCardClick : undefined}
-	onkeydown={selectable ? handleCardKey : undefined}
+	role={interactive ? 'button' : undefined}
+	tabindex={interactive ? 0 : undefined}
+	aria-pressed={interactive ? selected : undefined}
+	onclick={interactive ? handleCardClick : undefined}
+	onkeydown={interactive ? handleCardKey : undefined}
 >
 	<header class="space-y-1">
 		<div class="flex items-start justify-between gap-3">
@@ -152,8 +256,8 @@
 			>
 				{verse.title}
 			</h2>
-			{#if ratingsEnabled || editingEnabled}
-				<div class="flex shrink-0 items-center gap-1">
+			<div class="flex shrink-0 items-center gap-1">
+				{#if mode === 'read'}
 					{#if ratingsEnabled}
 						<div class="flex items-center gap-1">
 							<DifficultyBadge
@@ -168,29 +272,81 @@
 							/>
 						</div>
 					{/if}
+					<button
+						type="button"
+						onclick={enterMemorize}
+						class="rounded-full bg-[var(--color-accent-soft)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-accent)] transition-opacity hover:opacity-90"
+					>
+						암송
+					</button>
 					{#if editingEnabled}
 						<VerseOverflowMenu {onEdit} {onDelete} />
 					{/if}
-				</div>
-			{/if}
+				{:else}
+					<button
+						type="button"
+						onclick={exitMemorize}
+						aria-label="암송 종료"
+						class="inline-flex h-7 w-7 items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
+					>
+						✕
+					</button>
+				{/if}
+			</div>
 		</div>
 		<p class="text-[calc(19px*var(--vfs))] text-[var(--color-text-secondary)]">
 			{verse.cite}
 		</p>
 	</header>
 
-	<!--
-		Always render the body so the card height is stable when toggling Eye.
-		!showBody just makes the glyphs transparent — layout (line wrap, padding)
-		stays identical, screen readers still get the text.
-	-->
-	<p
-		class="mt-1.5 whitespace-pre-line break-keep text-[calc(19px*var(--vfs))] leading-[1.6] {showBody
-			? 'text-[var(--color-text)]'
-			: 'text-transparent'}"
-	>
-		{verse.w}
-	</p>
+	{#if mode === 'read'}
+		<!--
+			Always render the body so the card height is stable when toggling Eye.
+			!showBody just makes the glyphs transparent — layout (line wrap, padding)
+			stays identical, screen readers still get the text.
+		-->
+		<p
+			class="mt-1.5 whitespace-pre-line break-keep text-[calc(19px*var(--vfs))] leading-[1.6] {showBody
+				? 'text-[var(--color-text)]'
+				: 'text-transparent'}"
+		>
+			{verse.w}
+		</p>
+	{:else}
+		<!-- Memorize curtain: words start covered; drag left→right to reveal them. -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<p
+			bind:this={paragraphEl}
+			class="memorize-body mt-1.5 break-keep text-[calc(19px*var(--vfs))] leading-[1.9] text-[var(--color-text)] select-none touch-pan-y"
+			onpointerdown={onPointerDown}
+			onpointermove={onPointerMove}
+			onpointerup={onPointerUp}
+			onpointercancel={onPointerUp}
+		>{#each words as word, i (i)}<span class="word" class:covered={i >= revealedCount}><span class="word-text">{word}</span></span>{' '}{/each}</p>
+		<div class="mt-3 flex items-center justify-between gap-3 text-[11px]">
+			<span class="text-[var(--color-text-tertiary)]">
+				{#if allRevealed}모두 열렸습니다{:else}← 좌→우로 드래그해서 단어 열기{/if}
+			</span>
+			<div class="flex items-center gap-3">
+				<button
+					type="button"
+					onclick={resetReveal}
+					class="font-medium text-[var(--color-text-secondary)] underline-offset-4 hover:underline"
+				>
+					처음부터
+				</button>
+				{#if !allRevealed}
+					<button
+						type="button"
+						onclick={revealAll}
+						class="font-medium text-[var(--color-text-secondary)] underline-offset-4 hover:underline"
+					>
+						전체 보기
+					</button>
+				{/if}
+			</div>
+		</div>
+	{/if}
 
 	<!-- Bottom meta row: package name + tags. The verse number and bookmark ribbon
 	     sit together at the bottom-right (ribbon immediately left of the number);
@@ -253,5 +409,37 @@
 		100% {
 			box-shadow: var(--shadow-card);
 		}
+	}
+
+	/* Memorize-mode curtain: each word sits under a striped cover until revealed. */
+	.word {
+		display: inline-block;
+		position: relative;
+		padding: 0 2px;
+	}
+	.word-text {
+		transition: opacity 150ms ease;
+	}
+	.word.covered .word-text {
+		opacity: 0;
+	}
+	.word::after {
+		content: '';
+		position: absolute;
+		inset: 2px 0;
+		border-radius: 4px;
+		background: repeating-linear-gradient(
+			135deg,
+			var(--color-border),
+			var(--color-border) 4px,
+			var(--color-accent-soft) 4px,
+			var(--color-accent-soft) 8px
+		);
+		opacity: 0;
+		transition: opacity 150ms ease;
+		pointer-events: none;
+	}
+	.word.covered::after {
+		opacity: 1;
 	}
 </style>
