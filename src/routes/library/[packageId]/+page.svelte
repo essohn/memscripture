@@ -56,24 +56,17 @@
 	let toast = $state<{ message: string } | null>(null);
 	const selectionActive = $derived(selectedVerseNos.size > 0);
 
-	// Idle window after which a standing selection auto-commits to recents. The
-	// confirm button surfaces the remaining time (number + fill).
-	const AUTO_CONFIRM_MS = 10_000;
-	let countdownMs = $state(0);
-	const countdownSec = $derived(Math.ceil(countdownMs / 1000));
-	const countdownPct = $derived(((AUTO_CONFIRM_MS - countdownMs) / AUTO_CONFIRM_MS) * 100);
-	// When a selection is *restored* from a recent bundle (?sel=), it's being
-	// reviewed, not freshly built — hold off the auto-commit countdown until the
-	// user actually changes the selection.
-	let suppressCountdown = $state(false);
+	// The package a selection belongs to, so we can cancel it when the user
+	// switches packages (selection state survives the shared [packageId] route).
+	let selectionPackageId = $state<string | null>(null);
 
 	// Deep-link target from the home dashboard: /library/{id}?v={no} scrolls the
 	// list to that verse and flashes it, instead of opening the single-verse view.
 	let highlightVerseNo = $state<number | null>(null);
 
 	function toggleSelect(no: number) {
-		// A manual edit means this is now a user-built selection — let it count down.
-		suppressCountdown = false;
+		// Anchor the selection to the current package so switching packages cancels it.
+		selectionPackageId = packageId;
 		// Reassign (not mutate) so Svelte's $state reactivity fires.
 		const next = new Set(selectedVerseNos);
 		if (next.has(no)) next.delete(no);
@@ -95,7 +88,7 @@
 	function clearSelection() {
 		selectedVerseNos = new Set();
 		bookmarkPaletteOpen = false;
-		suppressCountdown = false;
+		selectionPackageId = null;
 	}
 
 	// Confirm: write each selected verse into the recent-verses store so it
@@ -106,9 +99,7 @@
 		if (nos.length === 0) return;
 		await recordRecentBundle(packageId, nos, seriesIndex, groupIndices).catch(() => {});
 		toast = { message: `최근 구절에 ${nos.length}개 담았습니다` };
-		// Keep the selection on screen after committing — just stop the auto-commit
-		// countdown so it can't re-fire. Editing the selection resumes it.
-		suppressCountdown = true;
+		// Keep the selection on screen after committing.
 		bookmarkPaletteOpen = false;
 	}
 
@@ -125,26 +116,23 @@
 		clearSelection();
 	}
 
-	// Auto-commit the selection after AUTO_CONFIRM_MS of no changes. The effect
-	// re-reads selectedVerseNos.size, so any add/remove restarts the countdown;
-	// opening the bookmark palette pauses it so a colour pick can't be cut off.
+	// Cancel the selection when it falls outside its scope — a different package,
+	// or a filter that no longer shows every selected verse. Restoring a bundle
+	// sets the filter to match the selection, so that path never trips this.
 	$effect(() => {
-		const count = selectedVerseNos.size;
-		if (count === 0 || bookmarkPaletteOpen || suppressCountdown) {
-			countdownMs = count === 0 || suppressCountdown ? 0 : AUTO_CONFIRM_MS;
+		if (selectedVerseNos.size === 0) return;
+		if (selectionPackageId !== null && selectionPackageId !== packageId) {
+			clearSelection();
 			return;
 		}
-		countdownMs = AUTO_CONFIRM_MS;
-		const start = performance.now();
-		const id = setInterval(() => {
-			const remaining = Math.max(0, AUTO_CONFIRM_MS - (performance.now() - start));
-			countdownMs = remaining;
-			if (remaining <= 0) {
-				clearInterval(id);
-				confirmSelection();
+		if (filteredVerses.length === 0) return;
+		const visible = new Set(filteredVerses.map((v) => v.no));
+		for (const no of selectedVerseNos) {
+			if (!visible.has(no)) {
+				clearSelection();
+				return;
 			}
-		}, 100);
-		return () => clearInterval(id);
+		}
 	});
 
 	// React to the ?v= deep-link: scroll the matching card to center and flash it.
@@ -173,8 +161,8 @@
 	});
 
 	// Restore a selection from a recent bundle: /library/{id}?sel=1,2,3 marks those
-	// verses selected (countdown suppressed — it's a review, not a fresh pick) and
-	// scrolls the front verse into view.
+	// verses selected and scrolls the front verse into view. The filter (?s/?g) is
+	// restored by the URL, so the selection stays within scope.
 	$effect(() => {
 		const raw = page.url.searchParams.get('sel');
 		if (!raw) return;
@@ -184,7 +172,7 @@
 			.filter((n) => Number.isInteger(n) && n >= 0);
 		if (nos.length === 0) return;
 		selectedVerseNos = new Set(nos);
-		suppressCountdown = true;
+		selectionPackageId = packageId;
 		const first = Math.min(...nos);
 		const rafId = requestAnimationFrame(() => {
 			document
@@ -485,20 +473,9 @@
 					<button
 						type="button"
 						onclick={confirmSelection}
-						class="relative overflow-hidden rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
+						class="rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
 					>
-						<!-- Countdown fill: sweeps left→right as the auto-commit window elapses. -->
-						<span
-							class="absolute inset-y-0 left-0 bg-white/25"
-							style="width: {countdownPct}%; transition: width 100ms linear;"
-							aria-hidden="true"
-						></span>
-						<span class="relative inline-flex items-center gap-1.5">
-							최근 구절에 담기
-							{#if countdownMs > 0}
-								<span class="inline-block w-[1.4em] text-center tabular-nums">{countdownSec}</span>
-							{/if}
-						</span>
+						최근 구절에 담기
 					</button>
 				</div>
 			</div>
