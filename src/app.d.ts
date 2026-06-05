@@ -14,6 +14,9 @@ declare global {
 		// interface PageData {}
 		// interface PageState {}
 	}
+
+	/** App version string, injected by Vite `define` from package.json. */
+	const __APP_VERSION__: string;
 }
 
 export {};

@@ -89,14 +89,11 @@
 <main class="mx-auto max-w-2xl px-5 pb-8 pt-6">
 	<section class="px-1">
 		<div
-			class="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]"
+			class="inline-flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]"
 		>
-			<Sparkles size={12} class="text-[var(--color-accent)]" />
+			<Sparkles size={13} class="text-[var(--color-accent)]" />
 			최근
 		</div>
-		<h2 class="mt-1.5 text-[20px] font-semibold leading-tight text-[var(--color-text)]">
-			보던 구절로 돌아가기
-		</h2>
 	</section>
 
 	<div class="mt-6 px-1">

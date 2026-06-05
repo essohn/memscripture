@@ -1,5 +1,6 @@
 import { db, type StoredVerse } from './local';
 import { seedOyoPackageIfMissing } from './oyo';
+import { getPackageOrder } from './packageOrder';
 import type { IndexGroup, PackageMeta, Verse } from '$lib/types';
 
 const PACKAGES_URL = '/data/packages.json';
@@ -7,7 +8,22 @@ const GROUPS_URL = '/data/packages_index.json';
 let groupsCache: IndexGroup[] | null = null;
 
 export async function listPackages(): Promise<PackageMeta[]> {
-	const byVerseNumber = (a: PackageMeta, b: PackageMeta) => a.verse_number - b.verse_number;
+	// Ordering rules, in priority order:
+	//  1. OYO ("내 구절", the user-kind row) is always pinned to the front.
+	//  2. Then the user's custom drag-order, if any (rank = index in that list).
+	//  3. Anything unranked (new packages, or before the user ever reorders)
+	//     falls back to ascending verse-count order.
+	const order = await getPackageOrder();
+	const rank = new Map(order.map((id, i) => [id, i] as const));
+	const byOrder = (a: PackageMeta, b: PackageMeta) => {
+		const aUser = (a.kind ?? 'builtin') === 'user';
+		const bUser = (b.kind ?? 'builtin') === 'user';
+		if (aUser !== bUser) return aUser ? -1 : 1;
+		const ra = rank.get(a.id) ?? Infinity;
+		const rb = rank.get(b.id) ?? Infinity;
+		if (ra !== rb) return ra - rb;
+		return a.verse_number - b.verse_number;
+	};
 
 	// Always make sure the OYO row exists before any read. listPackages is the
 	// canonical entry point for the library list + recent-package widgets, so
@@ -18,7 +34,7 @@ export async function listPackages(): Promise<PackageMeta[]> {
 	const cached = await db.packages.toArray();
 	const hasCurated = cached.some((p) => (p.kind ?? 'builtin') === 'builtin');
 	if (hasCurated) {
-		return cached.map((p) => ({ ...p, kind: p.kind ?? 'builtin' })).sort(byVerseNumber);
+		return cached.map((p) => ({ ...p, kind: p.kind ?? 'builtin' })).sort(byOrder);
 	}
 
 	// First time on this device: curated packages not yet installed. Fetch and
@@ -35,7 +51,7 @@ export async function listPackages(): Promise<PackageMeta[]> {
 
 	// Re-read so any user-kind rows (OYO seeded above) come along.
 	const all = await db.packages.toArray();
-	return all.map((p) => ({ ...p, kind: p.kind ?? 'builtin' })).sort(byVerseNumber);
+	return all.map((p) => ({ ...p, kind: p.kind ?? 'builtin' })).sort(byOrder);
 }
 
 export async function isPackageInstalled(packageId: string): Promise<boolean> {

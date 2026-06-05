@@ -6,7 +6,7 @@
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
 	import FontScalePicker from '$lib/components/card/FontScalePicker.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
-	import { Eye, EyeOff } from 'lucide-svelte';
+	import { Eye, EyeOff, Bookmark } from 'lucide-svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { level1Groups, level2GroupsInSeries, filterVerses } from '$lib/db/verses';
@@ -27,7 +27,7 @@
 		setFullDifficulty,
 		type DifficultyLevel
 	} from '$lib/db/verseRatings';
-	import type { BookmarkColor } from '$lib/types';
+	import { BOOKMARK_COLORS, type BookmarkColor } from '$lib/types';
 	import type { PageData } from './$types';
 
 	interface VerseRowRating {
@@ -68,8 +68,20 @@
 		selectedVerseNos = next;
 	}
 
+	// Bulk-bookmark palette toggled from the selection bar.
+	let bookmarkPaletteOpen = $state(false);
+
+	const COLOR_LABELS: Record<BookmarkColor, string> = {
+		red: '빨강',
+		amber: '주황',
+		green: '초록',
+		blue: '파랑',
+		purple: '보라'
+	};
+
 	function clearSelection() {
 		selectedVerseNos = new Set();
+		bookmarkPaletteOpen = false;
 	}
 
 	// Confirm: write each selected verse into the recent-verses store so it
@@ -79,7 +91,20 @@
 		const nos = [...selectedVerseNos];
 		if (nos.length === 0) return;
 		await Promise.all(nos.map((no) => recordRecentVerse(packageId, no).catch(() => {})));
-		toast = { message: `본 구절에 ${nos.length}개 담았습니다` };
+		toast = { message: `최근 구절에 ${nos.length}개 담았습니다` };
+		clearSelection();
+	}
+
+	// Apply one ribbon color to every selected verse at once. Optimistically
+	// updates the in-memory map so the ribbons reflect immediately, then persists.
+	async function bulkBookmark(color: BookmarkColor) {
+		const nos = [...selectedVerseNos];
+		if (nos.length === 0) return;
+		const next = new Map(bookmarksByVerseNo);
+		for (const no of nos) next.set(no, color);
+		bookmarksByVerseNo = next;
+		await Promise.all(nos.map((no) => setBookmark(packageId, no, color).catch(() => {})));
+		toast = { message: `${COLOR_LABELS[color]} 리본으로 ${nos.length}개 북마크했습니다` };
 		clearSelection();
 	}
 
@@ -355,13 +380,29 @@
 {#if selectionActive}
 	<div class="fixed inset-x-0 z-40" style="bottom: calc(64px + env(safe-area-inset-bottom));">
 		<div class="mx-auto max-w-2xl px-5 pb-3">
+			{#if bookmarkPaletteOpen}
+				<!-- Color palette: tap a ribbon to bookmark every selected verse with it. -->
+				<div
+					class="mb-2 flex items-center justify-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 shadow-lg"
+				>
+					{#each BOOKMARK_COLORS as c (c)}
+						<button
+							type="button"
+							onclick={() => bulkBookmark(c)}
+							aria-label={`${COLOR_LABELS[c]} 리본으로 북마크`}
+							class="h-8 w-8 rounded-full border border-black/5 transition-transform hover:scale-110"
+							style={`background-color: var(--color-ribbon-${c});`}
+						></button>
+					{/each}
+				</div>
+			{/if}
 			<div
 				class="flex items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 shadow-lg"
 			>
 				<span class="text-[13px] text-[var(--color-text-secondary)]">
 					<span class="font-semibold text-[var(--color-text)]">{selectedVerseNos.size}개</span> 선택됨
 				</span>
-				<div class="flex items-center gap-2">
+				<div class="flex items-center gap-1.5">
 					<button
 						type="button"
 						onclick={clearSelection}
@@ -371,10 +412,21 @@
 					</button>
 					<button
 						type="button"
+						onclick={() => (bookmarkPaletteOpen = !bookmarkPaletteOpen)}
+						aria-label="선택한 구절 북마크"
+						aria-expanded={bookmarkPaletteOpen}
+						class="inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors {bookmarkPaletteOpen
+							? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+							: 'text-[var(--color-text-secondary)] hover:bg-[var(--color-elevated)]'}"
+					>
+						<Bookmark size={16} strokeWidth={1.75} />
+					</button>
+					<button
+						type="button"
 						onclick={confirmSelection}
 						class="rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
 					>
-						본 구절에 담기
+						최근 구절에 담기
 					</button>
 				</div>
 			</div>

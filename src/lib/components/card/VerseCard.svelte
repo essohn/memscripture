@@ -104,7 +104,7 @@
 
 	const cardClass = $derived(
 		[
-			'verse-card relative rounded-[26px] border bg-[var(--color-card)] pb-4 pl-7 pr-9 pt-7 transition-[opacity,border-color,box-shadow] duration-200',
+			'verse-card relative rounded-[14px] border bg-[var(--color-card)] px-5 py-5 transition-[opacity,border-color,box-shadow] duration-200',
 			selected
 				? 'border-[var(--color-accent)] ring-2 ring-[var(--color-accent)]'
 				: 'border-[var(--color-border)]',
@@ -145,56 +145,36 @@
 	onclick={selectable ? handleCardClick : undefined}
 	onkeydown={selectable ? handleCardKey : undefined}
 >
-	<header class="space-y-2">
-		<div class="flex items-center justify-between gap-3">
-			{#if packageHref}
-				<a
-					href={packageHref}
-					class="text-[calc(13px*var(--vfs))] font-medium uppercase tracking-[0.2em] text-[var(--color-text-tertiary)] underline-offset-4 transition-colors hover:text-[var(--color-accent)] hover:underline"
-				>
-					{packageName ?? ''}
-				</a>
-			{:else}
-				<p
-					class="text-[calc(13px*var(--vfs))] font-medium uppercase tracking-[0.2em] text-[var(--color-text-tertiary)]"
-				>
-					{packageName ?? ''}
-				</p>
+	<header class="space-y-1">
+		<div class="flex items-start justify-between gap-3">
+			<h2
+				class="min-w-0 flex-1 text-[calc(19px*var(--vfs))] font-bold leading-tight text-[var(--color-text)]"
+			>
+				{verse.title}
+			</h2>
+			{#if ratingsEnabled || editingEnabled}
+				<div class="flex shrink-0 items-center gap-1">
+					{#if ratingsEnabled}
+						<div class="flex items-center gap-1">
+							<DifficultyBadge
+								value={startDifficulty}
+								label="첫 시작 난이도"
+								onpick={onPickStartDifficulty!}
+							/>
+							<DifficultyBadge
+								value={fullDifficulty}
+								label="전체 암송 난이도"
+								onpick={onPickFullDifficulty!}
+							/>
+						</div>
+					{/if}
+					{#if editingEnabled}
+						<VerseOverflowMenu {onEdit} {onDelete} />
+					{/if}
+				</div>
 			{/if}
-			<div class="flex items-center gap-1">
-				{#if ratingsEnabled}
-					<div class="mr-1 flex items-center gap-1">
-						<DifficultyBadge
-							value={startDifficulty}
-							label="첫 시작 난이도"
-							onpick={onPickStartDifficulty!}
-						/>
-						<DifficultyBadge
-							value={fullDifficulty}
-							label="전체 암송 난이도"
-							onpick={onPickFullDifficulty!}
-						/>
-					</div>
-				{/if}
-				<span
-					class="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-[var(--color-accent-soft)] px-2 text-[12px] font-semibold tabular-nums text-[var(--color-accent)]"
-				>
-					{verse.no}
-				</span>
-				{#if editingEnabled}
-					<VerseOverflowMenu {onEdit} {onDelete} />
-				{/if}
-			</div>
 		</div>
-		<h2
-			class="text-[calc(19px*var(--vfs))] font-bold leading-tight text-[var(--color-text)]"
-		>
-			{verse.title}
-		</h2>
-		<p
-			class="flex items-center gap-2 text-[calc(19px*var(--vfs))] text-[var(--color-text-secondary)]"
-		>
-			<span class="h-px w-5 bg-[var(--color-accent)]/60"></span>
+		<p class="text-[calc(19px*var(--vfs))] text-[var(--color-text-secondary)]">
 			{verse.cite}
 		</p>
 	</header>
@@ -205,31 +185,49 @@
 		stays identical, screen readers still get the text.
 	-->
 	<p
-		class="mt-6 whitespace-pre-line break-keep text-[calc(19px*var(--vfs))] leading-[1.85] {showBody
+		class="mt-1.5 whitespace-pre-line break-keep text-[calc(19px*var(--vfs))] leading-[1.6] {showBody
 			? 'text-[var(--color-text)]'
 			: 'text-transparent'}"
 	>
 		{verse.w}
 	</p>
 
-	{#if tags.length > 0}
-		<div class="mt-6 flex flex-wrap gap-1.5">
-			{#each tags as tag (tag.level + ':' + tag.seriesIndex + ':' + ('groupIndex' in tag ? tag.groupIndex : -1))}
-				<CategoryTag
-					label={tag.group.group_name}
-					level={tag.level}
-					onclick={() => onTagClick(tag)}
-				/>
-			{/each}
-		</div>
-	{/if}
+	<!-- Bottom meta row: package name + tags. The verse number and bookmark ribbon
+	     sit together at the bottom-right (ribbon immediately left of the number);
+	     pr reserves space so the tags don't run under them. -->
+	<div class="mt-3 flex flex-wrap items-center gap-2 {bookmarksEnabled ? 'pr-20' : 'pr-12'}">
+		{#if packageName}
+			{#if packageHref}
+				<a
+					href={packageHref}
+					class="text-[calc(11px*var(--vfs))] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)] underline-offset-4 transition-colors hover:text-[var(--color-accent)] hover:underline"
+				>
+					{packageName}
+				</a>
+			{:else}
+				<span
+					class="text-[calc(11px*var(--vfs))] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]"
+				>
+					{packageName}
+				</span>
+			{/if}
+		{/if}
+		{#each tags as tag (tag.level + ':' + tag.seriesIndex + ':' + ('groupIndex' in tag ? tag.groupIndex : -1))}
+			<CategoryTag label={tag.group.group_name} level={tag.level} onclick={() => onTagClick(tag)} />
+		{/each}
+	</div>
+
+	<!-- Verse number: small, pinned to the bottom-right corner. -->
+	<span
+		class="absolute bottom-5 right-5 w-7 text-right text-[calc(13px*var(--vfs))] font-semibold tabular-nums text-[var(--color-text-tertiary)]"
+	>
+		{verse.no}
+	</span>
 
 	{#if bookmarksEnabled}
-		<!-- Draping ribbon: anchored at the card's bottom-right, hangs ~8px past the
-		     bottom edge. right-9 aligns the ribbon roughly with the body's right edge
-		     instead of overhanging it. The article must be position:relative and not
-		     overflow-hidden for this to show. -->
-		<div class="absolute -bottom-2 right-9">
+		<!-- Draping ribbon, immediately left of the verse number. Hangs ~8px past the
+		     bottom edge; the article must be position:relative and not overflow-hidden. -->
+		<div class="absolute -bottom-2 right-[3.25rem]">
 			<BookmarkControl current={bookmark} onpick={onBookmarkPick!} onclear={onBookmarkClear!} />
 		</div>
 	{/if}

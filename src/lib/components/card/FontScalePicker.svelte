@@ -8,6 +8,7 @@
 	let { value, onpick }: Props = $props();
 
 	const LABELS: Record<number, string> = {
+		0.8: '아주 작게',
 		0.9: '작게',
 		1.0: '보통',
 		1.15: '크게',

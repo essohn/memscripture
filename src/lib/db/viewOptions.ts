@@ -5,7 +5,7 @@ const KEY = 'view_options';
 
 /** Allowed font scale tiers for the verse-card text. Other values are coerced
  *  back to the closest known step on read to keep the picker honest. */
-export const VERSE_FONT_SCALES = [0.9, 1.0, 1.15, 1.3] as const;
+export const VERSE_FONT_SCALES = [0.8, 0.9, 1.0, 1.15, 1.3] as const;
 export type VerseFontScale = (typeof VERSE_FONT_SCALES)[number];
 
 export interface ViewOptions {

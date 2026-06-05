@@ -24,10 +24,14 @@
 	function open() {
 		if (!triggerEl) return;
 		const rect = triggerEl.getBoundingClientRect();
-		// Drop below the ribbon's own bottom tip and right-anchor so the popover
-		// stays inside the viewport even when the trigger is near the right edge
-		// of the screen (the ribbon now sits at the card's bottom-right corner).
-		popoverStyle = `top: ${rect.bottom + 8}px; right: ${Math.max(8, window.innerWidth - rect.right)}px;`;
+		// Drop below the ribbon's bottom tip. Anchor toward whichever side the
+		// trigger sits on so the popover stays on-screen — left-anchored for a
+		// bottom-left ribbon, right-anchored when it's near the right edge.
+		const anchorLeft = rect.left < window.innerWidth / 2;
+		const side = anchorLeft
+			? `left: ${Math.max(8, rect.left)}px`
+			: `right: ${Math.max(8, window.innerWidth - rect.right)}px`;
+		popoverStyle = `top: ${rect.bottom + 8}px; ${side};`;
 		expanded = true;
 	}
 
