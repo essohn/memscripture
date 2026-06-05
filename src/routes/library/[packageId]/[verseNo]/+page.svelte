@@ -12,7 +12,7 @@
 		type VerseTag
 	} from '$lib/db/verses';
 	import { getBookmark, setBookmark, clearBookmark } from '$lib/db/bookmarks';
-	import { recordRecentVerse } from '$lib/db/recentVerses';
+	import { recordRecentBundle } from '$lib/db/recentBundles';
 	import {
 		getVerseRating,
 		setStartDifficulty,
@@ -112,7 +112,7 @@
 				// Best-effort: stamp the recents table so the dashboard surfaces
 				// this verse. Fire-and-forget; failures don't block the page.
 				if (active && verse) {
-					recordRecentVerse(currentPackageId, currentVerseNo).catch(() => {});
+					recordRecentBundle(currentPackageId, [currentVerseNo]).catch(() => {});
 				}
 			} catch (e) {
 				if (active) error = String(e);

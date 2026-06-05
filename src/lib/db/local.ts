@@ -16,6 +16,18 @@ export interface RecentVerse {
 	viewedAt: number;
 }
 
+/** A group of verses committed to "최근" together (one multi-select). Surfaced
+ *  on the dashboard as a single bundle showing the front verse + count; tapping
+ *  it re-opens the package list with those verses selected. id is derived from
+ *  the package + sorted verse numbers so re-committing the same set upserts.
+ *  Per-device telemetry — excluded from the sync envelope, like recentVerses. */
+export interface RecentBundle {
+	id: string;
+	packageId: string;
+	verseNos: number[];
+	createdAt: number;
+}
+
 /** User-assigned self-assessment for a single verse on a 1-5 scale.
  *  startDifficulty = how hard the *opening* is to recall (the cue).
  *  fullDifficulty = how hard the *whole verse* is to memorize end-to-end.
@@ -37,6 +49,7 @@ class LocalDB extends Dexie {
 	activity!: Table<DailyActivity, string>;
 	bookmarks!: Table<Bookmark, string>;
 	recentVerses!: Table<RecentVerse, string>;
+	recentBundles!: Table<RecentBundle, string>;
 	verseRatings!: Table<VerseRating, string>;
 
 	constructor() {
@@ -78,6 +91,17 @@ class LocalDB extends Dexie {
 			activity: '&dateKey',
 			bookmarks: '&id, packageId, color',
 			recentVerses: '&id, viewedAt',
+			verseRatings: '&id, packageId'
+		});
+		this.version(6).stores({
+			packages: '&id, name',
+			verses: '[package_id+no], package_id',
+			settings: '&key',
+			progress: '&id, packageId, bucket',
+			activity: '&dateKey',
+			bookmarks: '&id, packageId, color',
+			recentVerses: '&id, viewedAt',
+			recentBundles: '&id, createdAt',
 			verseRatings: '&id, packageId'
 		});
 	}

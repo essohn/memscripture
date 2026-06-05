@@ -7,19 +7,31 @@ beforeEach(async () => {
 	await db.open();
 });
 
-describe('local db schema v5', () => {
-	it('exposes all 8 tables', () => {
+describe('local db schema v6', () => {
+	it('exposes all 9 tables', () => {
 		const names = db.tables.map((t) => t.name).sort();
 		expect(names).toEqual([
 			'activity',
 			'bookmarks',
 			'packages',
 			'progress',
+			'recentBundles',
 			'recentVerses',
 			'settings',
 			'verseRatings',
 			'verses'
 		]);
+	});
+
+	it('round-trips a recent bundle', async () => {
+		await db.recentBundles.put({
+			id: '5_krv:1-2-3',
+			packageId: '5_krv',
+			verseNos: [1, 2, 3],
+			createdAt: 1000
+		});
+		const b = await db.recentBundles.get('5_krv:1-2-3');
+		expect(b?.verseNos).toEqual([1, 2, 3]);
 	});
 
 	it('round-trips a verse', async () => {

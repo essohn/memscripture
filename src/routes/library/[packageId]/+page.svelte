@@ -11,7 +11,7 @@
 	import { goto } from '$app/navigation';
 	import { level1Groups, level2GroupsInSeries, filterVerses } from '$lib/db/verses';
 	import { recordPackageView } from '$lib/db/recent';
-	import { recordRecentVerse } from '$lib/db/recentVerses';
+	import { recordRecentBundle } from '$lib/db/recentBundles';
 	import {
 		getShowVerseTextInList,
 		setShowVerseTextInList,
@@ -62,12 +62,18 @@
 	let countdownMs = $state(0);
 	const countdownSec = $derived(Math.ceil(countdownMs / 1000));
 	const countdownPct = $derived(((AUTO_CONFIRM_MS - countdownMs) / AUTO_CONFIRM_MS) * 100);
+	// When a selection is *restored* from a recent bundle (?sel=), it's being
+	// reviewed, not freshly built — hold off the auto-commit countdown until the
+	// user actually changes the selection.
+	let suppressCountdown = $state(false);
 
 	// Deep-link target from the home dashboard: /library/{id}?v={no} scrolls the
 	// list to that verse and flashes it, instead of opening the single-verse view.
 	let highlightVerseNo = $state<number | null>(null);
 
 	function toggleSelect(no: number) {
+		// A manual edit means this is now a user-built selection — let it count down.
+		suppressCountdown = false;
 		// Reassign (not mutate) so Svelte's $state reactivity fires.
 		const next = new Set(selectedVerseNos);
 		if (next.has(no)) next.delete(no);
@@ -89,6 +95,7 @@
 	function clearSelection() {
 		selectedVerseNos = new Set();
 		bookmarkPaletteOpen = false;
+		suppressCountdown = false;
 	}
 
 	// Confirm: write each selected verse into the recent-verses store so it
@@ -97,7 +104,7 @@
 	async function confirmSelection() {
 		const nos = [...selectedVerseNos];
 		if (nos.length === 0) return;
-		await Promise.all(nos.map((no) => recordRecentVerse(packageId, no).catch(() => {})));
+		await recordRecentBundle(packageId, nos).catch(() => {});
 		toast = { message: `최근 구절에 ${nos.length}개 담았습니다` };
 		clearSelection();
 	}
@@ -120,8 +127,8 @@
 	// opening the bookmark palette pauses it so a colour pick can't be cut off.
 	$effect(() => {
 		const count = selectedVerseNos.size;
-		if (count === 0 || bookmarkPaletteOpen) {
-			countdownMs = count === 0 ? 0 : AUTO_CONFIRM_MS;
+		if (count === 0 || bookmarkPaletteOpen || suppressCountdown) {
+			countdownMs = count === 0 || suppressCountdown ? 0 : AUTO_CONFIRM_MS;
 			return;
 		}
 		countdownMs = AUTO_CONFIRM_MS;
@@ -160,6 +167,28 @@
 			cancelled = true;
 			cancelAnimationFrame(raf);
 		};
+	});
+
+	// Restore a selection from a recent bundle: /library/{id}?sel=1,2,3 marks those
+	// verses selected (countdown suppressed — it's a review, not a fresh pick) and
+	// scrolls the front verse into view.
+	$effect(() => {
+		const raw = page.url.searchParams.get('sel');
+		if (!raw) return;
+		const nos = raw
+			.split(',')
+			.map((s) => parseInt(s, 10))
+			.filter((n) => Number.isInteger(n) && n >= 0);
+		if (nos.length === 0) return;
+		selectedVerseNos = new Set(nos);
+		suppressCountdown = true;
+		const first = Math.min(...nos);
+		const rafId = requestAnimationFrame(() => {
+			document
+				.getElementById(`verse-${first}`)
+				?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+		});
+		return () => cancelAnimationFrame(rafId);
 	});
 
 	// Side effects: load preferences, record recent view, hydrate per-verse state

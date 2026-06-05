@@ -1,27 +1,28 @@
 <script lang="ts">
 	import Header from '$lib/components/nav/Header.svelte';
 	import { Sparkles } from 'lucide-svelte';
-	import { listRecentVerses } from '$lib/db/recentVerses';
+	import { listRecentBundles } from '$lib/db/recentBundles';
 	import { listPackages, loadPackageData } from '$lib/db/verses';
 	import type { PackageMeta } from '$lib/types';
 	import type { StoredVerse } from '$lib/db/local';
 
-	interface RecentRow {
+	interface BundleRow {
+		id: string;
 		packageId: string;
-		verseNo: number;
-		viewedAt: number;
-		verse: StoredVerse | null;
+		verseNos: number[];
+		createdAt: number;
+		frontVerse: StoredVerse | null;
 		packageAbbreviation: string;
 	}
 
-	let rows = $state<RecentRow[]>([]);
+	let rows = $state<BundleRow[]>([]);
 	let loaded = $state(false);
 
 	$effect(() => {
 		let active = true;
 		(async () => {
-			const recents = await listRecentVerses(10);
-			if (recents.length === 0) {
+			const bundles = await listRecentBundles(10);
+			if (bundles.length === 0) {
 				if (active) {
 					rows = [];
 					loaded = true;
@@ -29,14 +30,13 @@
 				return;
 			}
 
-			// Resolve verse + package abbreviation for each entry. listPackages
-			// triggers the OYO seed + curated fetch, so we don't need a separate
-			// install step.
+			// listPackages triggers the OYO seed + curated fetch, so resolving the
+			// abbreviation here doubles as the install step.
 			const allPackages = await listPackages();
 			const pkgById = new Map<string, PackageMeta>(allPackages.map((p) => [p.id, p]));
 
-			// Load each referenced package's verse data once.
-			const uniquePackageIds = Array.from(new Set(recents.map((r) => r.packageId)));
+			// Load each referenced package's verse data once to resolve front verses.
+			const uniquePackageIds = Array.from(new Set(bundles.map((b) => b.packageId)));
 			const dataByPkg = new Map(
 				await Promise.all(
 					uniquePackageIds.map(
@@ -45,22 +45,23 @@
 				)
 			);
 
-			const resolved: RecentRow[] = recents.map((r) => {
-				const pkgData = dataByPkg.get(r.packageId);
-				const verse = pkgData?.verses.find((v) => v.no === r.verseNo) ?? null;
+			const resolved: BundleRow[] = bundles.map((b) => {
+				const pkgData = dataByPkg.get(b.packageId);
+				const frontVerse = pkgData?.verses.find((v) => v.no === b.verseNos[0]) ?? null;
 				return {
-					packageId: r.packageId,
-					verseNo: r.verseNo,
-					viewedAt: r.viewedAt,
-					verse,
-					packageAbbreviation: pkgById.get(r.packageId)?.abbreviation ?? r.packageId
+					id: b.id,
+					packageId: b.packageId,
+					verseNos: b.verseNos,
+					createdAt: b.createdAt,
+					frontVerse,
+					packageAbbreviation: pkgById.get(b.packageId)?.abbreviation ?? b.packageId
 				};
 			});
 
 			if (active) {
-				// Drop rows whose verse no longer exists (package uninstalled or
-				// verse renumbered) — better to omit than show a broken card.
-				rows = resolved.filter((r) => r.verse !== null);
+				// Drop bundles whose front verse no longer exists (package uninstalled
+				// or renumbered) — better to omit than show a broken card.
+				rows = resolved.filter((r) => r.frontVerse !== null);
 				loaded = true;
 			}
 		})().catch(() => {
@@ -103,20 +104,26 @@
 			<section
 				class="empty-card rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] px-7 py-12 text-center"
 			>
-				<p class="text-[15px] text-[var(--color-text-secondary)]">
-					아직 본 구절이 없습니다.
-				</p>
+				<p class="text-[15px] text-[var(--color-text-secondary)]">아직 최근에 담은 구절이 없습니다.</p>
 				<p class="mt-2 text-[13px] text-[var(--color-text-tertiary)]">
-					Library에서 구절을 열면 여기에 표시됩니다.
+					구절 리스트에서 구절을 선택해 담으면 여기에 묶음으로 표시됩니다.
 				</p>
 			</section>
 		{:else}
-			<ul class="space-y-3">
-				{#each rows as row (`${row.packageId}:${row.verseNo}`)}
-					<li>
+			<ul class="space-y-4">
+				{#each rows as row (row.id)}
+					{@const count = row.verseNos.length}
+					<li class="relative">
+						<!-- Stack layers peeking behind the card hint at a multi-verse bundle. -->
+						{#if count > 1}
+							<span class="deck deck-1" aria-hidden="true"></span>
+							{#if count > 2}
+								<span class="deck deck-2" aria-hidden="true"></span>
+							{/if}
+						{/if}
 						<a
-							href={`/library/${row.packageId}?v=${row.verseNo}`}
-							class="recent-card group block rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-5 py-4 transition-all hover:border-[var(--color-accent)]/50"
+							href={`/library/${row.packageId}?sel=${row.verseNos.join(',')}`}
+							class="recent-card relative block rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-5 py-4 transition-all hover:border-[var(--color-accent)]/50"
 						>
 							<div class="flex items-baseline justify-between gap-2">
 								<p
@@ -125,18 +132,23 @@
 									{row.packageAbbreviation}
 								</p>
 								<p class="text-[11px] text-[var(--color-text-tertiary)]">
-									{relativeTimeKo(row.viewedAt)}
+									{relativeTimeKo(row.createdAt)}
 								</p>
 							</div>
-							{#if row.verse?.title}
-								<h3
-									class="mt-1.5 truncate text-[16px] font-semibold text-[var(--color-text)]"
-								>
-									{row.verse.title}
+							<div class="mt-1.5 flex items-center justify-between gap-3">
+								<h3 class="truncate text-[16px] font-semibold text-[var(--color-text)]">
+									{row.frontVerse?.title}
 								</h3>
-							{/if}
+								{#if count > 1}
+									<span
+										class="shrink-0 rounded-full bg-[var(--color-accent-soft)] px-2.5 py-1 text-[11px] font-semibold tabular-nums text-[var(--color-accent)]"
+									>
+										{count}구절
+									</span>
+								{/if}
+							</div>
 							<p class="mt-1 text-[12px] text-[var(--color-text-secondary)]">
-								{row.verse?.cite}
+								{row.frontVerse?.cite}{count > 1 ? ` 외 ${count - 1}구절` : ''}
 							</p>
 						</a>
 					</li>
@@ -160,5 +172,26 @@
 	.recent-card:hover {
 		transform: translateY(-2px);
 		box-shadow: var(--shadow-card-hover);
+	}
+	/* Deck layers sit behind the card, narrower and nudged down so they peek out
+	   at the bottom like a stack of cards. */
+	.deck {
+		position: absolute;
+		bottom: 0;
+		top: 0;
+		border-radius: 16px;
+		border: 1px solid var(--color-border);
+		background: var(--color-card);
+		box-shadow: var(--shadow-soft);
+	}
+	.deck-1 {
+		left: 8px;
+		right: 8px;
+		transform: translateY(6px);
+	}
+	.deck-2 {
+		left: 16px;
+		right: 16px;
+		transform: translateY(12px);
 	}
 </style>
