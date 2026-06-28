@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Header from '$lib/components/nav/Header.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
+	import EventSection from '$lib/components/home/EventSection.svelte';
 	import { Sparkles, X } from 'lucide-svelte';
 	import {
 		listRecentBundles,
@@ -9,6 +10,8 @@
 		restoreRecentBundle
 	} from '$lib/db/recentBundles';
 	import { listPackages, loadPackageData } from '$lib/db/verses';
+	import { buildEventCards, type EventCardVM } from '$lib/db/events';
+	import { todayLocalKey } from '$lib/db/activity';
 	import type { PackageMeta } from '$lib/types';
 	import type { StoredVerse } from '$lib/db/local';
 
@@ -27,6 +30,7 @@
 	let loaded = $state(false);
 	let editMode = $state(false);
 	let toast = $state<{ message: string; actionLabel?: string; onAction?: () => void } | null>(null);
+	let eventCards = $state<EventCardVM[]>([]);
 
 	$effect(() => {
 		let active = true;
@@ -79,6 +83,18 @@
 		})().catch(() => {
 			if (active) loaded = true;
 		});
+		return () => {
+			active = false;
+		};
+	});
+
+	$effect(() => {
+		let active = true;
+		buildEventCards(todayLocalKey())
+			.then((cards) => {
+				if (active) eventCards = cards;
+			})
+			.catch(() => {});
 		return () => {
 			active = false;
 		};
@@ -159,6 +175,8 @@
 <Header title="Home" />
 
 <main class="mx-auto max-w-2xl px-5 pb-8 pt-6">
+	<EventSection events={eventCards} />
+
 	<section class="flex items-center justify-between gap-3 px-1">
 		<div
 			class="inline-flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]"
