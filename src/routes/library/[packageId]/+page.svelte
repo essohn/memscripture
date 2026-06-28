@@ -27,6 +27,7 @@
 		type DifficultyLevel
 	} from '$lib/db/verseRatings';
 	import { BOOKMARK_COLORS, type BookmarkColor } from '$lib/types';
+	import { serializeEventRange } from '$lib/db/events';
 	import type { PageData } from './$types';
 
 	interface VerseRowRating {
@@ -82,6 +83,17 @@
 		selectedVerseNos = new Set();
 		bookmarkPaletteOpen = false;
 		selectionPackageId = null;
+	}
+
+	// 관리자 작성 보조: 현재 선택을 events.json에 붙여넣을 EventRange JSON으로 복사.
+	async function copyEventRange() {
+		const json = serializeEventRange(packageId, [...selectedVerseNos], seriesIndex, groupIndices);
+		try {
+			await navigator.clipboard.writeText(json);
+			toast = { message: '이벤트 범위가 복사되었습니다 — events.json에 붙여넣으세요' };
+		} catch {
+			toast = { message: '복사에 실패했습니다' };
+		}
 	}
 
 	// Confirm: write each selected verse into the recent-verses store so it
@@ -411,6 +423,13 @@
 							: 'text-[var(--color-text-secondary)] hover:bg-[var(--color-elevated)]'}"
 					>
 						<Bookmark size={16} strokeWidth={1.75} />
+					</button>
+					<button
+						type="button"
+						onclick={copyEventRange}
+						class="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)]"
+					>
+						범위 복사
 					</button>
 					<button
 						type="button"
