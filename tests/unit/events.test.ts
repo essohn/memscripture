@@ -1,6 +1,12 @@
 import 'fake-indexeddb/auto';
-import { describe, it, expect } from 'vitest';
-import { dDay, activeEvents, isMemorized, rangeHref, serializeEventRange } from '../../src/lib/db/events';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import {
+	dDay, activeEvents, isMemorized, rangeHref, serializeEventRange,
+	loadEvents, resolveRangeVerseNos, rangeProgress, buildEventCards
+} from '../../src/lib/db/events';
+import { db } from '../../src/lib/db/local';
+import { listPackages } from '../../src/lib/db/verses';
+import { upsertProgress } from '../../src/lib/db/progress';
 import type { MemEvent, VerseProgress } from '../../src/lib/types';
 
 const ev = (over: Partial<MemEvent> = {}): MemEvent => ({
@@ -70,5 +76,94 @@ describe('serializeEventRange', () => {
 	it('includes seriesIndex/groupIndices when set', () => {
 		const json = serializeEventRange('60_krv', [1], 0, [2]);
 		expect(JSON.parse(json)).toEqual({ packageId: '60_krv', verseNos: [1], seriesIndex: 0, groupIndices: [2], label: '' });
+	});
+});
+
+const samplePackages = {
+	'5_krv': {
+		id: '5_krv', name: '샘플', verse_number: 3, translation: 'krv', translation_name: '개역한글',
+		abbreviation: '샘플', language: 'kor', copyright: '', copyright_text: '', version: 1,
+		source: 'data/5_krv.json', default: true
+	}
+};
+const sampleVerses = [
+	{ i: 1, title: 't1', cite: 'c1', w: 'w1' },
+	{ i: 2, title: 't2', cite: 'c2', w: 'w2' },
+	{ i: 3, title: 't3', cite: 'c3', w: 'w3' }
+];
+const sampleGroups = [
+	{ package_id: '5_krv', group_name: 'A', level: 1, index: [1, 2] },
+	{ package_id: '5_krv', group_name: 'B', level: 1, index: [3] }
+];
+const sampleEvents = [
+	{ id: 'e1', title: '11월 암송 데이', dueAt: '2099-12-31', ranges: [{ packageId: '5_krv', verseNos: [1, 2], label: '시편 23편' }] }
+];
+
+function mockFetch(map: Record<string, unknown>) {
+	global.fetch = vi.fn(async (url: any) => {
+		const u = String(url);
+		const key = Object.keys(map).find((k) => u.endsWith(k));
+		if (!key) return new Response('not found', { status: 404 });
+		return new Response(JSON.stringify(map[key]), { status: 200, headers: { 'content-type': 'application/json' } });
+	}) as any;
+}
+
+describe('events data layer', () => {
+	beforeEach(async () => {
+		await db.delete();
+		await db.open();
+		vi.restoreAllMocks();
+	});
+
+	it('loadEvents fetches then caches', async () => {
+		mockFetch({ 'data/events.json': sampleEvents });
+		const first = await loadEvents();
+		expect(first).toHaveLength(1);
+		(global.fetch as any).mockClear();
+		await loadEvents();
+		expect(global.fetch).not.toHaveBeenCalled();
+	});
+
+	it('resolveRangeVerseNos passes verseNos through', async () => {
+		expect(await resolveRangeVerseNos({ packageId: '5_krv', verseNos: [2, 1] })).toEqual([2, 1]);
+	});
+
+	it('resolveRangeVerseNos resolves a series range to its verse numbers', async () => {
+		mockFetch({
+			'data/packages.json': samplePackages,
+			'data/5_krv.json': sampleVerses,
+			'data/packages_index.json': sampleGroups
+		});
+		await listPackages();
+		const nos = await resolveRangeVerseNos({ packageId: '5_krv', seriesIndex: 0, groupIndices: [] });
+		expect(nos).toEqual([1, 2]);
+	});
+
+	it('rangeProgress counts mastered verses within the range', async () => {
+		await upsertProgress({
+			id: '5_krv:1', packageId: '5_krv', verseNo: 1, bucket: 'mastered',
+			enteredBucketAt: 0, daysActiveInBucket: 0, lastReviewedAt: 0, citeRatings: [], recallRatings: []
+		});
+		await upsertProgress({
+			id: '5_krv:2', packageId: '5_krv', verseNo: 2, bucket: 'current',
+			enteredBucketAt: 0, daysActiveInBucket: 0, lastReviewedAt: 0, citeRatings: [], recallRatings: []
+		});
+		expect(await rangeProgress('5_krv', [1, 2])).toEqual({ done: 1, total: 2 });
+		expect(await rangeProgress('5_krv', [])).toEqual({ done: 0, total: 0 });
+	});
+
+	it('buildEventCards assembles a card per active event range', async () => {
+		mockFetch({ 'data/events.json': sampleEvents });
+		await upsertProgress({
+			id: '5_krv:1', packageId: '5_krv', verseNo: 1, bucket: 'mastered',
+			enteredBucketAt: 0, daysActiveInBucket: 0, lastReviewedAt: 0, citeRatings: [], recallRatings: []
+		});
+		const cards = await buildEventCards('2099-12-30');
+		expect(cards).toHaveLength(1);
+		expect(cards[0].eventTitle).toBe('11월 암송 데이');
+		expect(cards[0].dDay).toBe(1);
+		expect(cards[0].ranges[0]).toEqual({
+			label: '시편 23편', done: 1, total: 2, href: '/library/5_krv?sel=1%2C2'
+		});
 	});
 });

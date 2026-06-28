@@ -1,4 +1,6 @@
 import type { EventRange, MemEvent, VerseProgress } from '$lib/types';
+import { loadPackageData, filterVerses } from './verses';
+import { listProgressByPackage } from './progress';
 
 /** D-day = dueAt 자정 − today 자정, 일 단위. 둘 다 'YYYY-MM-DD' 로컬. */
 export function dDay(dueAt: string, today: string): number {
@@ -45,4 +47,76 @@ export function serializeEventRange(
 	if (groupIndices.length > 0) range.groupIndices = groupIndices;
 	range.label = label;
 	return JSON.stringify(range, null, 2);
+}
+
+const EVENTS_URL = '/data/events.json';
+let eventsCache: MemEvent[] | null = null;
+
+export async function loadEvents(): Promise<MemEvent[]> {
+	if (eventsCache) return eventsCache;
+	const res = await fetch(EVENTS_URL);
+	if (!res.ok) throw new Error(`Failed to load events: ${res.status}`);
+	eventsCache = (await res.json()) as MemEvent[];
+	return eventsCache;
+}
+
+/** EventRange → 실제 구절번호. verseNos 우선, 없으면 시리즈/그룹 필터로 해석. */
+export async function resolveRangeVerseNos(range: EventRange): Promise<number[]> {
+	if (range.verseNos && range.verseNos.length > 0) return [...range.verseNos];
+	const data = await loadPackageData(range.packageId);
+	const kept = filterVerses(data.verses, data.groups, range.seriesIndex ?? null, range.groupIndices ?? []);
+	return kept.map((v) => v.no);
+}
+
+/** 범위 내 '암송 완료' 구절 수 / 전체 수. */
+export async function rangeProgress(
+	packageId: string,
+	verseNos: number[]
+): Promise<{ done: number; total: number }> {
+	const total = verseNos.length;
+	if (total === 0) return { done: 0, total: 0 };
+	const all = await listProgressByPackage(packageId);
+	const wanted = new Set(verseNos);
+	const done = all.filter((p) => wanted.has(p.verseNo) && isMemorized(p)).length;
+	return { done, total };
+}
+
+export interface RangeCardVM {
+	label: string;
+	done: number;
+	total: number;
+	href: string;
+}
+
+export interface EventCardVM {
+	eventId: string;
+	eventTitle: string;
+	dDay: number;
+	ranges: RangeCardVM[];
+}
+
+/** label이 비면 front 구절 title로 파생. */
+async function rangeLabel(range: EventRange, verseNos: number[]): Promise<string> {
+	if (range.label && range.label.trim()) return range.label.trim();
+	const data = await loadPackageData(range.packageId).catch(() => null);
+	return data?.verses.find((v) => v.no === verseNos[0])?.title ?? range.packageId;
+}
+
+/** 홈 렌더용 뷰모델 빌드: 활성 이벤트 × 해석 가능한 범위. */
+export async function buildEventCards(today: string): Promise<EventCardVM[]> {
+	const events = activeEvents(await loadEvents(), today);
+	const cards: EventCardVM[] = [];
+	for (const e of events) {
+		const ranges: RangeCardVM[] = [];
+		for (const r of e.ranges) {
+			const verseNos = await resolveRangeVerseNos(r).catch(() => []);
+			if (verseNos.length === 0) continue; // 미설치/해석 실패 범위는 건너뜀
+			const { done, total } = await rangeProgress(r.packageId, verseNos);
+			ranges.push({ label: await rangeLabel(r, verseNos), done, total, href: rangeHref(r, verseNos) });
+		}
+		if (ranges.length > 0) {
+			cards.push({ eventId: e.id, eventTitle: e.title, dDay: dDay(e.dueAt, today), ranges });
+		}
+	}
+	return cards;
 }
