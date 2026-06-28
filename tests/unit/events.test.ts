@@ -5,7 +5,7 @@ import {
 	loadEvents, resolveRangeVerseNos, rangeProgress, buildEventCards, _resetEventsCache
 } from '../../src/lib/db/events';
 import { db } from '../../src/lib/db/local';
-import { listPackages } from '../../src/lib/db/verses';
+import { listPackages, installPackage, isPackageInstalled } from '../../src/lib/db/verses';
 import { upsertProgress } from '../../src/lib/db/progress';
 import type { MemEvent, VerseProgress } from '../../src/lib/types';
 
@@ -136,8 +136,16 @@ describe('events data layer', () => {
 			'data/packages_index.json': sampleGroups
 		});
 		await listPackages();
+		await installPackage('5_krv');
 		const nos = await resolveRangeVerseNos({ packageId: '5_krv', seriesIndex: 0, groupIndices: [] });
 		expect(nos).toEqual([1, 2]);
+	});
+
+	it('resolveRangeVerseNos returns [] for an uninstalled package (no auto-install)', async () => {
+		mockFetch({ 'data/packages.json': samplePackages });
+		await listPackages(); // metadata only — verses not installed
+		expect(await resolveRangeVerseNos({ packageId: '5_krv', seriesIndex: 0, groupIndices: [] })).toEqual([]);
+		expect(await isPackageInstalled('5_krv')).toBe(false); // did not install as a side-effect
 	});
 
 	it('rangeProgress counts mastered verses within the range', async () => {

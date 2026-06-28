@@ -1,5 +1,5 @@
 import type { EventRange, MemEvent, VerseProgress } from '$lib/types';
-import { loadPackageData, filterVerses } from './verses';
+import { loadPackageData, filterVerses, isPackageInstalled } from './verses';
 import { listProgressByPackage } from './progress';
 
 /** D-day = dueAt 자정 − today 자정, 일 단위. 둘 다 'YYYY-MM-DD' 로컬. */
@@ -61,13 +61,17 @@ export async function loadEvents(): Promise<MemEvent[]> {
 	if (eventsCache) return eventsCache;
 	const res = await fetch(EVENTS_URL);
 	if (!res.ok) throw new Error(`Failed to load events: ${res.status}`);
-	eventsCache = (await res.json()) as MemEvent[];
+	const data = await res.json();
+	eventsCache = Array.isArray(data) ? (data as MemEvent[]) : [];
 	return eventsCache;
 }
 
 /** EventRange → 실제 구절번호. verseNos 우선, 없으면 시리즈/그룹 필터로 해석. */
 export async function resolveRangeVerseNos(range: EventRange): Promise<number[]> {
 	if (range.verseNos && range.verseNos.length > 0) return [...range.verseNos];
+	// Honor the static/offline model: never auto-install a package on home render.
+	// Series/group ranges for packages the user hasn't opened are skipped until then.
+	if (!(await isPackageInstalled(range.packageId))) return [];
 	const data = await loadPackageData(range.packageId);
 	const kept = filterVerses(data.verses, data.groups, range.seriesIndex ?? null, range.groupIndices ?? []);
 	return kept.map((v) => v.no);
@@ -103,6 +107,7 @@ export interface EventCardVM {
 /** label이 비면 front 구절 title로 파생. */
 async function rangeLabel(range: EventRange, verseNos: number[]): Promise<string> {
 	if (range.label && range.label.trim()) return range.label.trim();
+	if (!(await isPackageInstalled(range.packageId))) return range.packageId;
 	const data = await loadPackageData(range.packageId).catch(() => null);
 	return data?.verses.find((v) => v.no === verseNos[0])?.title ?? range.packageId;
 }

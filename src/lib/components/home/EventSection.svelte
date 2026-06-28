@@ -27,7 +27,7 @@
 					</span>
 				</div>
 				<div class="mt-3 grid grid-cols-2 gap-3 px-1">
-					{#each ev.ranges as r (r.href)}
+					{#each ev.ranges as r, i (i)}
 						<a
 							href={r.href}
 							class="event-card block rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 transition-all hover:border-[var(--color-accent)]/50"
