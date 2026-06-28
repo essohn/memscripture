@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
 	dDay, activeEvents, isMemorized, rangeHref, serializeEventRange,
-	loadEvents, resolveRangeVerseNos, rangeProgress, buildEventCards
+	loadEvents, resolveRangeVerseNos, rangeProgress, buildEventCards, _resetEventsCache
 } from '../../src/lib/db/events';
 import { db } from '../../src/lib/db/local';
 import { listPackages } from '../../src/lib/db/verses';
@@ -100,12 +100,12 @@ const sampleEvents = [
 ];
 
 function mockFetch(map: Record<string, unknown>) {
-	global.fetch = vi.fn(async (url: any) => {
+	vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: any) => {
 		const u = String(url);
 		const key = Object.keys(map).find((k) => u.endsWith(k));
 		if (!key) return new Response('not found', { status: 404 });
 		return new Response(JSON.stringify(map[key]), { status: 200, headers: { 'content-type': 'application/json' } });
-	}) as any;
+	});
 }
 
 describe('events data layer', () => {
@@ -113,15 +113,16 @@ describe('events data layer', () => {
 		await db.delete();
 		await db.open();
 		vi.restoreAllMocks();
+		_resetEventsCache();
 	});
 
 	it('loadEvents fetches then caches', async () => {
 		mockFetch({ 'data/events.json': sampleEvents });
 		const first = await loadEvents();
 		expect(first).toHaveLength(1);
-		(global.fetch as any).mockClear();
+		vi.mocked(globalThis.fetch).mockClear();
 		await loadEvents();
-		expect(global.fetch).not.toHaveBeenCalled();
+		expect(globalThis.fetch).not.toHaveBeenCalled();
 	});
 
 	it('resolveRangeVerseNos passes verseNos through', async () => {

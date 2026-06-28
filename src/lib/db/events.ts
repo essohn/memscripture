@@ -52,6 +52,11 @@ export function serializeEventRange(
 const EVENTS_URL = '/data/events.json';
 let eventsCache: MemEvent[] | null = null;
 
+/** Test-only: clear the module-level events cache between tests. */
+export function _resetEventsCache(): void {
+	eventsCache = null;
+}
+
 export async function loadEvents(): Promise<MemEvent[]> {
 	if (eventsCache) return eventsCache;
 	const res = await fetch(EVENTS_URL);
