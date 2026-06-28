@@ -424,13 +424,18 @@
 					>
 						<Bookmark size={16} strokeWidth={1.75} />
 					</button>
-					<button
-						type="button"
-						onclick={copyEventRange}
-						class="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)]"
-					>
-						범위 복사
-					</button>
+					{#if import.meta.env.DEV}
+						<!-- Admin-only authoring helper: copy the selection as an EventRange
+						     JSON snippet for events.json. Dev-build only, so regular users
+						     never see it (and the selection bar stays uncluttered). -->
+						<button
+							type="button"
+							onclick={copyEventRange}
+							class="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)]"
+						>
+							범위 복사
+						</button>
+					{/if}
 					<button
 						type="button"
 						onclick={confirmSelection}
