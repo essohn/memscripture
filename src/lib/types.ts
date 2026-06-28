@@ -63,3 +63,22 @@ export interface Bookmark {
 	color: BookmarkColor;
 	createdAt: number; // ms timestamp
 }
+
+export interface EventRange {
+	packageId: string;
+	/** 범위 정의: verseNos가 있으면 그대로 사용; 없으면 seriesIndex/groupIndices로 해석. */
+	verseNos?: number[];
+	seriesIndex?: number | null;
+	groupIndices?: number[];
+	/** 카드 표시명. 비어 있으면 front 구절 title로 파생. */
+	label?: string;
+}
+
+export interface MemEvent {
+	id: string;
+	title: string;
+	dueAt: string; // 'YYYY-MM-DD' (local)
+	startAt?: string; // 'YYYY-MM-DD' (local)
+	description?: string;
+	ranges: EventRange[];
+}
