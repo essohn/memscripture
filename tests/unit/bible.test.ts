@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readdirSync, readFileSync } from 'node:fs';
 import {
+	citationSortKey,
 	formatStandardRef,
 	getBookFullName,
 	getBookOrdinal,
@@ -217,5 +219,58 @@ describe('fetchPassageText', () => {
 		await expect(
 			fetchPassageText({ bookId: 1, chapter: 999, startVerse: 1, endVerse: 1 })
 		).rejects.toThrow(/HTTP 404/);
+	});
+});
+
+describe('citationSortKey', () => {
+	it('reads a plain citation', () => {
+		expect(citationSortKey('창세기 1 : 1')).toEqual({ bookId: 1, chapter: 1, verse: 1 });
+	});
+
+	// The curated data uses four different range separators. Ordering only
+	// needs the leading verse, so all four collapse to the same key.
+	it.each(['잠언 10 : 4-5', '잠언 10 : 4~5', '잠언 10 : 4∼5', '잠언 10 : 4,5'])(
+		'takes the leading verse from %s',
+		(cite) => {
+			expect(citationSortKey(cite)).toEqual({ bookId: 20, chapter: 10, verse: 4 });
+		}
+	);
+
+	it('ignores a 상/하 half-verse suffix', () => {
+		expect(citationSortKey('역대하 16 : 9상')).toEqual({ bookId: 14, chapter: 16, verse: 9 });
+	});
+
+	it('treats a chapter-only citation as verse 0', () => {
+		expect(citationSortKey('시편 23')).toEqual({ bookId: 19, chapter: 23, verse: 0 });
+	});
+
+	it('returns null for an unknown book', () => {
+		expect(citationSortKey('없는책 1 : 1')).toBeNull();
+	});
+
+	// 900_krv writes 느헤미야, 242_krv writes 느헤미아. Both are in shipped
+	// data, so both must resolve — this is an alias, not a correction.
+	it('accepts both spellings of 느헤미야', () => {
+		expect(getBookOrdinal('느헤미아')).toBe(16);
+		expect(getBookOrdinal('느헤미야')).toBe(16);
+	});
+});
+
+describe('shipped package citations', () => {
+	const files = readdirSync('static/data').filter((f) => f.endsWith('_krv.json'));
+
+	it('finds package files to check', () => {
+		expect(files.length).toBeGreaterThan(0);
+	});
+
+	// Guards the whole corpus: any future data or vocabulary drift fails here
+	// instead of silently sorting to the tail of the export.
+	it.each(files)('every citation in %s yields a sort key', (file) => {
+		const verses = JSON.parse(readFileSync(`static/data/${file}`, 'utf-8')) as {
+			i: number;
+			cite: string;
+		}[];
+		const unreadable = verses.filter((v) => citationSortKey(v.cite) === null);
+		expect(unreadable.map((v) => `no.${v.i} ${v.cite}`)).toEqual([]);
 	});
 });

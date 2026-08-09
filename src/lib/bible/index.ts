@@ -34,13 +34,22 @@ export interface ParsedRef {
 	endVerse: number | null;
 }
 
+/** Spellings present in the curated data that the canonical table does not
+ *  carry. 900_krv writes '느헤미야' (the standard form) while 242_krv writes
+ *  the table's '느헤미아', so both must resolve — replacing the table entry
+ *  would simply break the other package. */
+const BOOK_ALIASES: Record<string, string> = {
+	느헤미야: '느헤미아'
+};
+
 /**
  * Returns the canonical book number (1=Genesis ... 66=Revelation) for a
  * Korean book name, accepting either the abbreviation ('왕상') or full
  * name ('열왕기상'). Returns null if the name is not a known book.
  */
 export function getBookOrdinal(name: string): number | null {
-	const t = name.trim();
+	const raw = name.trim();
+	const t = BOOK_ALIASES[raw] ?? raw;
 	for (let i = 0; i < BOOK_FULL_NAMES.length; i++) {
 		if (BOOK_ABBREVIATIONS[i] === t || BOOK_FULL_NAMES[i] === t) return i + 1;
 	}
@@ -90,4 +99,42 @@ export function formatStandardRef(parsed: ParsedRef): string {
 			? `${parsed.startVerse}-${parsed.endVerse}`
 			: `${parsed.startVerse}`;
 	return `${name} ${parsed.chapter} : ${verseRange}`;
+}
+
+/** Ordering key for a verse list. `verse` is 0 when the citation names
+ *  only a chapter, which sorts it ahead of that chapter's verses. */
+export interface CitationSortKey {
+	bookId: number;
+	chapter: number;
+	verse: number;
+}
+
+// Prefix match, not a full-string match: everything after the first verse
+// number is deliberately ignored.
+const SORT_KEY_RE = /^(.*?)\s*([0-9]+)(?:\s*:\s*([0-9]+))?/;
+
+/**
+ * Lenient reader used only to order verse lists by scripture sequence.
+ *
+ * Deliberately separate from parsePassageRef. That function resolves a
+ * reference for fetching verse text, and its {startVerse, endVerse} model
+ * cannot honestly represent '요한복음 1 : 1,14' — verses 1 AND 14, not the
+ * range 1–14. Widening it would change what OYO's autofill downloads.
+ *
+ * Ordering needs only the leading verse, so this tolerates every separator
+ * the curated data actually uses ('-', '~', '∼', ',') and the 상/하
+ * half-verse suffixes, by ignoring whatever follows the first verse number.
+ *
+ * Returns null when the leading token is not a known book.
+ */
+export function citationSortKey(cite: string): CitationSortKey | null {
+	const m = SORT_KEY_RE.exec(cite.trim());
+	if (!m) return null;
+	const bookId = getBookOrdinal(m[1].trim());
+	if (bookId === null) return null;
+	return {
+		bookId,
+		chapter: parseInt(m[2], 10),
+		verse: m[3] ? parseInt(m[3], 10) : 0
+	};
 }
