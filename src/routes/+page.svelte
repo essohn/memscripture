@@ -175,7 +175,7 @@
 <Header title="Home" />
 
 <main class="mx-auto max-w-2xl px-5 pb-8 pt-6">
-	<EventSection events={eventCards} />
+	<EventSection events={eventCards} onEmpty={() => (toast = { message: '내보낼 구절이 없습니다' })} />
 
 	<section class="flex items-center justify-between gap-3 px-1">
 		<div
