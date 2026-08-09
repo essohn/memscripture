@@ -49,6 +49,24 @@ describe('buildEventSheet columns', () => {
 	});
 });
 
+describe('header alignment', () => {
+	// Alignment must be an explicit per-column property, not inferred from
+	// width — otherwise widening a column (e.g. 번호) would silently
+	// left-align its header while the body cells stayed centred.
+	it('centers 시작/전체/번호 headers and leaves the rest unset', () => {
+		const s = buildEventSheet('t', [verse()], DIFF_ON);
+		expect(s.rows[0].map((c) => c.align)).toEqual([
+			'center',
+			'center',
+			undefined,
+			'center',
+			undefined,
+			undefined,
+			undefined
+		]);
+	});
+});
+
 describe('difficulty cells', () => {
 	it('writes the level as a number with its fill', () => {
 		const s = buildEventSheet('t', [verse({ startDifficulty: 1, fullDifficulty: 5 })], DIFF_ON);

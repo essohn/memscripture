@@ -36,14 +36,22 @@ export const DIFFICULTY_FILLS: Record<DifficultyLevel, string> = {
 
 const HEADER_FILL = 'EFEFEF';
 
-const DIFFICULTY_COLUMNS = [
-	{ header: '시작', width: 4.5 },
-	{ header: '전체', width: 4.5 }
+interface ColumnDef {
+	header: string;
+	width: number;
+	// Explicit per column rather than inferred from width — a header must
+	// not silently change alignment if a column is widened later.
+	align?: 'center';
+}
+
+const DIFFICULTY_COLUMNS: ColumnDef[] = [
+	{ header: '시작', width: 4.5, align: 'center' },
+	{ header: '전체', width: 4.5, align: 'center' }
 ];
 
-const BASE_COLUMNS = [
+const BASE_COLUMNS: ColumnDef[] = [
 	{ header: '구분', width: 10 },
-	{ header: '번호', width: 6 },
+	{ header: '번호', width: 6, align: 'center' },
 	{ header: '제목', width: 14 },
 	{ header: '장절', width: 18 },
 	{ header: '본문', width: 60 }
@@ -89,7 +97,7 @@ export function buildEventSheet(
 		v: c.header,
 		bold: true,
 		fill: HEADER_FILL,
-		align: c.width <= 6 ? 'center' : undefined
+		align: c.align
 	}));
 
 	const ordered = options.sortByScripture ? sortByScripture(verses) : verses;

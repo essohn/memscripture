@@ -175,7 +175,11 @@
 <Header title="Home" />
 
 <main class="mx-auto max-w-2xl px-5 pb-8 pt-6">
-	<EventSection events={eventCards} onEmpty={() => (toast = { message: '내보낼 구절이 없습니다' })} />
+	<EventSection
+		events={eventCards}
+		onEmpty={() => (toast = { message: '내보낼 구절이 없습니다' })}
+		onError={() => (toast = { message: '내보내기 실패: 다시 시도해주세요' })}
+	/>
 
 	<section class="flex items-center justify-between gap-3 px-1">
 		<div

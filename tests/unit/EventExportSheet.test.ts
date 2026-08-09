@@ -29,4 +29,16 @@ describe('EventExportSheet', () => {
 		render(EventExportSheet, { ...props, busy: true, onConfirm: vi.fn(), onCancel: vi.fn() });
 		expect(screen.getByRole('button', { name: /다운로드/ })).toBeDisabled();
 	});
+
+	// The confirm button keeps a static aria-label, so aria-busy is the only
+	// way a screen reader hears the 만드는 중 progress state.
+	it('marks the confirm button aria-busy while a download is running', () => {
+		render(EventExportSheet, { ...props, busy: true, onConfirm: vi.fn(), onCancel: vi.fn() });
+		expect(screen.getByRole('button', { name: /다운로드/ })).toHaveAttribute('aria-busy', 'true');
+	});
+
+	it('leaves the confirm button aria-busy false when idle', () => {
+		render(EventExportSheet, { ...props, onConfirm: vi.fn(), onCancel: vi.fn() });
+		expect(screen.getByRole('button', { name: '다운로드' })).toHaveAttribute('aria-busy', 'false');
+	});
 });

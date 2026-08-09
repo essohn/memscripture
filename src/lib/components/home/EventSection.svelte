@@ -2,16 +2,16 @@
 	import { CalendarCheck, Download } from 'lucide-svelte';
 	import type { EventCardVM } from '$lib/db/events';
 	import EventExportSheet from './EventExportSheet.svelte';
-	import { collectEventVerses, exportFileName } from '$lib/export/eventExport';
-	import { buildEventSheet, type ExportOptions } from '$lib/export/eventWorkbook';
-	import { writeXlsx } from '$lib/export/xlsx';
+	import { exportEventXlsx } from '$lib/export/eventExport';
+	import type { ExportOptions } from '$lib/export/eventWorkbook';
 	import { todayLocalKey } from '$lib/db/activity';
 
 	interface Props {
 		events: EventCardVM[];
 		onEmpty?: () => void;
+		onError?: () => void;
 	}
-	let { events, onEmpty }: Props = $props();
+	let { events, onEmpty, onError }: Props = $props();
 
 	let exporting = $state<EventCardVM | null>(null);
 	let busy = $state(false);
@@ -23,27 +23,13 @@
 	async function runExport(ev: EventCardVM, options: ExportOptions) {
 		busy = true;
 		try {
-			const verses = await collectEventVerses(ev.ranges);
-			// An empty workbook would look like a successful export of nothing.
-			if (verses.length === 0) {
-				onEmpty?.();
-				return;
-			}
-			const bytes = writeXlsx(buildEventSheet(ev.eventTitle, verses, options));
-			const url = URL.createObjectURL(
-				// bytes.buffer, not bytes: zipStore's final .slice() always yields a
-				// plain, exact-length ArrayBuffer, but TS's default Uint8Array<ArrayBufferLike>
-				// widens too far for BlobPart, which wants Uint8Array<ArrayBuffer>.
-				new Blob([bytes.buffer as ArrayBuffer], {
-					type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-				})
-			);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = exportFileName(ev.eventTitle, todayLocalKey());
-			a.click();
-			URL.revokeObjectURL(url);
-			exporting = null;
+			// exportEventXlsx never rejects — it routes both the empty and the
+			// error path through callbacks — so only success closes the sheet.
+			const produced = await exportEventXlsx(ev.eventTitle, ev.ranges, options, todayLocalKey(), {
+				onEmpty,
+				onError
+			});
+			if (produced) exporting = null;
 		} finally {
 			busy = false;
 		}

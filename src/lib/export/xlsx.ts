@@ -37,14 +37,22 @@ export function columnName(index0: number): string {
 	return s;
 }
 
-/** Excel rejects sheet names longer than 31 characters or containing any of
- *  []:*?/\ — it refuses to open the file rather than sanitizing for you. */
+/** Excel rejects sheet names longer than 31 characters, containing any of
+ *  []:*?/\, starting or ending with an apostrophe, or equal to the reserved
+ *  name "History" — it refuses to open the file rather than sanitizing for
+ *  you. */
 export function sanitizeSheetName(raw: string): string {
-	const cleaned = raw
+	let cleaned = raw
 		.replace(/[[\]:*?/\\]/g, ' ')
 		.replace(/\s+/g, ' ')
 		.trim()
-		.slice(0, 31);
+		.replace(/^'+|'+$/g, '')
+		.trim()
+		.slice(0, 31)
+		// Truncation to 31 chars can re-expose a trailing apostrophe that had
+		// more text after it before the cut.
+		.replace(/'+$/, '');
+	if (cleaned.toLowerCase() === 'history') cleaned = '';
 	return cleaned || 'Sheet1';
 }
 
@@ -111,9 +119,13 @@ function buildStyles(rows: SheetCell[][]) {
 }
 
 function buildSheetXml(sheet: Sheet, styleIndex: (c: SheetCell) => number): string {
-	const cols = sheet.cols
-		.map((c, i) => `<col min="${i + 1}" max="${i + 1}" width="${c.width}" customWidth="1"/>`)
-		.join('');
+	// CT_Cols requires at least one <col> child; an empty <cols></cols> is
+	// schema-invalid and makes Excel offer to repair the file.
+	const cols = sheet.cols.length
+		? `<cols>${sheet.cols
+				.map((c, i) => `<col min="${i + 1}" max="${i + 1}" width="${c.width}" customWidth="1"/>`)
+				.join('')}</cols>`
+		: '';
 
 	const pane =
 		sheet.freezeRows > 0
@@ -142,7 +154,7 @@ function buildSheetXml(sheet: Sheet, styleIndex: (c: SheetCell) => number): stri
 	return (
 		`${XML_HEADER}<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
 		`<sheetViews><sheetView workbookViewId="0">${pane}</sheetView></sheetViews>` +
-		`<cols>${cols}</cols><sheetData>${rows}</sheetData></worksheet>`
+		`${cols}<sheetData>${rows}</sheetData></worksheet>`
 	);
 }
 

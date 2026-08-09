@@ -67,6 +67,32 @@ describe('sanitizeSheetName', () => {
 	it('falls back when nothing survives', () => {
 		expect(sanitizeSheetName('///')).toBe('Sheet1');
 	});
+
+	it('strips a leading and trailing apostrophe', () => {
+		expect(sanitizeSheetName("'2026'")).toBe('2026');
+	});
+
+	it('keeps an apostrophe that is not at either edge', () => {
+		expect(sanitizeSheetName("O'Brien")).toBe("O'Brien");
+	});
+
+	it('falls back when only apostrophes survive', () => {
+		expect(sanitizeSheetName("''")).toBe('Sheet1');
+	});
+
+	it('re-strips a trailing apostrophe exposed by truncation', () => {
+		// The 31st character lands on an apostrophe once the rest is cut off.
+		expect(sanitizeSheetName(`${'a'.repeat(30)}'more text`)).toBe('a'.repeat(30));
+	});
+
+	it('rejects the reserved sheet name History, case-insensitively', () => {
+		expect(sanitizeSheetName('History')).toBe('Sheet1');
+		expect(sanitizeSheetName('HISTORY')).toBe('Sheet1');
+	});
+
+	it('allows a title that merely contains "history"', () => {
+		expect(sanitizeSheetName('My History')).toBe('My History');
+	});
 });
 
 describe('writeXlsx', () => {
@@ -133,5 +159,13 @@ describe('writeXlsx', () => {
 		// Two user fills — the header grey and the level-3 yellow — on top of
 		// the two reserved slots.
 		expect(xml).toContain('<fills count="4">');
+	});
+
+	// CT_Cols requires at least one <col> child; an empty <cols></cols> is
+	// schema-invalid and prompts Excel to offer a repair.
+	it('omits <cols> entirely when the sheet has no columns', () => {
+		const noCols: Sheet = { name: 'Empty', cols: [], rows: [[{ v: 'x' }]], freezeRows: 0 };
+		const xml = readZip(writeXlsx(noCols)).get('xl/worksheets/sheet1.xml')!;
+		expect(xml).not.toContain('<cols');
 	});
 });

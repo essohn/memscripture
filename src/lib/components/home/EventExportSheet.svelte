@@ -54,6 +54,7 @@
 				type="button"
 				disabled={busy}
 				aria-label="다운로드"
+				aria-busy={busy}
 				onclick={() => onConfirm({ includeDifficulty, sortByScripture })}
 				class="rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
 			>
