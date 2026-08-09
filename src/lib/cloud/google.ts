@@ -3,6 +3,15 @@ import { db } from '$lib/db/local';
 const AUTH_KEY = 'google_drive_auth';
 const GIS_SRC = 'https://accounts.google.com/gsi/client';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+/** The UserInfo endpoint below rejects a token scoped only to drive.file — it
+ *  serves OpenID claims and needs an identity scope. Without this the very
+ *  first connect fails at the userinfo fetch, before any Drive call. Both
+ *  scopes are non-sensitive, so neither triggers Google app verification. */
+const EMAIL_SCOPE = 'https://www.googleapis.com/auth/userinfo.email';
+/** Space-delimited, per the OAuth 2.0 scope syntax GIS expects. Must be
+ *  identical in connect and refresh — asking for a different set on refresh
+ *  turns the silent prompt into an incremental-consent popup. */
+const AUTH_SCOPES = `${DRIVE_SCOPE} ${EMAIL_SCOPE}`;
 const USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
 
 export interface GoogleAuthState {
@@ -64,7 +73,7 @@ export async function connectGoogleDrive(clientId: string): Promise<GoogleAuthSt
 	const tokenResponse = await new Promise<TokenResponse>((resolve) => {
 		const client = gisOauth2().initTokenClient({
 			client_id: clientId,
-			scope: DRIVE_SCOPE,
+			scope: AUTH_SCOPES,
 			callback: (response) => resolve(response)
 		});
 		client.requestAccessToken({ prompt: 'consent' });
@@ -114,7 +123,7 @@ export async function refreshAccessToken(
 	const tokenResponse = await new Promise<TokenResponse>((resolve) => {
 		const client = gisOauth2().initTokenClient({
 			client_id: clientId,
-			scope: DRIVE_SCOPE,
+			scope: AUTH_SCOPES,
 			hint: currentEmail,
 			callback: (response) => resolve(response)
 		});

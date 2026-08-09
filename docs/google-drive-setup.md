@@ -21,7 +21,15 @@ not** confuse this with a client *secret* (we never use one).
 1. APIs & Services → OAuth consent screen
 2. User type: **External**. Publishing status starts as "Testing" — that's fine for the maintainer's account; production verification is not required as long as the scope stays at `drive.file` (least-privilege, doesn't require Google verification).
 3. App info: app name = "MemScripture", user support email = your email.
-4. Scopes: add `https://www.googleapis.com/auth/drive.file`. Do **not** add `drive` or `drive.readonly` — those require app verification.
+4. Scopes: add **both**
+   - `https://www.googleapis.com/auth/drive.file` — the sync file itself.
+   - `https://www.googleapis.com/auth/userinfo.email` — `connectGoogleDrive`
+     calls the UserInfo endpoint to show which account is connected, and that
+     endpoint rejects a token carrying only `drive.file`. Omit it and connect
+     fails with `userinfo failed: HTTP 401` before any Drive call.
+
+   Both are non-sensitive, so neither triggers app verification. Do **not** add
+   `drive` or `drive.readonly` — those do.
 5. Test users: add the email(s) you'll sign in with.
 
 ## 4. Create the OAuth client ID
@@ -31,9 +39,16 @@ not** confuse this with a client *secret* (we never use one).
 3. Authorized JavaScript origins:
    - `http://localhost:5173` (dev)
    - `http://localhost:4173` (preview)
-   - `https://mem.lifescripture.org` (prod)
+   - `https://mem.lifescripture.org` (prod, the custom domain in `wrangler.jsonc`)
+   - `https://memscripture.<your-subdomain>.workers.dev` — only if you sign in
+     on the workers.dev URL too. `wrangler.jsonc` sets `workers_dev: true`, so
+     that origin is live and GIS rejects any origin not on this list.
 4. Authorized redirect URIs: leave empty — GIS uses the implicit token flow, no redirect needed.
 5. Create → copy the client ID (looks like `123…apps.googleusercontent.com`).
+
+Note on preview deployments: `preview_urls: true` mints a fresh per-version
+hostname on every deploy. Those origins can't be pre-registered, so Drive
+sync will not authenticate from a preview URL. Test on localhost or prod.
 
 ## 5. Wire the env var
 
@@ -43,11 +58,36 @@ Local dev:
 echo "PUBLIC_GOOGLE_OAUTH_CLIENT_ID=YOUR_ID.apps.googleusercontent.com" >> .env
 ```
 
-Production (Cloudflare Pages):
+Production — this deploys as a Cloudflare **Worker**, not Pages (`wrangler.jsonc`
+declares `main` + `assets` + a custom-domain route). Commit the ID to
+`wrangler.jsonc` so the config travels with the code:
 
-1. Pages → memscripture → Settings → Environment variables
-2. Add `PUBLIC_GOOGLE_OAUTH_CLIENT_ID` for both Production and Preview environments.
-3. Redeploy.
+```jsonc
+{
+  "name": "memscripture",
+  // …
+  "vars": {
+    "PUBLIC_GOOGLE_OAUTH_CLIENT_ID": "YOUR_ID.apps.googleusercontent.com"
+  }
+}
+```
+
+This is a client ID, **not** a client secret — it ships to every browser that
+loads the app, so committing it leaks nothing. Never put an OAuth *secret*
+here; this flow doesn't use one.
+
+Changing the value then means commit + deploy. The alternative is Workers &
+Pages → memscripture → Settings → Variables and Secrets (plaintext, not
+Secret — secrets are write-only in the UI and this value isn't one), which
+avoids a redeploy but leaves the setting untracked. Note that a dashboard
+variable and a `vars` entry with the same name collide: the deployed
+`wrangler.jsonc` wins and silently overwrites the dashboard value, so pick one.
+
+The value is read at **runtime**, not baked in at build time: `clientId.ts` uses
+`$env/dynamic/public`, and the worker serves `/_app/env.js` from the Workers env
+on each request (`server.init({ env })` in the generated `_worker.js`). So
+changing the variable takes effect without rebuilding the static assets — and
+conversely, setting it only in the build environment does nothing.
 
 ## 6. Smoke-test
 

@@ -13,6 +13,13 @@
 	"routes": [
 		{ "pattern": "mem.lifescripture.org", "custom_domain": true }
 	],
+	// Public OAuth *client ID* for Drive sync — not a secret. It ships to every
+	// browser that loads the app, so it belongs in version control alongside the
+	// origins it's bound to. Read at runtime via $env/dynamic/public, so changing
+	// it needs a deploy but not a rebuild of the static assets.
+	"vars": {
+		"PUBLIC_GOOGLE_OAUTH_CLIENT_ID": "322308056434-vufn9bv8t986a4vtm6um8t5dafv29tgu.apps.googleusercontent.com"
+	},
 	"observability": {
 		"enabled": true
 	}
