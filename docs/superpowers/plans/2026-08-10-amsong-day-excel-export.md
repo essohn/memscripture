@@ -1412,8 +1412,10 @@ Create `tests/unit/EventExportSheet.test.ts`:
 
 ```ts
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/svelte';
-import userEvent from '@testing-library/user-event';
+// fireEvent, not user-event: the latter is not a dependency of this project
+// and the no-new-dependencies constraint applies to devDependencies too.
+// Every existing component test uses fireEvent — see BookmarkControl.test.ts.
+import { fireEvent, render, screen } from '@testing-library/svelte';
 import EventExportSheet from '../../src/lib/components/home/EventExportSheet.svelte';
 
 const props = { eventTitle: '2026 여름 암송 DAY', busy: false };
@@ -1428,8 +1430,8 @@ describe('EventExportSheet', () => {
 	it('reports the chosen options on confirm', async () => {
 		const onConfirm = vi.fn();
 		render(EventExportSheet, { ...props, onConfirm, onCancel: vi.fn() });
-		await userEvent.click(screen.getByLabelText(/장절 순서/));
-		await userEvent.click(screen.getByRole('button', { name: '다운로드' }));
+		await fireEvent.click(screen.getByLabelText(/장절 순서/));
+		await fireEvent.click(screen.getByRole('button', { name: '다운로드' }));
 		expect(onConfirm).toHaveBeenCalledWith({
 			includeDifficulty: true,
 			sortByScripture: true
