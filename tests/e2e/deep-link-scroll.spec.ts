@@ -1,0 +1,42 @@
+import { test, expect } from '@playwright/test';
+
+// The home dashboard links a bundle/event range as /library/{id}?sel=127,128,...
+// The list must anchor the FIRST verse of the range just under the sticky
+// header — landing mid-viewport buries it behind unselected earlier verses.
+const RANGE = Array.from({ length: 36 }, (_, i) => 127 + i);
+
+test('?sel deep-link anchors the first verse near the top, not the middle', async ({ page }) => {
+	await page.goto(`/library/900_krv?sel=${RANGE.join(',')}`);
+
+	const first = page.locator('#verse-127');
+	await expect(first).toBeAttached();
+
+	// The jump is a smooth scroll across ~33,000px; wait for scrollY to settle.
+	await page.waitForFunction(
+		() => {
+			const w = window as unknown as { __lastY?: number; __stable?: number };
+			const y = Math.round(window.scrollY);
+			w.__stable = y === w.__lastY ? (w.__stable ?? 0) + 1 : 0;
+			w.__lastY = y;
+			return y > 0 && (w.__stable ?? 0) >= 5;
+		},
+		null,
+		{ timeout: 15_000, polling: 100 }
+	);
+
+	const box = (await first.boundingBox())!;
+	const viewportH = page.viewportSize()!.height;
+
+	// Anchored below the sticky header, well inside the top third of the screen.
+	expect(box.y).toBeGreaterThan(0);
+	expect(box.y).toBeLessThan(viewportH / 3);
+
+	// And no earlier (unselected) verse should be sitting above it on screen.
+	const idAtTop = await page.evaluate(() => {
+		for (const el of document.querySelectorAll('[id^="verse-"]')) {
+			if (el.getBoundingClientRect().top >= -20) return el.id;
+		}
+		return null;
+	});
+	expect(idAtTop).toBe('verse-127');
+});

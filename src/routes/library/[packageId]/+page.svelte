@@ -168,6 +168,12 @@
 	// Restore a selection from a recent bundle: /library/{id}?sel=1,2,3 marks those
 	// verses selected and scrolls the front verse into view. The filter (?s/?g) is
 	// restored by the URL, so the selection stays within scope.
+	//
+	// block:'start' (not 'center') — a range should open AT its first verse, with
+	// the rest of the selection below it. Centering buries the front verse behind
+	// half a screen of earlier, unselected ones. The card wrapper's `scroll-mt-24`
+	// supplies the offset that keeps it clear of the sticky header, and only
+	// applies under 'start'.
 	$effect(() => {
 		const raw = page.url.searchParams.get('sel');
 		if (!raw) return;
@@ -182,7 +188,7 @@
 		const rafId = requestAnimationFrame(() => {
 			document
 				.getElementById(`verse-${first}`)
-				?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+				?.scrollIntoView({ block: 'start', behavior: 'smooth' });
 		});
 		return () => cancelAnimationFrame(rafId);
 	});
