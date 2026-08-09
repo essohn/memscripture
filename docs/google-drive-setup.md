@@ -21,15 +21,23 @@ not** confuse this with a client *secret* (we never use one).
 1. APIs & Services → OAuth consent screen
 2. User type: **External**. Publishing status starts as "Testing" — that's fine for the maintainer's account; production verification is not required as long as the scope stays at `drive.file` (least-privilege, doesn't require Google verification).
 3. App info: app name = "MemScripture", user support email = your email.
-4. Scopes: add **both**
-   - `https://www.googleapis.com/auth/drive.file` — the sync file itself.
+4. Scopes: add **all three**
+   - `https://www.googleapis.com/auth/drive.appdata` — the sync file lives in
+     the hidden per-app `appDataFolder` space (`drive.ts`), and that space has
+     its own scope. `drive.file` does not reach it: omit this and every Drive
+     call 403s, including the very first upload.
+   - `https://www.googleapis.com/auth/drive.file` — the file operations.
    - `https://www.googleapis.com/auth/userinfo.email` — `connectGoogleDrive`
      calls the UserInfo endpoint to show which account is connected, and that
-     endpoint rejects a token carrying only `drive.file`. Omit it and connect
+     endpoint rejects a token carrying no identity scope. Omit it and connect
      fails with `userinfo failed: HTTP 401` before any Drive call.
 
-   Both are non-sensitive, so neither triggers app verification. Do **not** add
-   `drive` or `drive.readonly` — those do.
+   All three are non-sensitive, so none triggers app verification. Do **not**
+   add `drive` or `drive.readonly` — those do.
+
+   Changing this list later means every already-connected device must
+   disconnect and reconnect: Google issues a token for the scopes granted at
+   consent time, and the stored token is not retroactively widened.
 5. Test users: add the email(s) you'll sign in with.
 
 ## 4. Create the OAuth client ID

@@ -8,10 +8,18 @@ const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
  *  first connect fails at the userinfo fetch, before any Drive call. Both
  *  scopes are non-sensitive, so neither triggers Google app verification. */
 const EMAIL_SCOPE = 'https://www.googleapis.com/auth/userinfo.email';
+/** drive.ts stores the sync file in the appDataFolder space, which drive.file
+ *  does not reach — that space needs its own scope, or every Drive call 403s.
+ *  Also non-sensitive, so it adds no verification burden. */
+const APPDATA_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 /** Space-delimited, per the OAuth 2.0 scope syntax GIS expects. Must be
  *  identical in connect and refresh — asking for a different set on refresh
  *  turns the silent prompt into an incremental-consent popup. */
-const AUTH_SCOPES = `${DRIVE_SCOPE} ${EMAIL_SCOPE}`;
+const AUTH_SCOPES = `${DRIVE_SCOPE} ${APPDATA_SCOPE} ${EMAIL_SCOPE}`;
+/** A silent refresh that needs user interaction never invokes the callback,
+ *  which would hang performSync — and with it the sync button — forever.
+ *  Bound the wait so the caller gets a failure it can report instead. */
+const REFRESH_TIMEOUT_MS = 15_000;
 const USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
 
 export interface GoogleAuthState {
@@ -120,12 +128,19 @@ export async function refreshAccessToken(
 	currentEmail: string
 ): Promise<GoogleAuthState> {
 	await loadGisClient();
-	const tokenResponse = await new Promise<TokenResponse>((resolve) => {
+	const tokenResponse = await new Promise<TokenResponse>((resolve, reject) => {
+		const timer = setTimeout(
+			() => reject(new Error('silent token refresh timed out')),
+			REFRESH_TIMEOUT_MS
+		);
 		const client = gisOauth2().initTokenClient({
 			client_id: clientId,
 			scope: AUTH_SCOPES,
 			hint: currentEmail,
-			callback: (response) => resolve(response)
+			callback: (response) => {
+				clearTimeout(timer);
+				resolve(response);
+			}
 		});
 		client.requestAccessToken({ prompt: '' });
 	});

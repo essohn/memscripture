@@ -4,7 +4,8 @@ import { db } from '../../src/lib/db/local';
 import {
 	connectGoogleDrive,
 	disconnectGoogleDrive,
-	getCurrentAuth
+	getCurrentAuth,
+	refreshAccessToken
 } from '../../src/lib/cloud/google';
 
 beforeEach(async () => {
@@ -61,11 +62,15 @@ describe('google auth state', () => {
 		expect(await getCurrentAuth()).toBeNull();
 	});
 
-	// Regression guard: the UserInfo endpoint serves OpenID claims and rejects a
-	// token scoped only to drive.file, so connect would 401 before ever touching
-	// Drive. Asserting the request — not just mocking a happy response — is what
-	// catches a re-narrowed scope.
-	it('requests an identity scope alongside drive.file', async () => {
+	// Regression guard for the three scopes the flow actually needs. Each has a
+	// distinct failure mode that a mocked-happy-response test cannot see:
+	//   drive.appdata    — drive.ts reads/writes the appDataFolder space, which
+	//                      drive.file does not reach; every Drive call 403s.
+	//   userinfo.email   — the UserInfo endpoint serves OpenID claims and rejects
+	//                      a token with no identity scope; connect 401s.
+	//   drive.file       — the file operations themselves.
+	// Asserting the request, not the response, is what catches a re-narrowed set.
+	it('requests every scope the sync flow depends on', async () => {
 		const configs = stubGis();
 		vi.stubGlobal(
 			'fetch',
@@ -76,7 +81,24 @@ describe('google auth state', () => {
 
 		const requested = configs[0].scope.split(/\s+/);
 		expect(requested).toContain('https://www.googleapis.com/auth/drive.file');
+		expect(requested).toContain('https://www.googleapis.com/auth/drive.appdata');
 		expect(requested).toContain('https://www.googleapis.com/auth/userinfo.email');
+	});
+
+	// A refresh asking for a different set than connect turns Google's silent
+	// prompt into an incremental-consent popup, which breaks unattended sync.
+	it('refresh requests the identical scope set as connect', async () => {
+		const configs = stubGis();
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue({ ok: true, json: async () => ({ email: 'user@example.com' }) })
+		);
+
+		await connectGoogleDrive('client-id');
+		await refreshAccessToken('client-id', 'user@example.com');
+
+		expect(configs).toHaveLength(2);
+		expect(configs[1].scope).toBe(configs[0].scope);
 	});
 
 	it('rejects — and stores nothing — when userinfo fails', async () => {

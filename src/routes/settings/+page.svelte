@@ -86,7 +86,10 @@
 		if (syncing) return;
 		syncing = true;
 		try {
-			const result = await performSync({ confirmOverwrite: showOverwriteConfirm });
+			const result = await performSync(
+				{ confirmOverwrite: showOverwriteConfirm },
+				clientId
+			);
 			hasBackup = (await loadPreSyncBackup()) !== null;
 			toast = { message: messageFor(result) };
 		} finally {

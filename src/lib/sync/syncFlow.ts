@@ -1,4 +1,4 @@
-import { getCurrentAuth } from '$lib/cloud/google';
+import { getCurrentAuth, refreshAccessToken, type GoogleAuthState } from '$lib/cloud/google';
 import {
 	downloadSyncFile,
 	findSyncFile,
@@ -24,15 +24,45 @@ export interface SyncHandlers {
 	confirmOverwrite: () => Promise<boolean>;
 }
 
+/** Refresh this far ahead of the stated expiry, so a sync that starts just
+ *  under the wire can't have its token die mid-flight between the find and
+ *  the upload. Google access tokens last an hour. */
+const EXPIRY_MARGIN_MS = 5 * 60_000;
+
+/** Returns an auth whose token is good for the next few minutes, refreshing
+ *  silently when the stored one is spent. Returns null when the refresh fails,
+ *  which means the user has to re-consent — a stale token would otherwise 401
+ *  on every Drive call with no path back except disconnect/reconnect.
+ *
+ *  clientId is passed in rather than read from $env here: that module resolves
+ *  only inside a SvelteKit build, and taking it as an argument keeps this
+ *  orchestrator testable — the same reason cloud/google.ts takes it too. */
+async function withFreshToken(
+	auth: GoogleAuthState,
+	clientId: string | null
+): Promise<GoogleAuthState | null> {
+	if (auth.expiresAt - Date.now() > EXPIRY_MARGIN_MS) return auth;
+	if (!clientId) return null;
+	return refreshAccessToken(clientId, auth.email).catch(() => null);
+}
+
 /** Single-button sync orchestrator. Decision tree:
  *  - not authenticated → error
  *  - no remote file    → upload local (create)
  *  - timestamps equal  → no-op
  *  - local newer       → upload local (PATCH)
  *  - remote newer      → confirm → save backup + apply remote (or decline) */
-export async function performSync(handlers: SyncHandlers): Promise<SyncResult> {
-	const auth = await getCurrentAuth();
-	if (!auth) return { kind: 'error', message: '연결된 Google Drive 계정이 없습니다' };
+export async function performSync(
+	handlers: SyncHandlers,
+	clientId: string | null
+): Promise<SyncResult> {
+	const stored = await getCurrentAuth();
+	if (!stored) return { kind: 'error', message: '연결된 Google Drive 계정이 없습니다' };
+
+	const auth = await withFreshToken(stored, clientId);
+	if (!auth) {
+		return { kind: 'error', message: '로그인이 만료되었습니다 — Drive를 다시 연결해주세요' };
+	}
 
 	try {
 		const found = await findSyncFile(auth.accessToken);
