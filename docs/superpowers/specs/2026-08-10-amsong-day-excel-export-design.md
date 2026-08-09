@@ -83,25 +83,55 @@ separate constants; neither should be derived from the other.
 Default order is the app's own: `구분` (package, in event-range order),
 then `번호` ascending.
 
-With 장절 정렬 on, rows sort by canonical scripture order — parse each
-`cite` with the existing `parsePassageRef()` from `src/lib/bible/index.ts`
-and sort by `(bookId, chapter, startVerse)`. This deliberately interleaves
-the two ranges, which is the point: 창세기 → 계시록 across the whole event.
+With 장절 정렬 on, rows sort by canonical scripture order —
+`(bookId, chapter, verse)` — deliberately interleaving the two ranges,
+which is the point: 창세기 → 계시록 across the whole event.
 
-**Verses whose `cite` fails to parse are appended at the end** in default
-order rather than dropped. A silently missing verse is worse than an
-out-of-place one, and the tail makes bad data visible.
+Sorting uses a **new, separate** `citationSortKey(cite)` in
+`src/lib/bible/index.ts`, not the existing `parsePassageRef()`:
+
+```ts
+citationSortKey('고린도전서 12 : 4∼6') // → { bookId: 46, chapter: 12, verse: 4 }
+citationSortKey('요한복음 1 : 1,14')   // → { bookId: 43, chapter: 1, verse: 1 }
+citationSortKey('역대하 16 : 9상')     // → { bookId: 14, chapter: 16, verse: 9 }
+```
+
+`parsePassageRef()` is left untouched. It exists to resolve a reference
+for fetching verse text in the OYO autofill flow, and it rejects 30 of the
+1495 shipped citations because they use conventions its `{startVerse,
+endVerse}` model cannot represent honestly — `1 : 1,14` means verses 1
+*and* 14, not the range 1–14. Widening it would change what OYO autofill
+fetches. Sorting needs only the first verse number, so it gets its own
+lenient reader: tolerate `-`, `~`, `∼`, `,`, and the 상/하 suffixes, and
+take the leading verse.
+
+Ties fall back to input order, so the sort is stable.
+
+**Verses whose citation yields no key are appended at the end** in default
+order rather than dropped. With the rules above no shipped verse hits this
+path today; it exists so future bad data surfaces instead of vanishing.
 
 ## Data corrections
 
-Sorting makes the feature depend on citation data being parseable, so the
-same work fixes the cases that are not. All 1495 verses across every
-shipped package were checked; three book names fail, from two causes.
+All 1495 citations across every shipped package were checked against the
+existing parser. 32 fail, but only 2 are defects — the rest are ordinary
+Korean citation conventions the parser does not accept, and are handled by
+`citationSortKey` above rather than by editing data.
 
-**Module typo** — `src/lib/bible/index.ts` lists `느헤미아` in
-`BOOK_FULL_NAMES`. The standard Korean name, and the one the data uses, is
-`느헤미야`. Affects 4 verses in `900_krv` (no. 129, 697, 728, 793) and also
-breaks OYO's 장절 autofill for that book today.
+| cause | count | verdict |
+|-------|-------|---------|
+| `∼` / `~` as the range separator (`12 : 4∼6`) | 22 | valid — reader must accept |
+| comma-separated verses (`1 : 1,14`) | 6 | valid — reader must accept |
+| `느헤미야` not in the book table | 4 | vocabulary gap — add alias |
+| 상/하 suffix (`16 : 9상`) | 3 | valid — reader must accept |
+| `고리도전서` | 1 | **data typo** |
+| `잠엄` | 1 | **data typo** |
+
+**Vocabulary gap** — `BOOK_FULL_NAMES` lists only `느헤미아`, so
+`느헤미야` (4 verses in `900_krv`) does not resolve. The data uses **both**
+spellings: `242_krv` no.103 is `느헤미아`. So `느헤미야` is added as an
+accepted **alias**, not a replacement — swapping the table entry would
+break the 242 verse instead.
 
 **Data typos** — `static/data/900_krv.json`:
 
@@ -113,9 +143,10 @@ breaks OYO's 장절 autofill for that book today.
 These two are user-visible today: `cite` renders on every verse card, so
 the misspellings are on screen regardless of this feature.
 
-A guard test asserts that every `cite` in every shipped package resolves
-to a book ordinal. It covers all 1495 rows, so future data or vocabulary
-drift fails the suite instead of silently sorting to the tail.
+A guard test asserts `citationSortKey` returns a key for every `cite` in
+every shipped package — all 1495 rows, verified to pass under the rules
+above. Future data or vocabulary drift then fails the suite instead of
+silently sorting to the tail.
 
 ## Architecture
 
@@ -223,8 +254,8 @@ a compression dependency entirely.
 |--------|------------------|
 | `zip.ts` | CRC32 against known vectors; local header and central-directory offsets of a multi-entry archive |
 | `xlsx.ts` | Generated parts re-read: cell addresses, style indices, column widths, freeze pane |
-| `eventWorkbook.ts` | Sort order both ways; unparseable cite lands last; unrated cell empty; 1–5 → fill mapping; difficulty columns absent when off |
-| `bible` | All 1495 shipped citations resolve to a book ordinal |
+| `eventWorkbook.ts` | Sort order both ways; keyless cite lands last; unrated cell empty; 1–5 → fill mapping; difficulty columns absent when off |
+| `bible` | `citationSortKey` handles `-` `~` `∼` `,` and 상/하; `느헤미아` and `느헤미야` both resolve; all 1495 shipped citations yield a key |
 
 One **manual check**, not automated: open the produced file in Excel and
 in Numbers and confirm neither offers to repair it. This is the one risk
