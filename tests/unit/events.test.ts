@@ -171,8 +171,16 @@ describe('events data layer', () => {
 		expect(cards).toHaveLength(1);
 		expect(cards[0].eventTitle).toBe('11월 암송 데이');
 		expect(cards[0].dDay).toBe(1);
+		// The export button needs to name the verses it exports. They are
+		// already resolved here for the progress count, so the card carries
+		// them rather than making the UI re-parse them out of the href.
 		expect(cards[0].ranges[0]).toEqual({
-			label: '시편 23편', done: 1, total: 2, href: '/library/5_krv?sel=1%2C2'
+			label: '시편 23편',
+			done: 1,
+			total: 2,
+			href: '/library/5_krv?sel=1%2C2',
+			packageId: '5_krv',
+			verseNos: [1, 2]
 		});
 	});
 });

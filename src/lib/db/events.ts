@@ -95,6 +95,11 @@ export interface RangeCardVM {
 	done: number;
 	total: number;
 	href: string;
+	/** Carried for the Excel export, which needs to name the verses it
+	 *  exports. buildEventCards resolves these anyway for the progress
+	 *  count; the alternative is re-parsing them out of `href`. */
+	packageId: string;
+	verseNos: number[];
 }
 
 export interface EventCardVM {
@@ -122,7 +127,14 @@ export async function buildEventCards(today: string): Promise<EventCardVM[]> {
 			const verseNos = await resolveRangeVerseNos(r).catch(() => []);
 			if (verseNos.length === 0) continue; // 미설치/해석 실패 범위는 건너뜀
 			const { done, total } = await rangeProgress(r.packageId, verseNos);
-			ranges.push({ label: await rangeLabel(r, verseNos), done, total, href: rangeHref(r, verseNos) });
+			ranges.push({
+				label: await rangeLabel(r, verseNos),
+				done,
+				total,
+				href: rangeHref(r, verseNos),
+				packageId: r.packageId,
+				verseNos
+			});
 		}
 		if (ranges.length > 0) {
 			cards.push({ eventId: e.id, eventTitle: e.title, dDay: dDay(e.dueAt, today), ranges });

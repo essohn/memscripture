@@ -7,7 +7,16 @@ const card: EventCardVM = {
 	eventId: 'e1',
 	eventTitle: '11월 암송 데이',
 	dDay: 12,
-	ranges: [{ label: '시편 23편', done: 3, total: 5, href: '/library/60_krv?sel=1%2C2' }]
+	ranges: [
+		{
+			label: '시편 23편',
+			done: 3,
+			total: 5,
+			href: '/library/60_krv?sel=1%2C2',
+			packageId: '60_krv',
+			verseNos: [1, 2]
+		}
+	]
 };
 
 describe('EventSection', () => {
