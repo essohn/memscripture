@@ -12,8 +12,13 @@
 		 *  cannot say both with one null. */
 		onPickStart: (level: DifficultyLevel | null) => void;
 		onPickFull: (level: DifficultyLevel | null) => void;
+		/** Fired once a result is recorded, so the card can lift the curtain —
+		 *  hiding the verse has no purpose after it has been graded. */
+		onGraded: () => void;
+		/** 닫기: leave memorize mode and return to the ordinary card. */
+		onClose: () => void;
 	}
-	let { verse, onPickStart, onPickFull }: Props = $props();
+	let { verse, onPickStart, onPickFull, onGraded, onClose }: Props = $props();
 
 	let typed = $state('');
 	let elapsedMs = $state(0);
@@ -72,6 +77,7 @@
 		if (accuracy === 1) {
 			commit(result);
 			saved = result;
+			onGraded();
 			return;
 		}
 		// Anything short of perfect goes through the reader — the app may
@@ -84,6 +90,7 @@
 		if (proposed) {
 			commit(proposed);
 			saved = proposed;
+			onGraded();
 		}
 		confirming = false;
 	}
@@ -150,13 +157,22 @@
 					· {saved.full === null ? '전체 —' : `전체 ${DIFFICULTY_LABELS[saved.full]}`}
 				</p>
 			</div>
-			<button
-				type="button"
-				onclick={restart}
-				class="ml-auto rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-card)]"
-			>
-				다시
-			</button>
+			<div class="ml-auto flex items-center gap-1.5">
+				<button
+					type="button"
+					onclick={restart}
+					class="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-card)]"
+				>
+					다시
+				</button>
+				<button
+					type="button"
+					onclick={onClose}
+					class="rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
+				>
+					닫기
+				</button>
+			</div>
 		</div>
 		<!-- Editable, not just reported: the proposal is a guess, and a reader who
 		     disagrees should not have to redo the attempt to change it. Same

@@ -361,6 +361,8 @@
 				verse={verse.w}
 				onPickStart={onPickStartDifficulty!}
 				onPickFull={onPickFullDifficulty!}
+				onGraded={revealAll}
+				onClose={exitMemorize}
 			/>
 		{/if}
 	{/if}

@@ -7,8 +7,10 @@ const VERSE = '그들에게 율례와 법도를 가르쳐서 마땅히 갈 길�
 function setup() {
 	const onPickStart = vi.fn();
 	const onPickFull = vi.fn();
-	render(MemorizeCheckPanel, { verse: VERSE, onPickStart, onPickFull });
-	return { onPickStart, onPickFull };
+	const onClose = vi.fn();
+	const onGraded = vi.fn();
+	render(MemorizeCheckPanel, { verse: VERSE, onPickStart, onPickFull, onClose, onGraded });
+	return { onPickStart, onPickFull, onClose, onGraded };
 }
 
 async function type(text: string) {
@@ -27,7 +29,7 @@ describe('MemorizeCheckPanel', () => {
 
 	// A perfect recitation should not need a dialog.
 	it('saves straight away on a perfect attempt', async () => {
-		const { onPickStart, onPickFull } = setup();
+		const { onPickStart, onPickFull, onClose, onGraded } = setup();
 		await type(VERSE);
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		expect(onPickFull).toHaveBeenCalledTimes(1);
@@ -68,7 +70,7 @@ describe('MemorizeCheckPanel', () => {
 
 	// Spacing is not a recall failure, so this still counts as perfect.
 	it('treats a spacing-only difference as perfect', async () => {
-		const { onPickStart, onPickFull } = setup();
+		const { onPickStart, onPickFull, onClose, onGraded } = setup();
 		await type(VERSE.replace('갈 길과', '갈길과'));
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		expect(onPickFull).toHaveBeenCalledWith(5);
@@ -77,7 +79,7 @@ describe('MemorizeCheckPanel', () => {
 	// The app may declare success on its own; it may not decide that a flawed
 	// attempt was nonetheless easy.
 	it('asks for confirmation when the attempt is flawed, writing nothing yet', async () => {
-		const { onPickStart, onPickFull } = setup();
+		const { onPickStart, onPickFull, onClose, onGraded } = setup();
 		await type(VERSE.replace('가르쳐서', '가르치고'));
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		expect(onPickFull).not.toHaveBeenCalled();
@@ -85,7 +87,7 @@ describe('MemorizeCheckPanel', () => {
 	});
 
 	it('writes the proposal once confirmed', async () => {
-		const { onPickStart, onPickFull } = setup();
+		const { onPickStart, onPickFull, onClose, onGraded } = setup();
 		await type(VERSE.replace('가르쳐서', '가르치고'));
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
@@ -94,7 +96,7 @@ describe('MemorizeCheckPanel', () => {
 	});
 
 	it('writes nothing when the confirmation is cancelled', async () => {
-		const { onPickStart, onPickFull } = setup();
+		const { onPickStart, onPickFull, onClose, onGraded } = setup();
 		await type('전혀 다른 문장');
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
@@ -140,7 +142,7 @@ describe('MemorizeCheckPanel', () => {
 
 	// The opening was never produced, so there is nothing to time.
 	it('proposes no start rating when the opening was never typed', async () => {
-		const { onPickStart, onPickFull } = setup();
+		const { onPickStart, onPickFull, onClose, onGraded } = setup();
 		await type('전혀 다른 문장');
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
@@ -154,7 +156,7 @@ describe('Enter to submit', () => {
 	}
 
 	it('submits on Enter', async () => {
-		const { onPickStart, onPickFull } = setup();
+		const { onPickStart, onPickFull, onClose, onGraded } = setup();
 		await type(VERSE);
 		await pressEnter();
 		expect(onPickFull).toHaveBeenCalledTimes(1);
@@ -163,21 +165,21 @@ describe('Enter to submit', () => {
 	// Korean input confirms a syllable with Enter. Submitting on that keystroke
 	// would fire while the reader was still finishing a word.
 	it('ignores Enter that is confirming an IME composition', async () => {
-		const { onPickStart, onPickFull } = setup();
+		const { onPickStart, onPickFull, onClose, onGraded } = setup();
 		await type(VERSE);
 		await pressEnter({ isComposing: true });
 		expect(onPickFull).not.toHaveBeenCalled();
 	});
 
 	it('leaves Shift+Enter to insert a newline', async () => {
-		const { onPickStart, onPickFull } = setup();
+		const { onPickStart, onPickFull, onClose, onGraded } = setup();
 		await type(VERSE);
 		await pressEnter({ shiftKey: true });
 		expect(onPickFull).not.toHaveBeenCalled();
 	});
 
 	it('does nothing on Enter while the box is empty', async () => {
-		const { onPickStart, onPickFull } = setup();
+		const { onPickStart, onPickFull, onClose, onGraded } = setup();
 		await pressEnter();
 		expect(onPickFull).not.toHaveBeenCalled();
 	});
@@ -195,13 +197,49 @@ describe('adjusting the result after success', () => {
 	});
 
 	it('persists an adjustment made from the success screen', async () => {
-		const { onPickStart, onPickFull } = setup();
+		const { onPickStart, onPickFull, onClose, onGraded } = setup();
 		await type(VERSE);
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		await fireEvent.click(screen.getByLabelText(/전체 암송 난이도/));
 		// The popover lists each level as a radio item named "<level> <label>".
 		await fireEvent.click(screen.getByRole('menuitemradio', { name: '2 Hard' }));
 		expect(onPickFull).toHaveBeenLastCalledWith(2);
+	});
+});
+
+describe('finishing the check', () => {
+	// Once a result is recorded the curtain has no job left — the reader wants
+	// to compare what they typed against the verse, not keep it hidden.
+	it('asks the card to reveal the verse when a result lands', async () => {
+		const { onGraded } = setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(onGraded).toHaveBeenCalledTimes(1);
+	});
+
+	it('reveals after a confirmed imperfect attempt too', async () => {
+		const { onGraded } = setup();
+		await type(VERSE.replace('가르쳐서', '가르치고'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(onGraded).not.toHaveBeenCalled();
+		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
+		expect(onGraded).toHaveBeenCalledTimes(1);
+	});
+
+	it('closes back to the ordinary card', async () => {
+		const { onClose } = setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+		expect(onClose).toHaveBeenCalledTimes(1);
+	});
+
+	it('keeps 다시 alongside 닫기 for another go', async () => {
+		setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(screen.getByRole('button', { name: '다시' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: '닫기' })).toBeInTheDocument();
 	});
 });
 

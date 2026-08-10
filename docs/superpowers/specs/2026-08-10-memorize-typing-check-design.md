@@ -111,8 +111,13 @@ use.
 
 ## Confirmation
 
-**Accuracy 100%** — both ratings save immediately, with a toast naming
-them. A perfect recitation should not need a dialog.
+**Accuracy 100%** — both ratings save immediately and the panel reports what
+it stored. A perfect recitation should not need a dialog.
+
+Recording a result also ends the check: the curtain lifts, so the reader can
+compare the verse against what they typed, and 닫기 returns the card to its
+ordinary state. 다시 stays available for another attempt on the same verse.
+Hiding the verse after it has been graded serves nothing.
 
 **Anything less** — a confirmation panel opens showing the proposed
 ratings, the **verse text with the words the reader missed marked**, and both
