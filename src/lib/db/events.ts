@@ -1,6 +1,7 @@
-import type { EventRange, MemEvent, VerseProgress } from '$lib/types';
+import type { EventRange, MemEvent } from '$lib/types';
+import type { VerseRating } from './local';
+import { db } from './local';
 import { loadPackageData, filterVerses, isPackageInstalled } from './verses';
-import { listProgressByPackage } from './progress';
 
 /** D-day = dueAt 자정 − today 자정, 일 단위. 둘 다 'YYYY-MM-DD' 로컬. */
 export function dDay(dueAt: string, today: string): number {
@@ -16,9 +17,20 @@ export function activeEvents(events: MemEvent[], today: string): MemEvent[] {
 		.sort((a, b) => (a.dueAt < b.dueAt ? -1 : a.dueAt > b.dueAt ? 1 : 0));
 }
 
-/** "암송 완료" 판정. 정의를 바꾸려면 이 함수만 수정. */
-export function isMemorized(p: VerseProgress): boolean {
-	return p.bucket === 'mastered';
+/**
+ * "암송 완료" 판정. 정의를 바꾸려면 이 함수만 수정.
+ *
+ * A verse counts once the reader has rated both its opening and its whole
+ * text — the point at which they have actually worked through it.
+ *
+ * This replaced `bucket === 'mastered'`, which no code ever assigned:
+ * advanceBucket promotes new → current → old and stops, so the counter could
+ * only ever read 0/N. Note the underlying gap is still open — the scheduler
+ * excludes 'mastered' from the review queue, so nothing currently graduates
+ * out of review either. That is an SRS problem, not this counter's.
+ */
+export function isMemorized(rating: VerseRating | undefined): boolean {
+	return rating?.startDifficulty != null && rating?.fullDifficulty != null;
 }
 
 /** 홈 카드 링크. 기존 recentBundles의 bundleHref 규칙과 동일. */
@@ -84,9 +96,11 @@ export async function rangeProgress(
 ): Promise<{ done: number; total: number }> {
 	const total = verseNos.length;
 	if (total === 0) return { done: 0, total: 0 };
-	const all = await listProgressByPackage(packageId);
-	const wanted = new Set(verseNos);
-	const done = all.filter((p) => wanted.has(p.verseNo) && isMemorized(p)).length;
+	// One bulk read per package rather than per verse; verseRatings is indexed
+	// on packageId and only holds rows the reader has actually touched.
+	const rows = await db.verseRatings.where('packageId').equals(packageId).toArray();
+	const byVerseNo = new Map(rows.map((r) => [r.verseNo, r]));
+	const done = verseNos.filter((no) => isMemorized(byVerseNo.get(no))).length;
 	return { done, total };
 }
 

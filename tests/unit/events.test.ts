@@ -7,6 +7,7 @@ import {
 import { db } from '../../src/lib/db/local';
 import { listPackages, installPackage, isPackageInstalled } from '../../src/lib/db/verses';
 import { upsertProgress } from '../../src/lib/db/progress';
+import { setStartDifficulty, setFullDifficulty } from '../../src/lib/db/verseRatings';
 import type { MemEvent, VerseProgress } from '../../src/lib/types';
 
 const ev = (over: Partial<MemEvent> = {}): MemEvent => ({
@@ -47,14 +48,25 @@ describe('activeEvents', () => {
 });
 
 describe('isMemorized', () => {
-	const p = (bucket: VerseProgress['bucket']): VerseProgress => ({
-		id: '5_krv:1', packageId: '5_krv', verseNo: 1, bucket,
-		enteredBucketAt: 0, daysActiveInBucket: 0, lastReviewedAt: 0, citeRatings: [], recallRatings: []
+	const r = (start: number | null, full: number | null) => ({
+		id: '5_krv:1', packageId: '5_krv', verseNo: 1,
+		startDifficulty: start, fullDifficulty: full, updatedAt: 0
 	});
-	it('is true only for mastered', () => {
-		expect(isMemorized(p('mastered'))).toBe(true);
-		expect(isMemorized(p('current'))).toBe(false);
-		expect(isMemorized(p('new'))).toBe(false);
+	it('needs both ratings', () => {
+		expect(isMemorized(r(3, 4))).toBe(true);
+		expect(isMemorized(r(3, null))).toBe(false);
+		expect(isMemorized(r(null, 4))).toBe(false);
+		expect(isMemorized(r(null, null))).toBe(false);
+	});
+	// An untouched verse has no row at all, which must read as not memorized
+	// rather than throwing on the lookup.
+	it('treats a missing rating row as not memorized', () => {
+		expect(isMemorized(undefined)).toBe(false);
+	});
+	// Level 1 is the hardest tier, not an absent rating — a truthiness check
+	// here would silently discount every verse rated 1.
+	it('counts level 1, which is falsy as a number', () => {
+		expect(isMemorized(r(1, 1))).toBe(true);
 	});
 });
 
@@ -148,25 +160,28 @@ describe('events data layer', () => {
 		expect(await isPackageInstalled('5_krv')).toBe(false); // did not install as a side-effect
 	});
 
-	it('rangeProgress counts mastered verses within the range', async () => {
-		await upsertProgress({
-			id: '5_krv:1', packageId: '5_krv', verseNo: 1, bucket: 'mastered',
-			enteredBucketAt: 0, daysActiveInBucket: 0, lastReviewedAt: 0, citeRatings: [], recallRatings: []
-		});
-		await upsertProgress({
-			id: '5_krv:2', packageId: '5_krv', verseNo: 2, bucket: 'current',
-			enteredBucketAt: 0, daysActiveInBucket: 0, lastReviewedAt: 0, citeRatings: [], recallRatings: []
-		});
+	it('rangeProgress counts verses rated on both dimensions', async () => {
+		await setStartDifficulty('5_krv', 1, 2);
+		await setFullDifficulty('5_krv', 1, 5);
+		// Half-rated: started but not finished, so it does not count yet.
+		await setStartDifficulty('5_krv', 2, 3);
 		expect(await rangeProgress('5_krv', [1, 2])).toEqual({ done: 1, total: 2 });
 		expect(await rangeProgress('5_krv', [])).toEqual({ done: 0, total: 0 });
 	});
 
+	it('rangeProgress drops a verse back when a rating is cleared', async () => {
+		await setStartDifficulty('5_krv', 1, 2);
+		await setFullDifficulty('5_krv', 1, 5);
+		expect(await rangeProgress('5_krv', [1])).toEqual({ done: 1, total: 1 });
+		await setFullDifficulty('5_krv', 1, null);
+		expect(await rangeProgress('5_krv', [1])).toEqual({ done: 0, total: 1 });
+	});
+
 	it('buildEventCards assembles a card per active event range', async () => {
 		mockFetch({ 'data/events.json': sampleEvents });
-		await upsertProgress({
-			id: '5_krv:1', packageId: '5_krv', verseNo: 1, bucket: 'mastered',
-			enteredBucketAt: 0, daysActiveInBucket: 0, lastReviewedAt: 0, citeRatings: [], recallRatings: []
-		});
+		// Verse 1 rated on both dimensions, verse 2 untouched → 1 of 2.
+		await setStartDifficulty('5_krv', 1, 2);
+		await setFullDifficulty('5_krv', 1, 4);
 		const cards = await buildEventCards('2099-12-30');
 		expect(cards).toHaveLength(1);
 		expect(cards[0].eventTitle).toBe('11월 암송 데이');
