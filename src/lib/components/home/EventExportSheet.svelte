@@ -15,10 +15,19 @@
 	let sortByScripture = $state(false);
 </script>
 
-<div class="fixed inset-0 z-50 flex items-end justify-center bg-black/30 px-5 pb-5">
+<!-- z-[55]/z-[60], matching ConfirmDialog: the TabBar is fixed at z-50, and at
+     an equal z-index DOM order decides — the bar renders after the page, so a
+     z-50 sheet loses. That buried the confirm button under the bar, where
+     elementFromPoint resolved to a TabBar link: the tap navigated away instead
+     of downloading. A modal must sit above the nav, not tie with it.
+     Bottom padding clears the iOS home indicator the same way the TabBar does. -->
+<div
+	class="fixed inset-0 z-[55] flex items-end justify-center bg-black/30 px-5"
+	style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));"
+>
 	<button type="button" class="absolute inset-0" aria-label="닫기" onclick={onCancel}></button>
 	<div
-		class="relative w-full max-w-2xl rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-5 py-4 shadow-lg"
+		class="relative z-[60] w-full max-w-2xl rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-5 py-4 shadow-lg"
 		role="dialog"
 		aria-label="{eventTitle} 엑셀 다운로드"
 	>
