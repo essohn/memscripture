@@ -33,6 +33,37 @@ describe('MemorizeCheckPanel', () => {
 		expect(screen.queryByRole('button', { name: '저장' })).toBeNull();
 	});
 
+	// The original bug: a perfect attempt saved silently and left the panel
+	// exactly as it was, so the reader who recited it best got no reply at all.
+	// Asserting the callback fired is not enough — nothing proved the screen
+	// changed, which is why three reviews passed it.
+	it('reports success on screen and retires the input', async () => {
+		setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(screen.getByTestId('memorize-success')).toBeInTheDocument();
+		expect(screen.queryByRole('textbox')).toBeNull();
+		expect(screen.queryByRole('button', { name: '제출' })).toBeNull();
+	});
+
+	it('names the levels it saved', async () => {
+		setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		// 5 is xEasy; the start level depends on real elapsed time, so only the
+		// full level is pinned here.
+		expect(screen.getByTestId('memorize-success').textContent).toContain('xEasy');
+	});
+
+	it('can start over from the success screen', async () => {
+		setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
+		expect(screen.getByRole('textbox')).toHaveValue('');
+		expect(screen.queryByTestId('memorize-success')).toBeNull();
+	});
+
 	// Spacing is not a recall failure, so this still counts as perfect.
 	it('treats a spacing-only difference as perfect', async () => {
 		const onResult = setup();

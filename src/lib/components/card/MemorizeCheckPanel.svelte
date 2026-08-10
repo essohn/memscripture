@@ -1,6 +1,6 @@
 <script lang="ts">
 	import DifficultyBadge from './DifficultyBadge.svelte';
-	import type { DifficultyLevel } from '$lib/db/verseRatings';
+	import { DIFFICULTY_LABELS, type DifficultyLevel } from '$lib/db/verseRatings';
 	import { accuracyOf, fullDifficultyFor, markMismatchedWords } from '$lib/memorize/grade';
 	import { hasTypedOpening, startDifficultyFor } from '$lib/memorize/timing';
 
@@ -17,8 +17,12 @@
 	let openingAtMs = $state<number | null>(null);
 	let confirming = $state(false);
 	let proposed = $state<{ start: DifficultyLevel | null; full: DifficultyLevel } | null>(null);
+	/** Set once the result is written, which swaps the input for a summary.
+	 *  Without it a perfect attempt saved in silence and left the panel
+	 *  untouched — the reader who recited it best got no reply at all. */
+	let saved = $state<{ start: DifficultyLevel | null; full: DifficultyLevel } | null>(null);
 
-	const startedAt = Date.now();
+	let startedAt = $state(Date.now());
 
 	$effect(() => {
 		const id = setInterval(() => {
@@ -51,6 +55,7 @@
 		};
 		if (accuracy === 1) {
 			onResult(result);
+			saved = result;
 			return;
 		}
 		// Anything short of perfect goes through the reader — the app may
@@ -60,7 +65,10 @@
 	}
 
 	function save() {
-		if (proposed) onResult(proposed);
+		if (proposed) {
+			onResult(proposed);
+			saved = proposed;
+		}
 		confirming = false;
 	}
 
@@ -80,10 +88,43 @@
 	function cancel() {
 		confirming = false;
 	}
+
+	/** Fresh attempt from the success screen. Unlike 취소 this DOES reset the
+	 *  text and both clocks: the previous attempt is finished and recorded, so
+	 *  carrying its elapsed time into the next one would misreport it. */
+	function restart() {
+		saved = null;
+		typed = '';
+		openingAtMs = null;
+		startedAt = Date.now();
+		elapsedMs = 0;
+	}
 </script>
 
 <div class="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-elevated)] p-3">
-	{#if !confirming}
+	{#if saved}
+		<!-- The result has been written. Retiring the input matters as much as
+		     showing the levels: leaving 제출 on screen after a successful save
+		     reads as "nothing happened", which is exactly how this shipped. -->
+		<div data-testid="memorize-success" class="flex items-center gap-3">
+			<div>
+				<p class="text-[13px] font-semibold text-[var(--color-text)]">
+					{saved.full === 5 ? '완벽합니다' : '저장했습니다'}
+				</p>
+				<p class="mt-0.5 text-[12px] text-[var(--color-text-secondary)]">
+					{saved.start === null ? '시작 —' : `시작 ${DIFFICULTY_LABELS[saved.start]}`}
+					· 전체 {DIFFICULTY_LABELS[saved.full]}
+				</p>
+			</div>
+			<button
+				type="button"
+				onclick={restart}
+				class="ml-auto rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-card)]"
+			>
+				다시
+			</button>
+		</div>
+	{:else if !confirming}
 		<div class="mb-2 flex items-center justify-between text-[11px]">
 			<span class="tabular-nums text-[var(--color-text-secondary)]">⏱ {mmss(elapsedMs)}</span>
 			{#if openingAtMs !== null}
