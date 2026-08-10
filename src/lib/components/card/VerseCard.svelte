@@ -6,6 +6,7 @@
 	import BookmarkControl from '$lib/components/srs/BookmarkControl.svelte';
 	import VerseOverflowMenu from '$lib/components/oyo/VerseOverflowMenu.svelte';
 	import DifficultyBadge from '$lib/components/card/DifficultyBadge.svelte';
+	import MemorizeCheckPanel from './MemorizeCheckPanel.svelte';
 	import type { DifficultyLevel } from '$lib/db/verseRatings';
 	import { goto } from '$app/navigation';
 
@@ -346,6 +347,18 @@
 				{/if}
 			</div>
 		</div>
+
+		<!-- The check sits under the curtain, not instead of it: the curtain is
+		     the hint when the reader gets stuck. -->
+		{#if ratingsEnabled && verse.w.trim().length > 0}
+			<MemorizeCheckPanel
+				verse={verse.w}
+				onResult={(r) => {
+					if (r.start !== null) onPickStartDifficulty!(r.start);
+					onPickFullDifficulty!(r.full);
+				}}
+			/>
+		{/if}
 	{/if}
 
 	<!-- Bottom meta row: package name + tags. The verse number and bookmark ribbon
