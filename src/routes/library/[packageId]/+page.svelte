@@ -1,20 +1,19 @@
 <script lang="ts">
 	import Header from '$lib/components/nav/Header.svelte';
+	import { verseVisibility } from '$lib/state/verseVisibility.svelte';
 	import PackageTabStrip from '$lib/components/nav/PackageTabStrip.svelte';
 	import SeriesSubTabStrip from '$lib/components/filter/SeriesSubTabStrip.svelte';
 	import GroupSubStrip from '$lib/components/filter/GroupSubStrip.svelte';
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
 	import FontScalePicker from '$lib/components/card/FontScalePicker.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
-	import { Eye, EyeOff, Bookmark } from 'lucide-svelte';
+	import { Bookmark } from 'lucide-svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { level1Groups, level2GroupsInSeries, filterVerses } from '$lib/db/verses';
 	import { recordPackageView } from '$lib/db/recent';
 	import { recordRecentBundle } from '$lib/db/recentBundles';
 	import {
-		getShowVerseTextInList,
-		setShowVerseTextInList,
 		getVerseFontScale,
 		setVerseFontScale,
 		type VerseFontScale
@@ -39,7 +38,8 @@
 
 	const packageId = $derived(page.params.packageId!);
 
-	let showVerseText = $state(true);
+	// Read-through to the header toggle, which every screen shares.
+	const showVerseText = $derived(verseVisibility.shown);
 	let fontScale = $state<VerseFontScale>(1.0);
 	let ratingsByVerseNo = $state<Map<number, VerseRowRating>>(new Map());
 	let bookmarksByVerseNo = $state<Map<number, BookmarkColor>>(new Map());
@@ -208,12 +208,8 @@
 		const currentPackageId = packageId;
 		recordPackageView(currentPackageId).catch(() => {});
 		(async () => {
-			const [eye, scale] = await Promise.all([
-				getShowVerseTextInList(),
-				getVerseFontScale()
-			]);
+			const scale = await getVerseFontScale();
 			if (active) {
-				showVerseText = eye;
 				fontScale = scale;
 			}
 		})().catch(() => {});
@@ -323,10 +319,6 @@
 		navigateFilter(seriesIndex, next);
 	}
 
-	function toggleVerseText() {
-		showVerseText = !showVerseText;
-		setShowVerseTextInList(showVerseText).catch(() => {});
-	}
 </script>
 
 <Header title={data.pkg.name} onBack={() => goto('/library')} />
@@ -345,19 +337,6 @@
 		</span>
 		<div class="ml-auto flex items-center gap-1">
 			<FontScalePicker value={fontScale} onpick={pickFontScale} />
-			<button
-				type="button"
-				onclick={toggleVerseText}
-				aria-pressed={showVerseText}
-				aria-label={showVerseText ? '구절 본문 표시 끄기' : '구절 본문 표시 켜기'}
-				class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
-			>
-				{#if showVerseText}
-					<Eye size={16} />
-				{:else}
-					<EyeOff size={16} />
-				{/if}
-			</button>
 		</div>
 	</div>
 

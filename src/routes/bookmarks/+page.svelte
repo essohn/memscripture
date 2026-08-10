@@ -1,9 +1,9 @@
 <script lang="ts">
 	import Header from '$lib/components/nav/Header.svelte';
+	import { verseVisibility } from '$lib/state/verseVisibility.svelte';
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
 	import FontScalePicker from '$lib/components/card/FontScalePicker.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
-	import { Eye, EyeOff } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { setBookmark, clearBookmark, clearAllOfColor } from '$lib/db/bookmarks';
 	import {
@@ -13,8 +13,6 @@
 		type DifficultyLevel
 	} from '$lib/db/verseRatings';
 	import {
-		getShowVerseTextInList,
-		setShowVerseTextInList,
 		getVerseFontScale,
 		setVerseFontScale,
 		type VerseFontScale
@@ -26,7 +24,8 @@
 
 	let rows = $state<BookmarkedRow[]>(data.rows);
 	let selected = $state<BookmarkColor>('red');
-	let showVerseText = $state(true);
+	// Read-through to the header toggle, which every screen shares.
+	const showVerseText = $derived(verseVisibility.shown);
 	let fontScale = $state<VerseFontScale>(1.0);
 	// Composite-keyed difficulty cache. Bookmarks span packages, so verse.no
 	// alone isn't unique — `${packageId}:${verseNo}` is.
@@ -51,9 +50,8 @@
 	$effect(() => {
 		let active = true;
 		(async () => {
-			const [v, scale] = await Promise.all([getShowVerseTextInList(), getVerseFontScale()]);
+			const scale = await getVerseFontScale();
 			if (!active) return;
-			showVerseText = v;
 			fontScale = scale;
 
 			// Hydrate difficulty maps for every bookmarked row in one pass.
@@ -88,10 +86,6 @@
 		setFullDifficulty(packageId, verseNo, level).catch(() => {});
 	}
 
-	function toggleVerseText() {
-		showVerseText = !showVerseText;
-		setShowVerseTextInList(showVerseText).catch(() => {});
-	}
 
 	function pickFontScale(scale: VerseFontScale) {
 		fontScale = scale;
@@ -222,19 +216,6 @@
 					이 색 전부 지우기
 				</button>
 				<FontScalePicker value={fontScale} onpick={pickFontScale} />
-				<button
-					type="button"
-					onclick={toggleVerseText}
-					aria-pressed={showVerseText}
-					aria-label={showVerseText ? '구절 본문 표시 끄기' : '구절 본문 표시 켜기'}
-					class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
-				>
-					{#if showVerseText}
-						<Eye size={16} />
-					{:else}
-						<EyeOff size={16} />
-					{/if}
-				</button>
 			</div>
 		</div>
 

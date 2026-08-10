@@ -1,15 +1,14 @@
 <script lang="ts">
 	import Header from '$lib/components/nav/Header.svelte';
+	import { verseVisibility } from '$lib/state/verseVisibility.svelte';
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
 	import FontScalePicker from '$lib/components/card/FontScalePicker.svelte';
 	import VerseEditSheet, {
 		type VerseEditValues
 	} from '$lib/components/oyo/VerseEditSheet.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
-	import { Plus, Eye, EyeOff, FolderInput, FolderOutput, ArrowDownUp } from 'lucide-svelte';
+	import { Plus, FolderInput, FolderOutput, ArrowDownUp } from 'lucide-svelte';
 	import {
-		getShowVerseTextInList,
-		setShowVerseTextInList,
 		getVerseFontScale,
 		setVerseFontScale,
 		type VerseFontScale
@@ -32,7 +31,8 @@
 	import type { StoredVerse } from '$lib/db/local';
 
 	let verses = $state<StoredVerse[]>([]);
-	let showVerseText = $state(true);
+	// Read-through to the header toggle, which every screen shares.
+	const showVerseText = $derived(verseVisibility.shown);
 	let fontScale = $state<VerseFontScale>(1.0);
 	// Per-verse difficulty cache keyed by verse.no — separate maps for each
 	// dimension so a write to one doesn't blow away the other.
@@ -51,14 +51,9 @@
 	$effect(() => {
 		let active = true;
 		(async () => {
-			const [list, eyeState, scale] = await Promise.all([
-				listOyoVerses(),
-				getShowVerseTextInList(),
-				getVerseFontScale()
-			]);
+			const [list, scale] = await Promise.all([listOyoVerses(), getVerseFontScale()]);
 			if (!active) return;
 			verses = list;
-			showVerseText = eyeState;
 			fontScale = scale;
 
 			// Hydrate difficulty maps after the list lands. Done in a second
@@ -91,10 +86,6 @@
 		setFullDifficulty(OYO_PACKAGE_ID, verseNo, level).catch(() => {});
 	}
 
-	function toggleVerseText() {
-		showVerseText = !showVerseText;
-		setShowVerseTextInList(showVerseText).catch(() => {});
-	}
 
 	function pickFontScale(scale: VerseFontScale) {
 		fontScale = scale;
@@ -256,19 +247,6 @@
 				구절 추가
 			</button>
 			<FontScalePicker value={fontScale} onpick={pickFontScale} />
-			<button
-				type="button"
-				onclick={toggleVerseText}
-				aria-pressed={showVerseText}
-				aria-label={showVerseText ? '구절 본문 표시 끄기' : '구절 본문 표시 켜기'}
-				class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
-			>
-				{#if showVerseText}
-					<Eye size={16} />
-				{:else}
-					<EyeOff size={16} />
-				{/if}
-			</button>
 		</div>
 	</div>
 
