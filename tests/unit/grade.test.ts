@@ -166,3 +166,69 @@ describe('markMismatchedWords is consistent with the score', () => {
 		]);
 	});
 });
+
+describe('marking is independent of alignment tie-breaking', () => {
+	const TIM = '내가 이를 때까지 읽는 것과 권하는 것과 가르치는 것에 착념하라';
+
+	// Reported twice from real use: a word plainly present in the attempt came
+	// back marked wrong. Both times the cause was which minimum-cost path the
+	// edit-distance backtrace happened to take, not the reader's typing.
+	it('never marks a word the attempt contains in order', () => {
+		const attempts = [
+			TIM,
+			TIM.replace('가르치는', '가르키는'),
+			TIM.replace('착념하라', '착념하'),
+			'내가 이를 때까지 읽는 것과 권하는 그리고 것과 가르치는 것에 착념하라',
+			'내가이를 때까지읽는 것과권하는 것과가르치는 것에착념하라'
+		];
+		for (const attempt of attempts) {
+			const marks = markMismatchedWords(TIM, attempt);
+			for (const m of marks) {
+				if (attempt.includes(m.word) && m.ok === false) {
+					// Repeated words legitimately fail when one instance is missing,
+					// so only flag words that appear as often as the verse needs.
+					const needed = TIM.split(/\s+/).filter((w) => w === m.word).length;
+					const present = attempt.split(/\s+/).filter((w) => w === m.word).length;
+					expect(present, `"${m.word}" in "${attempt}"`).toBeLessThan(needed);
+				}
+			}
+		}
+	});
+
+	// Repeated words must consume distinct positions rather than both matching
+	// the same occurrence.
+	it('matches repeated words against separate occurrences', () => {
+		const missingOne = '내가 이를 때까지 읽는 것과 권하는 가르치는 것에 착념하라';
+		const wrong = markMismatchedWords(TIM, missingOne).filter((m) => !m.ok);
+		expect(wrong.map((m) => m.word)).toEqual(['것과']);
+	});
+});
+
+describe('repeated words do not smear the marking', () => {
+	// 느헤미야 8:8 repeats 그. Dropping the first one used to make a forward
+	// search find the second, drag the cursor past everything between, and mark
+	// five correct words wrong to account for one missing one.
+	const NEH = '하나님의 율법책을 낭독하고 그 뜻을 해석하여 백성으로 그 낭독하는 것을 다 깨닫게 하매';
+
+	it('marks only the dropped instance of a repeated word', () => {
+		const dropped = '하나님의 율법책을 낭독하고 뜻을 해석하여 백성으로 그 낭독하는 것을 다 깨닫게 하매';
+		const wrong = markMismatchedWords(NEH, dropped).filter((m) => !m.ok);
+		expect(wrong.map((m) => m.word)).toEqual(['그']);
+	});
+
+	it('marks the later instance when that is the one dropped', () => {
+		const dropped = '하나님의 율법책을 낭독하고 그 뜻을 해석하여 백성으로 낭독하는 것을 다 깨닫게 하매';
+		expect(markMismatchedWords(NEH, dropped).filter((m) => !m.ok)).toHaveLength(1);
+	});
+
+	it('still accepts an inserted word without marking its neighbours', () => {
+		const inserted = '하나님의 율법책을 낭독하고 그 참으로 뜻을 해석하여 백성으로 그 낭독하는 것을 다 깨닫게 하매';
+		expect(markMismatchedWords(NEH, inserted).filter((m) => !m.ok)).toEqual([]);
+	});
+
+	it('marks nothing when the repeated verse is typed correctly', () => {
+		expect(markMismatchedWords(NEH, NEH).filter((m) => !m.ok)).toEqual([]);
+		expect(accuracyOf(NEH, NEH)).toBe(1);
+	});
+});
+

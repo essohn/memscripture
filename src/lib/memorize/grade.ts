@@ -65,89 +65,56 @@ export function fullDifficultyFor(accuracy: number): DifficultyLevel {
 /**
  * Per-word right/wrong marks for display.
  *
- * Positional, not a diff: word i of the attempt is compared with word i of
- * the verse. A real alignment would forgive an inserted word and shift the
- * rest, but it would also disagree with the character-level score in ways
- * that are hard to explain. This is feedback, not scoring.
+ * Marking is per word while the score is per character: a character-level diff
+ * highlights fragments of syllables, which is unreadable, and "which words did
+ * I miss" is the question the reader actually has.
  */
 export function markMismatchedWords(
 	expected: string,
 	actual: string
 ): { word: string; ok: boolean }[] {
 	const words = expected.trim().split(/\s+/).filter(Boolean);
-	const matched = matchedCharacters(normalizeForGrading(expected), normalizeForGrading(actual));
+	const attempt = normalizeForGrading(actual);
 
-	// Normalization only ever removes characters, so concatenating the words'
-	// normalized forms reproduces the normalized whole — which is what lets a
-	// running cursor carve the alignment back into words.
+	// Walk the verse's words in order, each one searched from just past where
+	// the previous one was found. A word counts as produced when it appears
+	// at or after that position.
+	//
+	// This replaced an edit-distance backtrace. That aligned on the same
+	// character stream the score uses, which sounded right, but its answer
+	// depended on which minimum-cost path it happened to walk — ties are
+	// common, and two readings of the same attempt could disagree about a word
+	// the reader plainly typed. It was patched once for that and reported
+	// again. A forward scan has no ties to break.
+	//
+	// Advancing the cursor past each hit is what keeps repeated words honest:
+	// a verse with 것과 twice needs two separate occurrences, not one matched
+	// twice.
 	let cursor = 0;
-	return words.map((word) => {
-		const length = normalizeForGrading(word).length;
-		const span = matched.slice(cursor, cursor + length);
-		cursor += length;
+	return words.map((word, i) => {
+		const needle = normalizeForGrading(word);
 		// A token that normalizes away entirely (a bare '*' marker) has nothing
 		// to produce, so it can never be got wrong.
-		return { word, ok: length === 0 || span.every(Boolean) };
+		if (needle.length === 0) return { word, ok: true };
+
+		const at = attempt.indexOf(needle, cursor);
+		if (at === -1) return { word, ok: false };
+
+		// A hit further along may be a different occurrence of a repeated word
+		// rather than this one. 느헤미야 8:8 has 그 twice: drop the first and an
+		// unbounded search finds the second, dragging the cursor past everything
+		// between and marking five correct words wrong to explain one missing
+		// one. The tell is what sits at the cursor — if the NEXT verse word is
+		// already there, this word was skipped, so mark it and stay put.
+		if (at > cursor) {
+			const following = normalizeForGrading(words[i + 1] ?? '');
+			if (following.length > 0 && attempt.startsWith(following, cursor)) {
+				return { word, ok: false };
+			}
+		}
+
+		cursor = at + needle.length;
+		return { word, ok: true };
 	});
 }
 
-/**
- * Per-character alignment: `result[i]` is true when `a[i]` lines up with an
- * identical character in `b`.
- *
- * This replaced comparing word i of the attempt with word i of the verse. That
- * broke on spacing: writing `권하는것과` as one word shifted every later word by
- * a position, so a recitation the score called perfect had its whole tail
- * marked wrong. Score and marking disagreeing about the same input is worse
- * than either being strict or lenient on its own.
- *
- * Aligning on the normalized character stream — the exact string the score is
- * computed from — makes the two agree by construction.
- */
-function matchedCharacters(a: string, b: string): boolean[] {
-	const rows = a.length;
-	const cols = b.length;
-	// Full matrix, unlike levenshtein()'s rolled row: the backtrace needs it.
-	// The longest shipped verse is 224 characters, so this stays small.
-	const d: number[][] = Array.from({ length: rows + 1 }, (_, i) =>
-		Array.from({ length: cols + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
-	);
-	for (let i = 1; i <= rows; i++) {
-		for (let j = 1; j <= cols; j++) {
-			const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-			d[i][j] = Math.min(d[i][j - 1] + 1, d[i - 1][j] + 1, d[i - 1][j - 1] + cost);
-		}
-	}
-
-	const matched = new Array<boolean>(rows).fill(false);
-	let i = rows;
-	let j = cols;
-	while (i > 0 && j > 0) {
-		// Order matters, and deletion has to come first.
-		//
-		// Ties are common — several paths often share the minimum cost — and the
-		// walk runs backwards, so a match tried first anchors the attempt's last
-		// character to the LAST identical character in the verse. Typing only
-		// `내가 이를 때까지 읽는` paired that trailing 는 with the 는 of 가르치는
-		// twenty characters later, splitting 읽는 and marking it wrong even
-		// though it had been typed perfectly.
-		//
-		// Preferring deletion consumes the verse's unmatched tail first, so
-		// matches land as early as they legitimately can. Substitution stays
-		// last: it burns a character from each side, and doing that early
-		// strands characters a real match needed.
-		if (d[i][j] === d[i - 1][j] + 1) {
-			i--; // in the verse, absent from the attempt
-		} else if (a[i - 1] === b[j - 1] && d[i][j] === d[i - 1][j - 1]) {
-			matched[i - 1] = true;
-			i--;
-			j--;
-		} else if (d[i][j] === d[i][j - 1] + 1) {
-			j--; // typed but not in the verse
-		} else {
-			i--; // substituted
-			j--;
-		}
-	}
-	return matched;
-}
