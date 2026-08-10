@@ -17,9 +17,17 @@ export interface ConditionalFill {
 	byValue: { value: number; fill: string }[];
 }
 
+/** A column's `align` becomes the column's default format, which is what a
+ *  value typed into a previously empty cell inherits. Per-cell alignment only
+ *  covers cells that already exist. */
+export interface SheetColumn {
+	width: number;
+	align?: 'center';
+}
+
 export interface Sheet {
 	name: string;
-	cols: { width: number }[];
+	cols: SheetColumn[];
 	rows: SheetCell[][];
 	/** Rows held on screen while scrolling. 0 disables the frozen pane. */
 	freezeRows: number;
@@ -73,28 +81,36 @@ function styleKey(c: SheetCell): string {
 
 const PLAIN = '||';
 
-function buildStyles(rows: SheetCell[][], conditionalFills: ConditionalFill[]) {
+function buildStyles(
+	rows: SheetCell[][],
+	cols: SheetColumn[],
+	conditionalFills: ConditionalFill[]
+) {
 	const userFills: string[] = [];
 	const xfs: { bold: boolean; fillId: number; align?: 'center' }[] = [];
 	const index = new Map<string, number>([[PLAIN, 0]]);
 
-	for (const row of rows) {
-		for (const c of row) {
-			if (c.v === null) continue;
-			const key = styleKey(c);
-			if (index.has(key)) continue;
-			let fillId = 0;
-			if (c.fill) {
-				let at = userFills.indexOf(c.fill);
-				if (at === -1) at = userFills.push(c.fill) - 1;
-				// Slots 0 and 1 are reserved by the format for 'none' and
-				// 'gray125'; Excel misreads the table if they are displaced.
-				fillId = at + 2;
-			}
-			index.set(key, xfs.length + 1);
-			xfs.push({ bold: !!c.bold, fillId, align: c.align });
+	const register = (c: SheetCell): void => {
+		if (c.v === null) return;
+		const key = styleKey(c);
+		if (index.has(key)) return;
+		let fillId = 0;
+		if (c.fill) {
+			let at = userFills.indexOf(c.fill);
+			if (at === -1) at = userFills.push(c.fill) - 1;
+			// Slots 0 and 1 are reserved by the format for 'none' and
+			// 'gray125'; Excel misreads the table if they are displaced.
+			fillId = at + 2;
 		}
-	}
+		index.set(key, xfs.length + 1);
+		xfs.push({ bold: !!c.bold, fillId, align: c.align });
+	};
+
+	for (const row of rows) for (const c of row) register(c);
+	// Column defaults need a style record of their own. A body cell that is
+	// centred already produces the identical style key, so the two share one
+	// entry rather than duplicating it.
+	for (const c of cols) if (c.align) register(columnStyleCell(c));
 
 	const fillsXml = [
 		'<fill><patternFill patternType="none"/></fill>',
@@ -145,8 +161,16 @@ function buildStyles(rows: SheetCell[][], conditionalFills: ConditionalFill[]) {
 	return {
 		xml,
 		indexOf: (c: SheetCell) => index.get(styleKey(c)) ?? 0,
-		dxfIdOf: (fill: string) => dxfFills.indexOf(fill)
+		dxfIdOf: (fill: string) => dxfFills.indexOf(fill),
+		colStyleOf: (c: SheetColumn) =>
+			c.align ? (index.get(styleKey(columnStyleCell(c))) ?? 0) : 0
 	};
+}
+
+/** The synthetic cell whose style a column default resolves to. Value is a
+ *  placeholder — only bold/fill/align feed the style key. */
+function columnStyleCell(c: SheetColumn): SheetCell {
+	return { v: 0, align: c.align };
 }
 
 /** Every distinct fill referenced by any rule, in first-seen order — that
@@ -164,13 +188,21 @@ function conditionalFillList(conditionalFills: ConditionalFill[]): string[] {
 function buildSheetXml(
 	sheet: Sheet,
 	styleIndex: (c: SheetCell) => number,
-	dxfIdOf: (fill: string) => number
+	dxfIdOf: (fill: string) => number,
+	colStyleOf: (c: SheetColumn) => number
 ): string {
 	// CT_Cols requires at least one <col> child; an empty <cols></cols> is
 	// schema-invalid and makes Excel offer to repair the file.
 	const cols = sheet.cols.length
 		? `<cols>${sheet.cols
-				.map((c, i) => `<col min="${i + 1}" max="${i + 1}" width="${c.width}" customWidth="1"/>`)
+				.map((c, i) => {
+					const s = colStyleOf(c);
+					// `style` points at a cellXfs entry, which already carries
+					// applyAlignment. CT_Col has no applyAlignment attribute of its
+					// own — adding one is schema-invalid and readers reject it.
+					const style = s ? ` style="${s}"` : '';
+					return `<col min="${i + 1}" max="${i + 1}" width="${c.width}" customWidth="1"${style}/>`;
+				})
 				.join('')}</cols>`
 		: '';
 
@@ -222,7 +254,7 @@ function buildSheetXml(
 }
 
 export function writeXlsx(sheet: Sheet): Uint8Array {
-	const styles = buildStyles(sheet.rows, sheet.conditionalFills ?? []);
+	const styles = buildStyles(sheet.rows, sheet.cols, sheet.conditionalFills ?? []);
 	const enc = new TextEncoder();
 	const part = (name: string, xml: string): ZipEntry => ({ name, bytes: enc.encode(xml) });
 
@@ -257,6 +289,6 @@ export function writeXlsx(sheet: Sheet): Uint8Array {
 				'</Relationships>'
 		),
 		part('xl/styles.xml', styles.xml),
-		part('xl/worksheets/sheet1.xml', buildSheetXml(sheet, styles.indexOf, styles.dxfIdOf))
+		part('xl/worksheets/sheet1.xml', buildSheetXml(sheet, styles.indexOf, styles.dxfIdOf, styles.colStyleOf))
 	]);
 }

@@ -142,7 +142,7 @@ export function buildEventSheet(
 
 	return {
 		name: eventTitle,
-		cols: columns.map((c) => ({ width: c.width })),
+		cols: columns.map((c) => ({ width: c.width, align: c.align })),
 		rows: [header, ...body],
 		freezeRows: 1,
 		conditionalFills: options.includeDifficulty ? difficultyRules(body.length) : []

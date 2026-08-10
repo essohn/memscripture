@@ -9,10 +9,11 @@
 	}
 	let { eventTitle, busy, onConfirm, onCancel }: Props = $props();
 
-	// Difficulty on by default: it is the reason the export exists. Scripture
-	// sort off by default so the file opens in the same order as the app.
+	// Both on by default. Difficulty is the reason the export exists, and a
+	// printed list is easier to work through in scripture order — the app's own
+	// order exists to match the printed 구절집, which the file is not.
 	let includeDifficulty = $state(true);
-	let sortByScripture = $state(false);
+	let sortByScripture = $state(true);
 </script>
 
 <!-- z-[55]/z-[60], matching ConfirmDialog: the TabBar is fixed at z-50, and at

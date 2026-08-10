@@ -8,20 +8,39 @@ import EventExportSheet from '../../src/lib/components/home/EventExportSheet.sve
 const props = { eventTitle: '2026 여름 암송 DAY', busy: false };
 
 describe('EventExportSheet', () => {
-	it('defaults to difficulty on and scripture sort off', () => {
+	it('defaults both options on', () => {
 		render(EventExportSheet, { ...props, onConfirm: vi.fn(), onCancel: vi.fn() });
 		expect(screen.getByLabelText(/난이도 열 포함/)).toBeChecked();
-		expect(screen.getByLabelText(/장절 순서/)).not.toBeChecked();
+		expect(screen.getByLabelText(/장절 순서/)).toBeChecked();
 	});
 
-	it('reports the chosen options on confirm', async () => {
+	it('confirms the defaults untouched', async () => {
 		const onConfirm = vi.fn();
 		render(EventExportSheet, { ...props, onConfirm, onCancel: vi.fn() });
-		await fireEvent.click(screen.getByLabelText(/장절 순서/));
 		await fireEvent.click(screen.getByRole('button', { name: '다운로드' }));
 		expect(onConfirm).toHaveBeenCalledWith({
 			includeDifficulty: true,
 			sortByScripture: true
+		});
+	});
+
+	// Both boxes now start checked, so unchecking is the path that proves the
+	// bindings are live rather than the confirm handler echoing its defaults.
+	it('reports each box after it is unchecked', async () => {
+		const onConfirm = vi.fn();
+		render(EventExportSheet, { ...props, onConfirm, onCancel: vi.fn() });
+		await fireEvent.click(screen.getByLabelText(/장절 순서/));
+		await fireEvent.click(screen.getByRole('button', { name: '다운로드' }));
+		expect(onConfirm).toHaveBeenLastCalledWith({
+			includeDifficulty: true,
+			sortByScripture: false
+		});
+
+		await fireEvent.click(screen.getByLabelText(/난이도 열 포함/));
+		await fireEvent.click(screen.getByRole('button', { name: '다운로드' }));
+		expect(onConfirm).toHaveBeenLastCalledWith({
+			includeDifficulty: false,
+			sortByScripture: false
 		});
 	});
 

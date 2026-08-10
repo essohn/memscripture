@@ -30,7 +30,11 @@ A download icon sits in the event section header, beside the D-day badge.
 Tapping it opens a sheet with two checkboxes and a confirm button:
 
 - **☑ 난이도 열 포함 (시작 · 전체)** — default **on**
-- **☐ 장절 순서로 정렬** — default **off**
+- **☑ 장절 순서로 정렬** — default **on**
+
+Both default on. Difficulty is the reason the export exists, and a printed
+list is easier to work through in scripture order — the app's own ordering
+exists to match the printed 구절집, which this file is not.
 
 Confirming downloads `<event title>-<YYYY-MM-DD>.xlsx`.
 
@@ -58,9 +62,15 @@ what the reader looks for first.
 |------|------|------|------|------|------|------|
 | 4.5  | 4.5  | 10   | 6    | 14   | 18   | 60   |
 
-`시작`/`전체`/`번호` are centered; the rest are left-aligned. When the
-difficulty option is off, both columns are omitted entirely and the sheet
-starts at `구분` — they are not emitted blank.
+`시작`/`전체`/`번호` are centered; the rest are left-aligned. Centring is set
+on the **column** (`<col style="…">`), not only on each cell, so a level
+typed into a previously empty cell is centred too — the same reason the
+colour is a conditional rule. Note that `CT_Col` has no `applyAlignment`
+attribute of its own; that flag lives on the `<xf>` the column's `style`
+points at, and adding it to `<col>` makes readers reject the file.
+
+When the difficulty option is off, both columns are omitted entirely and
+the sheet starts at `구분` — they are not emitted blank.
 
 ### Difficulty cells
 

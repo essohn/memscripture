@@ -95,6 +95,37 @@ describe('sanitizeSheetName', () => {
 	});
 });
 
+describe('writeXlsx column defaults', () => {
+	const withAlign: Sheet = {
+		name: 'Cols',
+		cols: [{ width: 4.5, align: 'center' }, { width: 20 }],
+		rows: [[{ v: 'a' }, { v: 'b' }]],
+		freezeRows: 0
+	};
+	const xml = readZip(writeXlsx(withAlign)).get('xl/worksheets/sheet1.xml')!;
+
+	// A per-cell align only reaches cells that already exist. The column's own
+	// style is what a value typed into an empty cell inherits.
+	it('points an aligned column at a style record', () => {
+		const col = /<col min="1"[^>]*\/>/.exec(xml)![0];
+		expect(col).toMatch(/ style="\d+"/);
+	});
+
+	it('leaves an unaligned column without a style', () => {
+		const col = /<col min="2"[^>]*\/>/.exec(xml)![0];
+		expect(col).not.toContain('style=');
+	});
+
+	// CT_Col has no applyAlignment attribute; the flag belongs on the <xf> the
+	// style points at. Emitting it on <col> is schema-invalid, and readers
+	// reject the file outright.
+	it('does not put applyAlignment on the col element', () => {
+		expect(xml.slice(xml.indexOf('<cols>'), xml.indexOf('</cols>'))).not.toContain(
+			'applyAlignment'
+		);
+	});
+});
+
 describe('writeXlsx conditional formatting', () => {
 	const cf: Sheet = {
 		name: 'CF',
