@@ -359,10 +359,8 @@
 		{#if ratingsEnabled && normalizeForGrading(verse.w).length > 0}
 			<MemorizeCheckPanel
 				verse={verse.w}
-				onResult={(r) => {
-					if (r.start !== null) onPickStartDifficulty!(r.start);
-					onPickFullDifficulty!(r.full);
-				}}
+				onPickStart={onPickStartDifficulty!}
+				onPickFull={onPickFullDifficulty!}
 			/>
 		{/if}
 	{/if}

@@ -6,9 +6,14 @@
 
 	interface Props {
 		verse: string;
-		onResult: (r: { start: DifficultyLevel | null; full: DifficultyLevel }) => void;
+		/** Per dimension rather than one combined result, so this component can
+		 *  express the difference between "no start rating was measurable, leave
+		 *  whatever is there" and "the reader cleared it". A single payload
+		 *  cannot say both with one null. */
+		onPickStart: (level: DifficultyLevel | null) => void;
+		onPickFull: (level: DifficultyLevel | null) => void;
 	}
-	let { verse, onResult }: Props = $props();
+	let { verse, onPickStart, onPickFull }: Props = $props();
 
 	let typed = $state('');
 	let elapsedMs = $state(0);
@@ -20,7 +25,7 @@
 	/** Set once the result is written, which swaps the input for a summary.
 	 *  Without it a perfect attempt saved in silence and left the panel
 	 *  untouched — the reader who recited it best got no reply at all. */
-	let saved = $state<{ start: DifficultyLevel | null; full: DifficultyLevel } | null>(null);
+	let saved = $state<{ start: DifficultyLevel | null; full: DifficultyLevel | null } | null>(null);
 
 	let startedAt = $state(Date.now());
 
@@ -47,6 +52,17 @@
 		return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 	}
 
+	/**
+	 * Enter submits. Shift+Enter keeps the newline, and a composing Enter is
+	 * ignored: Korean input uses Enter to commit a syllable, so submitting on
+	 * that keystroke would fire while the reader was mid-word.
+	 */
+	function onKeydown(e: KeyboardEvent) {
+		if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+		e.preventDefault();
+		if (typed.trim().length > 0) submit();
+	}
+
 	function submit() {
 		const accuracy = accuracyOf(verse, typed);
 		const result = {
@@ -54,7 +70,7 @@
 			full: fullDifficultyFor(accuracy)
 		};
 		if (accuracy === 1) {
-			onResult(result);
+			commit(result);
 			saved = result;
 			return;
 		}
@@ -66,10 +82,18 @@
 
 	function save() {
 		if (proposed) {
-			onResult(proposed);
+			commit(proposed);
 			saved = proposed;
 		}
 		confirming = false;
+	}
+
+	/** Writes a freshly graded result. A null start is withheld: it means the
+	 *  opening was never typed, so there is nothing to say — not that the
+	 *  reader wants an existing rating erased. */
+	function commit(r: { start: DifficultyLevel | null; full: DifficultyLevel }) {
+		if (r.start !== null) onPickStart(r.start);
+		onPickFull(r.full);
 	}
 
 	/**
@@ -87,6 +111,17 @@
 	 */
 	function cancel() {
 		confirming = false;
+	}
+
+	/** Re-writes the result with one dimension changed. The pickers are live —
+	 *  a change lands immediately, the same as tapping a badge on the card. */
+	function adjust(patch: { start?: DifficultyLevel | null; full?: DifficultyLevel | null }) {
+		if (!saved) return;
+		saved = { ...saved, ...patch };
+		// Here a null IS the reader's choice, so it is written through — unlike
+		// the withheld null in commit().
+		if ('start' in patch) onPickStart(patch.start ?? null);
+		if ('full' in patch) onPickFull(patch.full ?? null);
 	}
 
 	/** Fresh attempt from the success screen. Unlike 취소 this DOES reset the
@@ -113,7 +148,7 @@
 				</p>
 				<p class="mt-0.5 text-[12px] text-[var(--color-text-secondary)]">
 					{saved.start === null ? '시작 —' : `시작 ${DIFFICULTY_LABELS[saved.start]}`}
-					· 전체 {DIFFICULTY_LABELS[saved.full]}
+					· {saved.full === null ? '전체 —' : `전체 ${DIFFICULTY_LABELS[saved.full]}`}
 				</p>
 			</div>
 			<button
@@ -123,6 +158,21 @@
 			>
 				다시
 			</button>
+		</div>
+		<!-- Editable, not just reported: the proposal is a guess, and a reader who
+		     disagrees should not have to redo the attempt to change it. Same
+		     pickers as the confirm panel, so one control means one thing. -->
+		<div class="mt-3 flex items-center gap-3">
+			<DifficultyBadge
+				value={saved.start}
+				label="첫 시작 난이도"
+				onpick={(l) => adjust({ start: l })}
+			/>
+			<DifficultyBadge
+				value={saved.full}
+				label="전체 암송 난이도"
+				onpick={(l) => adjust({ full: l })}
+			/>
 		</div>
 	{:else if !confirming}
 		<div class="mb-2 flex items-center justify-between text-[11px]">
@@ -135,6 +185,7 @@
 			bind:value={typed}
 			rows="3"
 			aria-label="암송 구절 입력"
+			onkeydown={onKeydown}
 			placeholder="외운 구절을 입력하세요"
 			class="w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-2 text-[14px] text-[var(--color-text)]"
 		></textarea>

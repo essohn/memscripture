@@ -4,9 +4,11 @@ import MemorizeCheckPanel from '../../src/lib/components/card/MemorizeCheckPanel
 
 const VERSE = '그들에게 율례와 법도를 가르쳐서 마땅히 갈 길과 할 일을 그들에게 보이고';
 
-function setup(onResult = vi.fn()) {
-	render(MemorizeCheckPanel, { verse: VERSE, onResult });
-	return onResult;
+function setup() {
+	const onPickStart = vi.fn();
+	const onPickFull = vi.fn();
+	render(MemorizeCheckPanel, { verse: VERSE, onPickStart, onPickFull });
+	return { onPickStart, onPickFull };
 }
 
 async function type(text: string) {
@@ -25,11 +27,11 @@ describe('MemorizeCheckPanel', () => {
 
 	// A perfect recitation should not need a dialog.
 	it('saves straight away on a perfect attempt', async () => {
-		const onResult = setup();
+		const { onPickStart, onPickFull } = setup();
 		await type(VERSE);
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		expect(onResult).toHaveBeenCalledTimes(1);
-		expect(onResult.mock.calls[0][0].full).toBe(5);
+		expect(onPickFull).toHaveBeenCalledTimes(1);
+		expect(onPickFull).toHaveBeenCalledWith(5);
 		expect(screen.queryByRole('button', { name: '저장' })).toBeNull();
 	});
 
@@ -66,37 +68,37 @@ describe('MemorizeCheckPanel', () => {
 
 	// Spacing is not a recall failure, so this still counts as perfect.
 	it('treats a spacing-only difference as perfect', async () => {
-		const onResult = setup();
+		const { onPickStart, onPickFull } = setup();
 		await type(VERSE.replace('갈 길과', '갈길과'));
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		expect(onResult.mock.calls[0][0].full).toBe(5);
+		expect(onPickFull).toHaveBeenCalledWith(5);
 	});
 
 	// The app may declare success on its own; it may not decide that a flawed
 	// attempt was nonetheless easy.
 	it('asks for confirmation when the attempt is flawed, writing nothing yet', async () => {
-		const onResult = setup();
+		const { onPickStart, onPickFull } = setup();
 		await type(VERSE.replace('가르쳐서', '가르치고'));
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		expect(onResult).not.toHaveBeenCalled();
+		expect(onPickFull).not.toHaveBeenCalled();
 		expect(screen.getByRole('button', { name: '저장' })).toBeInTheDocument();
 	});
 
 	it('writes the proposal once confirmed', async () => {
-		const onResult = setup();
+		const { onPickStart, onPickFull } = setup();
 		await type(VERSE.replace('가르쳐서', '가르치고'));
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
-		expect(onResult).toHaveBeenCalledTimes(1);
-		expect(onResult.mock.calls[0][0].full).toBeLessThan(5);
+		expect(onPickFull).toHaveBeenCalledTimes(1);
+		expect(onPickFull.mock.calls[0][0]).toBeLessThan(5);
 	});
 
 	it('writes nothing when the confirmation is cancelled', async () => {
-		const onResult = setup();
+		const { onPickStart, onPickFull } = setup();
 		await type('전혀 다른 문장');
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
-		expect(onResult).not.toHaveBeenCalled();
+		expect(onPickFull).not.toHaveBeenCalled();
 	});
 
 	// 취소 discards the write, not the reader's progress — deliberately, so
@@ -122,10 +124,68 @@ describe('MemorizeCheckPanel', () => {
 
 	// The opening was never produced, so there is nothing to time.
 	it('proposes no start rating when the opening was never typed', async () => {
-		const onResult = setup();
+		const { onPickStart, onPickFull } = setup();
 		await type('전혀 다른 문장');
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
-		expect(onResult.mock.calls[0][0].start).toBeNull();
+		expect(onPickStart).not.toHaveBeenCalled();
 	});
 });
+
+describe('Enter to submit', () => {
+	async function pressEnter(over: Record<string, unknown> = {}) {
+		await fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter', ...over });
+	}
+
+	it('submits on Enter', async () => {
+		const { onPickStart, onPickFull } = setup();
+		await type(VERSE);
+		await pressEnter();
+		expect(onPickFull).toHaveBeenCalledTimes(1);
+	});
+
+	// Korean input confirms a syllable with Enter. Submitting on that keystroke
+	// would fire while the reader was still finishing a word.
+	it('ignores Enter that is confirming an IME composition', async () => {
+		const { onPickStart, onPickFull } = setup();
+		await type(VERSE);
+		await pressEnter({ isComposing: true });
+		expect(onPickFull).not.toHaveBeenCalled();
+	});
+
+	it('leaves Shift+Enter to insert a newline', async () => {
+		const { onPickStart, onPickFull } = setup();
+		await type(VERSE);
+		await pressEnter({ shiftKey: true });
+		expect(onPickFull).not.toHaveBeenCalled();
+	});
+
+	it('does nothing on Enter while the box is empty', async () => {
+		const { onPickStart, onPickFull } = setup();
+		await pressEnter();
+		expect(onPickFull).not.toHaveBeenCalled();
+	});
+});
+
+describe('adjusting the result after success', () => {
+	// The success screen was read-only, so a reader who disagreed with a
+	// proposal had no way to change it without redoing the whole attempt.
+	it('offers both difficulty pickers', async () => {
+		setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(screen.getByLabelText(/첫 시작 난이도/)).toBeInTheDocument();
+		expect(screen.getByLabelText(/전체 암송 난이도/)).toBeInTheDocument();
+	});
+
+	it('persists an adjustment made from the success screen', async () => {
+		const { onPickStart, onPickFull } = setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByLabelText(/전체 암송 난이도/));
+		// The popover lists each level as a radio item named "<level> <label>".
+		await fireEvent.click(screen.getByRole('menuitemradio', { name: '2 Hard' }));
+		expect(onPickFull).toHaveBeenLastCalledWith(2);
+	});
+});
+
