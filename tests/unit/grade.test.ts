@@ -110,3 +110,59 @@ describe('markMismatchedWords', () => {
 		expect(marks.map((m) => m.ok)).toEqual([true, true, false, false]);
 	});
 });
+
+describe('markMismatchedWords is consistent with the score', () => {
+	const TIM = '내가 이를 때까지 읽는 것과 권하는 것과 가르치는 것에 착념하라';
+
+	// The reported bug. Positional comparison shifted every word after a merged
+	// space, so the tail of a correct recitation was marked wrong while the
+	// character-level score called the same input perfect.
+	it('marks nothing wrong when only the spacing differs', () => {
+		const merged = '내가 이를 때까지 읽는 것과 권하는것과 가르치는 것에 착념하라';
+		expect(accuracyOf(TIM, merged)).toBe(1);
+		expect(markMismatchedWords(TIM, merged).filter((m) => !m.ok)).toEqual([]);
+	});
+
+	it('marks nothing wrong for an added space', () => {
+		const split = '내가 이를 때까지 읽는 것 과 권하는 것과 가르치는 것에 착념하라';
+		expect(markMismatchedWords(TIM, split).filter((m) => !m.ok)).toEqual([]);
+	});
+
+	// The invariant the bug violated: a perfect score must never coexist with a
+	// word marked wrong.
+	it.each([
+		'내가 이를 때까지 읽는 것과 권하는 것과 가르치는 것에 착념하라',
+		'내가이를 때까지읽는 것과권하는 것과가르치는 것에착념하라',
+		'  내가 이를 때까지 읽는 것과 권하는 것과 가르치는 것에 착념하라  '
+	])('a 100%% attempt never marks a word wrong: %s', (attempt) => {
+		expect(accuracyOf(TIM, attempt)).toBe(1);
+		expect(markMismatchedWords(TIM, attempt).every((m) => m.ok)).toBe(true);
+	});
+
+	// A real error must still be caught, and must not smear onto its neighbours.
+	it('marks only the word that is actually wrong', () => {
+		const wrong = TIM.replace('가르치는', '가르키는');
+		const marks = markMismatchedWords(TIM, wrong);
+		expect(marks.filter((m) => !m.ok).map((m) => m.word)).toEqual(['가르치는']);
+	});
+
+	// Positional comparison could not do this: an inserted word shifted
+	// everything after it.
+	it('survives an inserted word without smearing', () => {
+		const inserted = '내가 이를 때까지 읽는 것과 그리고 권하는 것과 가르치는 것에 착념하라';
+		const wrong = markMismatchedWords(TIM, inserted).filter((m) => !m.ok);
+		expect(wrong.length).toBeLessThanOrEqual(1);
+	});
+
+	it('marks a missing tail as wrong', () => {
+		const marks = markMismatchedWords(TIM, '내가 이를 때까지 읽는');
+		expect(marks.filter((m) => !m.ok).map((m) => m.word)).toEqual([
+			'것과',
+			'권하는',
+			'것과',
+			'가르치는',
+			'것에',
+			'착념하라'
+		]);
+	});
+});
