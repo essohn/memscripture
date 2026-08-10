@@ -79,11 +79,16 @@ trivial to compute.
 ## Timing — 첫 시작 난이도
 
 Measured from the panel opening until the reader has correctly typed the
-verse's opening, reusing the existing `extractFirstClause()` (first ~1/3 of
-the tokens, clamped to 3–8 words) which the daily review card already uses
-as its cue. The opening is compared under the same normalization, so
-hesitation and corrected typos are inside the measured window but spacing
-is not.
+verse's **first two words**. The opening is compared under the same
+normalization as the score, so hesitation and corrected typos are inside the
+measured window but spacing is not. Verses shorter than two words fall back
+to what they have, so the clock can always stop.
+
+Two words rather than `extractFirstClause()`'s 3–8: that function sizes a
+*hint* for the daily review card, which is a different job. By the second
+word the reader has plainly recalled how the verse starts, and waiting for
+up to eight turned this rating into a measure of typing speed on long
+verses.
 
 `첫 시작 난이도` means the difficulty of recalling how a verse *begins*,
 which barely varies with the verse's total length — so these are absolute

@@ -1,5 +1,4 @@
 import type { DifficultyLevel } from '$lib/db/verseRatings';
-import { extractFirstClause } from '$lib/srs/firstClause';
 import { normalizeForGrading } from './grade';
 
 /**
@@ -22,16 +21,26 @@ export function startDifficultyFor(elapsedMs: number): DifficultyLevel {
 		.level;
 }
 
+/** Words that count as having started the verse. */
+const OPENING_WORDS = 2;
+
 /**
  * Has the reader produced the verse's opening yet?
  *
- * Reuses extractFirstClause, which the daily review card already uses as its
- * Stage 2 cue — the same notion of "opening", so the two features cannot
- * drift apart. Compared under the grading normalization so spacing never
- * holds the timer open.
+ * Two words, deliberately — this no longer borrows extractFirstClause, which
+ * yields 3–8 words for the daily review card's cue. That is the right size for
+ * a *hint*, but the wrong size for this clock: by the second word the reader
+ * has plainly recalled how the verse starts, and waiting for up to eight turned
+ * 첫 시작 난이도 into a measure of typing speed on long verses.
+ *
+ * Short verses fall back to whatever they have, so a one- or two-word verse can
+ * still stop the clock rather than leaving it running forever.
+ *
+ * Compared under the grading normalization, so spacing never holds it open.
  */
 export function hasTypedOpening(verse: string, typed: string): boolean {
-	const opening = normalizeForGrading(extractFirstClause(verse));
+	const words = verse.trim().split(/\s+/).filter(Boolean).slice(0, OPENING_WORDS);
+	const opening = normalizeForGrading(words.join(''));
 	if (opening.length === 0) return false;
 	return normalizeForGrading(typed).startsWith(opening);
 }

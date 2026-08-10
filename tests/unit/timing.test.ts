@@ -21,27 +21,35 @@ describe('startDifficultyFor', () => {
 });
 
 describe('hasTypedOpening', () => {
-	// extractFirstClause takes the first ~1/3 of the tokens, clamped to 3–8.
-	// This verse has 11 words, so the opening is its first 4.
-	it('is true once the opening has been typed', () => {
+	// Two words, not extractFirstClause's 3–8. The clock measures recalling how
+	// a verse *starts*; by the second word the reader has clearly got it, and
+	// waiting for up to eight turned the reading into typing speed.
+	it('is true after the first two words', () => {
+		expect(hasTypedOpening(VERSE, '그들에게 율례와')).toBe(true);
+	});
+
+	it('is still true once the reader has typed past them', () => {
 		expect(hasTypedOpening(VERSE, '그들에게 율례와 법도를 가르쳐서')).toBe(true);
 	});
 
-	it('is still true once the reader has typed past the opening', () => {
-		expect(hasTypedOpening(VERSE, '그들에게 율례와 법도를 가르쳐서 마땅히 갈')).toBe(true);
-	});
-
-	it('is false while the opening is incomplete', () => {
-		expect(hasTypedOpening(VERSE, '그들에게 율례와')).toBe(false);
+	it('is false on the first word alone', () => {
+		expect(hasTypedOpening(VERSE, '그들에게')).toBe(false);
 	});
 
 	it('is false when the opening is wrong', () => {
-		expect(hasTypedOpening(VERSE, '그들에게 율법과 법도를 가르쳐서')).toBe(false);
+		expect(hasTypedOpening(VERSE, '그들에게 율법과')).toBe(false);
 	});
 
 	// Same normalization as the score, so spacing never gates the timer.
 	it('ignores spacing', () => {
-		expect(hasTypedOpening(VERSE, '그들에게율례와 법도를가르쳐서')).toBe(true);
+		expect(hasTypedOpening(VERSE, '그들에게율례와')).toBe(true);
+	});
+
+	// A two-word verse must still be reachable, and a one-word verse falls back
+	// to what it has rather than never stopping the clock.
+	it('handles verses shorter than two words', () => {
+		expect(hasTypedOpening('할렐루야 아멘', '할렐루야 아멘')).toBe(true);
+		expect(hasTypedOpening('할렐루야', '할렐루야')).toBe(true);
 	});
 
 	it('is false for an empty attempt', () => {
