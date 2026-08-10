@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyGraduations } from '../../src/lib/srs/orchestrate';
+import { applyGraduations, settleRecheck } from '../../src/lib/srs/orchestrate';
 import { NEW_DURATION_DAYS, CURRENT_DURATION_DAYS } from '../../src/lib/srs/buckets';
 import type { VerseProgress } from '../../src/lib/types';
 
@@ -70,3 +70,38 @@ describe('applyGraduations', () => {
 		expect(input[0]).toEqual(snapshot);
 	});
 });
+
+describe('settleRecheck', () => {
+	const DAY = 86_400_000;
+	const now = 1_000_000_000_000;
+	const overdue = (over: Partial<VerseProgress> = {}): VerseProgress => ({
+		id: 'pkg:1',
+		packageId: 'pkg',
+		verseNo: 1,
+		bucket: 'mastered',
+		enteredBucketAt: now - 100 * DAY,
+		daysActiveInBucket: 0,
+		lastReviewedAt: 0,
+		citeRatings: [3, 3, 3, 3],
+		recallRatings: [3, 3, 3, 3],
+		...over
+	});
+
+	// Without this the verse keeps its stale enteredBucketAt, stays overdue, and
+	// returns to the queue every single day.
+	it('restarts the rest period when the re-check passes', () => {
+		const settled = settleRecheck(overdue(), 4, now);
+		expect(settled?.bucket).toBe('mastered');
+		expect(settled?.enteredBucketAt).toBe(now);
+	});
+
+	it('demotes to old when the re-check fails', () => {
+		expect(settleRecheck(overdue(), 2, now)?.bucket).toBe('old');
+	});
+
+	it('ignores a verse that is not a due mastered one', () => {
+		expect(settleRecheck(overdue({ bucket: 'old' }), 4, now)).toBeNull();
+		expect(settleRecheck(overdue({ enteredBucketAt: now }), 4, now)).toBeNull();
+	});
+});
+

@@ -78,8 +78,13 @@ describe('buildTodayQueue', () => {
 		expect(queue.filter((p) => p.bucket === 'old')).toHaveLength(0);
 	});
 
-	it('excludes Mastered cards entirely', () => {
-		const queue = buildTodayQueue([mk({ id: 'pkg:1', bucket: 'mastered' })], []);
+	// Mastered is excluded while it is resting — which is the whole point of
+	// the bucket — but no longer forever; see the re-check suite below.
+	it('excludes a resting Mastered card', () => {
+		const queue = buildTodayQueue(
+			[mk({ id: 'pkg:1', bucket: 'mastered', enteredBucketAt: Date.now() })],
+			[]
+		);
 		expect(queue).toHaveLength(0);
 	});
 
@@ -88,7 +93,7 @@ describe('buildTodayQueue', () => {
 			mk({ id: 'pkg:1', verseNo: 1, bucket: 'new' }),
 			mk({ id: 'pkg:2', verseNo: 2, bucket: 'current' }),
 			mk({ id: 'pkg:3', verseNo: 3, bucket: 'old' }),
-			mk({ id: 'pkg:4', verseNo: 4, bucket: 'mastered' })
+			mk({ id: 'pkg:4', verseNo: 4, bucket: 'mastered', enteredBucketAt: Date.now() })
 		];
 		const queue = buildTodayQueue(mix, []);
 		const buckets = new Set(queue.map((p) => p.bucket));
@@ -97,3 +102,48 @@ describe('buildTodayQueue', () => {
 		expect(buckets.has('mastered')).toBe(false);
 	});
 });
+
+describe('mastered re-checks', () => {
+	const DAY = 86_400_000;
+	const now = 1_000_000_000_000;
+	const mastered = (id: string, enteredBucketAt: number) =>
+		mk({ id, bucket: 'mastered', enteredBucketAt });
+
+	it('leaves mastered verses out while they are resting', () => {
+		const queue = buildTodayQueue([mastered('pkg:1', now - 10 * DAY)], [], now);
+		expect(queue).toHaveLength(0);
+	});
+
+	it('queues a mastered verse once its rest period is over', () => {
+		const queue = buildTodayQueue([mastered('pkg:1', now - 100 * DAY)], [], now);
+		expect(queue.map((p) => p.id)).toEqual(['pkg:1']);
+	});
+
+	// Verses memorized together graduate together, so 90 days later a whole
+	// batch comes due on one day. Without a cap the queue spikes from nothing
+	// to dozens.
+	it('caps how many re-checks land in one day', () => {
+		const due = Array.from({ length: 20 }, (_, i) => mastered(`pkg:${i}`, now - (100 + i) * DAY));
+		const queue = buildTodayQueue(due, [], now);
+		expect(queue.length).toBeLessThanOrEqual(2);
+	});
+
+	it('takes the longest-overdue first', () => {
+		const due = [
+			mastered('pkg:recent', now - 91 * DAY),
+			mastered('pkg:oldest', now - 400 * DAY),
+			mastered('pkg:middle', now - 200 * DAY)
+		];
+		expect(buildTodayQueue(due, [], now).map((p) => p.id)).toEqual(['pkg:oldest', 'pkg:middle']);
+	});
+
+	it('still queues the other buckets alongside', () => {
+		const queue = buildTodayQueue(
+			[mk({ id: 'pkg:new', bucket: 'new' }), mastered('pkg:due', now - 100 * DAY)],
+			[],
+			now
+		);
+		expect(queue.map((p) => p.id).sort()).toEqual(['pkg:due', 'pkg:new']);
+	});
+});
+

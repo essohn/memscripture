@@ -5,6 +5,7 @@
 	import QueueProgress from '$lib/components/srs/QueueProgress.svelte';
 	import { goto } from '$app/navigation';
 	import { upsertProgress, pushRating, progressId } from '$lib/db/progress';
+	import { settleRecheck } from '$lib/srs/orchestrate';
 	import type { VerseProgress } from '$lib/types';
 	import type { TodayLoadData } from './+page';
 
@@ -49,12 +50,14 @@
 
 	async function onRecallRated(score: number) {
 		if (!current || current.kind !== 'review') return;
-		await pushRating(
-			current.progress.packageId,
-			current.progress.verseNo,
-			'recall',
-			score
-		).catch(() => {});
+		const reviewed = current.progress;
+		await pushRating(reviewed.packageId, reviewed.verseNo, 'recall', score).catch(() => {});
+		// A mastered verse only reaches the queue when its re-check is due, and
+		// the recall score is what settles it. Without this the verse keeps its
+		// stale enteredBucketAt, reads as overdue again tomorrow, and returns
+		// every day.
+		const settled = settleRecheck(reviewed, score);
+		if (settled) await upsertProgress(settled).catch(() => {});
 		next();
 	}
 

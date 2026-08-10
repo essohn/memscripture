@@ -1,8 +1,15 @@
 import type { VerseProgress, DailyActivity } from '$lib/types';
 import { selectOldActiveWindow } from './oldWindow';
+import { isRecheckDue } from './buckets';
 
 const CURRENT_ROTATION_BUCKETS = 3;
 const OLD_PER_DAY = 2;
+/**
+ * Re-checks admitted per day. Verses memorized together graduate together, so
+ * 90 days later a whole batch comes due at once; without a cap the queue would
+ * spike from nothing to dozens on a single morning.
+ */
+const RECHECK_PER_DAY = 2;
 
 /**
  * Stable hash of a verse id. Returns the same number for the same id every time.
@@ -26,7 +33,8 @@ function rotationSlot(verseId: string): number {
  */
 export function buildTodayQueue(
 	progress: VerseProgress[],
-	activityHistory: DailyActivity[]
+	activityHistory: DailyActivity[],
+	now: number = Date.now()
 ): VerseProgress[] {
 	const dayIndex = activityHistory.length;
 
@@ -50,5 +58,13 @@ export function buildTodayQueue(
 		olds.push(...uniqueOlds);
 	}
 
-	return [...news, ...currents, ...olds];
+	// Mastered verses are otherwise excluded; only those past their rest period
+	// come back, longest-overdue first so nothing waits indefinitely behind a
+	// steadier stream of newer graduates.
+	const rechecks = progress
+		.filter((p) => isRecheckDue(p, now))
+		.sort((a, b) => a.enteredBucketAt - b.enteredBucketAt)
+		.slice(0, RECHECK_PER_DAY);
+
+	return [...news, ...currents, ...olds, ...rechecks];
 }

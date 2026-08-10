@@ -1,5 +1,5 @@
 import type { VerseProgress } from '$lib/types';
-import { shouldGraduate, advanceBucket } from './buckets';
+import { shouldGraduate, advanceBucket, isRecheckDue, applyRecheckResult } from './buckets';
 
 export interface GraduationResult {
 	/** Cards whose bucket changed in this pass — caller must persist these. */
@@ -26,4 +26,24 @@ export function applyGraduations(progress: VerseProgress[]): GraduationResult {
 		}
 	}
 	return { graduated, current };
+}
+
+/**
+ * Resolves a re-check that has just been reviewed.
+ *
+ * Returns the updated progress for the caller to persist, or null when the
+ * verse was not a due re-check — the ordinary buckets are handled by
+ * applyGraduations and must not be touched here.
+ *
+ * Skipping this would leave a passed verse holding its old enteredBucketAt,
+ * so it would read as overdue again the next morning and return to the queue
+ * every single day.
+ */
+export function settleRecheck(
+	p: VerseProgress,
+	score: number,
+	now: number = Date.now()
+): VerseProgress | null {
+	if (!isRecheckDue(p, now)) return null;
+	return applyRecheckResult(p, score, now);
 }
