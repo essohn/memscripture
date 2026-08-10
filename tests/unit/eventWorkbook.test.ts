@@ -68,14 +68,36 @@ describe('header alignment', () => {
 });
 
 describe('difficulty cells', () => {
-	it('writes the level as a number with its fill', () => {
+	// The colour is a conditional rule, not cell formatting, so that retyping a
+	// level in the spreadsheet recolours the cell instead of leaving a fill
+	// that contradicts its own number.
+	it('writes the level as a bare number, with no cell fill', () => {
 		const s = buildEventSheet('t', [verse({ startDifficulty: 1, fullDifficulty: 5 })], DIFF_ON);
-		expect(s.rows[1][0]).toMatchObject({ v: 1, fill: DIFFICULTY_FILLS[1], align: 'center' });
-		expect(s.rows[1][1]).toMatchObject({ v: 5, fill: DIFFICULTY_FILLS[5], align: 'center' });
+		expect(s.rows[1][0]).toEqual({ v: 1, align: 'center' });
+		expect(s.rows[1][1]).toEqual({ v: 5, align: 'center' });
 	});
 
-	// An unrated verse must be a truly empty cell — a fill here would read as
-	// a rating the user never gave.
+	it('covers both difficulty columns and every body row with rules', () => {
+		const s = buildEventSheet('t', [verse(), verse({ no: 128 }), verse({ no: 129 })], DIFF_ON);
+		expect(s.conditionalFills).toHaveLength(1);
+		// Row 1 is the header, so the body is rows 2..4.
+		expect(s.conditionalFills![0].range).toBe('A2:B4');
+		expect(s.conditionalFills![0].byValue).toEqual([
+			{ value: 1, fill: DIFFICULTY_FILLS[1] },
+			{ value: 2, fill: DIFFICULTY_FILLS[2] },
+			{ value: 3, fill: DIFFICULTY_FILLS[3] },
+			{ value: 4, fill: DIFFICULTY_FILLS[4] },
+			{ value: 5, fill: DIFFICULTY_FILLS[5] }
+		]);
+	});
+
+	it('emits no rules when the difficulty columns are off', () => {
+		const s = buildEventSheet('t', [verse()], BOTH_OFF);
+		expect(s.conditionalFills).toEqual([]);
+	});
+
+	// An unrated verse must be a truly empty cell. It also matches no rule, so
+	// it stays uncoloured without any special handling.
 	it('leaves an unrated cell null and unfilled', () => {
 		const s = buildEventSheet('t', [verse()], DIFF_ON);
 		expect(s.rows[1][0].v).toBeNull();

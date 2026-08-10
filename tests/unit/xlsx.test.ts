@@ -95,6 +95,65 @@ describe('sanitizeSheetName', () => {
 	});
 });
 
+describe('writeXlsx conditional formatting', () => {
+	const cf: Sheet = {
+		name: 'CF',
+		cols: [{ width: 4.5 }, { width: 4.5 }],
+		rows: [
+			[{ v: '시작', bold: true }, { v: '전체', bold: true }],
+			[{ v: 1, align: 'center' }, { v: 3, align: 'center' }]
+		],
+		freezeRows: 1,
+		conditionalFills: [
+			{
+				range: 'A2:B2',
+				byValue: [
+					{ value: 1, fill: 'F4573F' },
+					{ value: 3, fill: 'F5D14E' }
+				]
+			}
+		]
+	};
+	const parts = readZip(writeXlsx(cf));
+	const sheetXml = parts.get('xl/worksheets/sheet1.xml')!;
+	const stylesXml = parts.get('xl/styles.xml')!;
+
+	it('places the rule block after sheetData, per the CT_Worksheet sequence', () => {
+		expect(sheetXml.indexOf('</sheetData>')).toBeLessThan(
+			sheetXml.indexOf('<conditionalFormatting')
+		);
+		expect(sheetXml).toContain('<conditionalFormatting sqref="A2:B2">');
+	});
+
+	it('writes one cellIs rule per value', () => {
+		expect(sheetXml).toContain(
+			'<cfRule type="cellIs" dxfId="0" priority="1" operator="equal"><formula>1</formula></cfRule>'
+		);
+		expect(sheetXml).toContain(
+			'<cfRule type="cellIs" dxfId="1" priority="2" operator="equal"><formula>3</formula></cfRule>'
+		);
+	});
+
+	// A dxf's solid fill paints from bgColor, the opposite of a cell style's
+	// fgColor. Writing fgColor here yields rules that match but paint nothing.
+	it('declares each rule colour as a dxf bgColor', () => {
+		expect(stylesXml).toContain(
+			'<dxfs count="2"><dxf><fill><patternFill><bgColor rgb="FFF4573F"/></patternFill></fill></dxf>'
+		);
+		expect(stylesXml).toContain('<bgColor rgb="FFF5D14E"/>');
+	});
+
+	it('places dxfs after cellXfs, per the CT_Stylesheet sequence', () => {
+		expect(stylesXml.indexOf('</cellXfs>')).toBeLessThan(stylesXml.indexOf('<dxfs'));
+	});
+
+	it('omits dxfs entirely when no rules are present', () => {
+		const plain = readZip(writeXlsx({ ...cf, conditionalFills: [] }));
+		expect(plain.get('xl/styles.xml')).not.toContain('<dxfs');
+		expect(plain.get('xl/worksheets/sheet1.xml')).not.toContain('<conditionalFormatting');
+	});
+});
+
 describe('writeXlsx', () => {
 	const parts = readZip(writeXlsx(sheet));
 

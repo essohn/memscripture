@@ -8,12 +8,22 @@ export interface SheetCell {
 	align?: 'center';
 }
 
+/** Paints a range by cell value rather than by fixed cell formatting, so the
+ *  colour follows an edit made in the spreadsheet instead of going stale. */
+export interface ConditionalFill {
+	/** A1-style range, e.g. 'A2:B150'. */
+	range: string;
+	/** Exact-match rules: a cell equal to `value` gets `fill` (RRGGBB). */
+	byValue: { value: number; fill: string }[];
+}
+
 export interface Sheet {
 	name: string;
 	cols: { width: number }[];
 	rows: SheetCell[][];
 	/** Rows held on screen while scrolling. 0 disables the frozen pane. */
 	freezeRows: number;
+	conditionalFills?: ConditionalFill[];
 }
 
 const XML_HEADER = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
@@ -63,7 +73,7 @@ function styleKey(c: SheetCell): string {
 
 const PLAIN = '||';
 
-function buildStyles(rows: SheetCell[][]) {
+function buildStyles(rows: SheetCell[][], conditionalFills: ConditionalFill[]) {
 	const userFills: string[] = [];
 	const xfs: { bold: boolean; fillId: number; align?: 'center' }[] = [];
 	const index = new Map<string, number>([[PLAIN, 0]]);
@@ -106,6 +116,15 @@ function buildStyles(rows: SheetCell[][]) {
 		})
 	].join('');
 
+	// Differential formats, referenced by conditional-formatting rules via
+	// dxfId. Note bgColor, not fgColor: a dxf's solid fill paints from
+	// bgColor, the opposite of a cell style's. Using fgColor here yields
+	// rules that match but paint nothing — a miserable thing to diagnose.
+	const dxfFills = conditionalFillList(conditionalFills);
+	const dxfsXml = dxfFills
+		.map((f) => `<dxf><fill><patternFill><bgColor rgb="FF${f}"/></patternFill></fill></dxf>`)
+		.join('');
+
 	const xml =
 		`${XML_HEADER}<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
 		'<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font>' +
@@ -113,12 +132,40 @@ function buildStyles(rows: SheetCell[][]) {
 		`<fills count="${userFills.length + 2}">${fillsXml}</fills>` +
 		'<borders count="1"><border/></borders>' +
 		'<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-		`<cellXfs count="${xfs.length + 1}">${xfsXml}</cellXfs></styleSheet>`;
+		`<cellXfs count="${xfs.length + 1}">${xfsXml}</cellXfs>` +
+		// Every workbook Excel writes declares the built-in Normal style, and
+		// readers warn when it is absent ("workbook contains no default style").
+		// Cheap to include, and it keeps us off the unusual-file path.
+		'<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+		// dxfs follows cellStyles in the CT_Stylesheet sequence; out of order,
+		// Excel rejects the part.
+		(dxfFills.length ? `<dxfs count="${dxfFills.length}">${dxfsXml}</dxfs>` : '') +
+		'</styleSheet>';
 
-	return { xml, indexOf: (c: SheetCell) => index.get(styleKey(c)) ?? 0 };
+	return {
+		xml,
+		indexOf: (c: SheetCell) => index.get(styleKey(c)) ?? 0,
+		dxfIdOf: (fill: string) => dxfFills.indexOf(fill)
+	};
 }
 
-function buildSheetXml(sheet: Sheet, styleIndex: (c: SheetCell) => number): string {
+/** Every distinct fill referenced by any rule, in first-seen order — that
+ *  order is the dxfId each rule points at. */
+function conditionalFillList(conditionalFills: ConditionalFill[]): string[] {
+	const out: string[] = [];
+	for (const cf of conditionalFills) {
+		for (const rule of cf.byValue) {
+			if (!out.includes(rule.fill)) out.push(rule.fill);
+		}
+	}
+	return out;
+}
+
+function buildSheetXml(
+	sheet: Sheet,
+	styleIndex: (c: SheetCell) => number,
+	dxfIdOf: (fill: string) => number
+): string {
 	// CT_Cols requires at least one <col> child; an empty <cols></cols> is
 	// schema-invalid and makes Excel offer to repair the file.
 	const cols = sheet.cols.length
@@ -151,15 +198,31 @@ function buildSheetXml(sheet: Sheet, styleIndex: (c: SheetCell) => number): stri
 		})
 		.join('');
 
+	// conditionalFormatting follows sheetData in the CT_Worksheet sequence.
+	// Priority is global across the sheet and lower wins; the values are
+	// mutually exclusive here, so the order only has to be stable.
+	let priority = 0;
+	const conditional = (sheet.conditionalFills ?? [])
+		.map((cf) => {
+			const rules = cf.byValue
+				.map(
+					(r) =>
+						`<cfRule type="cellIs" dxfId="${dxfIdOf(r.fill)}" priority="${++priority}" operator="equal"><formula>${r.value}</formula></cfRule>`
+				)
+				.join('');
+			return `<conditionalFormatting sqref="${cf.range}">${rules}</conditionalFormatting>`;
+		})
+		.join('');
+
 	return (
 		`${XML_HEADER}<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
 		`<sheetViews><sheetView workbookViewId="0">${pane}</sheetView></sheetViews>` +
-		`${cols}<sheetData>${rows}</sheetData></worksheet>`
+		`${cols}<sheetData>${rows}</sheetData>${conditional}</worksheet>`
 	);
 }
 
 export function writeXlsx(sheet: Sheet): Uint8Array {
-	const styles = buildStyles(sheet.rows);
+	const styles = buildStyles(sheet.rows, sheet.conditionalFills ?? []);
 	const enc = new TextEncoder();
 	const part = (name: string, xml: string): ZipEntry => ({ name, bytes: enc.encode(xml) });
 
@@ -194,6 +257,6 @@ export function writeXlsx(sheet: Sheet): Uint8Array {
 				'</Relationships>'
 		),
 		part('xl/styles.xml', styles.xml),
-		part('xl/worksheets/sheet1.xml', buildSheetXml(sheet, styles.indexOf))
+		part('xl/worksheets/sheet1.xml', buildSheetXml(sheet, styles.indexOf, styles.dxfIdOf))
 	]);
 }

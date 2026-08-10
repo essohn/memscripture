@@ -1,6 +1,6 @@
 import { citationSortKey } from '$lib/bible/index';
 import type { DifficultyLevel } from '$lib/db/verseRatings';
-import type { Sheet, SheetCell } from './xlsx';
+import type { ConditionalFill, Sheet, SheetCell } from './xlsx';
 
 export interface ExportVerse {
 	packageAbbreviation: string;
@@ -79,9 +79,34 @@ function sortByScripture(verses: ExportVerse[]): ExportVerse[] {
 
 function difficultyCell(level: DifficultyLevel | null): SheetCell {
 	// null, not an empty string: an unrated verse must produce no cell at
-	// all, so no fill can imply a rating the user never gave.
+	// all, so nothing can imply a rating the user never gave. An empty cell
+	// also matches no conditional rule, so it stays uncoloured.
 	if (level === null) return { v: null };
-	return { v: level, fill: DIFFICULTY_FILLS[level], align: 'center' };
+	// No `fill` here on purpose — the colour comes from the conditional rules
+	// below, so re-typing a level in the spreadsheet recolours the cell
+	// instead of leaving a fill that now contradicts its own number.
+	return { v: level, align: 'center' };
+}
+
+/** Rules covering both difficulty columns for the body rows. Returns nothing
+ *  when the columns are absent or there is no data to paint — an empty sqref
+ *  is not a legal range. */
+function difficultyRules(bodyRowCount: number): ConditionalFill[] {
+	if (bodyRowCount === 0) return [];
+	// A and B are the two difficulty columns; row 1 is the header, so the body
+	// starts at row 2.
+	const range = `A2:B${bodyRowCount + 1}`;
+	// Levels come from the local palette rather than DIFFICULTY_LEVELS in
+	// db/verseRatings: that is a value export from a module which imports Dexie
+	// as a value, and pulling it in would end this module's purity. The
+	// Record<DifficultyLevel, string> type still forces the two to agree.
+	const levels = Object.keys(DIFFICULTY_FILLS).map(Number) as DifficultyLevel[];
+	return [
+		{
+			range,
+			byValue: levels.map((level) => ({ value: level, fill: DIFFICULTY_FILLS[level] }))
+		}
+	];
 }
 
 export function buildEventSheet(
@@ -119,6 +144,7 @@ export function buildEventSheet(
 		name: eventTitle,
 		cols: columns.map((c) => ({ width: c.width })),
 		rows: [header, ...body],
-		freezeRows: 1
+		freezeRows: 1,
+		conditionalFills: options.includeDifficulty ? difficultyRules(body.length) : []
 	};
 }

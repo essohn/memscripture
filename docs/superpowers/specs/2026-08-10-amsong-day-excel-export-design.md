@@ -64,13 +64,32 @@ starts at `구분` — they are not emitted blank.
 
 ### Difficulty cells
 
-The cell holds the number 1–5 with a solid background fill. A number, not
-a label: it survives black-and-white printing, keeps the column narrow,
-and stays sortable and averageable in Excel.
+The cell holds the bare number 1–5. A number, not a label: it survives
+black-and-white printing, keeps the column narrow, and stays sortable and
+averageable in Excel.
+
+The colour is **conditional formatting over both columns**, not a fill on
+each cell. Static fills go stale the moment the reader retypes a level in
+the spreadsheet — the number would say 1 while the cell stayed green. Five
+`cellIs equal` rules over the body range of columns A:B mean the colour
+follows the value instead.
 
 | 1 | 2 | 3 | 4 | 5 | unrated |
 |---|---|---|---|---|---------|
-| `#F4573F` | `#F79A3E` | `#F5D14E` | `#A8CE5C` | `#5CB85C` | empty cell, no fill |
+| `#F4573F` | `#F79A3E` | `#F5D14E` | `#A8CE5C` | `#5CB85C` | empty cell, matches no rule |
+
+Discrete `cellIs` rules rather than a three-colour scale: a scale
+interpolates its midpoints and would not reproduce these five exact
+colours. Cell fills remain in use elsewhere — the header's grey is fixed
+formatting, since nothing about it depends on a value.
+
+Two OOXML details this depends on, both easy to get wrong silently:
+
+- A `dxf`'s solid fill paints from **`bgColor`**, the opposite of a cell
+  style's `fgColor`. With `fgColor` the rules match and paint nothing.
+- `dxfs` follows `cellXfs` and `cellStyles` in the `CT_Stylesheet`
+  sequence, and `conditionalFormatting` follows `sheetData` in
+  `CT_Worksheet`. Out of order, Excel rejects the part.
 
 Text stays black on every tier, so each fill must stay light enough to
 read against. This ramp is **intentionally different** from the in-app
