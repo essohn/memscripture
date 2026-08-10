@@ -41,24 +41,36 @@ export async function getVerseRating(
 	return row ?? null;
 }
 
+// upsert is read-modify-write (get then put), so two calls fired back to
+// back — as VerseCard does for start/full — can both read before either
+// writes, and the second put clobbers the first. A module-level queue
+// serializes every write so the second call always reads the first call's
+// result. Same shape as viewOptions.ts's writeQueue, and for the same reason.
+let writeQueue: Promise<unknown> = Promise.resolve();
+
 async function upsert(
 	packageId: string,
 	verseNo: number,
 	patch: Partial<Pick<VerseRating, 'startDifficulty' | 'fullDifficulty'>>
 ): Promise<void> {
 	const id = rowId(packageId, verseNo);
-	const existing = await db.verseRatings.get(id);
-	const merged: VerseRating = {
-		id,
-		packageId,
-		verseNo,
-		startDifficulty: existing?.startDifficulty ?? null,
-		fullDifficulty: existing?.fullDifficulty ?? null,
-		...patch,
-		updatedAt: Date.now()
-	};
-	await db.verseRatings.put(merged);
-	await touchDataModified();
+	const next = writeQueue.then(async () => {
+		const existing = await db.verseRatings.get(id);
+		const merged: VerseRating = {
+			id,
+			packageId,
+			verseNo,
+			startDifficulty: existing?.startDifficulty ?? null,
+			fullDifficulty: existing?.fullDifficulty ?? null,
+			...patch,
+			updatedAt: Date.now()
+		};
+		await db.verseRatings.put(merged);
+		await touchDataModified();
+	});
+	// Don't let a single failure poison the queue
+	writeQueue = next.catch(() => {});
+	return next;
 }
 
 export async function setStartDifficulty(

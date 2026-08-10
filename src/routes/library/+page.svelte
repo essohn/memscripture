@@ -38,7 +38,7 @@
 	}
 </script>
 
-<Header title="Library" />
+<Header title="Library" showVerseToggle={false} />
 
 <main class="mx-auto max-w-2xl px-5 pb-8 pt-4">
 	<div class="mb-5 flex items-center justify-between gap-3 px-1">

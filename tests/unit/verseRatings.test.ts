@@ -75,4 +75,17 @@ describe('verseRatings', () => {
 		expect(r1?.startDifficulty).toBe(2);
 		expect(r2?.startDifficulty).toBe(4);
 	});
+
+	// VerseCard fires these back to back, unawaited (onPickStartDifficulty then
+	// onPickFullDifficulty). Both are read-modify-write, so without
+	// serialization the second read misses the first write and its put clobbers
+	// startDifficulty back to null.
+	it('two concurrent writes to the same verse do not lose either field', async () => {
+		const p1 = setStartDifficulty('5_krv', 1, 4);
+		const p2 = setFullDifficulty('5_krv', 1, 3);
+		await Promise.all([p1, p2]);
+		const row = await getVerseRating('5_krv', 1);
+		expect(row?.startDifficulty).toBe(4);
+		expect(row?.fullDifficulty).toBe(3);
+	});
 });

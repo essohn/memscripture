@@ -68,6 +68,18 @@ describe('MemorizeCheckPanel', () => {
 		expect(onResult).not.toHaveBeenCalled();
 	});
 
+	// 취소 discards the write, not the reader's progress — deliberately, so
+	// fixing one wrong word doesn't mean retyping the whole verse. See the
+	// `cancel()` comment in MemorizeCheckPanel.svelte.
+	it('keeps the typed text after 취소 so the reader can fix it, not retype it', async () => {
+		setup();
+		const flawed = VERSE.replace('가르쳐서', '가르치고');
+		await type(flawed);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
+		expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe(flawed);
+	});
+
 	it('marks the words that were wrong', async () => {
 		setup();
 		await type(VERSE.replace('가르쳐서', '가르치고'));

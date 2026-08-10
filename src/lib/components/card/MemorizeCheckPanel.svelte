@@ -63,6 +63,23 @@
 		if (proposed) onResult(proposed);
 		confirming = false;
 	}
+
+	/**
+	 * Returns to the typing view without writing anything. Deliberately leaves
+	 * `typed`, `openingAtMs` and `startedAt` untouched — only `confirming`
+	 * flips back:
+	 *  - Keeping `typed` lets the reader fix the one word that was wrong
+	 *    without retyping the whole verse.
+	 *  - Keeping `openingAtMs`/`startedAt` means the eventual accepted attempt
+	 *    is timed from when the reader actually started, not from the moment
+	 *    they backed out of a look at their mistakes — resetting the clock
+	 *    here would let a second try appear faster than it really was.
+	 * The spec's "취소 discards the attempt and writes nothing" describes the
+	 * write, not this in-memory state.
+	 */
+	function cancel() {
+		confirming = false;
+	}
 </script>
 
 <div class="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-elevated)] p-3">
@@ -117,7 +134,7 @@
 			<div class="ml-auto flex items-center gap-1.5">
 				<button
 					type="button"
-					onclick={() => (confirming = false)}
+					onclick={cancel}
 					class="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-card)]"
 				>
 					취소

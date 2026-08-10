@@ -172,7 +172,7 @@
 	}
 </script>
 
-<Header title="Home" />
+<Header title="Home" showVerseToggle={false} />
 
 <main class="mx-auto max-w-2xl px-5 pb-8 pt-6">
 	<EventSection

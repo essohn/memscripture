@@ -80,7 +80,7 @@
 	}
 </script>
 
-<Header title="오늘" onBack={() => goto('/')} />
+<Header title="오늘" onBack={() => goto('/')} showVerseToggle={false} />
 
 <main class="mx-auto max-w-2xl px-5 pb-12 pt-4">
 	{#if isDone}

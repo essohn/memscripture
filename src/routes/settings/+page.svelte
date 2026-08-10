@@ -130,7 +130,7 @@
 	}
 </script>
 
-<Header title="Settings" onBack={() => goto('/')} showSettings={false} />
+<Header title="Settings" onBack={() => goto('/')} showSettings={false} showVerseToggle={false} />
 
 <main class="mx-auto max-w-2xl px-5 pt-6">
 	<section

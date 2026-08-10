@@ -8,6 +8,7 @@
 	import DifficultyBadge from '$lib/components/card/DifficultyBadge.svelte';
 	import MemorizeCheckPanel from './MemorizeCheckPanel.svelte';
 	import type { DifficultyLevel } from '$lib/db/verseRatings';
+	import { normalizeForGrading } from '$lib/memorize/grade';
 	import { goto } from '$app/navigation';
 
 	interface Props {
@@ -350,7 +351,12 @@
 
 		<!-- The check sits under the curtain, not instead of it: the curtain is
 		     the hint when the reader gets stuck. -->
-		{#if ratingsEnabled && verse.w.trim().length > 0}
+		<!-- Guarded on the normalized body, not verse.w.trim(): a body of pure
+		     punctuation (e.g. an OYO verse typed as "***") passes trim() but
+		     normalizes to "", and accuracyOf treats two empty strings as a
+		     perfect 100% match — letting a meaningless verse auto-save 5 xEasy
+		     with no confirmation. -->
+		{#if ratingsEnabled && normalizeForGrading(verse.w).length > 0}
 			<MemorizeCheckPanel
 				verse={verse.w}
 				onResult={(r) => {

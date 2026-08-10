@@ -110,9 +110,9 @@ use.
 them. A perfect recitation should not need a dialog.
 
 **Anything less** — a confirmation panel opens showing the proposed
-ratings, the attempt with mismatched words marked, and both `DifficultyBadge`
-pickers so the reader can adjust before saving. 취소 discards the attempt
-and writes nothing.
+ratings, the **verse text with the words the reader missed marked**, and both
+`DifficultyBadge` pickers so the reader can adjust before saving. 취소 closes
+the confirmation and writes nothing — see below for what it leaves alone.
 
 The asymmetry is the point: the app may declare success on its own, but it
 may not decide that a flawed attempt was nonetheless "easy".
@@ -122,6 +122,34 @@ A character-level diff highlights fragments of syllables, which is unreadable;
 word-level marking answers the question the reader actually has, which is
 "which words did I get wrong". Score and highlight therefore run on
 different granularities, deliberately.
+
+The marked text is the **verse**, not the reader's attempt: `markMismatchedWords`
+maps over the verse's words and checks each against the attempt's word at the
+same position. A word the reader typed that has no counterpart in the verse
+(an insertion, or a guess that doesn't line up) never gets its own marked
+entry — there is nothing in the correct text for it to attach to. This is
+deliberate: the reader already has their own attempt in the textarea above;
+what they need from the confirmation view is the *correct* text with their
+mistakes highlighted, so they know what to fix. Marking the attempt instead
+would show the reader their own guesses with no indication of what the verse
+actually says at each spot.
+
+### 취소 — what survives
+
+취소 returns to the typing view without calling `onResult`, but it does not
+reset the attempt in progress: the typed text, the opening-recall timestamp,
+and the panel's start time are all left as they were. Two reasons:
+
+- **The text.** A flawed attempt is usually one wrong word, not a wrong
+  verse. Clearing the textarea on 취소 would force retyping the whole thing
+  to fix a single typo.
+- **The clock.** The elapsed time is measured from when the reader actually
+  started, and resetting it on 취소 would let a second submission look
+  faster than the recall really was — flattering a "cancel and immediately
+  resubmit" over an honest single attempt.
+
+So "취소 discards the attempt" means: nothing is written to storage. It does
+not mean the in-progress state is cleared.
 
 ## Architecture
 
@@ -144,7 +172,10 @@ new wiring and the ratings persist through the path they already use.
 - **Empty submission** — 제출 stays disabled until something is typed.
 - **Opening never matched** — full rating still proposed, start left unset.
 - **Panel closed mid-attempt** (✕ or navigating away) — nothing is written.
-- **Verse with no body** — the panel does not render.
+- **Verse with no gradeable body** — the panel does not render. Guarded on
+  the normalized text, not a raw non-empty check: a body of pure punctuation
+  (reachable on user-authored OYO verses) normalizes to the empty string,
+  and two empty strings would otherwise score a meaningless attempt 100%.
 
 ## Testing
 

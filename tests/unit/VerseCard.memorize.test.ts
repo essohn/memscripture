@@ -55,4 +55,14 @@ describe('VerseCard memorize check', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '암송' }));
 		expect(screen.getByText(/드래그해서 단어 열기|모두 열렸습니다/)).toBeInTheDocument();
 	});
+
+	// OYO verses are user-authored, so a body of pure punctuation is reachable
+	// (unlike the shipped corpus). verse.w.trim().length > 0 would pass for
+	// "***", but normalizeForGrading("***") is "" and accuracyOf treats two
+	// empty strings as a perfect match — auto-saving 5 xEasy for nothing typed.
+	it('hides the panel for a verse that normalizes to nothing', async () => {
+		setup({ verse: { ...verse, w: '***' } });
+		await fireEvent.click(screen.getByRole('button', { name: '암송' }));
+		expect(screen.queryByLabelText('암송 구절 입력')).toBeNull();
+	});
 });

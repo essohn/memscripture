@@ -2,7 +2,7 @@
 	import Header from '$lib/components/nav/Header.svelte';
 </script>
 
-<Header title="Stats" />
+<Header title="Stats" showVerseToggle={false} />
 
 <main class="max-w-2xl mx-auto px-5 pt-12 text-center">
 	<p class="text-[var(--color-text-tertiary)]">통계는 Phase 6에서 추가됩니다.</p>

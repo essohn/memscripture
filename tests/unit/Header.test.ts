@@ -10,6 +10,10 @@ beforeEach(async () => {
 	await db.delete();
 	await db.open();
 	verseVisibility.shown = true;
+	// #loaded is private and stays true after the first test's load() resolves,
+	// so later tests' load() calls would otherwise return immediately without
+	// re-reading storage. See verseVisibility.svelte.ts's _resetForTest().
+	verseVisibility._resetForTest();
 });
 
 describe('Header verse-text toggle', () => {
