@@ -97,20 +97,19 @@
 	}
 
 	/**
-	 * Returns to the typing view without writing anything. Deliberately leaves
-	 * `typed`, `openingAtMs` and `startedAt` untouched — only `confirming`
-	 * flips back:
-	 *  - Keeping `typed` lets the reader fix the one word that was wrong
-	 *    without retyping the whole verse.
-	 *  - Keeping `openingAtMs`/`startedAt` means the eventual accepted attempt
-	 *    is timed from when the reader actually started, not from the moment
-	 *    they backed out of a look at their mistakes — resetting the clock
-	 *    here would let a second try appear faster than it really was.
-	 * The spec's "취소 discards the attempt and writes nothing" describes the
-	 * write, not this in-memory state.
+	 * Discards the attempt entirely and re-arms the panel for a fresh one.
+	 *
+	 * An earlier version kept the text and the clocks, on the theory that a
+	 * flawed attempt is usually one wrong word worth editing. In use it read as
+	 * a stuck panel — the reader who rejects a grade wants another go, not an
+	 * edit of the try they just rejected. Keeping the clock was worse still: a
+	 * resubmit made after reading the marked answer would have been timed from
+	 * the original open, flattering it against an honest single attempt.
 	 */
 	function cancel() {
 		confirming = false;
+		proposed = null;
+		restart();
 	}
 
 	/** Re-writes the result with one dimension changed. The pickers are live —

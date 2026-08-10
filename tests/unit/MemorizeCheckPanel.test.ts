@@ -101,16 +101,32 @@ describe('MemorizeCheckPanel', () => {
 		expect(onPickFull).not.toHaveBeenCalled();
 	});
 
-	// 취소 discards the write, not the reader's progress — deliberately, so
-	// fixing one wrong word doesn't mean retyping the whole verse. See the
-	// `cancel()` comment in MemorizeCheckPanel.svelte.
-	it('keeps the typed text after 취소 so the reader can fix it, not retype it', async () => {
+	// 취소 clears the attempt so the next one starts clean. Keeping the text
+	// was tried first and read as "the panel is stuck": the reader wants
+	// another go, not an edit of the try they just rejected. Keeping the clock
+	// was worse — a resubmit after reading the marked answer would have been
+	// timed from the original open.
+	it('clears the attempt on 취소 so a fresh check can start', async () => {
 		setup();
-		const flawed = VERSE.replace('가르쳐서', '가르치고');
-		await type(flawed);
+		await type(VERSE.replace('가르쳐서', '가르치고'));
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
-		expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe(flawed);
+		expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('');
+		expect(screen.getByRole('button', { name: '제출' })).toBeDisabled();
+	});
+
+	it('re-arms the timer on 취소', async () => {
+		setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		// A perfect attempt goes to the success screen, so drive the flawed path.
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
+		await type(VERSE.replace('가르쳐서', '가르치고'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
+		// The opening readout only appears once the opening has been typed; a
+		// cleared attempt has not, so it must be gone.
+		expect(screen.queryByText(/도입부/)).toBeNull();
 	});
 
 	it('marks the words that were wrong', async () => {

@@ -139,22 +139,18 @@ mistakes highlighted, so they know what to fix. Marking the attempt instead
 would show the reader their own guesses with no indication of what the verse
 actually says at each spot.
 
-### 취소 — what survives
+### 취소 — a clean slate
 
-취소 returns to the typing view without calling `onResult`, but it does not
-reset the attempt in progress: the typed text, the opening-recall timestamp,
-and the panel's start time are all left as they were. Two reasons:
+취소 returns to the typing view without writing anything, and clears the
+attempt with it: the text, the opening-recall timestamp and the panel's start
+time all reset, so the next check begins fresh.
 
-- **The text.** A flawed attempt is usually one wrong word, not a wrong
-  verse. Clearing the textarea on 취소 would force retyping the whole thing
-  to fix a single typo.
-- **The clock.** The elapsed time is measured from when the reader actually
-  started, and resetting it on 취소 would let a second submission look
-  faster than the recall really was — flattering a "cancel and immediately
-  resubmit" over an honest single attempt.
-
-So "취소 discards the attempt" means: nothing is written to storage. It does
-not mean the in-progress state is cleared.
+An earlier version kept them, on the theory that a flawed attempt is usually
+one wrong word worth editing rather than retyping. In use that read as a
+stuck panel — a reader who rejects a grade wants another go, not an edit of
+the try they just rejected. And keeping the clock was actively wrong: a
+resubmit made after reading the marked answer would still have been timed
+from the original open, flattering it against an honest single attempt.
 
 ## Architecture
 
