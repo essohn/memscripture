@@ -50,7 +50,12 @@
 		}
 	});
 
+	/** The verse, marking the words the attempt did not produce. */
 	const mismatches = $derived(markMismatchedWords(verse, typed));
+	/** The attempt, marking the reader's own wrong words. Same function with
+	 *  the arguments swapped: walking the attempt and checking each word
+	 *  against the verse is exactly the mirror of walking the verse. */
+	const attemptMarks = $derived(markMismatchedWords(typed, verse));
 
 	function mmss(ms: number): string {
 		const s = Math.floor(ms / 1000);
@@ -218,12 +223,33 @@
 		<p class="text-[12px] text-[var(--color-text-secondary)]">
 			틀린 곳이 있어 자동으로 저장하지 않았습니다. 확인 후 저장해주세요.
 		</p>
-		<p data-testid="mismatched-words" class="mt-2 text-[14px] leading-[1.7]">
-			{#each mismatches as m, i (i)}<span
+
+		<!-- The attempt first: "how did I go wrong" is answered by the reader's
+		     own words, and the verse below is what to compare them against.
+		     Showing only the verse told them what it says and nothing about
+		     what they wrote. -->
+		<p class="mt-3 text-[10.5px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
+			입력한 내용
+		</p>
+		<p data-testid="attempt-words" class="mt-1 text-[14px] leading-[1.7]">
+			{#each attemptMarks as m, i (i)}<span
 					data-ok={m.ok}
 					class={m.ok
 						? 'text-[var(--color-text)]'
 						: 'rounded bg-[var(--color-ribbon-red)]/20 px-0.5 text-[var(--color-danger)]'}
+					>{m.word}</span
+				>{' '}{/each}
+		</p>
+
+		<p class="mt-3 text-[10.5px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
+			원문
+		</p>
+		<p data-testid="mismatched-words" class="mt-1 text-[14px] leading-[1.7]">
+			{#each mismatches as m, i (i)}<span
+					data-ok={m.ok}
+					class={m.ok
+						? 'text-[var(--color-text)]'
+						: 'rounded bg-[var(--color-ribbon-green)]/25 px-0.5 font-medium text-[var(--color-text)]'}
 					>{m.word}</span
 				>{' '}{/each}
 		</p>

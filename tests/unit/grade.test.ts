@@ -232,3 +232,34 @@ describe('repeated words do not smear the marking', () => {
 	});
 });
 
+describe('marking the attempt (arguments swapped)', () => {
+	// The confirmation panel shows both directions: the verse marked for what
+	// was missed, and the attempt marked for what the reader got wrong. The
+	// second is the same function with the arguments the other way round.
+	const GEN = '그에게 이르시되 나는 전능한 하나님이니라 생육하며 번성하라 국민과 많은 국민이 네게서 나고 왕들이 네 허리에서 나오리라';
+
+	// 나고 appears later in this verse, so an unbounded search matched the
+	// mistyped 나는 against it and marked ten following words wrong.
+	it('does not smear when a wrong word matches a later occurrence', () => {
+		const typed = GEN.replace('나는', '나고');
+		expect(markMismatchedWords(typed, GEN).filter((m) => !m.ok).map((m) => m.word)).toEqual([
+			'나고'
+		]);
+		expect(markMismatchedWords(GEN, typed).filter((m) => !m.ok).map((m) => m.word)).toEqual([
+			'나는'
+		]);
+	});
+
+	it('marks an invented word in the attempt', () => {
+		const typed = GEN + ' 덧붙임';
+		expect(markMismatchedWords(typed, GEN).filter((m) => !m.ok).map((m) => m.word)).toEqual([
+			'덧붙임'
+		]);
+	});
+
+	it('marks nothing either way on a correct attempt', () => {
+		expect(markMismatchedWords(GEN, GEN).filter((m) => !m.ok)).toEqual([]);
+		expect(markMismatchedWords(GEN, GEN.replace(/ /g, '')).filter((m) => !m.ok)).toEqual([]);
+	});
+});
+

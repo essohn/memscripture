@@ -133,16 +133,15 @@ word-level marking answers the question the reader actually has, which is
 "which words did I get wrong". Score and highlight therefore run on
 different granularities, deliberately.
 
-The marked text is the **verse**, not the reader's attempt: `markMismatchedWords`
-maps over the verse's words and checks each against the attempt's word at the
-same position. A word the reader typed that has no counterpart in the verse
-(an insertion, or a guess that doesn't line up) never gets its own marked
-entry — there is nothing in the correct text for it to attach to. This is
-deliberate: the reader already has their own attempt in the textarea above;
-what they need from the confirmation view is the *correct* text with their
-mistakes highlighted, so they know what to fix. Marking the attempt instead
-would show the reader their own guesses with no indication of what the verse
-actually says at each spot.
+The panel shows **both**: the reader's attempt with their own wrong words
+marked, and the verse below it marking what they missed.
+
+An earlier version showed only the verse, on the reasoning that the reader
+needs the correct text to see their error against. That answered "what does
+it say" and never "what did I write" — which is the actual question after a
+failed attempt. Both readings come from `markMismatchedWords` with the
+arguments swapped: walking the attempt and checking each word against the
+verse is the mirror of walking the verse.
 
 ### 취소 — a clean slate
 

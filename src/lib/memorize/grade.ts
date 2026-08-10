@@ -62,6 +62,11 @@ export function fullDifficultyFor(accuracy: number): DifficultyLevel {
 	return (FULL_BANDS.find((b) => accuracy >= b.min) ?? FULL_BANDS[FULL_BANDS.length - 1]).level;
 }
 
+/** How far past the expected position a word may still be recognised. Roughly
+ *  one short Korean word, which is what a single dropped or inserted word
+ *  shifts things by. */
+const MAX_DRIFT_CHARS = 6;
+
 /**
  * Per-word right/wrong marks for display.
  *
@@ -91,30 +96,24 @@ export function markMismatchedWords(
 	// a verse with 것과 twice needs two separate occurrences, not one matched
 	// twice.
 	let cursor = 0;
-	return words.map((word, i) => {
+	return words.map((word) => {
 		const needle = normalizeForGrading(word);
 		// A token that normalizes away entirely (a bare '*' marker) has nothing
 		// to produce, so it can never be got wrong.
 		if (needle.length === 0) return { word, ok: true };
 
+		// Search only near where this word is due. A verse repeats words — 느헤미야
+		// 8:8 has 그 twice, and 창세기 35:11 has 나고 — so an unbounded search can
+		// land on a later occurrence, drag the cursor past everything between,
+		// and mark a dozen correct words wrong to account for one that was
+		// dropped or mistyped. A correct attempt has no gap at all; the
+		// allowance covers a short skipped or inserted word and stops well short
+		// of the next occurrence.
 		const at = attempt.indexOf(needle, cursor);
-		if (at === -1) return { word, ok: false };
-
-		// A hit further along may be a different occurrence of a repeated word
-		// rather than this one. 느헤미야 8:8 has 그 twice: drop the first and an
-		// unbounded search finds the second, dragging the cursor past everything
-		// between and marking five correct words wrong to explain one missing
-		// one. The tell is what sits at the cursor — if the NEXT verse word is
-		// already there, this word was skipped, so mark it and stay put.
-		if (at > cursor) {
-			const following = normalizeForGrading(words[i + 1] ?? '');
-			if (following.length > 0 && attempt.startsWith(following, cursor)) {
-				return { word, ok: false };
-			}
-		}
-
+		if (at === -1 || at - cursor > MAX_DRIFT_CHARS) return { word, ok: false };
 		cursor = at + needle.length;
 		return { word, ok: true };
 	});
 }
+
 

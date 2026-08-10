@@ -131,13 +131,34 @@ describe('MemorizeCheckPanel', () => {
 		expect(screen.queryByText(/도입부/)).toBeNull();
 	});
 
-	it('marks the words that were wrong', async () => {
+	// Showing only the verse answered "what does it say", never "what did I
+	// write" — so the reader could not see how they had gone wrong. Both are
+	// needed: their words with the mistakes marked, and the verse to compare.
+	it('shows the attempt with the reader own mistakes marked', async () => {
+		setup();
+		await type(VERSE.replace('가르쳐서', '가르치고'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		const attempt = screen.getByTestId('attempt-words');
+		expect(attempt.textContent).toContain('가르치고');
+		const wrong = attempt.querySelectorAll('[data-ok="false"]');
+		expect(wrong).toHaveLength(1);
+		expect(wrong[0].textContent).toBe('가르치고');
+	});
+
+	it('shows the verse alongside, marking what was missed', async () => {
 		setup();
 		await type(VERSE.replace('가르쳐서', '가르치고'));
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		const wrong = screen.getByTestId('mismatched-words').querySelectorAll('[data-ok="false"]');
 		expect(wrong).toHaveLength(1);
 		expect(wrong[0].textContent).toBe('가르쳐서');
+	});
+
+	it('keeps the attempt readable when whole words were invented', async () => {
+		setup();
+		await type('완전히 다른 문장을 적었습니다');
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(screen.getByTestId('attempt-words').textContent).toContain('완전히');
 	});
 
 	// The opening was never produced, so there is nothing to time.
