@@ -50,6 +50,11 @@
 	let toast = $state<{ message: string } | null>(null);
 	const selectionActive = $derived(selectedVerseNos.size > 0);
 
+	// A Set iterates in insertion order, which here is the order the user
+	// happened to tap. Every consumer below wants verse order instead: the
+	// bookmark batch, the recent-bundle front verse, and the authoring helper.
+	const selectedNosInOrder = $derived([...selectedVerseNos].sort((a, b) => a - b));
+
 	// The package a selection belongs to, so we can cancel it when the user
 	// switches packages (selection state survives the shared [packageId] route).
 	let selectionPackageId = $state<string | null>(null);
@@ -87,7 +92,7 @@
 
 	// 관리자 작성 보조: 현재 선택을 events.json에 붙여넣을 EventRange JSON으로 복사.
 	async function copyEventRange() {
-		const json = serializeEventRange(packageId, [...selectedVerseNos], seriesIndex, groupIndices);
+		const json = serializeEventRange(packageId, selectedNosInOrder, seriesIndex, groupIndices);
 		try {
 			await navigator.clipboard.writeText(json);
 			toast = { message: '이벤트 범위가 복사되었습니다 — events.json에 붙여넣으세요' };
@@ -100,7 +105,7 @@
 	// surfaces on the home dashboard's history. Best-effort per verse — a single
 	// failed put shouldn't abort the rest.
 	async function confirmSelection() {
-		const nos = [...selectedVerseNos];
+		const nos = selectedNosInOrder;
 		if (nos.length === 0) return;
 		await recordRecentBundle(packageId, nos, seriesIndex, groupIndices).catch(() => {});
 		toast = { message: `최근 구절에 ${nos.length}개 담았습니다` };
@@ -111,12 +116,16 @@
 	// Apply one ribbon color to every selected verse at once. Optimistically
 	// updates the in-memory map so the ribbons reflect immediately, then persists.
 	async function bulkBookmark(color: BookmarkColor) {
-		const nos = [...selectedVerseNos];
+		const nos = selectedNosInOrder;
 		if (nos.length === 0) return;
 		const next = new Map(bookmarksByVerseNo);
 		for (const no of nos) next.set(no, color);
 		bookmarksByVerseNo = next;
-		await Promise.all(nos.map((no) => setBookmark(packageId, no, color).catch(() => {})));
+		// One stamp for the whole batch: these were added together, and the
+		// shared value is what keeps them a contiguous block in verse order on
+		// the bookmarks list instead of scattering across adjacent milliseconds.
+		const addedAt = Date.now();
+		await Promise.all(nos.map((no) => setBookmark(packageId, no, color, addedAt).catch(() => {})));
 		toast = { message: `${COLOR_LABELS[color]} 리본으로 ${nos.length}개 북마크했습니다` };
 		clearSelection();
 	}

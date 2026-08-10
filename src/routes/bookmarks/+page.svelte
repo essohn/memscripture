@@ -149,15 +149,19 @@
 			message: `${COLOR_LABELS[color]} 리본 ${removed.length}개를 지웠습니다`,
 			actionLabel: '실행 취소',
 			onAction: async () => {
-				// Re-insert each bookmark. createdAt is reset to "now" — minor loss
-				// vs preserving original timestamps; rebuilds via the public API
-				// rather than touching the Dexie schema for an undo edge case.
+				// Re-insert each bookmark with its original createdAt, so undo puts
+				// the list back exactly as it was. Stamping "now" instead would
+				// hoist every restored row to the top and, since they would land on
+				// adjacent milliseconds, scatter their order on the way.
 				rows = [...rows, ...removed];
 				await Promise.all(
 					removed.map((r) =>
-						setBookmark(r.bookmark.packageId, r.bookmark.verseNo, r.bookmark.color).catch(
-							() => {}
-						)
+						setBookmark(
+							r.bookmark.packageId,
+							r.bookmark.verseNo,
+							r.bookmark.color,
+							r.bookmark.createdAt
+						).catch(() => {})
 					)
 				);
 			}
