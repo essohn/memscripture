@@ -25,8 +25,8 @@ memory against a timer, and have both ratings proposed from the result.
 - **Speech or handwriting input.** Typing only.
 - **Partial verses.** The check is the whole verse. The median is 61
   characters and the longest is 224, so this is not onerous.
-- **Scoring history.** Only the two resulting ratings are stored. Attempts,
-  times, and accuracies are not persisted.
+- **A completed-verses view.** History is shown per verse in the panel, not
+  as a separate screen.
 
 ## User-facing behavior
 
@@ -68,13 +68,23 @@ Dividing by the longer of the two keeps a rambling over-long answer from
 scoring above a terse one. At 224 characters worst case the matrix is
 trivial to compute.
 
-| accuracy | rating |
-|----------|--------|
-| 100%     | 5 xEasy |
-| ≥ 95%    | 4 Easy |
-| ≥ 85%    | 3 Normal |
-| ≥ 70%    | 2 Hard |
-| below    | 1 xHard |
+A flawless attempt scores 5 however long it took — accuracy is what this
+rating is about, and a careful correct recitation is not worse than a hurried
+one. **Anything less is capped at 3**, however small the slip, and typing pace
+lowers it from there.
+
+| accuracy | pace (normalized chars/sec) | rating |
+|----------|------------------------------|--------|
+| 100%     | any                          | 5 xEasy |
+| < 100%   | ≥ 1.5                        | 3 Normal |
+| < 100%   | ≥ 0.8                        | 2 Hard |
+| < 100%   | below                        | 1 xHard |
+
+Pace, not elapsed seconds: the corpus runs from short verses to 224
+characters, and a long verse must not be marked down for taking longer to
+type. This does mean time now feeds both ratings — 첫 시작 from when the
+opening was recalled, 전체 from the pace across the whole verse. They measure
+different things, but a slow day moves both.
 
 ## Timing — 첫 시작 난이도
 
@@ -155,6 +165,25 @@ stuck panel — a reader who rejects a grade wants another go, not an edit of
 the try they just rejected. And keeping the clock was actively wrong: a
 resubmit made after reading the marked answer would still have been timed
 from the original open, flattering it against an honest single attempt.
+
+## Check history
+
+Each saved check is recorded: when, both ratings, the accuracy and the elapsed
+time. The panel shows the last **10** for that verse — collapsed to a one-line
+summary above the input, expandable on tap. Collapsed by default because the
+input is what the reader came for, and ten rows above it would push the
+textarea off a phone screen.
+
+Only a saved result is recorded, so 취소 leaves nothing behind: the list reads
+as "checks I finished", not "times I opened the panel". Older entries are
+pruned as new ones land — this is a glance at recent form, not an audit trail,
+and 900 verses times an unbounded log would ride along in every sync snapshot.
+
+Storage is a new `checkHistory` table at schema **v7**, additive so Dexie
+migrates existing databases without a data callback. It is included in the
+Drive sync snapshot, since progress, ratings and activity all are and history
+is the same class of data; `checkHistory` is optional on the snapshot type so
+a file written by a v6 device still imports.
 
 ## Architecture
 

@@ -2,7 +2,7 @@ import { db } from '$lib/db/local';
 import { OYO_PACKAGE_ID } from '$lib/db/oyo';
 import { getDataLastModified } from '$lib/db/touchData';
 import type { Bookmark, DailyActivity, PackageMeta, VerseProgress } from '$lib/types';
-import type { StoredSetting, StoredVerse, VerseRating } from '$lib/db/local';
+import type { CheckRecord, StoredSetting, StoredVerse, VerseRating } from '$lib/db/local';
 
 const DEVICE_KEY = 'sync_device_id';
 
@@ -33,6 +33,9 @@ export interface SyncSnapshot {
 	activity: DailyActivity[];
 	settings: StoredSetting[];
 	verseRatings: VerseRating[];
+	/** Optional: a snapshot written by a device on schema v6 or earlier has no
+	 *  history at all, and must still import cleanly. */
+	checkHistory?: CheckRecord[];
 }
 
 /** Returns the device id stored in settings, creating one on first call.
@@ -52,7 +55,7 @@ async function getOrCreateDeviceId(): Promise<string> {
 
 export async function buildSyncSnapshot(): Promise<SyncSnapshot> {
 	const device = await getOrCreateDeviceId();
-	const [oyoPkg, allVerses, bookmarks, progress, activity, settings, verseRatings] =
+	const [oyoPkg, allVerses, bookmarks, progress, activity, settings, verseRatings, checkHistory] =
 		await Promise.all([
 			db.packages.get(OYO_PACKAGE_ID),
 			db.verses.where('package_id').equals(OYO_PACKAGE_ID).toArray(),
@@ -60,7 +63,8 @@ export async function buildSyncSnapshot(): Promise<SyncSnapshot> {
 			db.progress.toArray(),
 			db.activity.toArray(),
 			db.settings.toArray(),
-			db.verseRatings.toArray()
+			db.verseRatings.toArray(),
+			db.checkHistory.toArray()
 		]);
 
 	const localKeySet = new Set<string>(DEVICE_LOCAL_KEYS);
@@ -78,7 +82,8 @@ export async function buildSyncSnapshot(): Promise<SyncSnapshot> {
 		activity,
 		// Strip device-local rows so they never leak to other installs.
 		settings: settings.filter((row) => !localKeySet.has(row.key)),
-		verseRatings
+		verseRatings,
+		checkHistory
 	};
 }
 
@@ -105,7 +110,8 @@ export async function applySyncSnapshot(input: unknown): Promise<void> {
 			db.progress,
 			db.activity,
 			db.settings,
-			db.verseRatings
+			db.verseRatings,
+			db.checkHistory
 		],
 		async () => {
 			// Preserve device-local settings (auth, device id, pre-sync backup)
@@ -124,6 +130,7 @@ export async function applySyncSnapshot(input: unknown): Promise<void> {
 			await db.settings.clear();
 			await db.verses.where('package_id').equals(OYO_PACKAGE_ID).delete();
 			await db.verseRatings.clear();
+				await db.checkHistory.clear();
 
 			// Restore. Order matters only for read paths that join — none here.
 			if (snap.oyo.package) await db.packages.put(snap.oyo.package);
@@ -133,6 +140,8 @@ export async function applySyncSnapshot(input: unknown): Promise<void> {
 			if (snap.activity?.length) await db.activity.bulkPut(snap.activity);
 			if (snap.settings?.length) await db.settings.bulkPut(snap.settings);
 			if (snap.verseRatings?.length) await db.verseRatings.bulkPut(snap.verseRatings);
+				// Absent on snapshots written before v7 — the ?. keeps those importable.
+				if (snap.checkHistory?.length) await db.checkHistory.bulkPut(snap.checkHistory);
 
 			// Re-put device-local rows last so they override any same-key entries
 			// from the snapshot's settings array (defensive; build-time filter

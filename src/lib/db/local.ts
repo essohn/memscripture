@@ -37,6 +37,21 @@ export interface RecentBundle {
  *  startDifficulty = how hard the *opening* is to recall (the cue).
  *  fullDifficulty = how hard the *whole verse* is to memorize end-to-end.
  *  null = not rated yet; the badge renders in an unset state. */
+/** One completed memorize check. Written only when a result is saved, so a
+ *  cancelled attempt leaves no trace. */
+export interface CheckRecord {
+	id: string;
+	/** `${packageId}:${verseNo}` — the index the per-verse list queries on. */
+	verseKey: string;
+	packageId: string;
+	verseNo: number;
+	checkedAt: number;
+	start: number | null;
+	full: number | null;
+	accuracy: number;
+	elapsedMs: number;
+}
+
 export interface VerseRating {
 	id: string;
 	packageId: string;
@@ -56,6 +71,7 @@ class LocalDB extends Dexie {
 	recentVerses!: Table<RecentVerse, string>;
 	recentBundles!: Table<RecentBundle, string>;
 	verseRatings!: Table<VerseRating, string>;
+	checkHistory!: Table<CheckRecord, string>;
 
 	constructor() {
 		super('memscripture');
@@ -108,6 +124,20 @@ class LocalDB extends Dexie {
 			recentVerses: '&id, viewedAt',
 			recentBundles: '&id, createdAt',
 			verseRatings: '&id, packageId'
+		});
+		// v7 adds checkHistory. Purely additive, so Dexie migrates existing
+		// databases without a data callback.
+		this.version(7).stores({
+			packages: '&id, name',
+			verses: '[package_id+no], package_id',
+			settings: '&key',
+			progress: '&id, packageId, bucket',
+			activity: '&dateKey',
+			bookmarks: '&id, packageId, color',
+			recentVerses: '&id, viewedAt',
+			recentBundles: '&id, createdAt',
+			verseRatings: '&id, packageId',
+			checkHistory: '&id, verseKey, checkedAt'
 		});
 	}
 }

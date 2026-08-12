@@ -1,11 +1,19 @@
 <script lang="ts">
 	import DifficultyBadge from './DifficultyBadge.svelte';
+	import type { CheckRecord } from '$lib/db/local';
 	import { DIFFICULTY_LABELS, type DifficultyLevel } from '$lib/db/verseRatings';
-	import { accuracyOf, fullDifficultyFor, markMismatchedWords } from '$lib/memorize/grade';
+	import {
+		accuracyOf,
+		fullDifficultyFrom,
+		markMismatchedWords,
+		normalizeForGrading
+	} from '$lib/memorize/grade';
 	import { hasTypedOpening, startDifficultyFor } from '$lib/memorize/timing';
 
 	interface Props {
 		verse: string;
+		/** Past checks, newest first. Empty until the verse has been checked. */
+		history?: CheckRecord[];
 		/** Per dimension rather than one combined result, so this component can
 		 *  express the difference between "no start rating was measurable, leave
 		 *  whatever is there" and "the reader cleared it". A single payload
@@ -13,12 +21,19 @@
 		onPickStart: (level: DifficultyLevel | null) => void;
 		onPickFull: (level: DifficultyLevel | null) => void;
 		/** Fired once a result is recorded, so the card can lift the curtain —
-		 *  hiding the verse has no purpose after it has been graded. */
-		onGraded: () => void;
+		 *  hiding the verse has no purpose after it has been graded — and log
+		 *  the attempt. Only fires on a real save, never on 취소, so the history
+		 *  reads as "checks I finished". */
+		onGraded: (outcome: {
+			start: DifficultyLevel | null;
+			full: DifficultyLevel | null;
+			accuracy: number;
+			elapsedMs: number;
+		}) => void;
 		/** 닫기: leave memorize mode and return to the ordinary card. */
 		onClose: () => void;
 	}
-	let { verse, onPickStart, onPickFull, onGraded, onClose }: Props = $props();
+	let { verse, history = [], onPickStart, onPickFull, onGraded, onClose }: Props = $props();
 
 	let typed = $state('');
 	let elapsedMs = $state(0);
@@ -31,6 +46,15 @@
 	 *  Without it a perfect attempt saved in silence and left the panel
 	 *  untouched — the reader who recited it best got no reply at all. */
 	let saved = $state<{ start: DifficultyLevel | null; full: DifficultyLevel | null } | null>(null);
+	/** Collapsed by default: the input is what the reader came for, and ten rows
+	 *  above it would push the textarea off a phone screen. */
+	let historyOpen = $state(false);
+
+	function shortDate(ms: number): string {
+		const d = new Date(ms);
+		const pad = (n: number) => String(n).padStart(2, '0');
+		return `${d.getMonth() + 1}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+	}
 
 	let startedAt = $state(Date.now());
 
@@ -77,12 +101,14 @@
 		const accuracy = accuracyOf(verse, typed);
 		const result = {
 			start: openingAtMs === null ? null : startDifficultyFor(openingAtMs),
-			full: fullDifficultyFor(accuracy)
+			// Pace is measured against the verse's own length, so a long verse is
+			// not marked down for taking longer to type.
+			full: fullDifficultyFrom(accuracy, normalizeForGrading(verse).length, elapsedMs)
 		};
 		if (accuracy === 1) {
 			commit(result);
 			saved = result;
-			onGraded();
+			onGraded({ ...result, accuracy, elapsedMs });
 			return;
 		}
 		// Anything short of perfect goes through the reader — the app may
@@ -95,7 +121,7 @@
 		if (proposed) {
 			commit(proposed);
 			saved = proposed;
-			onGraded();
+			onGraded({ ...proposed, accuracy: accuracyOf(verse, typed), elapsedMs });
 		}
 		confirming = false;
 	}
@@ -195,12 +221,33 @@
 			/>
 		</div>
 	{:else if !confirming}
-		<div class="mb-2 flex items-center justify-between text-[11px]">
+		<div class="mb-2 flex items-center justify-between gap-2 text-[11px]">
 			<span class="tabular-nums text-[var(--color-text-secondary)]">⏱ {mmss(elapsedMs)}</span>
 			{#if openingAtMs !== null}
 				<span class="text-[var(--color-text-tertiary)]">도입부 {mmss(openingAtMs)}</span>
 			{/if}
+			{#if history.length > 0}
+				<button
+					type="button"
+					onclick={() => (historyOpen = !historyOpen)}
+					aria-expanded={historyOpen}
+					class="ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-card)] hover:text-[var(--color-text)]"
+				>
+					지난 점검 {history.length}회 · 최근 {history[0].start ?? '—'}·{history[0].full ?? '—'}
+					<span aria-hidden="true">{historyOpen ? '▴' : '▾'}</span>
+				</button>
+			{/if}
 		</div>
+		{#if historyOpen}
+			<ul data-testid="check-history" class="mb-2 space-y-0.5 text-[11px]">
+				{#each history as h (h.id)}
+					<li class="flex items-center justify-between gap-3 text-[var(--color-text-secondary)]">
+						<span class="tabular-nums">{shortDate(h.checkedAt)}</span>
+						<span class="tabular-nums">시작 {h.start ?? '—'} · 전체 {h.full ?? '—'}</span>
+					</li>
+				{/each}
+			</ul>
+		{/if}
 		<textarea
 			bind:value={typed}
 			rows="3"
@@ -221,7 +268,7 @@
 		</div>
 	{:else}
 		<p class="text-[12px] text-[var(--color-text-secondary)]">
-			틀린 곳이 있어 자동으로 저장하지 않았습니다. 확인 후 저장해주세요.
+			틀린 곳이 있었습니다. 직접 느낀 난이도를 저장해주세요.
 		</p>
 
 		<!-- The attempt first: "how did I go wrong" is answered by the reader's

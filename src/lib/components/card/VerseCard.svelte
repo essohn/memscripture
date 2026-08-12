@@ -9,6 +9,8 @@
 	import MemorizeCheckPanel from './MemorizeCheckPanel.svelte';
 	import type { DifficultyLevel } from '$lib/db/verseRatings';
 	import { normalizeForGrading } from '$lib/memorize/grade';
+	import { listChecks, recordCheck } from '$lib/db/checkHistory';
+	import type { CheckRecord } from '$lib/db/local';
 	import { goto } from '$app/navigation';
 
 	interface Props {
@@ -91,8 +93,17 @@
 	const totalWords = $derived(words.length);
 	const allRevealed = $derived(revealedCount >= totalWords);
 
+	// Loaded when the panel opens rather than on every card render — a 900-row
+	// list would otherwise issue 900 queries for history nobody is looking at.
+	let checkHistory = $state<CheckRecord[]>([]);
+
 	function enterMemorize() {
 		mode = 'memorize';
+		if (packageId) {
+			listChecks(packageId, verse.no)
+				.then((rows) => (checkHistory = rows))
+				.catch(() => {});
+		}
 		// Single-word verses have no curtain to drag — show immediately.
 		revealedCount = totalWords <= 1 ? totalWords : 0;
 	}
@@ -361,7 +372,15 @@
 				verse={verse.w}
 				onPickStart={onPickStartDifficulty!}
 				onPickFull={onPickFullDifficulty!}
-				onGraded={revealAll}
+				history={checkHistory}
+				onGraded={(outcome) => {
+					revealAll();
+					if (!packageId) return;
+					recordCheck(packageId, verse.no, outcome)
+						.then(() => listChecks(packageId, verse.no))
+						.then((rows) => (checkHistory = rows))
+						.catch(() => {});
+				}}
 				onClose={exitMemorize}
 			/>
 		{/if}

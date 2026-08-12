@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	accuracyOf,
 	fullDifficultyFor,
+	fullDifficultyFrom,
 	levenshtein,
 	markMismatchedWords,
 	normalizeForGrading
@@ -260,6 +261,42 @@ describe('marking the attempt (arguments swapped)', () => {
 	it('marks nothing either way on a correct attempt', () => {
 		expect(markMismatchedWords(GEN, GEN).filter((m) => !m.ok)).toEqual([]);
 		expect(markMismatchedWords(GEN, GEN.replace(/ /g, '')).filter((m) => !m.ok)).toEqual([]);
+	});
+});
+
+describe('fullDifficultyFrom — accuracy capped, then slowed', () => {
+	// 61 normalized characters, close to the corpus median.
+	const CHARS = 61;
+	const secs = (n: number) => n * 1000;
+
+	it('gives the top mark only for a flawless attempt', () => {
+		expect(fullDifficultyFrom(1, CHARS, secs(30))).toBe(5);
+		// Even a leisurely perfect attempt stays perfect — accuracy is the point.
+		expect(fullDifficultyFrom(1, CHARS, secs(600))).toBe(5);
+	});
+
+	// Any mistake caps the rating at 3, however small the mistake and however
+	// fast the typing.
+	it('caps a flawed attempt at 3', () => {
+		expect(fullDifficultyFrom(0.99, CHARS, secs(10))).toBe(3);
+		expect(fullDifficultyFrom(0.7, CHARS, secs(10))).toBe(3);
+	});
+
+	it('drops a slow flawed attempt further', () => {
+		expect(fullDifficultyFrom(0.9, CHARS, secs(40))).toBe(3); // ~1.5 chars/s
+		expect(fullDifficultyFrom(0.9, CHARS, secs(70))).toBe(2); // ~0.9 chars/s
+		expect(fullDifficultyFrom(0.9, CHARS, secs(200))).toBe(1); // ~0.3 chars/s
+	});
+
+	// Rate, not absolute seconds: a long verse must not be punished for being
+	// long. Same pace, same rating.
+	it('judges pace rather than elapsed time', () => {
+		expect(fullDifficultyFrom(0.9, 61, secs(40))).toBe(fullDifficultyFrom(0.9, 224, secs(147)));
+	});
+
+	it('survives a zero-length verse or instant submit', () => {
+		expect(fullDifficultyFrom(0.5, 0, secs(10))).toBeGreaterThanOrEqual(1);
+		expect(fullDifficultyFrom(0.5, CHARS, 0)).toBeGreaterThanOrEqual(1);
 	});
 });
 

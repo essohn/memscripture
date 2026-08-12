@@ -62,6 +62,48 @@ export function fullDifficultyFor(accuracy: number): DifficultyLevel {
 	return (FULL_BANDS.find((b) => accuracy >= b.min) ?? FULL_BANDS[FULL_BANDS.length - 1]).level;
 }
 
+/** Ceiling once anything at all was wrong. A near miss is still a miss, so it
+ *  cannot reach the top of the scale. */
+const FLAWED_CEILING: DifficultyLevel = 3;
+
+/** Typing pace, in normalized characters per second, for a flawed attempt.
+ *  Rate rather than elapsed seconds: the corpus runs from short verses to 224
+ *  characters, and a long one must not score badly for being long. */
+const PACE_BANDS: { minCharsPerSecond: number; level: DifficultyLevel }[] = [
+	{ minCharsPerSecond: 1.5, level: 3 },
+	{ minCharsPerSecond: 0.8, level: 2 },
+	{ minCharsPerSecond: 0, level: 1 }
+];
+
+/**
+ * 전체 암송 난이도 from accuracy first, then pace.
+ *
+ * A flawless attempt scores 5 no matter how long it took — accuracy is what
+ * this rating is about, and a careful correct recitation is not worse than a
+ * hurried one. Anything less is capped at 3 however small the slip, and pace
+ * lowers it from there.
+ *
+ * Note this makes elapsed time feed both ratings: 첫 시작 from the moment the
+ * opening was recalled, 전체 from the pace across the whole verse. They
+ * measure different things, but a slow day moves both.
+ */
+export function fullDifficultyFrom(
+	accuracy: number,
+	verseLength: number,
+	elapsedMs: number
+): DifficultyLevel {
+	if (accuracy >= 1) return 5;
+	// No pace to compute without both a verse and a duration; fall back to the
+	// ceiling rather than punishing a measurement we do not have.
+	if (verseLength <= 0 || elapsedMs <= 0) return FLAWED_CEILING;
+	const charsPerSecond = verseLength / (elapsedMs / 1000);
+	const paced = (
+		PACE_BANDS.find((b) => charsPerSecond >= b.minCharsPerSecond) ??
+		PACE_BANDS[PACE_BANDS.length - 1]
+	).level;
+	return Math.min(FLAWED_CEILING, paced) as DifficultyLevel;
+}
+
 /** How far past the expected position a word may still be recognised. Roughly
  *  one short Korean word, which is what a single dropped or inserted word
  *  shifts things by. */
