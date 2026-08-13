@@ -71,12 +71,16 @@ describe('isMemorized', () => {
 });
 
 describe('rangeHref', () => {
-	it('builds a sel-only link for verseNos ranges', () => {
-		expect(rangeHref({ packageId: '8_krv', verseNos: [1] }, [1])).toBe('/library/8_krv?sel=1');
+	// range=, not sel=. Both used to be sel=, which conflated two intents: a
+	// recent bundle restores a selection the reader made, while an event card
+	// is "show me these verses to study". Selection mode is right for the
+	// first and wrong for the second.
+	it('builds a range link for verseNos ranges', () => {
+		expect(rangeHref({ packageId: '8_krv', verseNos: [1] }, [1])).toBe('/library/8_krv?range=1');
 	});
 	it('includes s and g for series/group ranges', () => {
 		const href = rangeHref({ packageId: '60_krv', seriesIndex: 0, groupIndices: [2] }, [1, 2]);
-		expect(href).toBe('/library/60_krv?sel=1%2C2&s=0&g=2');
+		expect(href).toBe('/library/60_krv?range=1%2C2&s=0&g=2');
 	});
 });
 
@@ -193,7 +197,7 @@ describe('events data layer', () => {
 			label: '시편 23편',
 			done: 1,
 			total: 2,
-			href: '/library/5_krv?sel=1%2C2',
+			href: '/library/5_krv?range=1%2C2',
 			packageId: '5_krv',
 			verseNos: [1, 2]
 		});

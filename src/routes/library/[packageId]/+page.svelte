@@ -303,14 +303,36 @@
 			.filter((n) => Number.isInteger(n) && n >= 0);
 	}
 
+	/**
+	 * ?range= narrows the list to an event's verses. Distinct from ?sel=, which
+	 * restores a saved selection and opens selection mode: arriving here means
+	 * "show me these to study", so a card tap must still start a check.
+	 */
+	const rangeVerseNos = $derived(parseGroupIndices(page.url.searchParams.get('range')));
+	const rangeActive = $derived(rangeVerseNos.length > 0);
+
+	function clearRange() {
+		const params = new URLSearchParams(page.url.searchParams);
+		params.delete('range');
+		const qs = params.toString();
+		goto(`/library/${packageId}${qs ? `?${qs}` : ''}`, {
+			replaceState: true,
+			keepFocus: true,
+			noScroll: true
+		});
+	}
+
 	const seriesIndex = $derived(parseSeriesIndex(page.url.searchParams.get('s')));
 	const groupIndices = $derived(parseGroupIndices(page.url.searchParams.get('g')));
 
 	const series = $derived(level1Groups(data.groups));
 	const subGroups = $derived(level2GroupsInSeries(data.groups, seriesIndex));
-	const filteredVerses = $derived(
-		filterVerses(data.verses, data.groups, seriesIndex, groupIndices)
-	);
+	const filteredVerses = $derived.by(() => {
+		const byGroup = filterVerses(data.verses, data.groups, seriesIndex, groupIndices);
+		if (!rangeActive) return byGroup;
+		const wanted = new Set(rangeVerseNos);
+		return byGroup.filter((v) => wanted.has(v.no));
+	});
 
 	// URL mutation helpers
 	function navigateFilter(s: number | null, g: number[]) {
@@ -349,6 +371,17 @@
 			<span class="h-px w-4 bg-[var(--color-accent)]/60"></span>
 			{filteredVerses.length} / {data.verses.length}개
 		</span>
+		{#if rangeActive}
+			<button
+				type="button"
+				onclick={clearRange}
+				class="inline-flex items-center gap-1 rounded-full bg-[var(--color-accent-soft)] px-2.5 py-1 text-[11px] font-medium text-[var(--color-accent)]"
+			>
+				암송 DAY 범위
+				<span aria-hidden="true">✕</span>
+				<span class="sr-only">범위 해제</span>
+			</button>
+		{/if}
 		<div class="ml-auto flex items-center gap-1">
 			<button
 				type="button"

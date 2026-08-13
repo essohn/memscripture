@@ -33,10 +33,18 @@ export function isMemorized(rating: VerseRating | undefined): boolean {
 	return rating?.startDifficulty != null && rating?.fullDifficulty != null;
 }
 
-/** 홈 카드 링크. 기존 recentBundles의 bundleHref 규칙과 동일. */
+/**
+ * 홈 이벤트 카드 링크.
+ *
+ * `range=`, not `sel=`. A recent-bundle link restores a selection the reader
+ * built, so it opens in selection mode; an event card means "show me these
+ * verses to study", where selection mode would put a tap on the wrong action.
+ * They looked alike enough to share a parameter, and that is exactly what made
+ * the list open in selection mode when the reader came to practise.
+ */
 export function rangeHref(range: EventRange, verseNos: number[]): string {
 	const params = new URLSearchParams();
-	params.set('sel', verseNos.join(','));
+	params.set('range', verseNos.join(','));
 	if (range.seriesIndex !== null && range.seriesIndex !== undefined) {
 		params.set('s', String(range.seriesIndex));
 	}
