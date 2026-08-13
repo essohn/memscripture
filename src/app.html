@@ -10,6 +10,23 @@
 		<link rel="icon" href="%sveltekit.assets%/favicon.ico" sizes="any" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
 		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
+
+		<!--
+			Naver Search Advisor site ownership.
+
+			The file method does not work on this host: Cloudflare's asset handler
+			strips .html and 307-redirects, so /naver<token>.html lands on
+			/naver<token> instead of returning 200 at the URL Naver asks for. That
+			redirect is what makes /guide work, so it stays — and ownership is
+			proven with this tag instead. The token is the file name with the
+			"naver" prefix and ".html" suffix removed; Naver's console shows the
+			same value for the meta method.
+
+			Deliberately outside the seo-fallback markers below: hooks.server.ts
+			strips that block on the content pages, and this must appear on every
+			page.
+		-->
+		<meta name="naver-site-verification" content="fdd82d78f46873e8f9244d7a563e1f42" />
 		<link
 			rel="preload"
 			as="font"
