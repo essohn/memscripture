@@ -39,8 +39,15 @@
 		selected?: boolean;
 		/** Multi-select: dim this card because another card is selected and this one isn't. */
 		dimmed?: boolean;
-		/** When provided, tapping the card body toggles its selection. */
+		/** When provided, tapping the card body toggles its selection — but only
+		 *  while `selecting` is on. Outside selection mode the tap opens
+		 *  memorize instead. */
 		onToggleSelect?: () => void;
+		/** Selection mode is active on the page hosting this card. */
+		selecting?: boolean;
+		/** Whether a body tap opens memorize. Off for the verse detail page,
+		 *  where the card fills the screen and any tap would trigger it. */
+		tapToMemorize?: boolean;
 		/** Transient flash to draw the eye when the list is deep-linked to this verse. */
 		highlighted?: boolean;
 		/** When set, the package label becomes a link (e.g. back to the package list). */
@@ -65,6 +72,8 @@
 		selected = false,
 		dimmed = false,
 		onToggleSelect,
+		selecting = false,
+		tapToMemorize = true,
 		highlighted = false,
 		packageHref
 	}: Props = $props();
@@ -74,13 +83,15 @@
 	const ratingsEnabled = $derived(
 		Boolean(onPickStartDifficulty) && Boolean(onPickFullDifficulty)
 	);
-	const selectable = $derived(Boolean(onToggleSelect));
+	const selectable = $derived(Boolean(onToggleSelect) && selecting);
 
 	// ─── Memorize mode: drag a curtain left→right to reveal words one at a time ──
 	let mode = $state<'read' | 'memorize'>('read');
 	// While memorizing, the card stops acting as a select target so drags reveal
 	// words instead of toggling the selection.
-	const interactive = $derived(selectable && mode === 'read');
+	// The card reacts to a tap when it can select, or when a tap starts a
+	// memorize check. Both only apply in read mode.
+	const interactive = $derived((selectable || tapToMemorize) && mode === 'read');
 
 	let revealedCount = $state(0);
 	// Drag tuning — overwritten on first measure. `pxPerWord` is sized so one full
@@ -204,18 +215,27 @@
 	}
 
 	function handleCardClick(e: MouseEvent) {
-		if (!onToggleSelect || innerControlClicked(e)) return;
-		onToggleSelect();
+		if (innerControlClicked(e)) return;
+		// Selection mode owns the tap while it is on, and the toolbar shows that
+		// it is — so which action a tap performs is never a guess.
+		if (selectable) {
+			onToggleSelect!();
+			return;
+		}
+		if (tapToMemorize) enterMemorize();
 	}
 
 	function handleCardKey(e: KeyboardEvent) {
-		if (!onToggleSelect) return;
+		if (!selectable && !tapToMemorize) return;
 		// Only the card itself toggles on Enter/Space — let inner controls keep
 		// their own keyboard behaviour.
 		if (e.target !== e.currentTarget) return;
 		if (e.key === 'Enter' || e.key === ' ') {
 			e.preventDefault();
-			onToggleSelect();
+			// Same split as the pointer path, so keyboard and touch never
+			// disagree about what activating the card does.
+			if (selectable) onToggleSelect!();
+			else if (tapToMemorize) enterMemorize();
 		}
 	}
 
@@ -258,7 +278,8 @@
 	class={cardClass}
 	role={interactive ? 'button' : undefined}
 	tabindex={interactive ? 0 : undefined}
-	aria-pressed={interactive ? selected : undefined}
+	aria-pressed={selectable ? selected : undefined}
+	aria-label={selectable ? undefined : tapToMemorize ? `${verse.title} 암송 시작` : undefined}
 	onclick={interactive ? handleCardClick : undefined}
 	onkeydown={interactive ? handleCardKey : undefined}
 >

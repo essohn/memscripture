@@ -30,8 +30,18 @@ memory against a timer, and have both ratings proposed from the result.
 
 ## User-facing behavior
 
-암송 opens memorize mode as it does today, and a check panel appears inside
-the card, directly under the verse body:
+**Tapping the card body** opens memorize mode, as does the 암송 button. The
+card tap is the primary route: memorize is available on every screen that
+shows a verse, while multi-select lives on one, so the largest target serves
+the more frequent action. Taps landing on the bookmark ribbon, a difficulty
+badge or a tag still reach that control.
+
+Two exceptions. The verse detail page opts out (`tapToMemorize={false}`) —
+its card fills the screen, so any stray tap would trigger it. And while the
+package list is in selection mode, the tap belongs to selection; the toolbar
+shows which mode is on, so it is never a guess.
+
+A check panel appears inside the card, directly under the verse body:
 
 ```
 ┌─ VerseCard ─────────────────────┐
@@ -47,7 +57,10 @@ the card, directly under the verse body:
 └─────────────────────────────────┘
 ```
 
-The timer starts when the panel opens. 제출 grades the attempt.
+The timer starts on the **first keystroke**, not when the panel opens. Since
+any card tap now opens the panel, a stray tap while scrolling would otherwise
+start timing a check nobody began — and 첫 시작 난이도 would already be
+spoiled by the time the reader noticed. 제출 grades the attempt.
 
 ## Grading — 전체 암송 난이도
 

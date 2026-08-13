@@ -47,6 +47,10 @@
 	// Multi-select: a Set of verse.no the user has tapped. When non-empty, the
 	// selected cards stay bright while the rest dim, and a confirm bar appears.
 	let selectedVerseNos = $state<Set<number>>(new Set());
+	// Selection is an explicit mode. Outside it a card tap starts a memorize
+	// check — the far more frequent action, and the one available on every
+	// screen. The toolbar shows which mode is on, so a tap never surprises.
+	let selecting = $state(false);
 	let toast = $state<{ message: string } | null>(null);
 	const selectionActive = $derived(selectedVerseNos.size > 0);
 
@@ -88,6 +92,12 @@
 		selectedVerseNos = new Set();
 		bookmarkPaletteOpen = false;
 		selectionPackageId = null;
+		selecting = false;
+	}
+
+	function toggleSelecting() {
+		if (selecting) clearSelection();
+		else selecting = true;
 	}
 
 	// 관리자 작성 보조: 현재 선택을 events.json에 붙여넣을 EventRange JSON으로 복사.
@@ -193,6 +203,10 @@
 		if (nos.length === 0) return;
 		selectedVerseNos = new Set(nos);
 		selectionPackageId = packageId;
+		// A restored bundle arrives pre-selected, so the page must already be in
+		// selection mode — otherwise the highlighted cards would open memorize
+		// on tap, which contradicts what they look like.
+		selecting = true;
 		const first = Math.min(...nos);
 		const rafId = requestAnimationFrame(() => {
 			document
@@ -336,6 +350,16 @@
 			{filteredVerses.length} / {data.verses.length}개
 		</span>
 		<div class="ml-auto flex items-center gap-1">
+			<button
+				type="button"
+				onclick={toggleSelecting}
+				aria-pressed={selecting}
+				class="rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors {selecting
+					? 'bg-[var(--color-accent)] text-white'
+					: 'bg-[var(--color-elevated)] text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'}"
+			>
+				{selecting ? '완료' : '선택'}
+			</button>
 			<FontScalePicker value={fontScale} onpick={pickFontScale} />
 		</div>
 	</div>
@@ -362,6 +386,7 @@
 					onPickFullDifficulty={(l) => pickFull(v.no, l)}
 					showBody={showVerseText}
 					{fontScale}
+					{selecting}
 					selected={selectedVerseNos.has(v.no)}
 					dimmed={selectionActive && !selectedVerseNos.has(v.no)}
 					onToggleSelect={() => toggleSelect(v.no)}

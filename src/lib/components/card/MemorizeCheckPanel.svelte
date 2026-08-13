@@ -56,20 +56,31 @@
 		return `${d.getMonth() + 1}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 	}
 
-	let startedAt = $state(Date.now());
+	/**
+	 * Null until the reader actually types. Any card tap now opens this panel,
+	 * so a stray tap while scrolling would otherwise start a clock on a check
+	 * nobody began — and 첫 시작 난이도 would already be spoiled by the time
+	 * they noticed the panel was open.
+	 */
+	let startedAt = $state<number | null>(null);
 
 	$effect(() => {
 		const id = setInterval(() => {
-			if (!confirming) elapsedMs = Date.now() - startedAt;
+			if (startedAt !== null && !confirming) elapsedMs = Date.now() - startedAt;
 		}, 250);
 		return () => clearInterval(id);
+	});
+
+	// The first character is what starts the check.
+	$effect(() => {
+		if (startedAt === null && typed.length > 0) startedAt = Date.now();
 	});
 
 	// Stop the start clock the first time the opening is correct. Watching the
 	// text rather than keystrokes means a correction that finally gets the
 	// opening right still counts, at the later time it became right.
 	$effect(() => {
-		if (openingAtMs === null && hasTypedOpening(verse, typed)) {
+		if (startedAt !== null && openingAtMs === null && hasTypedOpening(verse, typed)) {
 			openingAtMs = Date.now() - startedAt;
 		}
 	});
@@ -168,7 +179,7 @@
 		saved = null;
 		typed = '';
 		openingAtMs = null;
-		startedAt = Date.now();
+		startedAt = null;
 		elapsedMs = 0;
 	}
 </script>
@@ -222,7 +233,9 @@
 		</div>
 	{:else if !confirming}
 		<div class="mb-2 flex items-center justify-between gap-2 text-[11px]">
-			<span class="tabular-nums text-[var(--color-text-secondary)]">⏱ {mmss(elapsedMs)}</span>
+			<span data-testid="elapsed" class="tabular-nums text-[var(--color-text-secondary)]"
+				>⏱ {mmss(elapsedMs)}</span
+			>
 			{#if openingAtMs !== null}
 				<span class="text-[var(--color-text-tertiary)]">도입부 {mmss(openingAtMs)}</span>
 			{/if}

@@ -185,6 +185,7 @@
 				{onPickStartDifficulty}
 				{onPickFullDifficulty}
 				showBody={showVerseText}
+				tapToMemorize={false}
 				{fontScale}
 			/>
 		{/key}

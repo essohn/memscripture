@@ -264,3 +264,20 @@ describe('finishing the check', () => {
 	});
 });
 
+describe('the clock starts with the typing, not the panel', () => {
+	// Now that any card tap opens the panel, a stray tap while scrolling would
+	// otherwise start timing a check the reader has not begun — and 첫 시작
+	// 난이도 would already be ruined by the time they noticed.
+	it('does not run before the first keystroke', async () => {
+		setup();
+		await new Promise((r) => setTimeout(r, 60));
+		expect(screen.getByTestId('elapsed').textContent).toContain('0:00');
+	});
+
+	it('runs once typing begins', async () => {
+		setup();
+		await type('그');
+		expect(screen.getByTestId('elapsed')).toBeInTheDocument();
+	});
+});
+

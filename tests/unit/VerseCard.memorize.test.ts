@@ -11,7 +11,7 @@ const verse = {
 	w: '그들에게 율례와 법도를 가르쳐서 마땅히 갈 길과 할 일을 그들에게 보이고'
 };
 
-function setup(over = {}) {
+function setup(over: Record<string, unknown> = {}) {
 	const props = {
 		verse,
 		packageName: '900구절',
@@ -66,3 +66,53 @@ describe('VerseCard memorize check', () => {
 		expect(screen.queryByLabelText('암송 구절 입력')).toBeNull();
 	});
 });
+
+describe('card tap', () => {
+	// Memorize is available on every card everywhere; selection lives on one
+	// screen. The biggest tap target should serve the more frequent action.
+	it('opens memorize when the card body is tapped', async () => {
+		setup();
+		await fireEvent.click(screen.getByTestId('verse-row'));
+		expect(screen.getByLabelText('암송 구절 입력')).toBeInTheDocument();
+	});
+
+	it('keeps the 암송 button working', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '암송' }));
+		expect(screen.getByLabelText('암송 구절 입력')).toBeInTheDocument();
+	});
+
+	// The card hosts a bookmark ribbon, difficulty badges and tags. A tap on
+	// any of those must reach that control, not open memorize behind it.
+	it('ignores taps that land on an inner control', async () => {
+		setup();
+		await fireEvent.click(screen.getByLabelText(/첫 시작 난이도/));
+		expect(screen.queryByLabelText('암송 구절 입력')).toBeNull();
+	});
+
+	// While selecting, the tap belongs to selection — and the mode is visible
+	// on screen, so which one is active is never a guess.
+	it('selects instead of memorizing while selection mode is on', async () => {
+		const onToggleSelect = vi.fn();
+		setup({ selecting: true, onToggleSelect });
+		await fireEvent.click(screen.getByTestId('verse-row'));
+		expect(onToggleSelect).toHaveBeenCalledTimes(1);
+		expect(screen.queryByLabelText('암송 구절 입력')).toBeNull();
+	});
+
+	it('does not select when selection mode is off', async () => {
+		const onToggleSelect = vi.fn();
+		setup({ selecting: false, onToggleSelect });
+		await fireEvent.click(screen.getByTestId('verse-row'));
+		expect(onToggleSelect).not.toHaveBeenCalled();
+	});
+
+	// The verse detail page renders one card filling the screen; a tap
+	// anywhere would open memorize while merely scrolling.
+	it('leaves the card inert when tap-to-memorize is disabled', async () => {
+		setup({ tapToMemorize: false });
+		await fireEvent.click(screen.getByTestId('verse-row'));
+		expect(screen.queryByLabelText('암송 구절 입력')).toBeNull();
+	});
+});
+
