@@ -158,4 +158,50 @@ export function markMismatchedWords(
 	});
 }
 
+export interface Hint {
+	/** Position of this word in the verse. The panel resets its press count
+	 *  when this moves, so a newly stuck word opens from one character again
+	 *  rather than inheriting the credit spent on the previous one. */
+	index: number;
+	/** The whole word, for measuring how much is still hidden. */
+	word: string;
+	/** The leading characters revealed so far. */
+	revealed: string;
+}
+
+/**
+ * The next few characters of wherever the reader is stuck.
+ *
+ * Where they are stuck is not computed here: markMismatchedWords already walks
+ * the verse in order and stops producing matches at exactly that point, so the
+ * first unmatched word *is* the answer. Reusing it also keeps the hint and the
+ * post-submit marking from ever disagreeing about the same attempt.
+ *
+ * `presses` is cumulative — one character for the first, one more for each
+ * after, rolling on to the following word once the current one is fully open.
+ * Returns null when the verse has been produced in full and there is nothing
+ * left to hint at.
+ */
+export function nextHint(expected: string, actual: string, presses: number): Hint | null {
+	if (presses < 1) return null;
+
+	const marks = markMismatchedWords(expected, actual);
+	const start = marks.findIndex((m) => !m.ok);
+	if (start === -1) return null;
+
+	let remaining = presses;
+	let last: Hint | null = null;
+	for (let i = start; i < marks.length; i++) {
+		const { word } = marks[i];
+		// A bare '*' verse marker has no characters to give away.
+		if (normalizeForGrading(word).length === 0) continue;
+		if (remaining <= word.length) return { index: i, word, revealed: word.slice(0, remaining) };
+		remaining -= word.length;
+		last = { index: i, word, revealed: word };
+	}
+	// More presses than the verse has characters: hold at the end rather than
+	// wrapping around to the beginning.
+	return last;
+}
+
 

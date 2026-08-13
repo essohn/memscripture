@@ -5,6 +5,7 @@ import {
 	fullDifficultyFrom,
 	levenshtein,
 	markMismatchedWords,
+	nextHint,
 	normalizeForGrading
 } from '../../src/lib/memorize/grade';
 
@@ -297,6 +298,47 @@ describe('fullDifficultyFrom — accuracy capped, then slowed', () => {
 	it('survives a zero-length verse or instant submit', () => {
 		expect(fullDifficultyFrom(0.5, 0, secs(10))).toBeGreaterThanOrEqual(1);
 		expect(fullDifficultyFrom(0.5, CHARS, 0)).toBeGreaterThanOrEqual(1);
+	});
+});
+
+describe('nextHint', () => {
+	const V = '그들에게 율례와 법도를 가르쳐서 마땅히 갈 길과';
+
+	// The stuck point is wherever the attempt stopped matching, which
+	// markMismatchedWords already walks to — so this is a lookup, not a search.
+	it('points at the first word the attempt has not produced', () => {
+		expect(nextHint(V, '그들에게 율례와 법도를', 1)).toMatchObject({ word: '가르쳐서', revealed: '가' });
+	});
+
+	it('opens one more character each time', () => {
+		const typed = '그들에게 율례와 법도를';
+		expect(nextHint(V, typed, 1)?.revealed).toBe('가');
+		expect(nextHint(V, typed, 2)?.revealed).toBe('가르');
+		expect(nextHint(V, typed, 3)?.revealed).toBe('가르쳐');
+		expect(nextHint(V, typed, 4)?.revealed).toBe('가르쳐서');
+	});
+
+	// Past the end of a word the hint moves on rather than stalling.
+	it('advances to the following word once one is fully open', () => {
+		expect(nextHint(V, '그들에게 율례와 법도를', 5)).toMatchObject({ word: '마땅히', revealed: '마' });
+	});
+
+	it('starts at the first word when nothing has been typed', () => {
+		expect(nextHint(V, '', 1)).toMatchObject({ word: '그들에게', revealed: '그' });
+	});
+
+	it('returns null once the whole verse has been produced', () => {
+		expect(nextHint(V, V, 1)).toBeNull();
+	});
+
+	// Spacing is not a mistake anywhere else in grading, and it must not be
+	// what decides where the reader is stuck either.
+	it('ignores spacing when locating the stuck point', () => {
+		expect(nextHint(V, '그들에게율례와 법도를', 1)?.word).toBe('가르쳐서');
+	});
+
+	it('treats a wrong word as the stuck point', () => {
+		expect(nextHint(V, '그들에게 율례와 법전을', 1)?.word).toBe('법도를');
 	});
 });
 

@@ -6,7 +6,9 @@
 		accuracyOf,
 		fullDifficultyFrom,
 		markMismatchedWords,
-		normalizeForGrading
+		nextHint,
+		normalizeForGrading,
+		type Hint
 	} from '$lib/memorize/grade';
 	import { hasTypedOpening, startDifficultyFor } from '$lib/memorize/timing';
 
@@ -29,6 +31,7 @@
 			full: DifficultyLevel | null;
 			accuracy: number;
 			elapsedMs: number;
+			hints: number;
 		}) => void;
 		/** 닫기: leave memorize mode and return to the ordinary card. */
 		onClose: () => void;
@@ -41,7 +44,12 @@
 	 *  reading is "how long to recall the start", not "how long in total". */
 	let openingAtMs = $state<number | null>(null);
 	let confirming = $state(false);
-	let proposed = $state<{ start: DifficultyLevel | null; full: DifficultyLevel } | null>(null);
+	let proposed = $state<{ start: DifficultyLevel | null; full: DifficultyLevel | null } | null>(
+		null
+	);
+	/** True when the confirmation was reached by 포기 rather than by 제출, which
+	 *  changes the copy and withholds any proposal of our own. */
+	let gaveUp = $state(false);
 	/** Set once the result is written, which swaps the input for a summary.
 	 *  Without it a perfect attempt saved in silence and left the panel
 	 *  untouched — the reader who recited it best got no reply at all. */
@@ -92,6 +100,40 @@
 	 *  against the verse is exactly the mirror of walking the verse. */
 	const attemptMarks = $derived(markMismatchedWords(typed, verse));
 
+	// ─── 힌트: the next word, one character at a time ────────────────────────
+	/** Where the attempt stopped matching. -1 once the verse is complete. */
+	const stuckIndex = $derived(mismatches.findIndex((m) => !m.ok));
+	/** Presses spent on the current stuck word. */
+	let hintPresses = $state(0);
+	/** The word those presses were spent on. */
+	let hintAnchor = $state(-1);
+	/** Presses across the whole check, for the history row. Never reset by
+	 *  moving on to the next word — "I needed six nudges" is the useful number,
+	 *  and it is the one the next check wants to compare against. */
+	let hintsUsed = $state(0);
+
+	// Typing past the stuck word starts the next one over from one character.
+	// Without this the credit spent on 가르쳐서 would carry straight into
+	// 마땅히 and hand over most of it unasked.
+	$effect(() => {
+		if (stuckIndex !== hintAnchor) {
+			hintAnchor = stuckIndex;
+			hintPresses = 0;
+		}
+	});
+
+	const hint = $derived<Hint | null>(hintPresses > 0 ? nextHint(verse, typed, hintPresses) : null);
+
+	/** `가□□□` — what is open, and how much is still behind it. */
+	function masked(h: Hint): string {
+		return h.revealed + '□'.repeat(Math.max(0, h.word.length - h.revealed.length));
+	}
+
+	function revealHint() {
+		hintPresses += 1;
+		hintsUsed += 1;
+	}
+
 	function mmss(ms: number): string {
 		const s = Math.floor(ms / 1000);
 		return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -119,7 +161,7 @@
 		if (accuracy === 1) {
 			commit(result);
 			saved = result;
-			onGraded({ ...result, accuracy, elapsedMs });
+			onGraded({ ...result, accuracy, elapsedMs, hints: hintsUsed });
 			return;
 		}
 		// Anything short of perfect goes through the reader — the app may
@@ -128,21 +170,43 @@
 		confirming = true;
 	}
 
+	/**
+	 * 포기: reveals the verse and hands the rating over untouched.
+	 *
+	 * No automatic level, deliberately. A reader who blanked on one word and a
+	 * reader who knew none of it both press this button, and flattening them
+	 * into one score would destroy the only signal the next check has to read.
+	 * The elapsed time and whatever was typed are still recorded, so the
+	 * history keeps the shape of the attempt.
+	 */
+	function giveUp() {
+		proposed = { start: null, full: null };
+		gaveUp = true;
+		confirming = true;
+	}
+
 	function save() {
 		if (proposed) {
 			commit(proposed);
 			saved = proposed;
-			onGraded({ ...proposed, accuracy: accuracyOf(verse, typed), elapsedMs });
+			onGraded({
+				...proposed,
+				accuracy: accuracyOf(verse, typed),
+				elapsedMs,
+				hints: hintsUsed
+			});
 		}
 		confirming = false;
+		gaveUp = false;
 	}
 
-	/** Writes a freshly graded result. A null start is withheld: it means the
-	 *  opening was never typed, so there is nothing to say — not that the
-	 *  reader wants an existing rating erased. */
-	function commit(r: { start: DifficultyLevel | null; full: DifficultyLevel }) {
+	/** Writes a freshly graded result. A null is withheld rather than written
+	 *  through: it means nothing was measured — the opening was never typed, or
+	 *  the reader gave up without picking — not that an existing rating should
+	 *  be erased. */
+	function commit(r: { start: DifficultyLevel | null; full: DifficultyLevel | null }) {
 		if (r.start !== null) onPickStart(r.start);
-		onPickFull(r.full);
+		if (r.full !== null) onPickFull(r.full);
 	}
 
 	/**
@@ -157,6 +221,7 @@
 	 */
 	function cancel() {
 		confirming = false;
+		gaveUp = false;
 		proposed = null;
 		restart();
 	}
@@ -181,6 +246,8 @@
 		openingAtMs = null;
 		startedAt = null;
 		elapsedMs = 0;
+		hintPresses = 0;
+		hintsUsed = 0;
 	}
 </script>
 
@@ -256,7 +323,13 @@
 				{#each history as h (h.id)}
 					<li class="flex items-center justify-between gap-3 text-[var(--color-text-secondary)]">
 						<span class="tabular-nums">{shortDate(h.checkedAt)}</span>
-						<span class="tabular-nums">시작 {h.start ?? '—'} · 전체 {h.full ?? '—'}</span>
+						<span class="tabular-nums">
+							시작 {h.start ?? '—'} · 전체 {h.full ?? '—'}
+							<!-- A 5 reached with eight nudges is not the same 5 as one
+							     reached cold, and only this column can say so. -->
+							{#if h.hints}<span class="text-[var(--color-text-tertiary)]">· 힌트 {h.hints}</span
+								>{/if}
+						</span>
 					</li>
 				{/each}
 			</ul>
@@ -269,37 +342,69 @@
 			placeholder="외운 구절을 입력하세요"
 			class="w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-2 text-[14px] text-[var(--color-text)]"
 		></textarea>
-		<div class="mt-2 flex justify-end">
+		<!-- The row is always here, empty or not. 힌트 is pressed repeatedly, and
+		     a line that appears on the first press would shove the button out
+		     from under the finger already on it. -->
+		<div class="mt-2 min-h-[1.35rem]">
+			{#if hint}
+				<p data-testid="hint" class="text-[13px] text-[var(--color-text-secondary)]">
+					다음: <span class="font-semibold tracking-[0.08em] text-[var(--color-text)]"
+						>{masked(hint)}</span
+					>
+				</p>
+			{/if}
+		</div>
+		<div class="mt-2 flex items-center gap-1.5">
+			<button
+				type="button"
+				disabled={stuckIndex === -1}
+				onclick={revealHint}
+				class="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-card)] disabled:opacity-40"
+			>
+				힌트
+			</button>
+			<button
+				type="button"
+				onclick={giveUp}
+				class="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-card)] hover:text-[var(--color-text-secondary)]"
+			>
+				포기
+			</button>
 			<button
 				type="button"
 				disabled={typed.trim().length === 0}
 				onclick={submit}
-				class="rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+				class="ml-auto rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
 			>
 				제출
 			</button>
 		</div>
 	{:else}
 		<p class="text-[12px] text-[var(--color-text-secondary)]">
-			틀린 곳이 있었습니다. 직접 느낀 난이도를 저장해주세요.
+			{gaveUp
+				? '원문을 확인하고 직접 느낀 난이도를 저장해주세요.'
+				: '틀린 곳이 있었습니다. 직접 느낀 난이도를 저장해주세요.'}
 		</p>
 
 		<!-- The attempt first: "how did I go wrong" is answered by the reader's
 		     own words, and the verse below is what to compare them against.
 		     Showing only the verse told them what it says and nothing about
-		     what they wrote. -->
-		<p class="mt-3 text-[10.5px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
-			입력한 내용
-		</p>
-		<p data-testid="attempt-words" class="mt-1 text-[14px] leading-[1.7]">
-			{#each attemptMarks as m, i (i)}<span
-					data-ok={m.ok}
-					class={m.ok
-						? 'text-[var(--color-text)]'
-						: 'rounded bg-[var(--color-ribbon-red)]/20 px-0.5 text-[var(--color-danger)]'}
-					>{m.word}</span
-				>{' '}{/each}
-		</p>
+		     what they wrote. Skipped when 포기 came before a single word — an
+		     empty block would only claim they wrote nothing worth showing. -->
+		{#if typed.trim().length > 0}
+			<p class="mt-3 text-[10.5px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
+				입력한 내용
+			</p>
+			<p data-testid="attempt-words" class="mt-1 text-[14px] leading-[1.7]">
+				{#each attemptMarks as m, i (i)}<span
+						data-ok={m.ok}
+						class={m.ok
+							? 'text-[var(--color-text)]'
+							: 'rounded bg-[var(--color-ribbon-red)]/20 px-0.5 text-[var(--color-danger)]'}
+						>{m.word}</span
+					>{' '}{/each}
+			</p>
+		{/if}
 
 		<p class="mt-3 text-[10.5px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
 			원문
@@ -322,7 +427,7 @@
 			<DifficultyBadge
 				value={proposed?.full ?? null}
 				label="전체 암송 난이도"
-				onpick={(l) => proposed && l !== null && (proposed = { ...proposed, full: l })}
+				onpick={(l) => proposed && (proposed = { ...proposed, full: l })}
 			/>
 			<div class="ml-auto flex items-center gap-1.5">
 				<button
@@ -332,10 +437,14 @@
 				>
 					취소
 				</button>
+				<!-- 전체 난이도 is what this screen exists to capture, so saving
+				     without one would write an empty check. After 제출 it is always
+				     set; after 포기 it is the reader's to supply. -->
 				<button
 					type="button"
+					disabled={!proposed || proposed.full === null}
 					onclick={save}
-					class="rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
+					class="rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
 				>
 					저장
 				</button>

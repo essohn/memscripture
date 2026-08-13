@@ -50,6 +50,9 @@ export interface CheckRecord {
 	full: number | null;
 	accuracy: number;
 	elapsedMs: number;
+	/** 힌트 presses spent during the check. Optional: rows written before hints
+	 *  existed have none, and absent is not the same as zero. */
+	hints?: number;
 }
 
 export interface VerseRating {

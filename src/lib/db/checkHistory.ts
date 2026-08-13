@@ -26,6 +26,7 @@ export async function recordCheck(
 		full: DifficultyLevel | null;
 		accuracy: number;
 		elapsedMs: number;
+		hints?: number;
 	},
 	checkedAt: number = Date.now()
 ): Promise<void> {

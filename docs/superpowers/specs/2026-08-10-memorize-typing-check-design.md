@@ -30,37 +30,80 @@ memory against a timer, and have both ratings proposed from the result.
 
 ## User-facing behavior
 
-**Tapping the card body** opens memorize mode, as does the 암송 button. The
-card tap is the primary route: memorize is available on every screen that
-shows a verse, while multi-select lives on one, so the largest target serves
-the more frequent action. Taps landing on the bookmark ribbon, a difficulty
-badge or a tag still reach that control.
+Two modes, and each takes the whole card. They answer different questions and
+running both at once made the first the answer key to the second.
 
-Two exceptions. The verse detail page opts out (`tapToMemorize={false}`) —
-its card fills the screen, so any stray tap would trigger it. And while the
-package list is in selection mode, the tap belongs to selection; the toolbar
-shows which mode is on, so it is never a guess.
+| Entry | Mode | What it shows |
+|---|---|---|
+| 암송 button | **연습** | The curtain. Drag left→right to uncover one word at a time. |
+| 점검 button, or a card tap | **점검** | The typing panel. The verse body is hidden outright. |
 
-A check panel appears inside the card, directly under the verse body:
+**Tapping the card body** opens 점검. The card tap is the primary route:
+checking is available on every screen that shows a verse, while multi-select
+lives on one, so the largest target serves the more frequent action. Taps
+landing on the bookmark ribbon, a difficulty badge or a tag still reach that
+control.
+
+Two exceptions. The verse detail page opts out (`tapToCheck={false}`) — its
+card fills the screen, so any stray tap would trigger it. And while the package
+list is in selection mode, the tap belongs to selection; the toolbar shows
+which mode is on, so it is never a guess.
+
+The panel replaces the verse body rather than sitting under it:
 
 ```
 ┌─ VerseCard ─────────────────────┐
-│ 양육            [난이도] [✕]     │
+│ 양육                       [✕]   │
 │ 출애굽기 18 : 20                  │
-│ ░░░░░ ░░░░ ░░░░░░ ░░░░░  ← 커튼   │
+│                     ← 원문 숨김   │
 ├─────────────────────────────────┤
-│ ⏱ 0:12                          │
+│ ⏱ 0:12      지난 점검 3회 · 4·5 ▾ │
 │ ┌─────────────────────────────┐ │
 │ │ 그들에게 율례와│              │ │
 │ └─────────────────────────────┘ │
-│                        [제출]    │
+│ 다음: 법□□                       │
+│ [힌트] [포기]           [제출]    │
 └─────────────────────────────────┘
 ```
+
+The verse stays hidden until a result is recorded or the reader gives up — a
+legible verse turns typing it from memory into copying it.
 
 The timer starts on the **first keystroke**, not when the panel opens. Since
 any card tap now opens the panel, a stray tap while scrolling would otherwise
 start timing a check nobody began — and 첫 시작 난이도 would already be
 spoiled by the time the reader noticed. 제출 grades the attempt.
+
+### 힌트 — a character at a time
+
+Where the reader is stuck is not computed: `markMismatchedWords` already walks
+the verse in order and stops matching at exactly that point, so **the first
+unmatched word is the answer**. Reusing it also keeps the hint and the
+post-submit marking from ever disagreeing about the same attempt.
+
+Each press opens one more character of that word — `가□□□` → `가르□□` → …  —
+and rolls on to the following word once it is fully open. Typing past the stuck
+word **resets the count and clears the line**, so the next word starts from one
+character and only when asked again. Without the reset, credit spent on one
+word would carry into the next and, word after word, feed the reader the whole
+verse without another press.
+
+The hint row is always rendered, empty or not. 힌트 is pressed repeatedly, and
+a line that appeared on the first press shoved the button out from under the
+finger already on it.
+
+Presses do not affect the proposed rating — the reader sets that themselves
+anyway. They are recorded on the history row instead: a 5 reached with eight
+nudges is not the same 5 as one reached cold, and only that column can say so.
+
+### 포기 — the answer, but not a score
+
+Reveals the verse and hands both ratings over untouched. **No automatic level**:
+a reader who blanked on one word and a reader who knew none of it both press
+this button, and flattening them into one score would destroy the only signal
+the next check has to read. 저장 stays disabled until 전체 난이도 is picked,
+since saving without one would write an empty check. Elapsed time and whatever
+was typed are still recorded, so the history keeps the shape of the attempt.
 
 ## Grading — 전체 암송 난이도
 
@@ -181,8 +224,8 @@ from the original open, flattering it against an honest single attempt.
 
 ## Check history
 
-Each saved check is recorded: when, both ratings, the accuracy and the elapsed
-time. The panel shows the last **10** for that verse — collapsed to a one-line
+Each saved check is recorded: when, both ratings, the accuracy, the elapsed
+time and the 힌트 presses. The panel shows the last **10** for that verse — collapsed to a one-line
 summary above the input, expandable on tap. Collapsed by default because the
 input is what the reader came for, and ten rows above it would push the
 textarea off a phone screen.
@@ -193,7 +236,9 @@ pruned as new ones land — this is a glance at recent form, not an audit trail,
 and 900 verses times an unbounded log would ride along in every sync snapshot.
 
 Storage is a new `checkHistory` table at schema **v7**, additive so Dexie
-migrates existing databases without a data callback. It is included in the
+migrates existing databases without a data callback. `hints` is optional on
+the record — rows written before hints existed have none, and absent is not
+the same as zero — so it needs no version bump of its own. It is included in the
 Drive sync snapshot, since progress, ratings and activity all are and history
 is the same class of data; `checkHistory` is optional on the snapshot type so
 a file written by a v6 device still imports.
@@ -205,10 +250,10 @@ thresholds and the normalization are the parts worth testing exhaustively.
 
 | Module | Responsibility |
 |--------|----------------|
-| `src/lib/memorize/grade.ts` | Normalization, Levenshtein, accuracy → rating, word-level mismatch marking. Pure. |
+| `src/lib/memorize/grade.ts` | Normalization, Levenshtein, accuracy → rating, word-level mismatch marking, next-hint lookup. Pure. |
 | `src/lib/memorize/timing.ts` | Elapsed → rating; "has the opening been typed" test. Pure. |
-| `src/lib/components/card/MemorizeCheckPanel.svelte` | Timer, input, submit, confirmation UI |
-| `src/lib/components/card/VerseCard.svelte` | Mounts the panel under the body in memorize mode |
+| `src/lib/components/card/MemorizeCheckPanel.svelte` | Timer, input, 힌트, 포기, submit, confirmation UI |
+| `src/lib/components/card/VerseCard.svelte` | Owns the `read`/`rehearse`/`check` mode; mounts the panel in check mode |
 
 The panel reports results upward through callbacks (`onPickStartDifficulty`,
 `onPickFullDifficulty`) that `VerseCard` already receives, so no page needs
@@ -219,19 +264,26 @@ new wiring and the ratings persist through the path they already use.
 - **Empty submission** — 제출 stays disabled until something is typed.
 - **Opening never matched** — full rating still proposed, start left unset.
 - **Panel closed mid-attempt** (✕ or navigating away) — nothing is written.
-- **Verse with no gradeable body** — the panel does not render. Guarded on
-  the normalized text, not a raw non-empty check: a body of pure punctuation
-  (reachable on user-authored OYO verses) normalizes to the empty string,
-  and two empty strings would otherwise score a meaningless attempt 100%.
+- **Verse with no gradeable body** — 점검 is not offered at all, and a card
+  tap does nothing. Guarded on the normalized text, not a raw non-empty check:
+  a body of pure punctuation (reachable on user-authored OYO verses)
+  normalizes to the empty string, and two empty strings would otherwise score
+  a meaningless attempt 100%. 암송 still works — a curtain needs no grading.
+- **힌트 pressed past the end of the verse** — the hint holds at the last word
+  rather than wrapping to the beginning; the button disables once the verse
+  has been produced in full.
+- **포기 with nothing typed** — allowed. The 입력한 내용 block is skipped
+  rather than rendered empty, which would only claim they wrote nothing
+  worth showing.
 
 ## Testing
 
 | Target | What is asserted |
 |--------|------------------|
-| `grade.ts` | Spacing and punctuation ignored; `*` stripped; a wrong word counts; each accuracy band maps to its rating; over-long answers do not score high; word-level marking picks the right words |
+| `grade.ts` | Spacing and punctuation ignored; `*` stripped; a wrong word counts; each accuracy band maps to its rating; over-long answers do not score high; word-level marking picks the right words; the hint locates the stuck word, opens one character per press, rolls to the next word, and returns nothing once the verse is complete |
 | `timing.ts` | Each band maps to its rating; boundary values land on the intended side; the opening matches under normalization |
-| `MemorizeCheckPanel` | 100% saves without a dialog; a flawed attempt opens confirmation and writes nothing until 저장; 취소 writes nothing; submit disabled while empty |
-| `VerseCard` | Panel appears in memorize mode and not in read mode; the curtain still works |
+| `MemorizeCheckPanel` | 100% saves without a dialog; a flawed attempt opens confirmation and writes nothing until 저장; 취소 writes nothing; submit disabled while empty; 힌트 reveals one character at a time and resets when the reader types past it; 포기 proposes no rating and leaves 저장 disabled until one is picked |
+| `VerseCard` | 암송 opens the curtain with no panel; 점검 and a card tap open the panel with no curtain; the body stays hidden through a check and is revealed on save |
 
 ## Open questions
 

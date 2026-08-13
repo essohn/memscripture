@@ -45,9 +45,9 @@
 		onToggleSelect?: () => void;
 		/** Selection mode is active on the page hosting this card. */
 		selecting?: boolean;
-		/** Whether a body tap opens memorize. Off for the verse detail page,
+		/** Whether a body tap opens the check. Off for the verse detail page,
 		 *  where the card fills the screen and any tap would trigger it. */
-		tapToMemorize?: boolean;
+		tapToCheck?: boolean;
 		/** Transient flash to draw the eye when the list is deep-linked to this verse. */
 		highlighted?: boolean;
 		/** When set, the package label becomes a link (e.g. back to the package list). */
@@ -73,7 +73,7 @@
 		dimmed = false,
 		onToggleSelect,
 		selecting = false,
-		tapToMemorize = true,
+		tapToCheck = true,
 		highlighted = false,
 		packageHref
 	}: Props = $props();
@@ -85,13 +85,25 @@
 	);
 	const selectable = $derived(Boolean(onToggleSelect) && selecting);
 
-	// ─── Memorize mode: drag a curtain left→right to reveal words one at a time ──
-	let mode = $state<'read' | 'memorize'>('read');
-	// While memorizing, the card stops acting as a select target so drags reveal
-	// words instead of toggling the selection.
+	/**
+	 * Two ways to work a verse, and each takes the whole card.
+	 *
+	 * `rehearse` is the curtain: the verse is there, covered, and dragged into
+	 * view a word at a time. `check` hides it outright and asks for it back by
+	 * typing. Running both at once made the curtain the answer key to the
+	 * typing box sitting under it.
+	 */
+	let mode = $state<'read' | 'rehearse' | 'check'>('read');
+
+	/** A check needs something to grade against and somewhere to put the result.
+	 *  A body of pure punctuation (an OYO verse typed as "***") normalizes to ""
+	 *  and would score a perfect match for nothing typed. */
+	const checkable = $derived(ratingsEnabled && normalizeForGrading(verse.w).length > 0);
+
 	// The card reacts to a tap when it can select, or when a tap starts a
-	// memorize check. Both only apply in read mode.
-	const interactive = $derived((selectable || tapToMemorize) && mode === 'read');
+	// check. Both only apply in read mode; while a mode is open, drags reveal
+	// words rather than toggling anything.
+	const interactive = $derived((selectable || (tapToCheck && checkable)) && mode === 'read');
 
 	let revealedCount = $state(0);
 	// Drag tuning — overwritten on first measure. `pxPerWord` is sized so one full
@@ -108,15 +120,20 @@
 	// list would otherwise issue 900 queries for history nobody is looking at.
 	let checkHistory = $state<CheckRecord[]>([]);
 
-	function enterMemorize() {
-		mode = 'memorize';
+	function enterRehearse() {
+		mode = 'rehearse';
+		// Single-word verses have no curtain to drag — show immediately.
+		revealedCount = totalWords <= 1 ? totalWords : 0;
+	}
+	function enterCheck() {
+		mode = 'check';
 		if (packageId) {
 			listChecks(packageId, verse.no)
 				.then((rows) => (checkHistory = rows))
 				.catch(() => {});
 		}
-		// Single-word verses have no curtain to drag — show immediately.
-		revealedCount = totalWords <= 1 ? totalWords : 0;
+		// The body stays hidden until the check produces a result.
+		revealedCount = 0;
 	}
 	function resetReveal() {
 		revealedCount = totalWords <= 1 ? totalWords : 0;
@@ -124,7 +141,7 @@
 	function revealAll() {
 		revealedCount = totalWords;
 	}
-	function exitMemorize() {
+	function exitMode() {
 		mode = 'read';
 		revealedCount = 0;
 	}
@@ -136,7 +153,7 @@
 	let dragHorizontal = false;
 
 	function onPointerDown(e: PointerEvent) {
-		if (mode !== 'memorize' || totalWords <= 1) return;
+		if (mode !== 'rehearse' || totalWords <= 1) return;
 		dragBaseline = revealedCount;
 		dragStartX = e.clientX;
 		dragStartY = e.clientY;
@@ -177,7 +194,7 @@
 	// comes from rendered height / line-height; `pxPerWord` is then sized so a
 	// full-row-width drag reveals one row's worth of words.
 	$effect(() => {
-		if (mode !== 'memorize' || !paragraphEl || totalWords === 0) return;
+		if (mode !== 'rehearse' || !paragraphEl || totalWords === 0) return;
 		const el = paragraphEl;
 		const measure = () => {
 			const rect = el.getBoundingClientRect();
@@ -222,11 +239,11 @@
 			onToggleSelect!();
 			return;
 		}
-		if (tapToMemorize) enterMemorize();
+		if (tapToCheck && checkable) enterCheck();
 	}
 
 	function handleCardKey(e: KeyboardEvent) {
-		if (!selectable && !tapToMemorize) return;
+		if (!selectable && !(tapToCheck && checkable)) return;
 		// Only the card itself toggles on Enter/Space — let inner controls keep
 		// their own keyboard behaviour.
 		if (e.target !== e.currentTarget) return;
@@ -235,7 +252,7 @@
 			// Same split as the pointer path, so keyboard and touch never
 			// disagree about what activating the card does.
 			if (selectable) onToggleSelect!();
-			else if (tapToMemorize) enterMemorize();
+			else if (tapToCheck && checkable) enterCheck();
 		}
 	}
 
@@ -279,7 +296,7 @@
 	role={interactive ? 'button' : undefined}
 	tabindex={interactive ? 0 : undefined}
 	aria-pressed={selectable ? selected : undefined}
-	aria-label={selectable ? undefined : tapToMemorize ? `${verse.title} 암송 시작` : undefined}
+	aria-label={selectable ? undefined : tapToCheck && checkable ? `${verse.title} 점검 시작` : undefined}
 	onclick={interactive ? handleCardClick : undefined}
 	onkeydown={interactive ? handleCardKey : undefined}
 >
@@ -308,19 +325,28 @@
 					{/if}
 					<button
 						type="button"
-						onclick={enterMemorize}
+						onclick={enterRehearse}
 						class="rounded-full bg-[var(--color-accent-soft)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-accent)] transition-opacity hover:opacity-90"
 					>
 						암송
 					</button>
+					{#if checkable}
+						<button
+							type="button"
+							onclick={enterCheck}
+							class="rounded-full border border-[var(--color-border)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
+						>
+							점검
+						</button>
+					{/if}
 					{#if editingEnabled}
 						<VerseOverflowMenu {onEdit} {onDelete} />
 					{/if}
 				{:else}
 					<button
 						type="button"
-						onclick={exitMemorize}
-						aria-label="암송 종료"
+						onclick={exitMode}
+						aria-label={mode === 'check' ? '점검 종료' : '암송 종료'}
 						class="inline-flex h-7 w-7 items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
 					>
 						✕
@@ -333,21 +359,43 @@
 		</p>
 	</header>
 
-	{#if mode === 'read'}
+	{#if mode !== 'rehearse'}
 		<!--
-			Always render the body so the card height is stable when toggling Eye.
-			!showBody just makes the glyphs transparent — layout (line wrap, padding)
-			stays identical, screen readers still get the text.
+			Always render the body so the card height is stable when toggling Eye,
+			and when a check opens. Hiding is done by making the glyphs transparent —
+			layout (line wrap, padding) stays identical, screen readers still get the
+			text. In check mode it stays hidden until a result is recorded or the
+			reader gives up, since a legible verse turns typing it into copying.
 		-->
 		<p
-			class="mt-1.5 whitespace-pre-line break-keep text-[calc(19px*var(--vfs))] leading-[1.6] {showBody
+			data-testid="verse-body"
+			class="mt-1.5 whitespace-pre-line break-keep text-[calc(19px*var(--vfs))] leading-[1.6] {(
+				mode === 'check' ? allRevealed : showBody
+			)
 				? 'text-[var(--color-text)]'
-				: 'text-transparent'}"
+				: 'select-none text-transparent'}"
 		>
 			{verse.w}
 		</p>
+		{#if mode === 'check'}
+			<MemorizeCheckPanel
+				verse={verse.w}
+				onPickStart={onPickStartDifficulty!}
+				onPickFull={onPickFullDifficulty!}
+				history={checkHistory}
+				onGraded={(outcome) => {
+					revealAll();
+					if (!packageId) return;
+					recordCheck(packageId, verse.no, outcome)
+						.then(() => listChecks(packageId, verse.no))
+						.then((rows) => (checkHistory = rows))
+						.catch(() => {});
+				}}
+				onClose={exitMode}
+			/>
+		{/if}
 	{:else}
-		<!-- Memorize curtain: words start covered; drag left→right to reveal them. -->
+		<!-- Rehearsal curtain: words start covered; drag left→right to reveal them. -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<p
 			bind:this={paragraphEl}
@@ -380,31 +428,6 @@
 				{/if}
 			</div>
 		</div>
-
-		<!-- The check sits under the curtain, not instead of it: the curtain is
-		     the hint when the reader gets stuck. -->
-		<!-- Guarded on the normalized body, not verse.w.trim(): a body of pure
-		     punctuation (e.g. an OYO verse typed as "***") passes trim() but
-		     normalizes to "", and accuracyOf treats two empty strings as a
-		     perfect 100% match — letting a meaningless verse auto-save 5 xEasy
-		     with no confirmation. -->
-		{#if ratingsEnabled && normalizeForGrading(verse.w).length > 0}
-			<MemorizeCheckPanel
-				verse={verse.w}
-				onPickStart={onPickStartDifficulty!}
-				onPickFull={onPickFullDifficulty!}
-				history={checkHistory}
-				onGraded={(outcome) => {
-					revealAll();
-					if (!packageId) return;
-					recordCheck(packageId, verse.no, outcome)
-						.then(() => listChecks(packageId, verse.no))
-						.then((rows) => (checkHistory = rows))
-						.catch(() => {});
-				}}
-				onClose={exitMemorize}
-			/>
-		{/if}
 	{/if}
 
 	<!-- Bottom meta row: package name + tags. The verse number and bookmark ribbon

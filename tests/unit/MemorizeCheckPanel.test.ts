@@ -281,3 +281,89 @@ describe('the clock starts with the typing, not the panel', () => {
 	});
 });
 
+
+describe('힌트', () => {
+	// The reader stuck mid-verse needs a nudge, not the answer. One character
+	// per press, and the button says how much is still hidden.
+	it('reveals one character of the word the reader stopped at', async () => {
+		setup();
+		await type('그들에게 율례와 법도를');
+		await fireEvent.click(screen.getByRole('button', { name: '힌트' }));
+		expect(screen.getByTestId('hint')).toHaveTextContent('가□□□');
+	});
+
+	it('opens one more character on each press', async () => {
+		setup();
+		await type('그들에게 율례와 법도를');
+		const hint = screen.getByRole('button', { name: '힌트' });
+		await fireEvent.click(hint);
+		await fireEvent.click(hint);
+		expect(screen.getByTestId('hint')).toHaveTextContent('가르□□');
+	});
+
+	it('starts at the opening when nothing has been typed', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '힌트' }));
+		expect(screen.getByTestId('hint')).toHaveTextContent('그□□□');
+	});
+
+	// Otherwise the credit spent on the previous word would carry over and hand
+	// the reader most of the next one unasked — and, word after word, feed them
+	// the whole verse without another press.
+	it('starts the next word over, and only when asked again', async () => {
+		setup();
+		await type('그들에게 율례와 법도를');
+		const hint = screen.getByRole('button', { name: '힌트' });
+		await fireEvent.click(hint);
+		await fireEvent.click(hint);
+		await fireEvent.click(hint);
+		await type('그들에게 율례와 법도를 가르쳐서');
+		expect(screen.queryByTestId('hint')).toBeNull();
+		await fireEvent.click(hint);
+		expect(screen.getByTestId('hint')).toHaveTextContent('마□□');
+	});
+
+	it('says nothing once the whole verse has been typed', async () => {
+		setup();
+		await type(VERSE);
+		expect(screen.getByRole('button', { name: '힌트' })).toBeDisabled();
+	});
+});
+
+describe('포기', () => {
+	it('shows the verse and asks for both ratings', async () => {
+		setup();
+		await type('그들에게 율례와');
+		await fireEvent.click(screen.getByRole('button', { name: '포기' }));
+		expect(screen.getByTestId('mismatched-words')).toHaveTextContent('가르쳐서');
+		expect(screen.getByLabelText(/첫 시작 난이도 \(설정 안 됨\)/)).toBeInTheDocument();
+		expect(screen.getByLabelText(/전체 암송 난이도 \(설정 안 됨\)/)).toBeInTheDocument();
+	});
+
+	// The app can say a verse was recited perfectly. It cannot say what giving
+	// up on it was worth — a reader who blanked on one word and one who knew
+	// none of it both press this button.
+	it('proposes no rating of its own', async () => {
+		const { onPickFull } = setup();
+		await type('그들에게 율례와');
+		await fireEvent.click(screen.getByRole('button', { name: '포기' }));
+		expect(onPickFull).not.toHaveBeenCalled();
+		expect(screen.getByRole('button', { name: '저장' })).toBeDisabled();
+	});
+
+	it('saves the level the reader picks', async () => {
+		const { onPickFull, onGraded } = setup();
+		await type('그들에게 율례와');
+		await fireEvent.click(screen.getByRole('button', { name: '포기' }));
+		await fireEvent.click(screen.getByLabelText(/전체 암송 난이도 \(설정 안 됨\)/));
+		await fireEvent.click(screen.getByRole('menuitemradio', { name: /^1 / }));
+		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
+		expect(onPickFull).toHaveBeenCalledWith(1);
+		expect(onGraded).toHaveBeenCalled();
+	});
+
+	it('is available before anything is typed', () => {
+		setup();
+		expect(screen.getByRole('button', { name: '포기' })).toBeEnabled();
+	});
+});

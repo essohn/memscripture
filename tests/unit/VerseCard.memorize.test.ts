@@ -25,23 +25,65 @@ function setup(over: Record<string, unknown> = {}) {
 	return props;
 }
 
-describe('VerseCard memorize check', () => {
+const CURTAIN = /드래그해서 단어 열기|모두 열렸습니다/;
+
+// The two modes answer different questions — "walk me through it" and "do I
+// know it" — and each gets the whole card rather than sharing it.
+describe('암송: the curtain', () => {
+	it('is what the 암송 button opens', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '암송' }));
+		expect(screen.getByText(CURTAIN)).toBeInTheDocument();
+	});
+
+	// Typing the verse while dragging it into view is not a check of anything.
+	it('has no typing panel under it', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '암송' }));
+		expect(screen.queryByLabelText('암송 구절 입력')).toBeNull();
+	});
+});
+
+describe('점검: the typing panel', () => {
 	it('shows no panel in read mode', () => {
 		setup();
 		expect(screen.queryByLabelText('암송 구절 입력')).toBeNull();
 	});
 
-	it('shows the panel once memorize mode starts', async () => {
+	it('is what the 점검 button opens', async () => {
 		setup();
-		await fireEvent.click(screen.getByRole('button', { name: '암송' }));
+		await fireEvent.click(screen.getByRole('button', { name: '점검' }));
 		expect(screen.getByLabelText('암송 구절 입력')).toBeInTheDocument();
+	});
+
+	it('has no curtain to drag', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '점검' }));
+		expect(screen.queryByText(CURTAIN)).toBeNull();
+	});
+
+	// The verse must not be legible while it is being typed from memory.
+	it('hides the verse body until the check is over', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '점검' }));
+		expect(screen.getByTestId('verse-body').className).toContain('text-transparent');
+	});
+
+	it('reveals the verse once a result is saved', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '점검' }));
+		await fireEvent.input(screen.getByLabelText('암송 구절 입력'), {
+			target: { value: verse.w }
+		});
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(screen.getByTestId('verse-body').className).not.toContain('text-transparent');
 	});
 
 	// The whole point of the panel is to feed the ratings the card already
 	// persists, without any page needing new wiring.
 	it('routes a perfect attempt into both rating callbacks', async () => {
 		const props = setup();
-		await fireEvent.click(screen.getByRole('button', { name: '암송' }));
+		await fireEvent.click(screen.getByRole('button', { name: '점검' }));
 		await fireEvent.input(screen.getByLabelText('암송 구절 입력'), {
 			target: { value: verse.w }
 		});
@@ -50,40 +92,27 @@ describe('VerseCard memorize check', () => {
 		expect(props.onPickStartDifficulty).toHaveBeenCalled();
 	});
 
-	it('leaves the curtain working', async () => {
-		setup();
-		await fireEvent.click(screen.getByRole('button', { name: '암송' }));
-		expect(screen.getByText(/드래그해서 단어 열기|모두 열렸습니다/)).toBeInTheDocument();
-	});
-
 	// OYO verses are user-authored, so a body of pure punctuation is reachable
 	// (unlike the shipped corpus). verse.w.trim().length > 0 would pass for
 	// "***", but normalizeForGrading("***") is "" and accuracyOf treats two
 	// empty strings as a perfect match — auto-saving 5 xEasy for nothing typed.
-	it('hides the panel for a verse that normalizes to nothing', async () => {
+	it('offers no check for a verse that normalizes to nothing', async () => {
 		setup({ verse: { ...verse, w: '***' } });
-		await fireEvent.click(screen.getByRole('button', { name: '암송' }));
-		expect(screen.queryByLabelText('암송 구절 입력')).toBeNull();
+		expect(screen.queryByRole('button', { name: '점검' })).toBeNull();
 	});
 });
 
 describe('card tap', () => {
-	// Memorize is available on every card everywhere; selection lives on one
+	// Checking is available on every card everywhere; selection lives on one
 	// screen. The biggest tap target should serve the more frequent action.
-	it('opens memorize when the card body is tapped', async () => {
+	it('opens the check when the card body is tapped', async () => {
 		setup();
 		await fireEvent.click(screen.getByTestId('verse-row'));
 		expect(screen.getByLabelText('암송 구절 입력')).toBeInTheDocument();
 	});
 
-	it('keeps the 암송 button working', async () => {
-		setup();
-		await fireEvent.click(screen.getByRole('button', { name: '암송' }));
-		expect(screen.getByLabelText('암송 구절 입력')).toBeInTheDocument();
-	});
-
 	// The card hosts a bookmark ribbon, difficulty badges and tags. A tap on
-	// any of those must reach that control, not open memorize behind it.
+	// any of those must reach that control, not open the check behind it.
 	it('ignores taps that land on an inner control', async () => {
 		setup();
 		await fireEvent.click(screen.getByLabelText(/첫 시작 난이도/));
@@ -92,7 +121,7 @@ describe('card tap', () => {
 
 	// While selecting, the tap belongs to selection — and the mode is visible
 	// on screen, so which one is active is never a guess.
-	it('selects instead of memorizing while selection mode is on', async () => {
+	it('selects instead of checking while selection mode is on', async () => {
 		const onToggleSelect = vi.fn();
 		setup({ selecting: true, onToggleSelect });
 		await fireEvent.click(screen.getByTestId('verse-row'));
@@ -108,11 +137,10 @@ describe('card tap', () => {
 	});
 
 	// The verse detail page renders one card filling the screen; a tap
-	// anywhere would open memorize while merely scrolling.
-	it('leaves the card inert when tap-to-memorize is disabled', async () => {
-		setup({ tapToMemorize: false });
+	// anywhere would open the check while merely scrolling.
+	it('leaves the card inert when tap-to-check is disabled', async () => {
+		setup({ tapToCheck: false });
 		await fireEvent.click(screen.getByTestId('verse-row'));
 		expect(screen.queryByLabelText('암송 구절 입력')).toBeNull();
 	});
 });
-
