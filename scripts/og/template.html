@@ -1,0 +1,109 @@
+<!doctype html>
+<!--
+	Source for static/og.png — the 1200x630 card shown when a link to this site
+	is shared. Rendered by scripts/og/render.mjs; edit here, not the PNG.
+
+	The renderer swaps the two placeholder tokens below for data URIs, so this
+	file renders identically from any working directory and headless Chromium
+	never has to resolve a local font over file://. Do not name those tokens in
+	this comment: a plain string replace takes the first occurrence, and naming
+	them here is how the icon silently rendered as an empty box.
+-->
+<html lang="ko">
+	<head>
+		<meta charset="utf-8" />
+		<style>
+			@font-face {
+				font-family: 'Pretendard';
+				src: url('__FONT__') format('woff2');
+				font-weight: 100 900;
+			}
+			* {
+				margin: 0;
+				box-sizing: border-box;
+			}
+			body {
+				width: 1200px;
+				height: 630px;
+				display: flex;
+				flex-direction: column;
+				justify-content: center;
+				gap: 30px;
+				padding: 0 84px;
+				background: #fbf7f1;
+				font-family: 'Pretendard', sans-serif;
+				color: #3a2e25;
+				/* A hairline of the brand gold along the top, the same accent the
+				   app uses for its active states. */
+				border-top: 10px solid #c9a86a;
+			}
+			.brand {
+				display: flex;
+				align-items: center;
+				gap: 18px;
+			}
+			.brand img {
+				width: 64px;
+				height: 64px;
+				border-radius: 14px;
+			}
+			.brand span {
+				font-size: 34px;
+				font-weight: 700;
+				letter-spacing: -0.01em;
+			}
+			h1 {
+				font-size: 76px;
+				font-weight: 800;
+				line-height: 1.18;
+				letter-spacing: -0.03em;
+			}
+			p {
+				font-size: 30px;
+				line-height: 1.5;
+				color: #6b5640;
+			}
+			/* The app's curtain, quoted literally: covered words the reader opens
+			   one at a time. It is the one thing about this app that reads at a
+			   glance in a timeline. */
+			.curtain {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				margin-top: 6px;
+			}
+			.w {
+				height: 30px;
+				border-radius: 7px;
+				background: repeating-linear-gradient(
+					135deg,
+					#e8dfd0,
+					#e8dfd0 5px,
+					#f0e8d9 5px,
+					#f0e8d9 10px
+				);
+			}
+			.shown {
+				font-size: 27px;
+				font-weight: 600;
+				color: #3a2e25;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="brand">
+			<img src="__ICON__" alt="" />
+			<span>MemScripture</span>
+		</div>
+		<h1>외우는 것보다<br />점검이 어렵습니다</h1>
+		<p>가리고 한 단어씩 여는 연습, 직접 입력해 확인하는 점검. 무료 성경 암송 앱.</p>
+		<div class="curtain">
+			<span class="shown">그들에게</span>
+			<span class="w" style="width: 96px"></span>
+			<span class="w" style="width: 112px"></span>
+			<span class="w" style="width: 132px"></span>
+			<span class="w" style="width: 88px"></span>
+			<span class="w" style="width: 104px"></span>
+		</div>
+	</body>
+</html>

@@ -210,6 +210,12 @@
 				성경 암송 방법 — 오래 남기는 6가지 원칙
 			</a>
 			<a
+				href="/amsong-day"
+				class="text-[13px] font-medium text-[var(--color-text-secondary)] underline-offset-4 hover:text-[var(--color-text)] hover:underline"
+			>
+				암송 DAY 여는 법 — 행사 준비 가이드
+			</a>
+			<a
 				href="/about"
 				class="text-[13px] font-medium text-[var(--color-text-secondary)] underline-offset-4 hover:text-[var(--color-text)] hover:underline"
 			>

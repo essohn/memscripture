@@ -14,6 +14,8 @@ export function currentTab(pathname: string): 'home' | 'library' | 'bookmarks' |
  * tool the reader has not opened yet, and the launch splash would cover the
  * very content the page was written to show.
  */
+const CONTENT_PAGES = new Set(['/guide', '/about', '/amsong-day']);
+
 export function isContentPage(pathname: string): boolean {
-	return pathname === '/guide' || pathname === '/about';
+	return CONTENT_PAGES.has(pathname);
 }

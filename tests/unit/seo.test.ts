@@ -58,7 +58,17 @@ describe('site copy', () => {
 
 describe('sitemap routes', () => {
 	it('lists only pages that render text without the reader’s own data', () => {
-		expect(SITEMAP_ROUTES.map((r) => r.path)).toEqual(['/', '/guide', '/about']);
+		expect(SITEMAP_ROUTES.map((r) => r.path)).toEqual(['/', '/guide', '/amsong-day', '/about']);
+	});
+
+	// The sitemap is a promise that these URLs have something to read. Every
+	// entry but the app root must therefore be a server-rendered content page —
+	// advertising a client-only route sends crawlers to an empty shell.
+	it('advertises nothing that renders client-side only', () => {
+		for (const r of SITEMAP_ROUTES) {
+			if (r.path === '/') continue;
+			expect(isContentPage(r.path)).toBe(true);
+		}
 	});
 
 	it('gives every entry an absolute location', () => {
@@ -75,6 +85,7 @@ describe('isContentPage', () => {
 	it('matches the server-rendered landing pages', () => {
 		expect(isContentPage('/guide')).toBe(true);
 		expect(isContentPage('/about')).toBe(true);
+		expect(isContentPage('/amsong-day')).toBe(true);
 	});
 
 	it('does not match the app screens', () => {

@@ -1,5 +1,13 @@
 <script lang="ts">
-	import { SITE_DESCRIPTION, SITE_IMAGE, SITE_NAME, canonical, pageTitle } from '$lib/seo/site';
+	import {
+		SITE_DESCRIPTION,
+		SITE_IMAGE,
+		SITE_IMAGE_HEIGHT,
+		SITE_IMAGE_WIDTH,
+		SITE_NAME,
+		canonical,
+		pageTitle
+	} from '$lib/seo/site';
 
 	interface Props {
 		/** Page title without the brand suffix; omit for the site default. */
@@ -41,8 +49,12 @@
 	<meta property="og:description" content={description} />
 	<meta property="og:url" content={url} />
 	<meta property="og:image" content={image} />
+	<!-- Declared so KakaoTalk and Facebook can lay the card out from the tag
+	     alone, instead of deferring until they have fetched the image. -->
+	<meta property="og:image:width" content={SITE_IMAGE_WIDTH} />
+	<meta property="og:image:height" content={SITE_IMAGE_HEIGHT} />
 
-	<meta name="twitter:card" content="summary" />
+	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content={full} />
 	<meta name="twitter:description" content={description} />
 	<meta name="twitter:image" content={image} />

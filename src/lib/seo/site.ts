@@ -16,10 +16,15 @@ export const SITE_TITLE = 'MemScripture — 성경 암송 앱';
 export const SITE_DESCRIPTION =
 	'성경 구절을 외우고 스스로 점검하는 무료 웹 앱. 구절을 가린 채 한 단어씩 여는 연습과, 직접 입력해 정확도·속도를 재는 점검을 함께 제공합니다. 설치 없이 브라우저에서 바로 쓰고, 구글 드라이브로 기기 간 동기화됩니다.';
 
-/** Shared social preview image. The maskable 512 icon is the only square
- *  artwork that ships, and a missing og:image leaves a blank card in
- *  KakaoTalk — the way a Korean church app actually spreads. */
-export const SITE_IMAGE = '/icon-512.png';
+/** Shared social preview card, 1200x630. Built from scripts/og/template.html.
+ *
+ *  A square app icon renders as a thumbnail beside the text; a 1200x630 image
+ *  renders as a full-width card that says what the app does. KakaoTalk is how
+ *  a Korean church app actually spreads, so this is the difference between a
+ *  link people tap and one they scroll past. */
+export const SITE_IMAGE = '/og.png';
+export const SITE_IMAGE_WIDTH = '1200';
+export const SITE_IMAGE_HEIGHT = '630';
 
 /** Absolute URL for a site-relative path. Trailing slashes are dropped so
  *  `/guide` and `/guide/` cannot both be advertised as canonical. */
@@ -46,5 +51,6 @@ export function pageTitle(title?: string): string {
 export const SITEMAP_ROUTES: { path: string; changefreq: string; priority: string }[] = [
 	{ path: '/', changefreq: 'weekly', priority: '1.0' },
 	{ path: '/guide', changefreq: 'monthly', priority: '0.9' },
+	{ path: '/amsong-day', changefreq: 'monthly', priority: '0.8' },
 	{ path: '/about', changefreq: 'monthly', priority: '0.8' }
 ];

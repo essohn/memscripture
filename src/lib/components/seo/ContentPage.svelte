@@ -30,6 +30,12 @@
 					암송 방법
 				</a>
 				<a
+					href="/amsong-day"
+					class="hidden font-medium text-[var(--color-text-secondary)] underline-offset-4 hover:text-[var(--color-text)] hover:underline sm:inline"
+				>
+					암송 DAY
+				</a>
+				<a
 					href="/about"
 					class="hidden font-medium text-[var(--color-text-secondary)] underline-offset-4 hover:text-[var(--color-text)] hover:underline sm:inline"
 				>
@@ -56,6 +62,7 @@
 			<p>{SITE_NAME} — 성경 암송 앱</p>
 			<div class="flex items-center gap-4">
 				<a href="/guide" class="underline-offset-4 hover:underline">암송 방법</a>
+				<a href="/amsong-day" class="underline-offset-4 hover:underline">암송 DAY</a>
 				<a href="/about" class="underline-offset-4 hover:underline">소개</a>
 				<a href="/" class="underline-offset-4 hover:underline">앱 열기</a>
 			</div>
