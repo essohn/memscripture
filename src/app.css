@@ -123,6 +123,23 @@ body {
 	-webkit-tap-highlight-color: transparent;
 }
 
+/*
+ * Tailwind v3's Preflight set `cursor: pointer` on buttons; v4 dropped it to
+ * match the bare browser default, so every button in this app — 암송, 점검,
+ * the difficulty badges, the whole toolbar — showed a plain arrow. Put it back
+ * once here rather than sprinkling `cursor-pointer` on ~70 call sites.
+ *
+ * Disabled controls are excluded: 제출 before anything is typed, 저장 before a
+ * level is picked and 힌트 once the verse is complete are all genuinely not
+ * clickable, and a hand over them promises something that will not happen.
+ */
+button:not(:disabled),
+[role='button']:not([aria-disabled='true']),
+[role='menuitem'],
+[role='menuitemradio'] {
+	cursor: pointer;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	*,
 	*::before,
