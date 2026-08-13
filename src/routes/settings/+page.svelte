@@ -3,7 +3,7 @@
 	import Toast from '$lib/components/feedback/Toast.svelte';
 	import ConfirmDialog from '$lib/components/feedback/ConfirmDialog.svelte';
 	import { goto } from '$app/navigation';
-	import { Cloud, CloudOff, RotateCcw } from 'lucide-svelte';
+	import { Cloud, CloudOff, RotateCcw, BookOpen } from 'lucide-svelte';
 	import { getGoogleOauthClientId } from '$lib/sync/clientId';
 	import {
 		connectGoogleDrive,
@@ -190,6 +190,32 @@
 				</button>
 			</div>
 		{/if}
+	</section>
+
+	<!-- The search-landing pages, linked from inside the app. Users get the
+	     method guide where they would look for help; crawlers get a path to
+	     them that does not depend on the sitemap alone. -->
+	<section
+		class="mt-4 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] px-6 py-5"
+	>
+		<h2 class="flex items-center gap-2 text-[15px] font-semibold text-[var(--color-text)]">
+			<BookOpen size={18} strokeWidth={1.75} />
+			읽을거리
+		</h2>
+		<div class="mt-3 flex flex-col gap-2">
+			<a
+				href="/guide"
+				class="text-[13px] font-medium text-[var(--color-text-secondary)] underline-offset-4 hover:text-[var(--color-text)] hover:underline"
+			>
+				성경 암송 방법 — 오래 남기는 6가지 원칙
+			</a>
+			<a
+				href="/about"
+				class="text-[13px] font-medium text-[var(--color-text-secondary)] underline-offset-4 hover:text-[var(--color-text)] hover:underline"
+			>
+				MemScripture 소개
+			</a>
+		</div>
 	</section>
 </main>
 

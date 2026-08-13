@@ -1,0 +1,54 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - button "뒤로" [ref=e6]: ←
+        - heading "내 구절" [level=1] [ref=e7]
+        - link "설정" [ref=e8] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e9]
+    - main [ref=e10]:
+      - generic [ref=e11]:
+        - paragraph [ref=e12]: 총 1개
+        - generic [ref=e13]:
+          - button "구절 추가" [ref=e14]:
+            - img [ref=e15]
+            - text: 구절 추가
+          - button "구절 본문 표시 끄기" [pressed] [ref=e16]:
+            - img [ref=e17]
+      - article [ref=e140]:
+        - generic [ref=e141]:
+          - generic [ref=e142]:
+            - paragraph [ref=e143]: OYO
+            - generic [ref=e144]:
+              - generic [ref=e145]: "1"
+              - button "구절 메뉴" [expanded] [active] [ref=e146]:
+                - img [ref=e147]
+              - menu "구절 액션" [ref=e154]:
+                - menuitem "편집" [ref=e155]:
+                  - img [ref=e156]
+                  - text: 편집
+                - menuitem "삭제" [ref=e157]:
+                  - img [ref=e158]
+                  - text: 삭제
+          - heading [level=2]
+          - paragraph [ref=e148]: 요 3:16
+        - paragraph [ref=e150]: 하나님이 세상을 이처럼 사랑하사 독생자를 주셨으니
+        - button "암송 시작" [ref=e152]
+  - navigation "주 네비게이션" [ref=e32]:
+    - list [ref=e33]:
+      - listitem [ref=e34]:
+        - link "Library" [ref=e35] [cursor=pointer]:
+          - /url: /library
+          - img [ref=e36]
+          - generic [ref=e37]: Library
+      - listitem [ref=e38]:
+        - link "Marks" [ref=e39] [cursor=pointer]:
+          - /url: /bookmarks
+          - img [ref=e40]
+          - generic [ref=e41]: Marks
+      - listitem [ref=e42]:
+        - link "Stats" [ref=e43] [cursor=pointer]:
+          - /url: /stats
+          - img [ref=e44]
+          - generic [ref=e45]: Stats

@@ -1,3 +1,13 @@
-# allow crawling everything by default
 User-agent: *
-Disallow:
+Allow: /
+
+# The app screens render from the reader's own IndexedDB, so a crawler that
+# follows them finds an empty shell. Keeping them out spends crawl budget on
+# the pages that actually have text.
+Disallow: /library
+Disallow: /bookmarks
+Disallow: /stats
+Disallow: /today
+Disallow: /settings
+
+Sitemap: https://mem.lifescripture.org/sitemap.xml

@@ -1,0 +1,180 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e70]:
+      - generic [ref=e71]:
+        - button "뒤로" [ref=e72]: ←
+        - heading "그리스도와의 동행 8구절" [level=1] [ref=e73]
+        - link "설정" [ref=e74] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e75]
+    - main [ref=e76]:
+      - navigation "패키지 선택" [ref=e77]:
+        - list [ref=e78]:
+          - listitem [ref=e79]:
+            - link "OYO" [ref=e80] [cursor=pointer]:
+              - /url: /library/oyo
+          - listitem [ref=e81]:
+            - link "5구절" [ref=e82] [cursor=pointer]:
+              - /url: /library/5_krv
+          - listitem [ref=e83]:
+            - link "8구절" [ref=e84] [cursor=pointer]:
+              - /url: /library/8_krv
+          - listitem [ref=e85]:
+            - link "60구절" [ref=e86] [cursor=pointer]:
+              - /url: /library/60_krv
+          - listitem [ref=e87]:
+            - link "100구절" [ref=e88] [cursor=pointer]:
+              - /url: /library/100_krv
+          - listitem [ref=e89]:
+            - link "180구절" [ref=e90] [cursor=pointer]:
+              - /url: /library/180_krv
+          - listitem [ref=e91]:
+            - link "242구절" [ref=e92] [cursor=pointer]:
+              - /url: /library/242_krv
+          - listitem [ref=e93]:
+            - link "900구절" [ref=e94] [cursor=pointer]:
+              - /url: /library/900_krv
+      - generic [ref=e95]:
+        - generic [ref=e96]: 개역한글
+        - generic [ref=e98]: 8 / 8개
+        - generic [ref=e100]:
+          - button "글자 크기 (현재 보통)" [ref=e101]:
+            - generic [ref=e102]: Aa
+          - button "구절 본문 표시 끄기" [pressed] [ref=e103]:
+            - img [ref=e104]
+      - generic [ref=e105]:
+        - 'button "8구절 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 1 1 그리스도 안의 생활 요한복음 15 : 5 나는 포도나무요 너희는 가지니 저가 내 안에 내가 저 안에 있으면 이 사람은 과실을 많이 맺나니 나를 떠나서는 너희가 아무것도 할 수 없음이라 북마크 추가" [ref=e107] [cursor=pointer]':
+          - generic [ref=e108]:
+            - generic [ref=e109]:
+              - paragraph [ref=e110]: 8구절
+              - generic [ref=e111]:
+                - generic [ref=e112]:
+                  - button "첫 시작 난이도 (설정 안 됨)" [ref=e113]
+                  - button "전체 암송 난이도 (설정 안 됨)" [ref=e114]
+                - generic [ref=e115]: "1"
+            - heading "1 그리스도 안의 생활" [level=2] [ref=e116]
+            - paragraph [ref=e117]: "요한복음 15 : 5"
+          - paragraph [ref=e119]: 나는 포도나무요 너희는 가지니 저가 내 안에 내가 저 안에 있으면 이 사람은 과실을 많이 맺나니 나를 떠나서는 너희가 아무것도 할 수 없음이라
+          - button "북마크 추가" [ref=e122]:
+            - img [ref=e123]
+        - 'button "8구절 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 2 2 하나님의 말씀에 의한 생활 사도행전 20 : 32 지금 내가 너희를 주와 및 그 은혜의 말씀께 부탁하노니 그 말씀이 너희를 능히 든든히 세우사 거룩케 하심을 입은 모든 자 가운데 기업이 있게 하시리라 북마크 추가" [ref=e126] [cursor=pointer]':
+          - generic [ref=e127]:
+            - generic [ref=e128]:
+              - paragraph [ref=e129]: 8구절
+              - generic [ref=e130]:
+                - generic [ref=e131]:
+                  - button "첫 시작 난이도 (설정 안 됨)" [ref=e132]
+                  - button "전체 암송 난이도 (설정 안 됨)" [ref=e133]
+                - generic [ref=e134]: "2"
+            - heading "2 하나님의 말씀에 의한 생활" [level=2] [ref=e135]
+            - paragraph [ref=e136]: "사도행전 20 : 32"
+          - paragraph [ref=e138]: 지금 내가 너희를 주와 및 그 은혜의 말씀께 부탁하노니 그 말씀이 너희를 능히 든든히 세우사 거룩케 하심을 입은 모든 자 가운데 기업이 있게 하시리라
+          - button "북마크 추가" [ref=e141]:
+            - img [ref=e142]
+        - 'button "8구절 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 3 3 하나님의 성령에 의한 생활 로마서 8 : 14 무릇 하나님의 영으로 인도함을 받는 그들은 곧 하나님의 아들이라 북마크 추가" [ref=e145] [cursor=pointer]':
+          - generic [ref=e146]:
+            - generic [ref=e147]:
+              - paragraph [ref=e148]: 8구절
+              - generic [ref=e149]:
+                - generic [ref=e150]:
+                  - button "첫 시작 난이도 (설정 안 됨)" [ref=e151]
+                  - button "전체 암송 난이도 (설정 안 됨)" [ref=e152]
+                - generic [ref=e153]: "3"
+            - heading "3 하나님의 성령에 의한 생활" [level=2] [ref=e154]
+            - paragraph [ref=e155]: "로마서 8 : 14"
+          - paragraph [ref=e157]: 무릇 하나님의 영으로 인도함을 받는 그들은 곧 하나님의 아들이라
+          - button "북마크 추가" [ref=e160]:
+            - img [ref=e161]
+        - 'button "8구절 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 4 4 믿음에 의한 생활 고린도후서 5 : 7 이는 우리가 믿음으로 행하고 보는 것으로 하지 아니함이로라 북마크 추가" [ref=e164] [cursor=pointer]':
+          - generic [ref=e165]:
+            - generic [ref=e166]:
+              - paragraph [ref=e167]: 8구절
+              - generic [ref=e168]:
+                - generic [ref=e169]:
+                  - button "첫 시작 난이도 (설정 안 됨)" [ref=e170]
+                  - button "전체 암송 난이도 (설정 안 됨)" [ref=e171]
+                - generic [ref=e172]: "4"
+            - heading "4 믿음에 의한 생활" [level=2] [ref=e173]
+            - paragraph [ref=e174]: "고린도후서 5 : 7"
+          - paragraph [ref=e176]: 이는 우리가 믿음으로 행하고 보는 것으로 하지 아니함이로라
+          - button "북마크 추가" [ref=e179]:
+            - img [ref=e180]
+        - 'button "8구절 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 5 5 사랑에 의한 생활 요한일서 4 : 11 사랑하는 자들아 하나님이 이같이 우리를 사랑하셨은즉 우리도 서로 사랑하는 것이 마땅하도다 북마크 추가" [ref=e183] [cursor=pointer]':
+          - generic [ref=e184]:
+            - generic [ref=e185]:
+              - paragraph [ref=e186]: 8구절
+              - generic [ref=e187]:
+                - generic [ref=e188]:
+                  - button "첫 시작 난이도 (설정 안 됨)" [ref=e189]
+                  - button "전체 암송 난이도 (설정 안 됨)" [ref=e190]
+                - generic [ref=e191]: "5"
+            - heading "5 사랑에 의한 생활" [level=2] [ref=e192]
+            - paragraph [ref=e193]: "요한일서 4 : 11"
+          - paragraph [ref=e195]: 사랑하는 자들아 하나님이 이같이 우리를 사랑하셨은즉 우리도 서로 사랑하는 것이 마땅하도다
+          - button "북마크 추가" [ref=e198]:
+            - img [ref=e199]
+        - 'button "8구절 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 6 6 그리스도인의 교제하는 생활 요한일서 1 : 7 저가 빛 가운데 계신것 같이 우리도 빛 가운데 행하면 우리가 서로 사귐이 있고 그 아들 예수의 피가 우리를 모든 죄에서 깨끗하게 하실 것이요 북마크 추가" [ref=e202] [cursor=pointer]':
+          - generic [ref=e203]:
+            - generic [ref=e204]:
+              - paragraph [ref=e205]: 8구절
+              - generic [ref=e206]:
+                - generic [ref=e207]:
+                  - button "첫 시작 난이도 (설정 안 됨)" [ref=e208]
+                  - button "전체 암송 난이도 (설정 안 됨)" [ref=e209]
+                - generic [ref=e210]: "6"
+            - heading "6 그리스도인의 교제하는 생활" [level=2] [ref=e211]
+            - paragraph [ref=e212]: "요한일서 1 : 7"
+          - paragraph [ref=e214]: 저가 빛 가운데 계신것 같이 우리도 빛 가운데 행하면 우리가 서로 사귐이 있고 그 아들 예수의 피가 우리를 모든 죄에서 깨끗하게 하실 것이요
+          - button "북마크 추가" [ref=e217]:
+            - img [ref=e218]
+        - 'button "8구절 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 7 7 증인으로서의 생활 베드로전서 3 : 15 너희 마음에 그리스도를 주로 삼아 거룩하게 하고 너희 속에 있는 소망에 관한 이유를 묻는 자에게는 대답할 것을 항상 예비하되 온유와 두려움으로 하고 북마크 추가" [ref=e221] [cursor=pointer]':
+          - generic [ref=e222]:
+            - generic [ref=e223]:
+              - paragraph [ref=e224]: 8구절
+              - generic [ref=e225]:
+                - generic [ref=e226]:
+                  - button "첫 시작 난이도 (설정 안 됨)" [ref=e227]
+                  - button "전체 암송 난이도 (설정 안 됨)" [ref=e228]
+                - generic [ref=e229]: "7"
+            - heading "7 증인으로서의 생활" [level=2] [ref=e230]
+            - paragraph [ref=e231]: "베드로전서 3 : 15"
+          - paragraph [ref=e233]: 너희 마음에 그리스도를 주로 삼아 거룩하게 하고 너희 속에 있는 소망에 관한 이유를 묻는 자에게는 대답할 것을 항상 예비하되 온유와 두려움으로 하고
+          - button "북마크 추가" [ref=e236]:
+            - img [ref=e237]
+        - 'button "8구절 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 8 8 후히 드리는 생활 고린도후서 9 : 7 각각 그 마음에 정한 대로 할 것이요 인색함으로나 억지로 하지 말지니 하나님은 즐겨 내는 자를 사랑하시느니라 북마크 추가" [ref=e240] [cursor=pointer]':
+          - generic [ref=e241]:
+            - generic [ref=e242]:
+              - paragraph [ref=e243]: 8구절
+              - generic [ref=e244]:
+                - generic [ref=e245]:
+                  - button "첫 시작 난이도 (설정 안 됨)" [ref=e246]
+                  - button "전체 암송 난이도 (설정 안 됨)" [ref=e247]
+                - generic [ref=e248]: "8"
+            - heading "8 후히 드리는 생활" [level=2] [ref=e249]
+            - paragraph [ref=e250]: "고린도후서 9 : 7"
+          - paragraph [ref=e252]: 각각 그 마음에 정한 대로 할 것이요 인색함으로나 억지로 하지 말지니 하나님은 즐겨 내는 자를 사랑하시느니라
+          - button "북마크 추가" [ref=e255]:
+            - img [ref=e256]
+  - navigation "주 네비게이션" [ref=e51]:
+    - list [ref=e52]:
+      - listitem [ref=e53]:
+        - link "Home" [ref=e54] [cursor=pointer]:
+          - /url: /
+          - img [ref=e55]
+          - generic [ref=e56]: Home
+      - listitem [ref=e57]:
+        - link "Library" [ref=e58] [cursor=pointer]:
+          - /url: /library
+          - img [ref=e59]
+          - generic [ref=e60]: Library
+      - listitem [ref=e61]:
+        - link "Marks" [ref=e62] [cursor=pointer]:
+          - /url: /bookmarks
+          - img [ref=e63]
+          - generic [ref=e64]: Marks
+      - listitem [ref=e65]:
+        - link "Stats" [ref=e66] [cursor=pointer]:
+          - /url: /stats
+          - img [ref=e67]
+          - generic [ref=e68]: Stats
+  - generic [ref=e69]: MemScripture

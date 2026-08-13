@@ -1,0 +1,57 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - button "뒤로" [ref=e6]: ←
+        - heading "내 구절" [level=1] [ref=e7]
+        - link "설정" [ref=e8] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e9]
+    - main [ref=e10]:
+      - generic [ref=e11]:
+        - paragraph [ref=e12]: 총 0개
+        - generic [ref=e13]:
+          - button "구절 추가" [active] [ref=e14]:
+            - img [ref=e15]
+            - text: 구절 추가
+          - button "구절 본문 표시 끄기" [pressed] [ref=e16]:
+            - img [ref=e17]
+      - generic [ref=e18]:
+        - paragraph [ref=e19]: 아직 추가된 구절이 없어요.
+        - paragraph [ref=e20]: 위의 "구절 추가" 버튼을 눌러 첫 구절을 만들어 보세요.
+    - dialog "구절 추가" [ref=e37]:
+      - generic [ref=e38]:
+        - heading "구절 추가" [level=2] [ref=e39]
+        - button "닫기" [ref=e40]:
+          - img [ref=e41]
+      - generic [ref=e42]:
+        - generic [ref=e43]:
+          - text: 인용
+          - textbox "인용" [ref=e44]:
+            - /placeholder: 요한복음 3:16
+        - generic [ref=e45]:
+          - text: 제목 (선택)
+          - textbox "제목 (선택)" [ref=e46]
+        - generic [ref=e47]:
+          - text: 본문
+          - textbox "본문" [ref=e48]
+        - generic [ref=e49]:
+          - button "취소" [ref=e50]
+          - button "저장" [disabled] [ref=e51]
+  - navigation "주 네비게이션" [ref=e21]:
+    - list [ref=e22]:
+      - listitem [ref=e23]:
+        - link "Library" [ref=e24] [cursor=pointer]:
+          - /url: /library
+          - img [ref=e25]
+          - generic [ref=e26]: Library
+      - listitem [ref=e27]:
+        - link "Marks" [ref=e28] [cursor=pointer]:
+          - /url: /bookmarks
+          - img [ref=e29]
+          - generic [ref=e30]: Marks
+      - listitem [ref=e31]:
+        - link "Stats" [ref=e32] [cursor=pointer]:
+          - /url: /stats
+          - img [ref=e33]
+          - generic [ref=e34]: Stats

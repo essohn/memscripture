@@ -1,0 +1,1034 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - button "뒤로" [ref=e6]: ←
+        - heading "주제별 성경 암송 60구절" [level=1] [ref=e7]
+        - link "설정" [ref=e8] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e9]
+    - main [ref=e10]:
+      - navigation "패키지 선택" [ref=e11]:
+        - list [ref=e12]:
+          - listitem [ref=e13]:
+            - link "OYO" [ref=e14] [cursor=pointer]:
+              - /url: /library/oyo
+          - listitem [ref=e15]:
+            - link "5구절" [ref=e16] [cursor=pointer]:
+              - /url: /library/5_krv
+          - listitem [ref=e17]:
+            - link "8구절" [ref=e18] [cursor=pointer]:
+              - /url: /library/8_krv
+          - listitem [ref=e19]:
+            - link "60구절" [ref=e20] [cursor=pointer]:
+              - /url: /library/60_krv
+          - listitem [ref=e21]:
+            - link "100구절" [ref=e22] [cursor=pointer]:
+              - /url: /library/100_krv
+          - listitem [ref=e23]:
+            - link "180구절" [ref=e24] [cursor=pointer]:
+              - /url: /library/180_krv
+          - listitem [ref=e25]:
+            - link "242구절" [ref=e26] [cursor=pointer]:
+              - /url: /library/242_krv
+          - listitem [ref=e27]:
+            - link "900구절" [ref=e28] [cursor=pointer]:
+              - /url: /library/900_krv
+      - generic [ref=e29]:
+        - generic [ref=e30]: 개역한글
+        - generic [ref=e32]: 60 / 60개
+        - generic [ref=e34]:
+          - button "글자 크기 (현재 아주 작게)" [ref=e1343]:
+            - generic [ref=e36]: Aa
+          - button "구절 본문 표시 끄기" [pressed] [ref=e37]:
+            - img [ref=e38]
+      - group "시리즈 선택" [ref=e39]:
+        - button "전체" [pressed] [ref=e40]
+        - button "A. 새로운 삶" [ref=e41]
+        - button "B. 그리스도를 전파함" [ref=e42]
+        - button "C. 하나님을 의뢰함" [ref=e43]
+        - button "D. 그리스도 제자의 자격" [ref=e44]
+        - button "E. 그리스도를 닮아감" [ref=e45]
+      - generic [ref=e46]:
+        - 'button "중심되신 그리스도 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 고린도후서 5 : 17 그런즉 누구든지 그리스도 안에 있으면 새로운 피조물이라 이전 것은 지나갔으니 보라 새것이 되었도다 60구절 A. 새로운 삶 중심되신 그리스도 1 북마크 추가" [ref=e48] [cursor=pointer]':
+          - generic [ref=e49]:
+            - generic [ref=e50]:
+              - heading "중심되신 그리스도" [level=2] [ref=e51]
+              - generic [ref=e53]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e54]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e55]
+            - paragraph [ref=e56]: "고린도후서 5 : 17"
+          - paragraph [ref=e57]: 그런즉 누구든지 그리스도 안에 있으면 새로운 피조물이라 이전 것은 지나갔으니 보라 새것이 되었도다
+          - generic [ref=e58]:
+            - generic [ref=e59]: 60구절
+            - button "A. 새로운 삶" [ref=e60]
+            - button "중심되신 그리스도" [ref=e61]
+          - generic [ref=e62]: "1"
+          - button "북마크 추가" [ref=e65]:
+            - img [ref=e66]
+        - 'button "중심되신 그리스도 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 갈라디아서 2 : 20 내가 그리스도와 함께 십자가에 못박혔나니 그런즉 이제는 내가 산 것이 아니요 오직 내 안에 그리스도께서 사신 것이라 이제 내가 육체 가운데 사는 것은 나를 사랑하사 나를 위하여 자기 몸을 버리신 하나님의 아들을 믿는 믿음 안에서 사는 것이라 60구절 A. 새로운 삶 중심되신 그리스도 2 북마크 추가" [ref=e69] [cursor=pointer]':
+          - generic [ref=e70]:
+            - generic [ref=e71]:
+              - heading "중심되신 그리스도" [level=2] [ref=e72]
+              - generic [ref=e74]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e75]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e76]
+            - paragraph [ref=e77]: "갈라디아서 2 : 20"
+          - paragraph [ref=e78]: 내가 그리스도와 함께 십자가에 못박혔나니 그런즉 이제는 내가 산 것이 아니요 오직 내 안에 그리스도께서 사신 것이라 이제 내가 육체 가운데 사는 것은 나를 사랑하사 나를 위하여 자기 몸을 버리신 하나님의 아들을 믿는 믿음 안에서 사는 것이라
+          - generic [ref=e79]:
+            - generic [ref=e80]: 60구절
+            - button "A. 새로운 삶" [ref=e81]
+            - button "중심되신 그리스도" [ref=e82]
+          - generic [ref=e83]: "2"
+          - button "북마크 추가" [ref=e86]:
+            - img [ref=e87]
+        - 'button "그리스도께 순종 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 로마서 12 : 1 그러므로 형제들아 내가 하나님의 모든 자비하심으로 너희를 권하노니 너희 몸을 하나님이 기뻐하시는 거룩한 산 제사로 드리라 이는 너희의 드릴 영적 예배니라 60구절 A. 새로운 삶 그리스도께 순종 3 북마크 추가" [ref=e90] [cursor=pointer]':
+          - generic [ref=e91]:
+            - generic [ref=e92]:
+              - heading "그리스도께 순종" [level=2] [ref=e93]
+              - generic [ref=e95]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e96]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e97]
+            - paragraph [ref=e98]: "로마서 12 : 1"
+          - paragraph [ref=e99]: 그러므로 형제들아 내가 하나님의 모든 자비하심으로 너희를 권하노니 너희 몸을 하나님이 기뻐하시는 거룩한 산 제사로 드리라 이는 너희의 드릴 영적 예배니라
+          - generic [ref=e100]:
+            - generic [ref=e101]: 60구절
+            - button "A. 새로운 삶" [ref=e102]
+            - button "그리스도께 순종" [ref=e103]
+          - generic [ref=e104]: "3"
+          - button "북마크 추가" [ref=e107]:
+            - img [ref=e108]
+        - 'button "그리스도께 순종 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 요한복음 14 : 21 나의 계명을 가지고 지키는 자라야 나를 사랑하는 자니 나를 사랑하는 자는 내 아버지께 사랑을 받을 것이요 나도 그를 사랑하여 그에게 나를 나타내리라 60구절 A. 새로운 삶 그리스도께 순종 4 북마크 추가" [ref=e111] [cursor=pointer]':
+          - generic [ref=e112]:
+            - generic [ref=e113]:
+              - heading "그리스도께 순종" [level=2] [ref=e114]
+              - generic [ref=e116]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e117]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e118]
+            - paragraph [ref=e119]: "요한복음 14 : 21"
+          - paragraph [ref=e120]: 나의 계명을 가지고 지키는 자라야 나를 사랑하는 자니 나를 사랑하는 자는 내 아버지께 사랑을 받을 것이요 나도 그를 사랑하여 그에게 나를 나타내리라
+          - generic [ref=e121]:
+            - generic [ref=e122]: 60구절
+            - button "A. 새로운 삶" [ref=e123]
+            - button "그리스도께 순종" [ref=e124]
+          - generic [ref=e125]: "4"
+          - button "북마크 추가" [ref=e128]:
+            - img [ref=e129]
+        - 'button "말 씀 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 디모데후서 3 : 16 모든 성경은 하나님의 감동으로 된 것으로 교훈과 책망과 바르게 함과 의로 교육하기에 유익하니 60구절 A. 새로운 삶 말 씀 5 북마크 추가" [ref=e132] [cursor=pointer]':
+          - generic [ref=e133]:
+            - generic [ref=e134]:
+              - heading "말 씀" [level=2] [ref=e135]
+              - generic [ref=e137]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e138]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e139]
+            - paragraph [ref=e140]: "디모데후서 3 : 16"
+          - paragraph [ref=e141]: 모든 성경은 하나님의 감동으로 된 것으로 교훈과 책망과 바르게 함과 의로 교육하기에 유익하니
+          - generic [ref=e142]:
+            - generic [ref=e143]: 60구절
+            - button "A. 새로운 삶" [ref=e144]
+            - button "말 씀" [ref=e145]
+          - generic [ref=e146]: "5"
+          - button "북마크 추가" [ref=e149]:
+            - img [ref=e150]
+        - 'button "말 씀 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 여호수아 1 : 8 이 율법책을 네 입에서 떠나지 말게 하며 주야로 그것을 묵상하여 그 가운데 기록한 대로 다 지켜 행하라 그리하면 네 길이 평탄하게 될 것이라 네가 형통하리라 60구절 A. 새로운 삶 말 씀 6 북마크 추가" [ref=e153] [cursor=pointer]':
+          - generic [ref=e154]:
+            - generic [ref=e155]:
+              - heading "말 씀" [level=2] [ref=e156]
+              - generic [ref=e158]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e159]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e160]
+            - paragraph [ref=e161]: "여호수아 1 : 8"
+          - paragraph [ref=e162]: 이 율법책을 네 입에서 떠나지 말게 하며 주야로 그것을 묵상하여 그 가운데 기록한 대로 다 지켜 행하라 그리하면 네 길이 평탄하게 될 것이라 네가 형통하리라
+          - generic [ref=e163]:
+            - generic [ref=e164]: 60구절
+            - button "A. 새로운 삶" [ref=e165]
+            - button "말 씀" [ref=e166]
+          - generic [ref=e167]: "6"
+          - button "북마크 추가" [ref=e170]:
+            - img [ref=e171]
+        - 'button "기 도 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 요한복음 15 : 7 너희가 내 안에 거하고 내 말이 너희 안에 거하면 무엇이든지 원하는 대로 구하라 그리하면 이루리라 60구절 A. 새로운 삶 기 도 7 북마크 추가" [ref=e174] [cursor=pointer]':
+          - generic [ref=e175]:
+            - generic [ref=e176]:
+              - heading "기 도" [level=2] [ref=e177]
+              - generic [ref=e179]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e180]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e181]
+            - paragraph [ref=e182]: "요한복음 15 : 7"
+          - paragraph [ref=e183]: 너희가 내 안에 거하고 내 말이 너희 안에 거하면 무엇이든지 원하는 대로 구하라 그리하면 이루리라
+          - generic [ref=e184]:
+            - generic [ref=e185]: 60구절
+            - button "A. 새로운 삶" [ref=e186]
+            - button "기 도" [ref=e187]
+          - generic [ref=e188]: "7"
+          - button "북마크 추가" [ref=e191]:
+            - img [ref=e192]
+        - 'button "기 도 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 빌립보서 4 : 6-7 아무것도 염려하지 말고 오직 모든 일에 기도와 간구로 너희 구할 것을 감사함으로 하나님께 아뢰라 *그리하면 모든 지각에 뛰어난 하나님의 평강이 그리스도 예수 안에서 너희 마음과 생각을 지키시리라 60구절 A. 새로운 삶 기 도 8 북마크 추가" [ref=e195] [cursor=pointer]':
+          - generic [ref=e196]:
+            - generic [ref=e197]:
+              - heading "기 도" [level=2] [ref=e198]
+              - generic [ref=e200]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e201]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e202]
+            - paragraph [ref=e203]: "빌립보서 4 : 6-7"
+          - paragraph [ref=e204]: 아무것도 염려하지 말고 오직 모든 일에 기도와 간구로 너희 구할 것을 감사함으로 하나님께 아뢰라 *그리하면 모든 지각에 뛰어난 하나님의 평강이 그리스도 예수 안에서 너희 마음과 생각을 지키시리라
+          - generic [ref=e205]:
+            - generic [ref=e206]: 60구절
+            - button "A. 새로운 삶" [ref=e207]
+            - button "기 도" [ref=e208]
+          - generic [ref=e209]: "8"
+          - button "북마크 추가" [ref=e212]:
+            - img [ref=e213]
+        - 'button "교 제 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 마태복음 18 : 20 두세 사람이 내 이름으로 모인 곳에는 나도 그들 중에 있느니라 60구절 A. 새로운 삶 교 제 9 북마크 추가" [ref=e216] [cursor=pointer]':
+          - generic [ref=e217]:
+            - generic [ref=e218]:
+              - heading "교 제" [level=2] [ref=e219]
+              - generic [ref=e221]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e222]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e223]
+            - paragraph [ref=e224]: "마태복음 18 : 20"
+          - paragraph [ref=e225]: 두세 사람이 내 이름으로 모인 곳에는 나도 그들 중에 있느니라
+          - generic [ref=e226]:
+            - generic [ref=e227]: 60구절
+            - button "A. 새로운 삶" [ref=e228]
+            - button "교 제" [ref=e229]
+          - generic [ref=e230]: "9"
+          - button "북마크 추가" [ref=e233]:
+            - img [ref=e234]
+        - 'button "교 제 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 히브리서 10 : 24-25 서로 돌아보아 사랑과 선행을 격려하며 *모이기를 폐하는 어떤 사람들의 습관과 같이 하지 말고 오직 권하여 그날이 가까움을 볼수록 더욱 그리하자 60구절 A. 새로운 삶 교 제 10 북마크 추가" [ref=e237] [cursor=pointer]':
+          - generic [ref=e238]:
+            - generic [ref=e239]:
+              - heading "교 제" [level=2] [ref=e240]
+              - generic [ref=e242]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e243]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e244]
+            - paragraph [ref=e245]: "히브리서 10 : 24-25"
+          - paragraph [ref=e246]: 서로 돌아보아 사랑과 선행을 격려하며 *모이기를 폐하는 어떤 사람들의 습관과 같이 하지 말고 오직 권하여 그날이 가까움을 볼수록 더욱 그리하자
+          - generic [ref=e247]:
+            - generic [ref=e248]: 60구절
+            - button "A. 새로운 삶" [ref=e249]
+            - button "교 제" [ref=e250]
+          - generic [ref=e251]: "10"
+          - button "북마크 추가" [ref=e254]:
+            - img [ref=e255]
+        - 'button "증 거 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 마태복음 4 : 19 말씀하시되 나를 따라 오너라 내가 너희로 사람을 낚는 어부가 되게 하리라 하시니 60구절 A. 새로운 삶 증 거 11 북마크 추가" [ref=e258] [cursor=pointer]':
+          - generic [ref=e259]:
+            - generic [ref=e260]:
+              - heading "증 거" [level=2] [ref=e261]
+              - generic [ref=e263]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e264]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e265]
+            - paragraph [ref=e266]: "마태복음 4 : 19"
+          - paragraph [ref=e267]: 말씀하시되 나를 따라 오너라 내가 너희로 사람을 낚는 어부가 되게 하리라 하시니
+          - generic [ref=e268]:
+            - generic [ref=e269]: 60구절
+            - button "A. 새로운 삶" [ref=e270]
+            - button "증 거" [ref=e271]
+          - generic [ref=e272]: "11"
+          - button "북마크 추가" [ref=e275]:
+            - img [ref=e276]
+        - 'button "증 거 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 로마서 1 : 16 내가 복음을 부끄러워하지 아니하노니 이 복음은 모든 믿는 자에게 구원을 주시는 하나님의 능력이 됨이라 첫째는 유대인에게요 또한 헬라인에게로다 60구절 A. 새로운 삶 증 거 12 북마크 추가" [ref=e279] [cursor=pointer]':
+          - generic [ref=e280]:
+            - generic [ref=e281]:
+              - heading "증 거" [level=2] [ref=e282]
+              - generic [ref=e284]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e285]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e286]
+            - paragraph [ref=e287]: "로마서 1 : 16"
+          - paragraph [ref=e288]: 내가 복음을 부끄러워하지 아니하노니 이 복음은 모든 믿는 자에게 구원을 주시는 하나님의 능력이 됨이라 첫째는 유대인에게요 또한 헬라인에게로다
+          - generic [ref=e289]:
+            - generic [ref=e290]: 60구절
+            - button "A. 새로운 삶" [ref=e291]
+            - button "증 거" [ref=e292]
+          - generic [ref=e293]: "12"
+          - button "북마크 추가" [ref=e296]:
+            - img [ref=e297]
+        - 'button "모든 사람이 죄를 범함 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 로마서 3 : 23 모든 사람이 죄를 범하였으매 하나님의 영광에 이르지 못하더니 60구절 B. 그리스도를 전파함 모든 사람이 죄를 범함 13 북마크 추가" [ref=e300] [cursor=pointer]':
+          - generic [ref=e301]:
+            - generic [ref=e302]:
+              - heading "모든 사람이 죄를 범함" [level=2] [ref=e303]
+              - generic [ref=e305]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e306]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e307]
+            - paragraph [ref=e308]: "로마서 3 : 23"
+          - paragraph [ref=e309]: 모든 사람이 죄를 범하였으매 하나님의 영광에 이르지 못하더니
+          - generic [ref=e310]:
+            - generic [ref=e311]: 60구절
+            - button "B. 그리스도를 전파함" [ref=e312]
+            - button "모든 사람이 죄를 범함" [ref=e313]
+          - generic [ref=e314]: "13"
+          - button "북마크 추가" [ref=e317]:
+            - img [ref=e318]
+        - 'button "모든 사람이 죄를 범함 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 이사야 53 : 6 우리는 다 양 같아서 그릇 행하여 각기 제 길로 갔거늘 여호와께서는 우리 무리의 죄악을 그에게 담당시키셨도다 60구절 B. 그리스도를 전파함 모든 사람이 죄를 범함 14 북마크 추가" [ref=e321] [cursor=pointer]':
+          - generic [ref=e322]:
+            - generic [ref=e323]:
+              - heading "모든 사람이 죄를 범함" [level=2] [ref=e324]
+              - generic [ref=e326]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e327]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e328]
+            - paragraph [ref=e329]: "이사야 53 : 6"
+          - paragraph [ref=e330]: 우리는 다 양 같아서 그릇 행하여 각기 제 길로 갔거늘 여호와께서는 우리 무리의 죄악을 그에게 담당시키셨도다
+          - generic [ref=e331]:
+            - generic [ref=e332]: 60구절
+            - button "B. 그리스도를 전파함" [ref=e333]
+            - button "모든 사람이 죄를 범함" [ref=e334]
+          - generic [ref=e335]: "14"
+          - button "북마크 추가" [ref=e338]:
+            - img [ref=e339]
+        - 'button "죄의 형벌 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 로마서 6 : 23 죄의 삯은 사망이요 하나님의 은사는 그리스도 예수 우리 주 안에 있는 영생이니라 60구절 B. 그리스도를 전파함 죄의 형벌 15 북마크 추가" [ref=e342] [cursor=pointer]':
+          - generic [ref=e343]:
+            - generic [ref=e344]:
+              - heading "죄의 형벌" [level=2] [ref=e345]
+              - generic [ref=e347]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e348]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e349]
+            - paragraph [ref=e350]: "로마서 6 : 23"
+          - paragraph [ref=e351]: 죄의 삯은 사망이요 하나님의 은사는 그리스도 예수 우리 주 안에 있는 영생이니라
+          - generic [ref=e352]:
+            - generic [ref=e353]: 60구절
+            - button "B. 그리스도를 전파함" [ref=e354]
+            - button "죄의 형벌" [ref=e355]
+          - generic [ref=e356]: "15"
+          - button "북마크 추가" [ref=e359]:
+            - img [ref=e360]
+        - 'button "죄의 형벌 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 히브리서 9 : 27 한 번 죽는 것은 사람에게 정하신 것이요 그 후에는 심판이 있으리니 60구절 B. 그리스도를 전파함 죄의 형벌 16 북마크 추가" [ref=e363] [cursor=pointer]':
+          - generic [ref=e364]:
+            - generic [ref=e365]:
+              - heading "죄의 형벌" [level=2] [ref=e366]
+              - generic [ref=e368]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e369]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e370]
+            - paragraph [ref=e371]: "히브리서 9 : 27"
+          - paragraph [ref=e372]: 한 번 죽는 것은 사람에게 정하신 것이요 그 후에는 심판이 있으리니
+          - generic [ref=e373]:
+            - generic [ref=e374]: 60구절
+            - button "B. 그리스도를 전파함" [ref=e375]
+            - button "죄의 형벌" [ref=e376]
+          - generic [ref=e377]: "16"
+          - button "북마크 추가" [ref=e380]:
+            - img [ref=e381]
+        - 'button "그리스도가 형벌을 받음 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 로마서 5 : 8 우리가 아직 죄인 되었을 때에 그리스도께서 우리를 위하여 죽으심으로 하나님께서 우리에게 대한 자기의 사랑을 확증하셨느니라 60구절 B. 그리스도를 전파함 그리스도가 형벌을 받음 17 북마크 추가" [ref=e384] [cursor=pointer]':
+          - generic [ref=e385]:
+            - generic [ref=e386]:
+              - heading "그리스도가 형벌을 받음" [level=2] [ref=e387]
+              - generic [ref=e389]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e390]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e391]
+            - paragraph [ref=e392]: "로마서 5 : 8"
+          - paragraph [ref=e393]: 우리가 아직 죄인 되었을 때에 그리스도께서 우리를 위하여 죽으심으로 하나님께서 우리에게 대한 자기의 사랑을 확증하셨느니라
+          - generic [ref=e394]:
+            - generic [ref=e395]: 60구절
+            - button "B. 그리스도를 전파함" [ref=e396]
+            - button "그리스도가 형벌을 받음" [ref=e397]
+          - generic [ref=e398]: "17"
+          - button "북마크 추가" [ref=e401]:
+            - img [ref=e402]
+        - 'button "그리스도가 형벌을 받음 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 베드로전서 3 : 18 그리스도께서도 한 번 죄를 위하여 죽으사 의인으로서 불의한 자를 대신하셨으니 이는 우리를 하나님 앞으로 인도하려 하심이라 육체로는 죽임을 당하시고 영으로는 살리심을 받으셨으니 60구절 B. 그리스도를 전파함 그리스도가 형벌을 받음 18 북마크 추가" [ref=e405] [cursor=pointer]':
+          - generic [ref=e406]:
+            - generic [ref=e407]:
+              - heading "그리스도가 형벌을 받음" [level=2] [ref=e408]
+              - generic [ref=e410]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e411]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e412]
+            - paragraph [ref=e413]: "베드로전서 3 : 18"
+          - paragraph [ref=e414]: 그리스도께서도 한 번 죄를 위하여 죽으사 의인으로서 불의한 자를 대신하셨으니 이는 우리를 하나님 앞으로 인도하려 하심이라 육체로는 죽임을 당하시고 영으로는 살리심을 받으셨으니
+          - generic [ref=e415]:
+            - generic [ref=e416]: 60구절
+            - button "B. 그리스도를 전파함" [ref=e417]
+            - button "그리스도가 형벌을 받음" [ref=e418]
+          - generic [ref=e419]: "18"
+          - button "북마크 추가" [ref=e422]:
+            - img [ref=e423]
+        - 'button "선행으로 구원받지 못함 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 에베소서 2 : 8-9 너희가 그 은혜를 인하여 믿음으로 말미암아 구원을 얻었나니 이것이 너희에게서 난 것이 아니요 하나님의 선물이라 *행위에서 난 것이 아니니 이는 누구든지 자랑치 못하게 함이니라 60구절 B. 그리스도를 전파함 선행으로 구원받지 못함 19 북마크 추가" [ref=e426] [cursor=pointer]':
+          - generic [ref=e427]:
+            - generic [ref=e428]:
+              - heading "선행으로 구원받지 못함" [level=2] [ref=e429]
+              - generic [ref=e431]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e432]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e433]
+            - paragraph [ref=e434]: "에베소서 2 : 8-9"
+          - paragraph [ref=e435]: 너희가 그 은혜를 인하여 믿음으로 말미암아 구원을 얻었나니 이것이 너희에게서 난 것이 아니요 하나님의 선물이라 *행위에서 난 것이 아니니 이는 누구든지 자랑치 못하게 함이니라
+          - generic [ref=e436]:
+            - generic [ref=e437]: 60구절
+            - button "B. 그리스도를 전파함" [ref=e438]
+            - button "선행으로 구원받지 못함" [ref=e439]
+          - generic [ref=e440]: "19"
+          - button "북마크 추가" [ref=e443]:
+            - img [ref=e444]
+        - 'button "선행으로 구원받지 못함 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 디도서 3 : 5 우리를 구원하시되 우리의 행한바 의로운 행위로 말미암지 아니하고 오직 그의 긍휼하심을 좇아 중생의 씻음과 성령의 새롭게 하심으로 하셨나니 60구절 B. 그리스도를 전파함 선행으로 구원받지 못함 20 북마크 추가" [ref=e447] [cursor=pointer]':
+          - generic [ref=e448]:
+            - generic [ref=e449]:
+              - heading "선행으로 구원받지 못함" [level=2] [ref=e450]
+              - generic [ref=e452]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e453]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e454]
+            - paragraph [ref=e455]: "디도서 3 : 5"
+          - paragraph [ref=e456]: 우리를 구원하시되 우리의 행한바 의로운 행위로 말미암지 아니하고 오직 그의 긍휼하심을 좇아 중생의 씻음과 성령의 새롭게 하심으로 하셨나니
+          - generic [ref=e457]:
+            - generic [ref=e458]: 60구절
+            - button "B. 그리스도를 전파함" [ref=e459]
+            - button "선행으로 구원받지 못함" [ref=e460]
+          - generic [ref=e461]: "20"
+          - button "북마크 추가" [ref=e464]:
+            - img [ref=e465]
+        - 'button "그리스도를 모셔야 함 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 요한복음 1 : 12 영접하는 자 곧 그 이름을 믿는 자들에게는 하나님의 자녀가 되는 권세를 주셨으니 60구절 B. 그리스도를 전파함 그리스도를 모셔야 함 21 북마크 추가" [ref=e468] [cursor=pointer]':
+          - generic [ref=e469]:
+            - generic [ref=e470]:
+              - heading "그리스도를 모셔야 함" [level=2] [ref=e471]
+              - generic [ref=e473]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e474]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e475]
+            - paragraph [ref=e476]: "요한복음 1 : 12"
+          - paragraph [ref=e477]: 영접하는 자 곧 그 이름을 믿는 자들에게는 하나님의 자녀가 되는 권세를 주셨으니
+          - generic [ref=e478]:
+            - generic [ref=e479]: 60구절
+            - button "B. 그리스도를 전파함" [ref=e480]
+            - button "그리스도를 모셔야 함" [ref=e481]
+          - generic [ref=e482]: "21"
+          - button "북마크 추가" [ref=e485]:
+            - img [ref=e486]
+        - 'button "그리스도를 모셔야 함 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 요한계시록 3 : 20 볼지어다 내가 문 밖에 서서 두드리노니 누구든지 내 음성을 듣고 문을 열면 내가 그에게로 들어가 그로 더불어 먹고 그는 나로 더불어 먹으리라 60구절 B. 그리스도를 전파함 그리스도를 모셔야 함 22 북마크 추가" [ref=e489] [cursor=pointer]':
+          - generic [ref=e490]:
+            - generic [ref=e491]:
+              - heading "그리스도를 모셔야 함" [level=2] [ref=e492]
+              - generic [ref=e494]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e495]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e496]
+            - paragraph [ref=e497]: "요한계시록 3 : 20"
+          - paragraph [ref=e498]: 볼지어다 내가 문 밖에 서서 두드리노니 누구든지 내 음성을 듣고 문을 열면 내가 그에게로 들어가 그로 더불어 먹고 그는 나로 더불어 먹으리라
+          - generic [ref=e499]:
+            - generic [ref=e500]: 60구절
+            - button "B. 그리스도를 전파함" [ref=e501]
+            - button "그리스도를 모셔야 함" [ref=e502]
+          - generic [ref=e503]: "22"
+          - button "북마크 추가" [ref=e506]:
+            - img [ref=e507]
+        - 'button "구원의 확신 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 요한일서 5 : 13 내가 하나님의 아들의 이름을 믿는 너희에게 이것을 쓴 것은 너희로 하여금 너희에게 영생이 있음을 알게 하려 함이라 60구절 B. 그리스도를 전파함 구원의 확신 23 북마크 추가" [ref=e510] [cursor=pointer]':
+          - generic [ref=e511]:
+            - generic [ref=e512]:
+              - heading "구원의 확신" [level=2] [ref=e513]
+              - generic [ref=e515]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e516]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e517]
+            - paragraph [ref=e518]: "요한일서 5 : 13"
+          - paragraph [ref=e519]: 내가 하나님의 아들의 이름을 믿는 너희에게 이것을 쓴 것은 너희로 하여금 너희에게 영생이 있음을 알게 하려 함이라
+          - generic [ref=e520]:
+            - generic [ref=e521]: 60구절
+            - button "B. 그리스도를 전파함" [ref=e522]
+            - button "구원의 확신" [ref=e523]
+          - generic [ref=e524]: "23"
+          - button "북마크 추가" [ref=e527]:
+            - img [ref=e528]
+        - 'button "구원의 확신 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 요한복음 5 : 24 내가 진실로 진실로 너희에게 이르노니 내 말을 듣고 또 나 보내신 이를 믿는 자는 영생을 얻었고 심판에 이르지 아니하나니 사망에서 생명으로 옮겼느니라 60구절 B. 그리스도를 전파함 구원의 확신 24 북마크 추가" [ref=e531] [cursor=pointer]':
+          - generic [ref=e532]:
+            - generic [ref=e533]:
+              - heading "구원의 확신" [level=2] [ref=e534]
+              - generic [ref=e536]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e537]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e538]
+            - paragraph [ref=e539]: "요한복음 5 : 24"
+          - paragraph [ref=e540]: 내가 진실로 진실로 너희에게 이르노니 내 말을 듣고 또 나 보내신 이를 믿는 자는 영생을 얻었고 심판에 이르지 아니하나니 사망에서 생명으로 옮겼느니라
+          - generic [ref=e541]:
+            - generic [ref=e542]: 60구절
+            - button "B. 그리스도를 전파함" [ref=e543]
+            - button "구원의 확신" [ref=e544]
+          - generic [ref=e545]: "24"
+          - button "북마크 추가" [ref=e548]:
+            - img [ref=e549]
+        - 'button "성 령 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 고린도전서 3 : 16 너희가 하나님의 성전인 것과 하나님의 성령이 너희 안에 거하시는 것을 알지 못하느뇨 60구절 C. 하나님을 의뢰함 성 령 25 북마크 추가" [ref=e552] [cursor=pointer]':
+          - generic [ref=e553]:
+            - generic [ref=e554]:
+              - heading "성 령" [level=2] [ref=e555]
+              - generic [ref=e557]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e558]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e559]
+            - paragraph [ref=e560]: "고린도전서 3 : 16"
+          - paragraph [ref=e561]: 너희가 하나님의 성전인 것과 하나님의 성령이 너희 안에 거하시는 것을 알지 못하느뇨
+          - generic [ref=e562]:
+            - generic [ref=e563]: 60구절
+            - button "C. 하나님을 의뢰함" [ref=e564]
+            - button "성 령" [ref=e565]
+          - generic [ref=e566]: "25"
+          - button "북마크 추가" [ref=e569]:
+            - img [ref=e570]
+        - 'button "성 령 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 고린도전서 2 : 12 우리가 세상의 영을 받지 아니하고 오직 하나님께로 온 영을 받았으니 이는 우리로 하여금 하나님께서 우리에게 은혜로 주신 것들을 알게 하려 하심이라 60구절 C. 하나님을 의뢰함 성 령 26 북마크 추가" [ref=e573] [cursor=pointer]':
+          - generic [ref=e574]:
+            - generic [ref=e575]:
+              - heading "성 령" [level=2] [ref=e576]
+              - generic [ref=e578]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e579]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e580]
+            - paragraph [ref=e581]: "고린도전서 2 : 12"
+          - paragraph [ref=e582]: 우리가 세상의 영을 받지 아니하고 오직 하나님께로 온 영을 받았으니 이는 우리로 하여금 하나님께서 우리에게 은혜로 주신 것들을 알게 하려 하심이라
+          - generic [ref=e583]:
+            - generic [ref=e584]: 60구절
+            - button "C. 하나님을 의뢰함" [ref=e585]
+            - button "성 령" [ref=e586]
+          - generic [ref=e587]: "26"
+          - button "북마크 추가" [ref=e590]:
+            - img [ref=e591]
+        - 'button "능 력 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 이사야 41 : 10 두려워 말라 내가 너와 함께 함이니라 놀라지 말라 나는 네 하나님이 됨이니라 내가 너를 굳세게 하리라 참으로 너를 도와 주리라 참으로 나의 의로운 오른손으로 너를 붙들리라 60구절 C. 하나님을 의뢰함 능 력 27 북마크 추가" [ref=e594] [cursor=pointer]':
+          - generic [ref=e595]:
+            - generic [ref=e596]:
+              - heading "능 력" [level=2] [ref=e597]
+              - generic [ref=e599]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e600]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e601]
+            - paragraph [ref=e602]: "이사야 41 : 10"
+          - paragraph [ref=e603]: 두려워 말라 내가 너와 함께 함이니라 놀라지 말라 나는 네 하나님이 됨이니라 내가 너를 굳세게 하리라 참으로 너를 도와 주리라 참으로 나의 의로운 오른손으로 너를 붙들리라
+          - generic [ref=e604]:
+            - generic [ref=e605]: 60구절
+            - button "C. 하나님을 의뢰함" [ref=e606]
+            - button "능 력" [ref=e607]
+          - generic [ref=e608]: "27"
+          - button "북마크 추가" [ref=e611]:
+            - img [ref=e612]
+        - 'button "능 력 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 빌립보서 4 : 13 내게 능력 주시는 자 안에서 내가 모든 것을 할 수 있느니라 60구절 C. 하나님을 의뢰함 능 력 28 북마크 추가" [ref=e615] [cursor=pointer]':
+          - generic [ref=e616]:
+            - generic [ref=e617]:
+              - heading "능 력" [level=2] [ref=e618]
+              - generic [ref=e620]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e621]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e622]
+            - paragraph [ref=e623]: "빌립보서 4 : 13"
+          - paragraph [ref=e624]: 내게 능력 주시는 자 안에서 내가 모든 것을 할 수 있느니라
+          - generic [ref=e625]:
+            - generic [ref=e626]: 60구절
+            - button "C. 하나님을 의뢰함" [ref=e627]
+            - button "능 력" [ref=e628]
+          - generic [ref=e629]: "28"
+          - button "북마크 추가" [ref=e632]:
+            - img [ref=e633]
+        - 'button "성 실 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 예레미야애가 3 : 22-23 여호와의 자비와 긍휼이 무궁하시므로 우리가 진멸되지 아니함이니이다 *이것이 아침마다 새로우니 주의 성실이 크도소이다 60구절 C. 하나님을 의뢰함 성 실 29 북마크 추가" [ref=e636] [cursor=pointer]':
+          - generic [ref=e637]:
+            - generic [ref=e638]:
+              - heading "성 실" [level=2] [ref=e639]
+              - generic [ref=e641]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e642]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e643]
+            - paragraph [ref=e644]: "예레미야애가 3 : 22-23"
+          - paragraph [ref=e645]: 여호와의 자비와 긍휼이 무궁하시므로 우리가 진멸되지 아니함이니이다 *이것이 아침마다 새로우니 주의 성실이 크도소이다
+          - generic [ref=e646]:
+            - generic [ref=e647]: 60구절
+            - button "C. 하나님을 의뢰함" [ref=e648]
+            - button "성 실" [ref=e649]
+          - generic [ref=e650]: "29"
+          - button "북마크 추가" [ref=e653]:
+            - img [ref=e654]
+        - 'button "성 실 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 민수기 23 : 19 하나님은 인생이 아니시니 식언치 않으시고 인자가 아니시니 후회가 없으시도다 어찌 그 말씀하신 바를 행치 않으시며 하신 말씀을 실행치 않으시랴 60구절 C. 하나님을 의뢰함 성 실 30 북마크 추가" [ref=e657] [cursor=pointer]':
+          - generic [ref=e658]:
+            - generic [ref=e659]:
+              - heading "성 실" [level=2] [ref=e660]
+              - generic [ref=e662]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e663]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e664]
+            - paragraph [ref=e665]: "민수기 23 : 19"
+          - paragraph [ref=e666]: 하나님은 인생이 아니시니 식언치 않으시고 인자가 아니시니 후회가 없으시도다 어찌 그 말씀하신 바를 행치 않으시며 하신 말씀을 실행치 않으시랴
+          - generic [ref=e667]:
+            - generic [ref=e668]: 60구절
+            - button "C. 하나님을 의뢰함" [ref=e669]
+            - button "성 실" [ref=e670]
+          - generic [ref=e671]: "30"
+          - button "북마크 추가" [ref=e674]:
+            - img [ref=e675]
+        - 'button "평 안 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 이사야 26 : 3 주께서 심지가 견고한 자를 평강에 평강으로 지키시리니 이는 그가 주를 의뢰함이니이다 60구절 C. 하나님을 의뢰함 평 안 31 북마크 추가" [ref=e678] [cursor=pointer]':
+          - generic [ref=e679]:
+            - generic [ref=e680]:
+              - heading "평 안" [level=2] [ref=e681]
+              - generic [ref=e683]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e684]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e685]
+            - paragraph [ref=e686]: "이사야 26 : 3"
+          - paragraph [ref=e687]: 주께서 심지가 견고한 자를 평강에 평강으로 지키시리니 이는 그가 주를 의뢰함이니이다
+          - generic [ref=e688]:
+            - generic [ref=e689]: 60구절
+            - button "C. 하나님을 의뢰함" [ref=e690]
+            - button "평 안" [ref=e691]
+          - generic [ref=e692]: "31"
+          - button "북마크 추가" [ref=e695]:
+            - img [ref=e696]
+        - 'button "평 안 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 베드로전서 5 : 7 너희 염려를 다 주께 맡겨 버리라 이는 저가 너희를 권고하심이니라 60구절 C. 하나님을 의뢰함 평 안 32 북마크 추가" [ref=e699] [cursor=pointer]':
+          - generic [ref=e700]:
+            - generic [ref=e701]:
+              - heading "평 안" [level=2] [ref=e702]
+              - generic [ref=e704]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e705]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e706]
+            - paragraph [ref=e707]: "베드로전서 5 : 7"
+          - paragraph [ref=e708]: 너희 염려를 다 주께 맡겨 버리라 이는 저가 너희를 권고하심이니라
+          - generic [ref=e709]:
+            - generic [ref=e710]: 60구절
+            - button "C. 하나님을 의뢰함" [ref=e711]
+            - button "평 안" [ref=e712]
+          - generic [ref=e713]: "32"
+          - button "북마크 추가" [ref=e716]:
+            - img [ref=e717]
+        - 'button "공 급 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 로마서 8 : 32 자기 아들을 아끼지 아니하시고 우리 모든 사람을 위하여 내어주신 이가 어찌 그 아들과 함께 모든 것을 우리에게 은사로 주지 아니하시겠느뇨 60구절 C. 하나님을 의뢰함 공 급 33 북마크 추가" [ref=e720] [cursor=pointer]':
+          - generic [ref=e721]:
+            - generic [ref=e722]:
+              - heading "공 급" [level=2] [ref=e723]
+              - generic [ref=e725]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e726]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e727]
+            - paragraph [ref=e728]: "로마서 8 : 32"
+          - paragraph [ref=e729]: 자기 아들을 아끼지 아니하시고 우리 모든 사람을 위하여 내어주신 이가 어찌 그 아들과 함께 모든 것을 우리에게 은사로 주지 아니하시겠느뇨
+          - generic [ref=e730]:
+            - generic [ref=e731]: 60구절
+            - button "C. 하나님을 의뢰함" [ref=e732]
+            - button "공 급" [ref=e733]
+          - generic [ref=e734]: "33"
+          - button "북마크 추가" [ref=e737]:
+            - img [ref=e738]
+        - 'button "공 급 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 빌립보서 4 : 19 나의 하나님이 그리스도 예수 안에서 영광 가운데 그 풍성한 대로 너희 모든 쓸 것을 채우시리라 60구절 C. 하나님을 의뢰함 공 급 34 북마크 추가" [ref=e741] [cursor=pointer]':
+          - generic [ref=e742]:
+            - generic [ref=e743]:
+              - heading "공 급" [level=2] [ref=e744]
+              - generic [ref=e746]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e747]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e748]
+            - paragraph [ref=e749]: "빌립보서 4 : 19"
+          - paragraph [ref=e750]: 나의 하나님이 그리스도 예수 안에서 영광 가운데 그 풍성한 대로 너희 모든 쓸 것을 채우시리라
+          - generic [ref=e751]:
+            - generic [ref=e752]: 60구절
+            - button "C. 하나님을 의뢰함" [ref=e753]
+            - button "공 급" [ref=e754]
+          - generic [ref=e755]: "34"
+          - button "북마크 추가" [ref=e758]:
+            - img [ref=e759]
+        - 'button "유혹에서 도우심 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 히브리서 2 : 18 자기가 시험을 받아 고난을 당하셨은즉 시험받는 자들을 능히 도우시느니라 60구절 C. 하나님을 의뢰함 유혹에서 도우심 35 북마크 추가" [ref=e762] [cursor=pointer]':
+          - generic [ref=e763]:
+            - generic [ref=e764]:
+              - heading "유혹에서 도우심" [level=2] [ref=e765]
+              - generic [ref=e767]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e768]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e769]
+            - paragraph [ref=e770]: "히브리서 2 : 18"
+          - paragraph [ref=e771]: 자기가 시험을 받아 고난을 당하셨은즉 시험받는 자들을 능히 도우시느니라
+          - generic [ref=e772]:
+            - generic [ref=e773]: 60구절
+            - button "C. 하나님을 의뢰함" [ref=e774]
+            - button "유혹에서 도우심" [ref=e775]
+          - generic [ref=e776]: "35"
+          - button "북마크 추가" [ref=e779]:
+            - img [ref=e780]
+        - 'button "유혹에서 도우심 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 시편 119 : 9,11 청년이 무엇으로 그 행실을 깨끗케 하리이까 주의 말씀을 따라 삼갈 것이니이다 *내가 주께 범죄치 아니하려 하여 주의 말씀을 내 마음에 두었나이다 60구절 C. 하나님을 의뢰함 유혹에서 도우심 36 북마크 추가" [ref=e783] [cursor=pointer]':
+          - generic [ref=e784]:
+            - generic [ref=e785]:
+              - heading "유혹에서 도우심" [level=2] [ref=e786]
+              - generic [ref=e788]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e789]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e790]
+            - paragraph [ref=e791]: "시편 119 : 9,11"
+          - paragraph [ref=e792]: 청년이 무엇으로 그 행실을 깨끗케 하리이까 주의 말씀을 따라 삼갈 것이니이다 *내가 주께 범죄치 아니하려 하여 주의 말씀을 내 마음에 두었나이다
+          - generic [ref=e793]:
+            - generic [ref=e794]: 60구절
+            - button "C. 하나님을 의뢰함" [ref=e795]
+            - button "유혹에서 도우심" [ref=e796]
+          - generic [ref=e797]: "36"
+          - button "북마크 추가" [ref=e800]:
+            - img [ref=e801]
+        - 'button "그리스도를 첫자리에 모심 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 마태복음 6 : 33 너희는 먼저 그의 나라와 그의 의를 구하라 그리하면 이 모든 것을 너희에게 더하시리라 60구절 D. 그리스도 제자의 자격 그리스도를 첫자리에 모심 37 북마크 추가" [ref=e804] [cursor=pointer]':
+          - generic [ref=e805]:
+            - generic [ref=e806]:
+              - heading "그리스도를 첫자리에 모심" [level=2] [ref=e807]
+              - generic [ref=e809]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e810]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e811]
+            - paragraph [ref=e812]: "마태복음 6 : 33"
+          - paragraph [ref=e813]: 너희는 먼저 그의 나라와 그의 의를 구하라 그리하면 이 모든 것을 너희에게 더하시리라
+          - generic [ref=e814]:
+            - generic [ref=e815]: 60구절
+            - button "D. 그리스도 제자의 자격" [ref=e816]
+            - button "그리스도를 첫자리에 모심" [ref=e817]
+          - generic [ref=e818]: "37"
+          - button "북마크 추가" [ref=e821]:
+            - img [ref=e822]
+        - 'button "그리스도를 첫자리에 모심 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 누가복음 9 : 23 또 무리에게 이르시되 아무든지 나를 따라 오려거든 자기를 부인하고 날마다 제 십자가를 지고 나를 좇을 것이니라 60구절 D. 그리스도 제자의 자격 그리스도를 첫자리에 모심 38 북마크 추가" [ref=e825] [cursor=pointer]':
+          - generic [ref=e826]:
+            - generic [ref=e827]:
+              - heading "그리스도를 첫자리에 모심" [level=2] [ref=e828]
+              - generic [ref=e830]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e831]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e832]
+            - paragraph [ref=e833]: "누가복음 9 : 23"
+          - paragraph [ref=e834]: 또 무리에게 이르시되 아무든지 나를 따라 오려거든 자기를 부인하고 날마다 제 십자가를 지고 나를 좇을 것이니라
+          - generic [ref=e835]:
+            - generic [ref=e836]: 60구절
+            - button "D. 그리스도 제자의 자격" [ref=e837]
+            - button "그리스도를 첫자리에 모심" [ref=e838]
+          - generic [ref=e839]: "38"
+          - button "북마크 추가" [ref=e842]:
+            - img [ref=e843]
+        - 'button "죄에서 떠남 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 요한일서 2 : 15-16 이 세상이나 세상에 있는 것들을 사랑치 말라 누구든지 세상을 사랑하면 아버지의 사랑이 그 속에 있지 아니하니 *이는 세상에 있는 모든 것이 육신의 정욕과 안목의 정욕과 이생의 자랑이니 다 아버지께로 좇아 온 것이 아니요 세상으로 좇아 온 것이라 60구절 D. 그리스도 제자의 자격 죄에서 떠남 39 북마크 추가" [ref=e846] [cursor=pointer]':
+          - generic [ref=e847]:
+            - generic [ref=e848]:
+              - heading "죄에서 떠남" [level=2] [ref=e849]
+              - generic [ref=e851]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e852]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e853]
+            - paragraph [ref=e854]: "요한일서 2 : 15-16"
+          - paragraph [ref=e855]: 이 세상이나 세상에 있는 것들을 사랑치 말라 누구든지 세상을 사랑하면 아버지의 사랑이 그 속에 있지 아니하니 *이는 세상에 있는 모든 것이 육신의 정욕과 안목의 정욕과 이생의 자랑이니 다 아버지께로 좇아 온 것이 아니요 세상으로 좇아 온 것이라
+          - generic [ref=e856]:
+            - generic [ref=e857]: 60구절
+            - button "D. 그리스도 제자의 자격" [ref=e858]
+            - button "죄에서 떠남" [ref=e859]
+          - generic [ref=e860]: "39"
+          - button "북마크 추가" [ref=e863]:
+            - img [ref=e864]
+        - 'button "죄에서 떠남 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 로마서 12 : 2 너희는 이 세대를 본받지 말고 오직 마음을 새롭게 함으로 변화를 받아 하나님의 선하시고 기뻐하시고 온전하신 뜻이 무엇인지 분별하도록 하라 60구절 D. 그리스도 제자의 자격 죄에서 떠남 40 북마크 추가" [ref=e867] [cursor=pointer]':
+          - generic [ref=e868]:
+            - generic [ref=e869]:
+              - heading "죄에서 떠남" [level=2] [ref=e870]
+              - generic [ref=e872]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e873]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e874]
+            - paragraph [ref=e875]: "로마서 12 : 2"
+          - paragraph [ref=e876]: 너희는 이 세대를 본받지 말고 오직 마음을 새롭게 함으로 변화를 받아 하나님의 선하시고 기뻐하시고 온전하신 뜻이 무엇인지 분별하도록 하라
+          - generic [ref=e877]:
+            - generic [ref=e878]: 60구절
+            - button "D. 그리스도 제자의 자격" [ref=e879]
+            - button "죄에서 떠남" [ref=e880]
+          - generic [ref=e881]: "40"
+          - button "북마크 추가" [ref=e884]:
+            - img [ref=e885]
+        - 'button "견고함 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 고린도전서 15 : 58 그러므로 내 사랑하는 형제들아 견고하며 흔들리지 말며 항상 주의 일에 더욱 힘쓰는 자들이 되라 이는 너희 수고가 주 안에서 헛되지 않은 줄을 앎이니라 60구절 D. 그리스도 제자의 자격 견고함 41 북마크 추가" [ref=e888] [cursor=pointer]':
+          - generic [ref=e889]:
+            - generic [ref=e890]:
+              - heading "견고함" [level=2] [ref=e891]
+              - generic [ref=e893]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e894]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e895]
+            - paragraph [ref=e896]: "고린도전서 15 : 58"
+          - paragraph [ref=e897]: 그러므로 내 사랑하는 형제들아 견고하며 흔들리지 말며 항상 주의 일에 더욱 힘쓰는 자들이 되라 이는 너희 수고가 주 안에서 헛되지 않은 줄을 앎이니라
+          - generic [ref=e898]:
+            - generic [ref=e899]: 60구절
+            - button "D. 그리스도 제자의 자격" [ref=e900]
+            - button "견고함" [ref=e901]
+          - generic [ref=e902]: "41"
+          - button "북마크 추가" [ref=e905]:
+            - img [ref=e906]
+        - 'button "견고함 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 히브리서 12 : 3 너희가 피곤하여 낙심치 않기 위하여 죄인들의 이같이 자기에게 거역한 일을 참으신 자를 생각하라 60구절 D. 그리스도 제자의 자격 견고함 42 북마크 추가" [ref=e909] [cursor=pointer]':
+          - generic [ref=e910]:
+            - generic [ref=e911]:
+              - heading "견고함" [level=2] [ref=e912]
+              - generic [ref=e914]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e915]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e916]
+            - paragraph [ref=e917]: "히브리서 12 : 3"
+          - paragraph [ref=e918]: 너희가 피곤하여 낙심치 않기 위하여 죄인들의 이같이 자기에게 거역한 일을 참으신 자를 생각하라
+          - generic [ref=e919]:
+            - generic [ref=e920]: 60구절
+            - button "D. 그리스도 제자의 자격" [ref=e921]
+            - button "견고함" [ref=e922]
+          - generic [ref=e923]: "42"
+          - button "북마크 추가" [ref=e926]:
+            - img [ref=e927]
+        - 'button "다른 사람을 섬김 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 마가복음 10 : 45 인자의 온 것은 섬김을 받으려 함이 아니라 도리어 섬기려 하고 자기 목숨을 많은 사람의 대속물로 주려 함이니라 60구절 D. 그리스도 제자의 자격 다른 사람을 섬김 43 북마크 추가" [ref=e930] [cursor=pointer]':
+          - generic [ref=e931]:
+            - generic [ref=e932]:
+              - heading "다른 사람을 섬김" [level=2] [ref=e933]
+              - generic [ref=e935]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e936]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e937]
+            - paragraph [ref=e938]: "마가복음 10 : 45"
+          - paragraph [ref=e939]: 인자의 온 것은 섬김을 받으려 함이 아니라 도리어 섬기려 하고 자기 목숨을 많은 사람의 대속물로 주려 함이니라
+          - generic [ref=e940]:
+            - generic [ref=e941]: 60구절
+            - button "D. 그리스도 제자의 자격" [ref=e942]
+            - button "다른 사람을 섬김" [ref=e943]
+          - generic [ref=e944]: "43"
+          - button "북마크 추가" [ref=e947]:
+            - img [ref=e948]
+        - 'button "다른 사람을 섬김 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 고린도후서 4 : 5 우리가 우리를 전파하는 것이 아니라 오직 그리스도 예수의 주 되신 것과 또 예수를 위하여 우리가 너희의 종 된 것을 전파함이라 60구절 D. 그리스도 제자의 자격 다른 사람을 섬김 44 북마크 추가" [ref=e951] [cursor=pointer]':
+          - generic [ref=e952]:
+            - generic [ref=e953]:
+              - heading "다른 사람을 섬김" [level=2] [ref=e954]
+              - generic [ref=e956]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e957]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e958]
+            - paragraph [ref=e959]: "고린도후서 4 : 5"
+          - paragraph [ref=e960]: 우리가 우리를 전파하는 것이 아니라 오직 그리스도 예수의 주 되신 것과 또 예수를 위하여 우리가 너희의 종 된 것을 전파함이라
+          - generic [ref=e961]:
+            - generic [ref=e962]: 60구절
+            - button "D. 그리스도 제자의 자격" [ref=e963]
+            - button "다른 사람을 섬김" [ref=e964]
+          - generic [ref=e965]: "44"
+          - button "북마크 추가" [ref=e968]:
+            - img [ref=e969]
+        - 'button "후히 드릴 것 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 잠언 3 : 9-10 네 재물과 네 소산물의 처음 익은 열매로 여호와를 공경하라 *그리하면 네 창고가 가득히 차고 네 즙틀에 새 포도즙이 넘치리라 60구절 D. 그리스도 제자의 자격 후히 드릴 것 45 북마크 추가" [ref=e972] [cursor=pointer]':
+          - generic [ref=e973]:
+            - generic [ref=e974]:
+              - heading "후히 드릴 것" [level=2] [ref=e975]
+              - generic [ref=e977]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e978]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e979]
+            - paragraph [ref=e980]: "잠언 3 : 9-10"
+          - paragraph [ref=e981]: 네 재물과 네 소산물의 처음 익은 열매로 여호와를 공경하라 *그리하면 네 창고가 가득히 차고 네 즙틀에 새 포도즙이 넘치리라
+          - generic [ref=e982]:
+            - generic [ref=e983]: 60구절
+            - button "D. 그리스도 제자의 자격" [ref=e984]
+            - button "후히 드릴 것" [ref=e985]
+          - generic [ref=e986]: "45"
+          - button "북마크 추가" [ref=e989]:
+            - img [ref=e990]
+        - 'button "후히 드릴 것 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 고린도후서 9 : 6-7 이것이 곧 적게 심는 자는 적게 거두고 많이 심는 자는 많이 거둔다 하는 말이로다 *각각 그 마음에 정한 대로 할 것이요 인색함으로나 억지로 하지 말지니 하나님은 즐겨 내는 자를 사랑하시느니라 60구절 D. 그리스도 제자의 자격 후히 드릴 것 46 북마크 추가" [ref=e993] [cursor=pointer]':
+          - generic [ref=e994]:
+            - generic [ref=e995]:
+              - heading "후히 드릴 것" [level=2] [ref=e996]
+              - generic [ref=e998]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e999]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e1000]
+            - paragraph [ref=e1001]: "고린도후서 9 : 6-7"
+          - paragraph [ref=e1002]: 이것이 곧 적게 심는 자는 적게 거두고 많이 심는 자는 많이 거둔다 하는 말이로다 *각각 그 마음에 정한 대로 할 것이요 인색함으로나 억지로 하지 말지니 하나님은 즐겨 내는 자를 사랑하시느니라
+          - generic [ref=e1003]:
+            - generic [ref=e1004]: 60구절
+            - button "D. 그리스도 제자의 자격" [ref=e1005]
+            - button "후히 드릴 것" [ref=e1006]
+          - generic [ref=e1007]: "46"
+          - button "북마크 추가" [ref=e1010]:
+            - img [ref=e1011]
+        - 'button "세계 비전 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 사도행전 1 : 8 오직 성령이 너희에게 임하시면 너희가 권능을 받고 예루살렘과 온 유대와 사마리아와 땅 끝까지 이르러 내 증인이 되리라 하시니라 60구절 D. 그리스도 제자의 자격 세계 비전 47 북마크 추가" [ref=e1014] [cursor=pointer]':
+          - generic [ref=e1015]:
+            - generic [ref=e1016]:
+              - heading "세계 비전" [level=2] [ref=e1017]
+              - generic [ref=e1019]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e1020]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e1021]
+            - paragraph [ref=e1022]: "사도행전 1 : 8"
+          - paragraph [ref=e1023]: 오직 성령이 너희에게 임하시면 너희가 권능을 받고 예루살렘과 온 유대와 사마리아와 땅 끝까지 이르러 내 증인이 되리라 하시니라
+          - generic [ref=e1024]:
+            - generic [ref=e1025]: 60구절
+            - button "D. 그리스도 제자의 자격" [ref=e1026]
+            - button "세계 비전" [ref=e1027]
+          - generic [ref=e1028]: "47"
+          - button "북마크 추가" [ref=e1031]:
+            - img [ref=e1032]
+        - 'button "세계 비전 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 마태복음 28 : 19-20 그러므로 너희는 가서 모든 족속으로 제자를 삼아 아버지와 아들과 성령의 이름으로 세례를 주고 *내가 너희에게 분부한 모든 것을 가르쳐 지키게 하라 볼지어다 내가 세상 끝날까지 너희와 항상 함께 있으리라 하시니라 60구절 D. 그리스도 제자의 자격 세계 비전 48 북마크 추가" [ref=e1035] [cursor=pointer]':
+          - generic [ref=e1036]:
+            - generic [ref=e1037]:
+              - heading "세계 비전" [level=2] [ref=e1038]
+              - generic [ref=e1040]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e1041]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e1042]
+            - paragraph [ref=e1043]: "마태복음 28 : 19-20"
+          - paragraph [ref=e1044]: 그러므로 너희는 가서 모든 족속으로 제자를 삼아 아버지와 아들과 성령의 이름으로 세례를 주고 *내가 너희에게 분부한 모든 것을 가르쳐 지키게 하라 볼지어다 내가 세상 끝날까지 너희와 항상 함께 있으리라 하시니라
+          - generic [ref=e1045]:
+            - generic [ref=e1046]: 60구절
+            - button "D. 그리스도 제자의 자격" [ref=e1047]
+            - button "세계 비전" [ref=e1048]
+          - generic [ref=e1049]: "48"
+          - button "북마크 추가" [ref=e1052]:
+            - img [ref=e1053]
+        - 'button "사 랑 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 요한복음 13 : 34-35 새 계명을 너희에게 주노니 서로 사랑하라 내가 너희를 사랑한것 같이 너희도 서로 사랑하라 *너희가 서로 사랑하면 이로써 모든 사람이 너희가 내 제자인 줄 알리라 60구절 E. 그리스도를 닮아감 사 랑 49 북마크 추가" [ref=e1056] [cursor=pointer]':
+          - generic [ref=e1057]:
+            - generic [ref=e1058]:
+              - heading "사 랑" [level=2] [ref=e1059]
+              - generic [ref=e1061]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e1062]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e1063]
+            - paragraph [ref=e1064]: "요한복음 13 : 34-35"
+          - paragraph [ref=e1065]: 새 계명을 너희에게 주노니 서로 사랑하라 내가 너희를 사랑한것 같이 너희도 서로 사랑하라 *너희가 서로 사랑하면 이로써 모든 사람이 너희가 내 제자인 줄 알리라
+          - generic [ref=e1066]:
+            - generic [ref=e1067]: 60구절
+            - button "E. 그리스도를 닮아감" [ref=e1068]
+            - button "사 랑" [ref=e1069]
+          - generic [ref=e1070]: "49"
+          - button "북마크 추가" [ref=e1073]:
+            - img [ref=e1074]
+        - 'button "사 랑 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 요한일서 3 : 18 자녀들아 우리가 말과 혀로만 사랑하지 말고 오직 행함과 진실함으로 하자 60구절 E. 그리스도를 닮아감 사 랑 50 북마크 추가" [ref=e1077] [cursor=pointer]':
+          - generic [ref=e1078]:
+            - generic [ref=e1079]:
+              - heading "사 랑" [level=2] [ref=e1080]
+              - generic [ref=e1082]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e1083]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e1084]
+            - paragraph [ref=e1085]: "요한일서 3 : 18"
+          - paragraph [ref=e1086]: 자녀들아 우리가 말과 혀로만 사랑하지 말고 오직 행함과 진실함으로 하자
+          - generic [ref=e1087]:
+            - generic [ref=e1088]: 60구절
+            - button "E. 그리스도를 닮아감" [ref=e1089]
+            - button "사 랑" [ref=e1090]
+          - generic [ref=e1091]: "50"
+          - button "북마크 추가" [ref=e1094]:
+            - img [ref=e1095]
+        - 'button "겸 손 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 빌립보서 2 : 3-4 아무 일에든지 다툼이나 허영으로 하지 말고 오직 겸손한 마음으로 각각 자기보다 남을 낫게 여기고 *각각 자기 일을 돌아볼 뿐더러 또한 각각 다른 사람들의 일을 돌아보아 나의 기쁨을 충만케 하라 60구절 E. 그리스도를 닮아감 겸 손 51 북마크 추가" [ref=e1098] [cursor=pointer]':
+          - generic [ref=e1099]:
+            - generic [ref=e1100]:
+              - heading "겸 손" [level=2] [ref=e1101]
+              - generic [ref=e1103]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e1104]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e1105]
+            - paragraph [ref=e1106]: "빌립보서 2 : 3-4"
+          - paragraph [ref=e1107]: 아무 일에든지 다툼이나 허영으로 하지 말고 오직 겸손한 마음으로 각각 자기보다 남을 낫게 여기고 *각각 자기 일을 돌아볼 뿐더러 또한 각각 다른 사람들의 일을 돌아보아 나의 기쁨을 충만케 하라
+          - generic [ref=e1108]:
+            - generic [ref=e1109]: 60구절
+            - button "E. 그리스도를 닮아감" [ref=e1110]
+            - button "겸 손" [ref=e1111]
+          - generic [ref=e1112]: "51"
+          - button "북마크 추가" [ref=e1115]:
+            - img [ref=e1116]
+        - 'button "겸 손 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 베드로전서 5 : 5-6 젊은 자들아 이와 같이 장로들에게 순복하고 다 서로 겸손으로 허리를 동이라 하나님이 교만한 자를 대적하시되 겸손한 자들에게는 은혜를 주시느니라 *그러므로 하나님의 능하신 손 아래서 겸손하라 때가 되면 너희를 높이시리라 60구절 E. 그리스도를 닮아감 겸 손 52 북마크 추가" [ref=e1119] [cursor=pointer]':
+          - generic [ref=e1120]:
+            - generic [ref=e1121]:
+              - heading "겸 손" [level=2] [ref=e1122]
+              - generic [ref=e1124]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e1125]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e1126]
+            - paragraph [ref=e1127]: "베드로전서 5 : 5-6"
+          - paragraph [ref=e1128]: 젊은 자들아 이와 같이 장로들에게 순복하고 다 서로 겸손으로 허리를 동이라 하나님이 교만한 자를 대적하시되 겸손한 자들에게는 은혜를 주시느니라 *그러므로 하나님의 능하신 손 아래서 겸손하라 때가 되면 너희를 높이시리라
+          - generic [ref=e1129]:
+            - generic [ref=e1130]: 60구절
+            - button "E. 그리스도를 닮아감" [ref=e1131]
+            - button "겸 손" [ref=e1132]
+          - generic [ref=e1133]: "52"
+          - button "북마크 추가" [ref=e1136]:
+            - img [ref=e1137]
+        - 'button "순 결 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 에베소서 5 : 3 음행과 온갖 더러운 것과 탐욕은 너희 중에서 그 이름이라도 부르지 말라 이는 성도의 마땅한 바니라 60구절 E. 그리스도를 닮아감 순 결 53 북마크 추가" [ref=e1140] [cursor=pointer]':
+          - generic [ref=e1141]:
+            - generic [ref=e1142]:
+              - heading "순 결" [level=2] [ref=e1143]
+              - generic [ref=e1145]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e1146]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e1147]
+            - paragraph [ref=e1148]: "에베소서 5 : 3"
+          - paragraph [ref=e1149]: 음행과 온갖 더러운 것과 탐욕은 너희 중에서 그 이름이라도 부르지 말라 이는 성도의 마땅한 바니라
+          - generic [ref=e1150]:
+            - generic [ref=e1151]: 60구절
+            - button "E. 그리스도를 닮아감" [ref=e1152]
+            - button "순 결" [ref=e1153]
+          - generic [ref=e1154]: "53"
+          - button "북마크 추가" [ref=e1157]:
+            - img [ref=e1158]
+        - 'button "순 결 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 베드로전서 2 : 11 사랑하는 자들아 나그네와 행인 같은 너희를 권하노니 영혼을 거스려 싸우는 육체의 정욕을 제어하라 60구절 E. 그리스도를 닮아감 순 결 54 북마크 추가" [ref=e1161] [cursor=pointer]':
+          - generic [ref=e1162]:
+            - generic [ref=e1163]:
+              - heading "순 결" [level=2] [ref=e1164]
+              - generic [ref=e1166]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e1167]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e1168]
+            - paragraph [ref=e1169]: "베드로전서 2 : 11"
+          - paragraph [ref=e1170]: 사랑하는 자들아 나그네와 행인 같은 너희를 권하노니 영혼을 거스려 싸우는 육체의 정욕을 제어하라
+          - generic [ref=e1171]:
+            - generic [ref=e1172]: 60구절
+            - button "E. 그리스도를 닮아감" [ref=e1173]
+            - button "순 결" [ref=e1174]
+          - generic [ref=e1175]: "54"
+          - button "북마크 추가" [ref=e1178]:
+            - img [ref=e1179]
+        - 'button "정 직 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 레위기 19 : 11 너희는 도적질하지 말며 속이지 말며 서로 거짓말하지 말며 60구절 E. 그리스도를 닮아감 정 직 55 북마크 추가" [ref=e1182] [cursor=pointer]':
+          - generic [ref=e1183]:
+            - generic [ref=e1184]:
+              - heading "정 직" [level=2] [ref=e1185]
+              - generic [ref=e1187]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e1188]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e1189]
+            - paragraph [ref=e1190]: "레위기 19 : 11"
+          - paragraph [ref=e1191]: 너희는 도적질하지 말며 속이지 말며 서로 거짓말하지 말며
+          - generic [ref=e1192]:
+            - generic [ref=e1193]: 60구절
+            - button "E. 그리스도를 닮아감" [ref=e1194]
+            - button "정 직" [ref=e1195]
+          - generic [ref=e1196]: "55"
+          - button "북마크 추가" [ref=e1199]:
+            - img [ref=e1200]
+        - 'button "정 직 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 사도행전 24 : 16 이것을 인하여 나도 하나님과 사람을 대하여 항상 양심에 거리낌이 없기를 힘쓰노라 60구절 E. 그리스도를 닮아감 정 직 56 북마크 추가" [ref=e1203] [cursor=pointer]':
+          - generic [ref=e1204]:
+            - generic [ref=e1205]:
+              - heading "정 직" [level=2] [ref=e1206]
+              - generic [ref=e1208]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e1209]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e1210]
+            - paragraph [ref=e1211]: "사도행전 24 : 16"
+          - paragraph [ref=e1212]: 이것을 인하여 나도 하나님과 사람을 대하여 항상 양심에 거리낌이 없기를 힘쓰노라
+          - generic [ref=e1213]:
+            - generic [ref=e1214]: 60구절
+            - button "E. 그리스도를 닮아감" [ref=e1215]
+            - button "정 직" [ref=e1216]
+          - generic [ref=e1217]: "56"
+          - button "북마크 추가" [ref=e1220]:
+            - img [ref=e1221]
+        - 'button "믿 음 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 히브리서 11 : 6 믿음이 없이는 기쁘시게 못하나니 하나님께 나아가는 자는 반드시 그가 계신 것과 또한 그가 자기를 찾는 자들에게 상 주시는 이심을 믿어야 할지니라 60구절 E. 그리스도를 닮아감 믿 음 57 북마크 추가" [ref=e1224] [cursor=pointer]':
+          - generic [ref=e1225]:
+            - generic [ref=e1226]:
+              - heading "믿 음" [level=2] [ref=e1227]
+              - generic [ref=e1229]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e1230]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e1231]
+            - paragraph [ref=e1232]: "히브리서 11 : 6"
+          - paragraph [ref=e1233]: 믿음이 없이는 기쁘시게 못하나니 하나님께 나아가는 자는 반드시 그가 계신 것과 또한 그가 자기를 찾는 자들에게 상 주시는 이심을 믿어야 할지니라
+          - generic [ref=e1234]:
+            - generic [ref=e1235]: 60구절
+            - button "E. 그리스도를 닮아감" [ref=e1236]
+            - button "믿 음" [ref=e1237]
+          - generic [ref=e1238]: "57"
+          - button "북마크 추가" [ref=e1241]:
+            - img [ref=e1242]
+        - 'button "믿 음 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 로마서 4 : 20-21 믿음이 없어 하나님의 약속을 의심치 않고 믿음에 견고하여져서 하나님께 영광을 돌리며 *약속하신 그것을 또한 능히 이루실 줄을 확신하였으니 60구절 E. 그리스도를 닮아감 믿 음 58 북마크 추가" [ref=e1245] [cursor=pointer]':
+          - generic [ref=e1246]:
+            - generic [ref=e1247]:
+              - heading "믿 음" [level=2] [ref=e1248]
+              - generic [ref=e1250]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e1251]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e1252]
+            - paragraph [ref=e1253]: "로마서 4 : 20-21"
+          - paragraph [ref=e1254]: 믿음이 없어 하나님의 약속을 의심치 않고 믿음에 견고하여져서 하나님께 영광을 돌리며 *약속하신 그것을 또한 능히 이루실 줄을 확신하였으니
+          - generic [ref=e1255]:
+            - generic [ref=e1256]: 60구절
+            - button "E. 그리스도를 닮아감" [ref=e1257]
+            - button "믿 음" [ref=e1258]
+          - generic [ref=e1259]: "58"
+          - button "북마크 추가" [ref=e1262]:
+            - img [ref=e1263]
+        - 'button "선 행 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 갈라디아서 6 : 9-10 우리가 선을 행하되 낙심하지 말지니 피곤하지 아니하면 때가 이르매 거두리라 *그러므로 우리는 기회 있는 대로 모든 이에게 착한 일을 하되 더욱 믿음의 가정들에게 할지니라 60구절 E. 그리스도를 닮아감 선 행 59 북마크 추가" [ref=e1266] [cursor=pointer]':
+          - generic [ref=e1267]:
+            - generic [ref=e1268]:
+              - heading "선 행" [level=2] [ref=e1269]
+              - generic [ref=e1271]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e1272]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e1273]
+            - paragraph [ref=e1274]: "갈라디아서 6 : 9-10"
+          - paragraph [ref=e1275]: 우리가 선을 행하되 낙심하지 말지니 피곤하지 아니하면 때가 이르매 거두리라 *그러므로 우리는 기회 있는 대로 모든 이에게 착한 일을 하되 더욱 믿음의 가정들에게 할지니라
+          - generic [ref=e1276]:
+            - generic [ref=e1277]: 60구절
+            - button "E. 그리스도를 닮아감" [ref=e1278]
+            - button "선 행" [ref=e1279]
+          - generic [ref=e1280]: "59"
+          - button "북마크 추가" [ref=e1283]:
+            - img [ref=e1284]
+        - 'button "선 행 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 마태복음 5 : 16 이같이 너희 빛을 사람 앞에 비취게 하여 저희로 너희 착한 행실을 보고 하늘에 계신 너희 아버지께 영광을 돌리게 하라 60구절 E. 그리스도를 닮아감 선 행 60 북마크 추가" [ref=e1287] [cursor=pointer]':
+          - generic [ref=e1288]:
+            - generic [ref=e1289]:
+              - heading "선 행" [level=2] [ref=e1290]
+              - generic [ref=e1292]:
+                - button "첫 시작 난이도 (설정 안 됨)" [ref=e1293]
+                - button "전체 암송 난이도 (설정 안 됨)" [ref=e1294]
+            - paragraph [ref=e1295]: "마태복음 5 : 16"
+          - paragraph [ref=e1296]: 이같이 너희 빛을 사람 앞에 비취게 하여 저희로 너희 착한 행실을 보고 하늘에 계신 너희 아버지께 영광을 돌리게 하라
+          - generic [ref=e1297]:
+            - generic [ref=e1298]: 60구절
+            - button "E. 그리스도를 닮아감" [ref=e1299]
+            - button "선 행" [ref=e1300]
+          - generic [ref=e1301]: "60"
+          - button "북마크 추가" [ref=e1304]:
+            - img [ref=e1305]
+  - navigation "주 네비게이션" [ref=e1307]:
+    - list [ref=e1308]:
+      - listitem [ref=e1309]:
+        - link "Home" [ref=e1310] [cursor=pointer]:
+          - /url: /
+          - img [ref=e1311]
+          - generic [ref=e1312]: Home
+      - listitem [ref=e1313]:
+        - link "Library" [ref=e1314] [cursor=pointer]:
+          - /url: /library
+          - img [ref=e1315]
+          - generic [ref=e1316]: Library
+      - listitem [ref=e1317]:
+        - link "Marks" [ref=e1318] [cursor=pointer]:
+          - /url: /bookmarks
+          - img [ref=e1319]
+          - generic [ref=e1320]: Marks
+      - listitem [ref=e1321]:
+        - link "Stats" [ref=e1322] [cursor=pointer]:
+          - /url: /stats
+          - img [ref=e1323]
+          - generic [ref=e1324]: Stats

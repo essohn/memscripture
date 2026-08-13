@@ -1,0 +1,121 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - heading "Library" [level=1] [ref=e6]
+        - link "설정" [ref=e7] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e8]
+    - main [ref=e9]:
+      - generic [ref=e10]:
+        - paragraph [ref=e11]: 총 8개 패키지
+        - button "순서 편집" [ref=e12]
+      - generic [ref=e13]:
+        - link "사용자 사용자 정의 내 구절 OYO 0 구절" [ref=e14] [cursor=pointer]:
+          - /url: /library/oyo
+          - generic [ref=e15]:
+            - generic [ref=e16]:
+              - generic [ref=e17]:
+                - generic [ref=e18]: 사용자
+                - generic [ref=e19]: 사용자 정의
+              - heading "내 구절" [level=3] [ref=e20]
+              - paragraph [ref=e21]: OYO
+            - generic [ref=e22]:
+              - generic [ref=e23]: "0"
+              - generic [ref=e24]: 구절
+        - link "개역한글 그리스도와의 새출발 5구절 5구절 5 구절" [ref=e25] [cursor=pointer]:
+          - /url: /library/5_krv
+          - generic [ref=e26]:
+            - generic [ref=e27]:
+              - generic [ref=e29]: 개역한글
+              - heading "그리스도와의 새출발 5구절" [level=3] [ref=e30]
+              - paragraph [ref=e31]: 5구절
+            - generic [ref=e32]:
+              - generic [ref=e33]: "5"
+              - generic [ref=e34]: 구절
+        - link "개역한글 그리스도와의 동행 8구절 8구절 8 구절" [ref=e35] [cursor=pointer]:
+          - /url: /library/8_krv
+          - generic [ref=e36]:
+            - generic [ref=e37]:
+              - generic [ref=e39]: 개역한글
+              - heading "그리스도와의 동행 8구절" [level=3] [ref=e40]
+              - paragraph [ref=e41]: 8구절
+            - generic [ref=e42]:
+              - generic [ref=e43]: "8"
+              - generic [ref=e44]: 구절
+        - link "개역한글 주제별 성경 암송 60구절 60구절 60 구절" [ref=e45] [cursor=pointer]:
+          - /url: /library/60_krv
+          - generic [ref=e46]:
+            - generic [ref=e47]:
+              - generic [ref=e49]: 개역한글
+              - heading "주제별 성경 암송 60구절" [level=3] [ref=e50]
+              - paragraph [ref=e51]: 60구절
+            - generic [ref=e52]:
+              - generic [ref=e53]: "60"
+              - generic [ref=e54]: 구절
+        - link "개역한글 확립 100구절 100구절 100 구절" [ref=e55] [cursor=pointer]:
+          - /url: /library/100_krv
+          - generic [ref=e56]:
+            - generic [ref=e57]:
+              - generic [ref=e59]: 개역한글
+              - heading "확립 100구절" [level=3] [ref=e60]
+              - paragraph [ref=e61]: 100구절
+            - generic [ref=e62]:
+              - generic [ref=e63]: "100"
+              - generic [ref=e64]: 구절
+        - link "개역한글 주제별 성경 암송 180구절 180구절 180 구절" [ref=e65] [cursor=pointer]:
+          - /url: /library/180_krv
+          - generic [ref=e66]:
+            - generic [ref=e67]:
+              - generic [ref=e69]: 개역한글
+              - heading "주제별 성경 암송 180구절" [level=3] [ref=e70]
+              - paragraph [ref=e71]: 180구절
+            - generic [ref=e72]:
+              - generic [ref=e73]: "180"
+              - generic [ref=e74]: 구절
+        - link "개역한글 DEP 242구절 242구절 242 구절" [ref=e75] [cursor=pointer]:
+          - /url: /library/242_krv
+          - generic [ref=e76]:
+            - generic [ref=e77]:
+              - generic [ref=e79]: 개역한글
+              - heading "DEP 242구절" [level=3] [ref=e80]
+              - paragraph [ref=e81]: 242구절
+            - generic [ref=e82]:
+              - generic [ref=e83]: "242"
+              - generic [ref=e84]: 구절
+        - link "개역한글 무장 900구절 900구절 900 구절" [ref=e85] [cursor=pointer]:
+          - /url: /library/900_krv
+          - generic [ref=e86]:
+            - generic [ref=e87]:
+              - generic [ref=e89]: 개역한글
+              - heading "무장 900구절" [level=3] [ref=e90]
+              - paragraph [ref=e91]: 900구절
+            - generic [ref=e92]:
+              - generic [ref=e93]: "900"
+              - generic [ref=e94]: 구절
+  - navigation "주 네비게이션" [ref=e95]:
+    - list [ref=e96]:
+      - listitem [ref=e97]:
+        - link "Home" [ref=e98] [cursor=pointer]:
+          - /url: /
+          - img [ref=e99]
+          - generic [ref=e100]: Home
+      - listitem [ref=e101]:
+        - link "Library" [ref=e102] [cursor=pointer]:
+          - /url: /library
+          - img [ref=e103]
+          - generic [ref=e104]: Library
+      - listitem [ref=e105]:
+        - link "Marks" [ref=e106] [cursor=pointer]:
+          - /url: /bookmarks
+          - img [ref=e107]
+          - generic [ref=e108]: Marks
+      - listitem [ref=e109]:
+        - link "Stats" [ref=e110] [cursor=pointer]:
+          - /url: /stats
+          - img [ref=e111]
+          - generic [ref=e112]: Stats
+  - status "MemScripture 시작" [ref=e113]:
+    - generic [ref=e114]:
+      - heading "MemScripture" [level=1] [ref=e115]
+      - paragraph [ref=e116]: v0.0.1

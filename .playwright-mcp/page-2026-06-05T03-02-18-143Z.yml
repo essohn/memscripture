@@ -1,0 +1,92 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - heading "Library" [level=1] [ref=e6]
+        - link "설정" [ref=e7] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e8]
+    - main [ref=e9]:
+      - generic [ref=e10]:
+        - paragraph [ref=e11]: 핸들 ☰ 을 끌어 순서를 바꾸세요
+        - generic [ref=e12]:
+          - button "기본 순서로" [ref=e13]
+          - button "완료" [ref=e14]
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - img [ref=e17]
+          - generic [ref=e18]:
+            - heading "내 구절" [level=3] [ref=e19]
+            - paragraph [ref=e20]: OYO
+          - generic [ref=e21]: 항상 먼저
+        - generic [ref=e22]:
+          - 'button "순서 변경: 그리스도와의 동행 8구절. 위/아래 화살표로 이동" [ref=e23]':
+            - img [ref=e24]
+          - generic [ref=e25]:
+            - heading "그리스도와의 동행 8구절" [level=3] [ref=e26]
+            - paragraph [ref=e27]: 8구절
+          - generic [ref=e28]: "8"
+        - generic [ref=e29]:
+          - 'button "순서 변경: 그리스도와의 새출발 5구절. 위/아래 화살표로 이동" [ref=e30]':
+            - img [ref=e31]
+          - generic [ref=e32]:
+            - heading "그리스도와의 새출발 5구절" [level=3] [ref=e33]
+            - paragraph [ref=e34]: 5구절
+          - generic [ref=e35]: "5"
+        - generic [ref=e36]:
+          - 'button "순서 변경: 주제별 성경 암송 60구절. 위/아래 화살표로 이동" [ref=e37]':
+            - img [ref=e38]
+          - generic [ref=e39]:
+            - heading "주제별 성경 암송 60구절" [level=3] [ref=e40]
+            - paragraph [ref=e41]: 60구절
+          - generic [ref=e42]: "60"
+        - generic [ref=e43]:
+          - 'button "순서 변경: 확립 100구절. 위/아래 화살표로 이동" [ref=e44]':
+            - img [ref=e45]
+          - generic [ref=e46]:
+            - heading "확립 100구절" [level=3] [ref=e47]
+            - paragraph [ref=e48]: 100구절
+          - generic [ref=e49]: "100"
+        - generic [ref=e50]:
+          - 'button "순서 변경: 주제별 성경 암송 180구절. 위/아래 화살표로 이동" [ref=e51]':
+            - img [ref=e52]
+          - generic [ref=e53]:
+            - heading "주제별 성경 암송 180구절" [level=3] [ref=e54]
+            - paragraph [ref=e55]: 180구절
+          - generic [ref=e56]: "180"
+        - generic [ref=e57]:
+          - 'button "순서 변경: DEP 242구절. 위/아래 화살표로 이동" [ref=e58]':
+            - img [ref=e59]
+          - generic [ref=e60]:
+            - heading "DEP 242구절" [level=3] [ref=e61]
+            - paragraph [ref=e62]: 242구절
+          - generic [ref=e63]: "242"
+        - generic [ref=e64]:
+          - 'button "순서 변경: 무장 900구절. 위/아래 화살표로 이동" [ref=e65]':
+            - img [ref=e66]
+          - generic [ref=e67]:
+            - heading "무장 900구절" [level=3] [ref=e68]
+            - paragraph [ref=e69]: 900구절
+          - generic [ref=e70]: "900"
+  - navigation "주 네비게이션" [ref=e71]:
+    - list [ref=e72]:
+      - listitem [ref=e73]:
+        - link "Home" [ref=e74] [cursor=pointer]:
+          - /url: /
+          - img [ref=e75]
+          - generic [ref=e76]: Home
+      - listitem [ref=e77]:
+        - link "Library" [ref=e78] [cursor=pointer]:
+          - /url: /library
+          - img [ref=e79]
+          - generic [ref=e80]: Library
+      - listitem [ref=e81]:
+        - link "Marks" [ref=e82] [cursor=pointer]:
+          - /url: /bookmarks
+          - img [ref=e83]
+          - generic [ref=e84]: Marks
+      - listitem [ref=e85]:
+        - link "Stats" [ref=e86] [cursor=pointer]:
+          - /url: /stats
+          - img [ref=e87]
+          - generic [ref=e88]: Stats

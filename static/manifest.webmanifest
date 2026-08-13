@@ -7,10 +7,38 @@
 	"theme_color": "#fbf7f1",
 	"lang": "ko",
 	"icons": [
-		{ "src": "/favicon.ico", "type": "image/x-icon", "sizes": "16x16 32x32" },
-		{ "src": "/icon-192.png", "type": "image/png", "sizes": "192x192" },
-		{ "src": "/icon-512.png", "type": "image/png", "sizes": "512x512" },
-		{ "src": "/icon-192-maskable.png", "type": "image/png", "sizes": "192x192", "purpose": "maskable" },
-		{ "src": "/icon-512-maskable.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+		{
+			"src": "/favicon.ico",
+			"type": "image/x-icon",
+			"sizes": "16x16 32x32"
+		},
+		{
+			"src": "/icon-192.png",
+			"type": "image/png",
+			"sizes": "192x192"
+		},
+		{
+			"src": "/icon-512.png",
+			"type": "image/png",
+			"sizes": "512x512"
+		},
+		{
+			"src": "/icon-192-maskable.png",
+			"type": "image/png",
+			"sizes": "192x192",
+			"purpose": "maskable"
+		},
+		{
+			"src": "/icon-512-maskable.png",
+			"type": "image/png",
+			"sizes": "512x512",
+			"purpose": "maskable"
+		}
+	],
+	"description": "성경 구절을 외우고 스스로 점검하는 무료 웹 앱. 가리고 여는 연습과 직접 입력하는 점검을 함께 제공합니다.",
+	"categories": [
+		"education",
+		"books",
+		"lifestyle"
 	]
 }

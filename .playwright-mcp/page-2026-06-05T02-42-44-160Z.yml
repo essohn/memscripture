@@ -1,0 +1,37 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - heading "Library" [level=1] [ref=e6]
+        - link "설정" [ref=e7] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e8]
+    - main [ref=e9]:
+      - paragraph [ref=e11]: 패키지 둘러보기
+      - paragraph [ref=e13]: 불러오는 중...
+  - navigation "주 네비게이션" [ref=e14]:
+    - list [ref=e15]:
+      - listitem [ref=e16]:
+        - link "Home" [ref=e17] [cursor=pointer]:
+          - /url: /
+          - img [ref=e18]
+          - generic [ref=e19]: Home
+      - listitem [ref=e20]:
+        - link "Library" [ref=e21] [cursor=pointer]:
+          - /url: /library
+          - img [ref=e22]
+          - generic [ref=e23]: Library
+      - listitem [ref=e24]:
+        - link "Marks" [ref=e25] [cursor=pointer]:
+          - /url: /bookmarks
+          - img [ref=e26]
+          - generic [ref=e27]: Marks
+      - listitem [ref=e28]:
+        - link "Stats" [ref=e29] [cursor=pointer]:
+          - /url: /stats
+          - img [ref=e30]
+          - generic [ref=e31]: Stats
+  - status "MemScripture 시작" [ref=e32]:
+    - generic [ref=e33]:
+      - heading "MemScripture" [level=1] [ref=e34]
+      - paragraph [ref=e35]: v0.0.1

@@ -1,0 +1,142 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - button "뒤로" [ref=e6]: ←
+        - heading "그리스도와의 새출발 5구절" [level=1] [ref=e7]
+        - link "설정" [ref=e8] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e9]
+    - main [ref=e10]:
+      - navigation "패키지 선택" [ref=e11]:
+        - list [ref=e12]:
+          - listitem [ref=e13]:
+            - link "OYO" [ref=e14] [cursor=pointer]:
+              - /url: /library/oyo
+          - listitem [ref=e15]:
+            - link "5구절" [ref=e16] [cursor=pointer]:
+              - /url: /library/5_krv
+          - listitem [ref=e17]:
+            - link "8구절" [ref=e18] [cursor=pointer]:
+              - /url: /library/8_krv
+          - listitem [ref=e19]:
+            - link "60구절" [ref=e20] [cursor=pointer]:
+              - /url: /library/60_krv
+          - listitem [ref=e21]:
+            - link "100구절" [ref=e22] [cursor=pointer]:
+              - /url: /library/100_krv
+          - listitem [ref=e23]:
+            - link "180구절" [ref=e24] [cursor=pointer]:
+              - /url: /library/180_krv
+          - listitem [ref=e25]:
+            - link "242구절" [ref=e26] [cursor=pointer]:
+              - /url: /library/242_krv
+          - listitem [ref=e27]:
+            - link "900구절" [ref=e28] [cursor=pointer]:
+              - /url: /library/900_krv
+      - generic [ref=e29]:
+        - generic [ref=e30]: 개역한글
+        - generic [ref=e32]: 5 / 5개
+        - generic [ref=e34]:
+          - button "글자 크기 (현재 보통)" [ref=e35]:
+            - generic [ref=e36]: Aa
+          - button "구절 본문 표시 끄기" [pressed] [ref=e37]:
+            - img [ref=e38]
+      - generic [ref=e39]:
+        - 'button "5구절 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 1 1 구원의 확신 요한일서 5 : 11-12 또 증거는 이것이니 하나님이 우리에게 영생을 주신 것과 이 생명이 그의 아들 안에 있는 그것이니라 *아들이 있는 자에게는 생명이 있고 하나님의 아들이 없는 자에게는 생명이 없느니라 북마크 추가" [pressed] [ref=e40] [cursor=pointer]':
+          - generic [ref=e41]:
+            - generic [ref=e42]:
+              - paragraph [ref=e43]: 5구절
+              - generic [ref=e44]:
+                - generic [ref=e45]:
+                  - button "첫 시작 난이도 (설정 안 됨)" [ref=e46]
+                  - button "전체 암송 난이도 (설정 안 됨)" [ref=e47]
+                - generic [ref=e48]: "1"
+            - heading "1 구원의 확신" [level=2] [ref=e49]
+            - paragraph [ref=e50]: "요한일서 5 : 11-12"
+          - paragraph [ref=e52]: 또 증거는 이것이니 하나님이 우리에게 영생을 주신 것과 이 생명이 그의 아들 안에 있는 그것이니라 *아들이 있는 자에게는 생명이 있고 하나님의 아들이 없는 자에게는 생명이 없느니라
+          - button "북마크 추가" [ref=e55]:
+            - img [ref=e56]
+        - 'button "5구절 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 2 2 기도 응답의 확신 요한복음 16 : 24 지금까지는 너희가 내 이름으로 아무것도 구하지 아니하였으나 구하라 그리하면 받으리니 너희 기쁨이 충만하리라 북마크 추가" [ref=e58] [cursor=pointer]':
+          - generic [ref=e59]:
+            - generic [ref=e60]:
+              - paragraph [ref=e61]: 5구절
+              - generic [ref=e62]:
+                - generic [ref=e63]:
+                  - button "첫 시작 난이도 (설정 안 됨)" [ref=e64]
+                  - button "전체 암송 난이도 (설정 안 됨)" [ref=e65]
+                - generic [ref=e66]: "2"
+            - heading "2 기도 응답의 확신" [level=2] [ref=e67]
+            - paragraph [ref=e68]: "요한복음 16 : 24"
+          - paragraph [ref=e70]: 지금까지는 너희가 내 이름으로 아무것도 구하지 아니하였으나 구하라 그리하면 받으리니 너희 기쁨이 충만하리라
+          - button "북마크 추가" [ref=e73]:
+            - img [ref=e74]
+        - 'button "5구절 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 3 3 승리의 확신 고린도전서 10 : 13 사람이 감당할 시험밖에는 너희에게 당한 것이 없나니 오직 하나님은 미쁘사 너희가 감당치 못할 시험당함을 허락지 아니하시고 시험당할 즈음에 또한 피할 길을 내사 너희로 능히 감당하게 하시느니라 북마크 추가" [active] [pressed] [ref=e76] [cursor=pointer]':
+          - generic [ref=e77]:
+            - generic [ref=e78]:
+              - paragraph [ref=e79]: 5구절
+              - generic [ref=e80]:
+                - generic [ref=e81]:
+                  - button "첫 시작 난이도 (설정 안 됨)" [ref=e82]
+                  - button "전체 암송 난이도 (설정 안 됨)" [ref=e83]
+                - generic [ref=e84]: "3"
+            - heading "3 승리의 확신" [level=2] [ref=e85]
+            - paragraph [ref=e86]: "고린도전서 10 : 13"
+          - paragraph [ref=e88]: 사람이 감당할 시험밖에는 너희에게 당한 것이 없나니 오직 하나님은 미쁘사 너희가 감당치 못할 시험당함을 허락지 아니하시고 시험당할 즈음에 또한 피할 길을 내사 너희로 능히 감당하게 하시느니라
+          - button "북마크 추가" [ref=e91]:
+            - img [ref=e92]
+        - 'button "5구절 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 4 4 사죄의 확신 요한일서 1 : 9 만일 우리가 우리 죄를 자백하면 저는 미쁘시고 의로우사 우리 죄를 사하시며 모든 불의에서 우리를 깨끗케 하실 것이요 북마크 추가" [ref=e94] [cursor=pointer]':
+          - generic [ref=e95]:
+            - generic [ref=e96]:
+              - paragraph [ref=e97]: 5구절
+              - generic [ref=e98]:
+                - generic [ref=e99]:
+                  - button "첫 시작 난이도 (설정 안 됨)" [ref=e100]
+                  - button "전체 암송 난이도 (설정 안 됨)" [ref=e101]
+                - generic [ref=e102]: "4"
+            - heading "4 사죄의 확신" [level=2] [ref=e103]
+            - paragraph [ref=e104]: "요한일서 1 : 9"
+          - paragraph [ref=e106]: 만일 우리가 우리 죄를 자백하면 저는 미쁘시고 의로우사 우리 죄를 사하시며 모든 불의에서 우리를 깨끗케 하실 것이요
+          - button "북마크 추가" [ref=e109]:
+            - img [ref=e110]
+        - 'button "5구절 첫 시작 난이도 (설정 안 됨) 전체 암송 난이도 (설정 안 됨) 5 5 인도의 확신 잠언 3 : 5-6 너는 마음을 다하여 여호와를 의뢰하고 네 명철을 의지하지 말라 너는 범사에 그를 인정하라 그리하면 네 길을 지도하시리라 북마크 추가" [ref=e112] [cursor=pointer]':
+          - generic [ref=e113]:
+            - generic [ref=e114]:
+              - paragraph [ref=e115]: 5구절
+              - generic [ref=e116]:
+                - generic [ref=e117]:
+                  - button "첫 시작 난이도 (설정 안 됨)" [ref=e118]
+                  - button "전체 암송 난이도 (설정 안 됨)" [ref=e119]
+                - generic [ref=e120]: "5"
+            - heading "5 인도의 확신" [level=2] [ref=e121]
+            - paragraph [ref=e122]: "잠언 3 : 5-6"
+          - paragraph [ref=e124]: 너는 마음을 다하여 여호와를 의뢰하고 네 명철을 의지하지 말라 너는 범사에 그를 인정하라 그리하면 네 길을 지도하시리라
+          - button "북마크 추가" [ref=e127]:
+            - img [ref=e128]
+    - generic [ref=e132]:
+      - generic [ref=e133]: 2개 선택됨
+      - generic [ref=e134]:
+        - button "해제" [ref=e135]
+        - button "본 구절에 담기" [ref=e136]
+  - navigation "주 네비게이션" [ref=e137]:
+    - list [ref=e138]:
+      - listitem [ref=e139]:
+        - link "Home" [ref=e140] [cursor=pointer]:
+          - /url: /
+          - img [ref=e141]
+          - generic [ref=e142]: Home
+      - listitem [ref=e143]:
+        - link "Library" [ref=e144] [cursor=pointer]:
+          - /url: /library
+          - img [ref=e145]
+          - generic [ref=e146]: Library
+      - listitem [ref=e147]:
+        - link "Marks" [ref=e148] [cursor=pointer]:
+          - /url: /bookmarks
+          - img [ref=e149]
+          - generic [ref=e150]: Marks
+      - listitem [ref=e151]:
+        - link "Stats" [ref=e152] [cursor=pointer]:
+          - /url: /stats
+          - img [ref=e153]
+          - generic [ref=e154]: Stats

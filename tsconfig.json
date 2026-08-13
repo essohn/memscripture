@@ -3,7 +3,14 @@
 	"compilerOptions": {
 		"rewriteRelativeImportExtensions": true,
 		"allowJs": true,
-		"checkJs": true,
+		// Off deliberately. src/ and tests/ contain no .js at all, so this
+		// type-checked nothing of ours — but `pnpm build` writes generated
+		// bundles into .svelte-kit/output and .svelte-kit/cloudflare, and
+		// svelte-check walks the workspace rather than the tsconfig file list.
+		// With checkJs on, those bundles produced ~950 errors against code
+		// nobody wrote, so `pnpm check` passed or failed depending on whether
+		// anyone had run a build first.
+		"checkJs": false,
 		"esModuleInterop": true,
 		"forceConsistentCasingInFileNames": true,
 		"resolveJsonModule": true,
@@ -13,13 +20,11 @@
 		"moduleResolution": "bundler",
 		"types": ["./worker-configuration.d.ts"]
 	},
-	// `pnpm build` writes the adapter's compiled worker into .svelte-kit/cloudflare,
-	// and because allowJs/checkJs are on, svelte-check then type-checks that
-	// generated bundle and reports ~880 errors against code nobody wrote. The
-	// directory is gitignored, so whether `pnpm check` passes depended on whether
-	// anyone had run a build — which sent three separate people hunting phantom
-	// failures. Exclude it; the source it was generated from is already checked.
-	"exclude": ["../.svelte-kit/cloudflare/**", "../build/**"]
+	// Kept for tsc/editor tooling. Note this does NOT constrain svelte-check:
+	// it discovers files by walking the workspace, not from the tsconfig file
+	// list, which is why an earlier exclude here appeared to work and did not.
+	// The generated output is kept quiet by checkJs above.
+	"exclude": [".svelte-kit/cloudflare/**", "build/**"]
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
 	// except $lib which is handled by https://svelte.dev/docs/kit/configuration#files
 	//

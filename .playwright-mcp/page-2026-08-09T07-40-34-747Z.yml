@@ -1,0 +1,43 @@
+- generic [ref=f2e2]:
+  - generic [ref=f2e3]:
+    - banner [ref=f2e4]:
+      - generic [ref=f2e5]:
+        - heading "Home" [level=1] [ref=f2e6]
+        - link "설정" [ref=f2e7] [cursor=pointer]:
+          - /url: /settings
+    - main [ref=f2e9]:
+      - generic [ref=f2e11]:
+        - generic [ref=f2e12]:
+          - generic [ref=f2e13]: 2026 여름 암송 DAY
+          - generic [ref=f2e15]: D-22
+        - generic [ref=f2e16]:
+          - link [ref=f2e17] [cursor=pointer]:
+            - /url: /library/242_krv?sel=1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9%2C10%2C11%2C12%2C13%2C14%2C15%2C16%2C17%2C18%2C19%2C20%2C21%2C22%2C23%2C24%2C25%2C26%2C27%2C28%2C29%2C30%2C31%2C32%2C33%2C34%2C35%2C36%2C37%2C38%2C39%2C40%2C41%2C42%2C43%2C44%2C45%2C46%2C47%2C48%2C49%2C50%2C51%2C52%2C53%2C54%2C55%2C56%2C57%2C58%2C59%2C60%2C61%2C62%2C63%2C64%2C65%2C66%2C67%2C68%2C69%2C70%2C71%2C72%2C73%2C74%2C75%2C76%2C77%2C78%2C79%2C80%2C81%2C82%2C83%2C84%2C85%2C86%2C87%2C88%2C89%2C90%2C91%2C92%2C93%2C94%2C95%2C96%2C97%2C98%2C99%2C100%2C101%2C102%2C103%2C104%2C105%2C106%2C107%2C108%2C109%2C110%2C111%2C112%2C113
+            - heading "242구절 1–113" [level=3] [ref=f2e18]
+            - paragraph [ref=f2e19]: 0/113 암송
+          - link [ref=f2e20] [cursor=pointer]:
+            - /url: /library/900_krv?sel=127%2C128%2C129%2C130%2C131%2C132%2C133%2C134%2C135%2C136%2C137%2C138%2C139%2C140%2C141%2C142%2C143%2C144%2C145%2C146%2C147%2C148%2C149%2C150%2C151%2C152%2C153%2C154%2C155%2C156%2C157%2C158%2C159%2C160%2C161%2C162
+            - heading "900구절 127–162" [level=3] [ref=f2e21]
+            - paragraph [ref=f2e22]: 0/36 암송
+      - generic [ref=f2e23]: 최근
+      - generic [ref=f2e27]:
+        - paragraph [ref=f2e28]: 아직 최근에 담은 구절이 없습니다.
+        - paragraph [ref=f2e29]: 구절 리스트에서 구절을 선택해 담으면 여기에 묶음으로 표시됩니다.
+  - navigation "주 네비게이션" [ref=f2e30]:
+    - list [ref=f2e31]:
+      - listitem [ref=f2e32]:
+        - link "Home" [ref=f2e33] [cursor=pointer]:
+          - /url: /
+      - listitem [ref=f2e36]:
+        - link "Library" [ref=f2e37] [cursor=pointer]:
+          - /url: /library
+      - listitem [ref=f2e40]:
+        - link "Marks" [ref=f2e41] [cursor=pointer]:
+          - /url: /bookmarks
+      - listitem [ref=f2e44]:
+        - link "Stats" [ref=f2e45] [cursor=pointer]:
+          - /url: /stats
+  - status "MemScripture 시작" [ref=f2e48]:
+    - generic [ref=f2e49]:
+      - heading "MemScripture" [level=1] [ref=f2e50]
+      - paragraph [ref=f2e51]: v0.1.189+84af491

@@ -5,3 +5,15 @@ export function currentTab(pathname: string): 'home' | 'library' | 'bookmarks' |
 	if (pathname.startsWith('/stats')) return 'stats';
 	return 'home';
 }
+
+/**
+ * Pages that exist to be found rather than used.
+ *
+ * These are server-rendered into real HTML so a crawler sees text instead of
+ * an empty shell, and they get no app chrome: the tab bar is navigation for a
+ * tool the reader has not opened yet, and the launch splash would cover the
+ * very content the page was written to show.
+ */
+export function isContentPage(pathname: string): boolean {
+	return pathname === '/guide' || pathname === '/about';
+}

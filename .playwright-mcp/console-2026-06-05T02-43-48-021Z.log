@@ -1,0 +1,10 @@
+[  637894ms] [WARNING] The next HMR update will cause the page to reload @ http://localhost:5173/@vite/client:509
+[  637894ms] [ERROR] ReferenceError: getPackageOrder is not defined
+    at listPackages (http://localhost:5173/src/lib/db/verses.ts?t=1780628065773:12:16)
+    at load (http://localhost:5173/src/routes/library/[packageId]/+page.ts?t=1780628065773:6:28)
+    at load_node (http://localhost:5173/node_modules/.pnpm/@sveltejs+kit@2.59.1_@sveltejs+vite-plugin-svelte@7.1.1_svelte@5.55.5_vite@8.0.10_@type_30131d101d509a2713a6d07015c45e2f/node_modules/@sveltejs/kit/src/runtime/client/client.js?v=448a7cd4:1011:39) @ http://localhost:5173/@vite/client:509
+[  643650ms] [WARNING] The next HMR update will cause the page to reload @ http://localhost:5173/@vite/client:509
+[  643650ms] [ERROR] ReferenceError: getPackageOrder is not defined
+    at listPackages (http://localhost:5173/src/lib/db/verses.ts?t=1780628071544:12:16)
+    at load (http://localhost:5173/src/routes/library/[packageId]/+page.ts?t=1780628071544:6:28)
+    at load_node (http://localhost:5173/node_modules/.pnpm/@sveltejs+kit@2.59.1_@sveltejs+vite-plugin-svelte@7.1.1_svelte@5.55.5_vite@8.0.10_@type_30131d101d509a2713a6d07015c45e2f/node_modules/@sveltejs/kit/src/runtime/client/client.js?v=448a7cd4:1011:39) @ http://localhost:5173/@vite/client:509

@@ -1,0 +1,37 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - heading "Home" [level=1] [ref=e6]
+        - link "설정" [ref=e7] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e8]
+    - main [ref=e9]:
+      - generic [ref=e10]:
+        - generic [ref=e11]:
+          - img [ref=e12]
+          - text: 최근
+        - heading "보던 구절로 돌아가기" [level=2] [ref=e13]
+      - paragraph [ref=e15]: 불러오는 중…
+  - navigation "주 네비게이션" [ref=e16]:
+    - list [ref=e17]:
+      - listitem [ref=e18]:
+        - link "Home" [ref=e19] [cursor=pointer]:
+          - /url: /
+          - img [ref=e20]
+          - generic [ref=e21]: Home
+      - listitem [ref=e22]:
+        - link "Library" [ref=e23] [cursor=pointer]:
+          - /url: /library
+          - img [ref=e24]
+          - generic [ref=e25]: Library
+      - listitem [ref=e26]:
+        - link "Marks" [ref=e27] [cursor=pointer]:
+          - /url: /bookmarks
+          - img [ref=e28]
+          - generic [ref=e29]: Marks
+      - listitem [ref=e30]:
+        - link "Stats" [ref=e31] [cursor=pointer]:
+          - /url: /stats
+          - img [ref=e32]
+          - generic [ref=e33]: Stats

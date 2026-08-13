@@ -1,0 +1,29 @@
+- generic [ref=f11e2]:
+  - generic [ref=f11e3]:
+    - banner [ref=f11e4]:
+      - generic [ref=f11e5]:
+        - button "뒤로" [ref=f11e6]: ←
+        - heading "Settings" [level=1] [ref=f11e7]
+    - main [ref=f11e8]:
+      - generic [ref=f11e9]:
+        - heading "클라우드 동기화" [level=2] [ref=f11e10]
+        - paragraph [ref=f11e12]: Drive와 연결되지 않음
+        - button "Google Drive 연결" [ref=f11e13]
+  - navigation "주 네비게이션" [ref=f11e14]:
+    - list [ref=f11e15]:
+      - listitem [ref=f11e16]:
+        - link "Home" [ref=f11e17] [cursor=pointer]:
+          - /url: /
+      - listitem [ref=f11e20]:
+        - link "Library" [ref=f11e21] [cursor=pointer]:
+          - /url: /library
+      - listitem [ref=f11e24]:
+        - link "Marks" [ref=f11e25] [cursor=pointer]:
+          - /url: /bookmarks
+      - listitem [ref=f11e28]:
+        - link "Stats" [ref=f11e29] [cursor=pointer]:
+          - /url: /stats
+  - status "MemScripture 시작" [ref=f11e32]:
+    - generic [ref=f11e33]:
+      - heading "MemScripture" [level=1] [ref=f11e34]
+      - paragraph [ref=f11e35]: v0.1.189+84af491-dev

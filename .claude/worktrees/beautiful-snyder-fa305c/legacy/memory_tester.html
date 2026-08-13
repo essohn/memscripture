@@ -1,0 +1,131 @@
+<!doctype html>
+<html>
+<head>
+	<title>MemScripture</title>
+  <meta charset="utf-8">
+
+  <!-- Run in full-screen mode. -->
+  <!-- <meta name="apple-mobile-web-app-capable" content="yes"> -->
+
+  <!-- Make the status bar black with white text. -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <!-- Customize home screen title. -->
+  <meta name="apple-mobile-web-app-title" content="QT Passage">
+
+  <!-- Disable phone number detection. -->
+  <meta name="format-detection" content="telephone=no">
+
+  <!-- Set viewport. -->
+  <!-- <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no"> -->
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, width=device-width">
+
+	<link rel="shortcut icon" href="img/favicon.ico" />
+	
+	<!-- stylesheets -->
+  <!-- <link rel="stylesheet" href="lib/font-awesome-4.0.3/css/font-awesome.css" /> -->
+  <link rel="stylesheet" href="lib/furatto-2/css/normalize.css" />
+  <link rel="stylesheet" href="lib/furatto-2/css/furatto.css" />
+	<link rel="stylesheet" href="lib/furatto-2/css/docs.css" />
+	<link rel="stylesheet" href="lib/furatto-2/css/examples.css" />
+  <link rel="stylesheet" href="lib/furatto-2/css/font-awesome.css" />
+	<link rel="stylesheet" href="lib/pace/pace-theme-flash.css"/>
+  <!-- 
+  <link rel="stylesheet" href="lib/vex-master/css/vex.css" />
+  <link rel="stylesheet" href="lib/vex-master/css/vex-theme-os.css" />
+  -->
+  <link rel="stylesheet" href="css/memory.css">
+  
+
+
+</head>
+
+<body>
+	
+
+  <div class="panels">
+    <div class="panel panel-left">
+    </div>
+  </div>
+	
+	<div class="panel-content">
+
+    <!-- navbar -->
+	  <div class="navbar navbar-fixed-top fixed-bar">
+	    <div class="navbar-inner docs-navbar-inner">
+	      <div class="container">
+          <!-- <a href="#menu" class="menu-trigger meteocon" data-meteocon="M" data-toggle="panel" data-target="#menu"></a> -->
+
+          <ul class="nav docs-navbar-menu">
+            <li><a href="javascript:memory_app_this.display_settings();"><i class="icon-wrench"></i> </a></li>
+            <li><a href="javascript:memory_app_this.display_index();"><i class="icon-archive"></i> </a></li>
+            <li><a href="javascript:memory_app_this.display_memory('temp');"><i class="icon-flag"></i> </a></li>
+            <li><a href="javascript:memory_app_this.goto_bookmark('new');"><i class="icon-bookmark color-new"></i></a></li>
+            <li><a href="javascript:memory_app_this.goto_bookmark('cur');"><i class="icon-bookmark color-cur"></i></a></li>
+            <li><a href="javascript:memory_app_this.goto_bookmark('old');"><i class="icon-bookmark color-old"></i></a></li>
+            <li><a href="javascript:memory_app_this.toggle_check();"><i class="icon-ok color-check"></i></a></li>
+          </ul>
+
+	      </div>
+	    </div>
+	  </div>
+    <!-- navbar -->
+
+    <!-- container-center -->
+    <div class="container-center">
+      <div class="row">
+        <div class="col-12 navbar-padding">
+          <!-- panel_cards -->
+          <div class="row" id="panel_home">
+          </div>
+
+          <!-- panel_cards -->
+          <div class="row" id="panel_cards">
+          </div>
+
+          <!-- panel_packages -->
+          <div id="panel_packages">
+            <h4 class='header light'><i class="icon-archive"></i> 암송박스</h4>
+            <div id="panel_packages_buttons" class="row text-box">
+            </div>
+            <div id="panel_packages_index" class="row text-box">
+            </div>
+          </div>
+
+          <!-- panel_packages -->
+          <div id="panel_settings">
+            <h4 class='header light'><i class="icon-cog"></i> 환경설정</h4>
+            <div id='panel_settings_list' class="row text-box">
+            </div>
+          </div>
+
+                    
+        </div>
+      </div>
+		</div>
+    <!-- container-center -->
+    
+
+	</div>
+	
+	<script>
+    var packages_info_json_dropbox = "json/packages_info.json";
+    var packages_index_info_json_dropbox = "json/packages_index_info.json";
+  </script>
+	<!-- javascripts -->
+	<script src="lib/jquery/jquery-2.1.0.min.js"></script>
+	<script src="lib/furatto-2/js/furatto.min.js"></script>
+	<script src="lib/pace/pace.min.js"></script>
+  <!-- 
+	<script src="lib/notifyjs/notify.min.js"></script>
+  <script src="lib/vex-master/js/vex.combined.min.js"></script>
+  <script>vex.defaultOptions.className = 'vex-theme-flat-attack';</script>
+   -->
+	<script src="js/memory.js"></script>
+	<script src="js/memory_main.js"></script>
+
+	
+</body>
+
+</html>

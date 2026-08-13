@@ -17,7 +17,41 @@
 			crossorigin
 			href="%sveltekit.assets%/fonts/PretendardVariable.woff2"
 		/>
-		<title>MemScripture</title>
+		<!--
+			seo-fallback: static defaults, deliberately duplicated from
+			src/lib/seo/site.ts.
+
+			The app renders client-side, so anything a component puts in the head
+			only exists after JavaScript runs. Google renders; Naver and the
+			KakaoTalk link crawler do not — and KakaoTalk is how a Korean church
+			app actually spreads. Without these tags a shared link previews as a
+			bare URL.
+
+			The server-rendered content pages write their own, so hooks.server.ts
+			strips this block for them — two title tags on one page is a coin
+			flip nobody needs to call. Do not write the head placeholder token
+			inside this comment: SvelteKit substitutes its first occurrence in
+			the file, and putting it here buries the real head inside a comment.
+		-->
+		<!--seo-fallback-->
+		<title>MemScripture — 성경 암송 앱</title>
+		<meta
+			name="description"
+			content="성경 구절을 외우고 스스로 점검하는 무료 웹 앱. 구절을 가린 채 한 단어씩 여는 연습과, 직접 입력해 정확도·속도를 재는 점검을 함께 제공합니다. 설치 없이 브라우저에서 바로 쓰고, 구글 드라이브로 기기 간 동기화됩니다."
+		/>
+		<link rel="canonical" href="https://mem.lifescripture.org/" />
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="MemScripture" />
+		<meta property="og:locale" content="ko_KR" />
+		<meta property="og:title" content="MemScripture — 성경 암송 앱" />
+		<meta
+			property="og:description"
+			content="성경 구절을 외우고 스스로 점검하는 무료 웹 앱. 연습과 점검, 난이도 기록과 기기 간 동기화까지."
+		/>
+		<meta property="og:url" content="https://mem.lifescripture.org/" />
+		<meta property="og:image" content="https://mem.lifescripture.org/icon-512.png" />
+		<meta name="twitter:card" content="summary" />
+		<!--/seo-fallback-->
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

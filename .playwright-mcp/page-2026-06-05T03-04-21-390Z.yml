@@ -1,0 +1,117 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - heading "Library" [level=1] [ref=e6]
+        - link "설정" [ref=e7] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e8]
+    - main [ref=e9]:
+      - generic [ref=e10]:
+        - paragraph [ref=e11]: 총 8개 패키지
+        - button "순서 편집" [ref=e90]
+      - generic [ref=e91]:
+        - link "사용자 사용자 정의 내 구절 OYO 0 구절" [ref=e92] [cursor=pointer]:
+          - /url: /library/oyo
+          - generic [ref=e93]:
+            - generic [ref=e94]:
+              - generic [ref=e95]:
+                - generic [ref=e96]: 사용자
+                - generic [ref=e97]: 사용자 정의
+              - heading "내 구절" [level=3] [ref=e98]
+              - paragraph [ref=e99]: OYO
+            - generic [ref=e100]:
+              - generic [ref=e101]: "0"
+              - generic [ref=e102]: 구절
+        - link "개역한글 · 최근 그리스도와의 새출발 5구절 5구절 5 구절" [ref=e103] [cursor=pointer]:
+          - /url: /library/5_krv
+          - generic [ref=e105]:
+            - generic [ref=e106]:
+              - generic [ref=e108]: 개역한글 · 최근
+              - heading "그리스도와의 새출발 5구절" [level=3] [ref=e109]
+              - paragraph [ref=e110]: 5구절
+            - generic [ref=e111]:
+              - generic [ref=e112]: "5"
+              - generic [ref=e113]: 구절
+        - link "개역한글 · 최근 그리스도와의 동행 8구절 8구절 8 구절" [ref=e114] [cursor=pointer]:
+          - /url: /library/8_krv
+          - generic [ref=e116]:
+            - generic [ref=e117]:
+              - generic [ref=e119]: 개역한글 · 최근
+              - heading "그리스도와의 동행 8구절" [level=3] [ref=e120]
+              - paragraph [ref=e121]: 8구절
+            - generic [ref=e122]:
+              - generic [ref=e123]: "8"
+              - generic [ref=e124]: 구절
+        - link "개역한글 · 최근 주제별 성경 암송 60구절 60구절 60 구절" [ref=e125] [cursor=pointer]:
+          - /url: /library/60_krv
+          - generic [ref=e127]:
+            - generic [ref=e128]:
+              - generic [ref=e130]: 개역한글 · 최근
+              - heading "주제별 성경 암송 60구절" [level=3] [ref=e131]
+              - paragraph [ref=e132]: 60구절
+            - generic [ref=e133]:
+              - generic [ref=e134]: "60"
+              - generic [ref=e135]: 구절
+        - link "개역한글 확립 100구절 100구절 100 구절" [ref=e136] [cursor=pointer]:
+          - /url: /library/100_krv
+          - generic [ref=e137]:
+            - generic [ref=e138]:
+              - generic [ref=e140]: 개역한글
+              - heading "확립 100구절" [level=3] [ref=e141]
+              - paragraph [ref=e142]: 100구절
+            - generic [ref=e143]:
+              - generic [ref=e144]: "100"
+              - generic [ref=e145]: 구절
+        - link "개역한글 주제별 성경 암송 180구절 180구절 180 구절" [ref=e146] [cursor=pointer]:
+          - /url: /library/180_krv
+          - generic [ref=e147]:
+            - generic [ref=e148]:
+              - generic [ref=e150]: 개역한글
+              - heading "주제별 성경 암송 180구절" [level=3] [ref=e151]
+              - paragraph [ref=e152]: 180구절
+            - generic [ref=e153]:
+              - generic [ref=e154]: "180"
+              - generic [ref=e155]: 구절
+        - link "개역한글 DEP 242구절 242구절 242 구절" [ref=e156] [cursor=pointer]:
+          - /url: /library/242_krv
+          - generic [ref=e157]:
+            - generic [ref=e158]:
+              - generic [ref=e160]: 개역한글
+              - heading "DEP 242구절" [level=3] [ref=e161]
+              - paragraph [ref=e162]: 242구절
+            - generic [ref=e163]:
+              - generic [ref=e164]: "242"
+              - generic [ref=e165]: 구절
+        - link "개역한글 무장 900구절 900구절 900 구절" [ref=e166] [cursor=pointer]:
+          - /url: /library/900_krv
+          - generic [ref=e167]:
+            - generic [ref=e168]:
+              - generic [ref=e170]: 개역한글
+              - heading "무장 900구절" [level=3] [ref=e171]
+              - paragraph [ref=e172]: 900구절
+            - generic [ref=e173]:
+              - generic [ref=e174]: "900"
+              - generic [ref=e175]: 구절
+  - navigation "주 네비게이션" [ref=e71]:
+    - list [ref=e72]:
+      - listitem [ref=e73]:
+        - link "Home" [ref=e74] [cursor=pointer]:
+          - /url: /
+          - img [ref=e75]
+          - generic [ref=e76]: Home
+      - listitem [ref=e77]:
+        - link "Library" [ref=e78] [cursor=pointer]:
+          - /url: /library
+          - img [ref=e79]
+          - generic [ref=e80]: Library
+      - listitem [ref=e81]:
+        - link "Marks" [ref=e82] [cursor=pointer]:
+          - /url: /bookmarks
+          - img [ref=e83]
+          - generic [ref=e84]: Marks
+      - listitem [ref=e85]:
+        - link "Stats" [ref=e86] [cursor=pointer]:
+          - /url: /stats
+          - img [ref=e87]
+          - generic [ref=e88]: Stats

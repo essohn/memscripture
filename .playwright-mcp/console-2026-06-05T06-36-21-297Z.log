@@ -1,0 +1,94 @@
+[  668236ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:5173/@vite/client:968
+[ 5203892ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:5173/@vite/client:968
+[ 5694934ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:5173/@vite/client:968
+[ 6029768ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:5173/@vite/client:968
+[ 6463745ms] ReferenceError: countdownMs is not defined
+
+	in $effect
+	in +page.svelte
+	in +layout.svelte
+	in root.svelte
+	in undefined
+
+    at $effect (http://localhost:5173/src/routes/library/[packageId]/+page.svelte?t=1780647844862:196:16)
+    at update_reaction (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:4770:16)
+    at update_effect (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:4870:18)
+    at flush_queued_effects (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:2216:4)
+    at #process (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1873:4)
+    at Batch.flush (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1960:17)
+    at Array.<anonymous> (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:2104:12)
+    at run_all (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:40:45)
+    at run_micro_tasks (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1141:2)
+    at http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1150:31
+[ 6472571ms] ReferenceError: countdownMs is not defined
+
+	in $effect
+	in +page.svelte
+	in +layout.svelte
+	in root.svelte
+	in undefined
+
+    at $effect (http://localhost:5173/src/routes/library/[packageId]/+page.svelte?t=1780647853783:196:16)
+    at update_reaction (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:4770:16)
+    at update_effect (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:4870:18)
+    at flush_queued_effects (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:2216:4)
+    at #process (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1873:4)
+    at Batch.flush (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1960:17)
+    at Array.<anonymous> (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:2104:12)
+    at run_all (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:40:45)
+    at run_micro_tasks (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1141:2)
+    at http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1150:31
+[ 6481198ms] ReferenceError: countdownMs is not defined
+
+	in $effect
+	in +page.svelte
+	in +layout.svelte
+	in root.svelte
+	in undefined
+
+    at $effect (http://localhost:5173/src/routes/library/[packageId]/+page.svelte?t=1780647862413:196:16)
+    at update_reaction (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:4770:16)
+    at update_effect (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:4870:18)
+    at flush_queued_effects (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:2216:4)
+    at #process (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1873:4)
+    at Batch.flush (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1960:17)
+    at Array.<anonymous> (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:2104:12)
+    at run_all (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:40:45)
+    at run_micro_tasks (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1141:2)
+    at http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1150:31
+[ 6488255ms] ReferenceError: countdownMs is not defined
+
+	in $effect
+	in +page.svelte
+	in +layout.svelte
+	in root.svelte
+	in undefined
+
+    at $effect (http://localhost:5173/src/routes/library/[packageId]/+page.svelte?t=1780647869479:193:16)
+    at update_reaction (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:4770:16)
+    at update_effect (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:4870:18)
+    at flush_queued_effects (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:2216:4)
+    at #process (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1873:4)
+    at Batch.flush (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1960:17)
+    at Array.<anonymous> (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:2104:12)
+    at run_all (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:40:45)
+    at run_micro_tasks (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1141:2)
+    at http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1150:31
+[ 6498818ms] ReferenceError: suppressCountdown is not defined
+
+	in $effect
+	in +page.svelte
+	in +layout.svelte
+	in root.svelte
+	in undefined
+
+    at $effect (http://localhost:5173/src/routes/library/[packageId]/+page.svelte?t=1780647880041:262:21)
+    at update_reaction (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:4770:16)
+    at update_effect (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:4870:18)
+    at flush_queued_effects (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:2216:4)
+    at #process (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1873:4)
+    at Batch.flush (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1960:17)
+    at Array.<anonymous> (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:2104:12)
+    at run_all (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:40:45)
+    at run_micro_tasks (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1141:2)
+    at http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:1150:31

@@ -1,0 +1,17 @@
+[ 1591752ms] ReferenceError: verseVisibility is not defined
+
+	in <unknown>
+	in +layout.svelte
+	in root.svelte
+	in undefined
+
+    at http://localhost:5173/src/routes/bookmarks/+page.svelte?t=1786336855427:35:62
+    at update_reaction (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:4770:16)
+    at execute_derived (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:3278:12)
+    at update_derived (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:3292:14)
+    at Module.get (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:4966:4)
+    at get showBody (http://localhost:5173/src/routes/bookmarks/+page.svelte?t=1786336855427:324:19)
+    at Module.prop (http://localhost:5173/node_modules/.vite/deps/index-client-BsppQ8vx.js?v=448a7cd4:3677:28)
+    at VerseCard (http://localhost:5173/src/lib/components/card/VerseCard.svelte:52:16)
+    at http://localhost:5173/node_modules/.vite/deps/index-client-BsppQ8vx.js?v=448a7cd4:249:62
+    at update_reaction (http://localhost:5173/node_modules/.vite/deps/runtime-ijyMKymx.js?v=448a7cd4:4770:16)

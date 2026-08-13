@@ -1,0 +1,55 @@
+- generic [ref=f33e2]:
+  - generic [ref=f33e3]:
+    - banner [ref=f33e4]:
+      - generic [ref=f33e5]:
+        - heading "Home" [level=1] [ref=f33e6]
+        - link "설정" [ref=f33e7] [cursor=pointer]:
+          - /url: /settings
+    - main [ref=f33e9]:
+      - generic [ref=f33e10]:
+        - generic [ref=f33e11]:
+          - generic [ref=f33e12]:
+            - generic [ref=f33e13]: 2026 여름 암송 DAY
+            - button "2026 여름 암송 DAY 엑셀로 다운로드" [active] [ref=f33e15]
+            - generic [ref=f33e17]: D-21
+          - generic [ref=f33e18]:
+            - link [ref=f33e19] [cursor=pointer]:
+              - /url: /library/242_krv?sel=1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9%2C10%2C11%2C12%2C13%2C14%2C15%2C16%2C17%2C18%2C19%2C20%2C21%2C22%2C23%2C24%2C25%2C26%2C27%2C28%2C29%2C30%2C31%2C32%2C33%2C34%2C35%2C36%2C37%2C38%2C39%2C40%2C41%2C42%2C43%2C44%2C45%2C46%2C47%2C48%2C49%2C50%2C51%2C52%2C53%2C54%2C55%2C56%2C57%2C58%2C59%2C60%2C61%2C62%2C63%2C64%2C65%2C66%2C67%2C68%2C69%2C70%2C71%2C72%2C73%2C74%2C75%2C76%2C77%2C78%2C79%2C80%2C81%2C82%2C83%2C84%2C85%2C86%2C87%2C88%2C89%2C90%2C91%2C92%2C93%2C94%2C95%2C96%2C97%2C98%2C99%2C100%2C101%2C102%2C103%2C104%2C105%2C106%2C107%2C108%2C109%2C110%2C111%2C112%2C113
+              - heading "242구절 1–113" [level=3] [ref=f33e20]
+              - paragraph [ref=f33e21]: 0/113 암송
+            - link [ref=f33e22] [cursor=pointer]:
+              - /url: /library/900_krv?sel=127%2C128%2C129%2C130%2C131%2C132%2C133%2C134%2C135%2C136%2C137%2C138%2C139%2C140%2C141%2C142%2C143%2C144%2C145%2C146%2C147%2C148%2C149%2C150%2C151%2C152%2C153%2C154%2C155%2C156%2C157%2C158%2C159%2C160%2C161%2C162
+              - heading "900구절 127–162" [level=3] [ref=f33e23]
+              - paragraph [ref=f33e24]: 0/36 암송
+        - generic [ref=f33e25]:
+          - button "닫기" [ref=f33e26]
+          - dialog "2026 여름 암송 DAY 엑셀 다운로드" [ref=f33e27]:
+            - heading "엑셀로 다운로드" [level=2] [ref=f33e28]
+            - paragraph [ref=f33e29]: 2026 여름 암송 DAY
+            - generic [ref=f33e30]:
+              - checkbox "난이도 열 포함 (시작 · 전체)" [checked] [ref=f33e31]
+              - text: 난이도 열 포함 (시작 · 전체)
+            - generic [ref=f33e32]:
+              - checkbox "장절 순서로 정렬" [ref=f33e33]
+              - text: 장절 순서로 정렬
+            - generic [ref=f33e34]:
+              - button "취소" [ref=f33e35]
+              - button "다운로드" [ref=f33e36]
+      - generic [ref=f33e37]: 최근
+      - generic [ref=f33e41]:
+        - paragraph [ref=f33e42]: 아직 최근에 담은 구절이 없습니다.
+        - paragraph [ref=f33e43]: 구절 리스트에서 구절을 선택해 담으면 여기에 묶음으로 표시됩니다.
+  - navigation "주 네비게이션" [ref=f33e44]:
+    - list [ref=f33e45]:
+      - listitem [ref=f33e46]:
+        - link "Home" [ref=f33e47] [cursor=pointer]:
+          - /url: /
+      - listitem [ref=f33e50]:
+        - link "Library" [ref=f33e51] [cursor=pointer]:
+          - /url: /library
+      - listitem [ref=f33e54]:
+        - link "Marks" [ref=f33e55] [cursor=pointer]:
+          - /url: /bookmarks
+      - listitem [ref=f33e58]:
+        - link "Stats" [ref=f33e59] [cursor=pointer]:
+          - /url: /stats
