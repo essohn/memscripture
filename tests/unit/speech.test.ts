@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	createTranscript,
 	isSpeechSupported,
 	joinSpoken,
 	speechErrorMessage,
@@ -83,5 +84,41 @@ describe('isSpeechSupported', () => {
 		} finally {
 			delete w.webkitSpeechRecognition;
 		}
+	});
+});
+
+describe('createTranscript', () => {
+	// iOS Safari ends recognition after each utterance, so a verse recited in
+	// more than one breath arrives as several sessions with their own results.
+	it('continues across sessions instead of replacing', () => {
+		const t = createTranscript();
+		t.update([{ transcript: '네 자손이', isFinal: true }]);
+		t.endSession();
+		expect(t.update([{ transcript: '땅의 티끌 같이', isFinal: true }])).toBe(
+			'네 자손이 땅의 티끌 같이'
+		);
+	});
+
+	it('shows the interim tail without committing it', () => {
+		const t = createTranscript();
+		expect(t.update([{ transcript: '네 자손', isFinal: false }])).toBe('네 자손');
+		// The interim is superseded, not appended to.
+		expect(t.update([{ transcript: '네 자손이', isFinal: true }])).toBe('네 자손이');
+	});
+
+	// An interim tail that never settles must not survive into the next session.
+	it('drops an unsettled tail when the session ends', () => {
+		const t = createTranscript();
+		t.update([{ transcript: '네 자손이', isFinal: true }]);
+		t.update([
+			{ transcript: '네 자손이', isFinal: true },
+			{ transcript: '땅으', isFinal: false }
+		]);
+		t.endSession();
+		expect(t.text()).toBe('네 자손이');
+	});
+
+	it('is empty before anything is said', () => {
+		expect(createTranscript().text()).toBe('');
 	});
 });

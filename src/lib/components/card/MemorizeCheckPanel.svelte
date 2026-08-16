@@ -172,11 +172,20 @@
 
 	function toggleSpeech() {
 		if (listening) {
+			// Leave the listening state here rather than waiting to be told. On
+			// iOS the recognizer's onend may never arrive, and when the only way
+			// back was that callback the button stayed on 중지 and the panel read
+			// as frozen.
+			listening = false;
 			session?.stop();
+			session = null;
 			return;
 		}
 		speechError = null;
 		spokenBase = typed;
+		// The software keyboard is up — the box is focused on open — and it has
+		// no business covering half the screen while the reader is speaking.
+		inputEl?.blur();
 		// Opening the mic IS beginning the attempt, unlike a stray card tap — so
 		// unlike the panel opening, this does start the clock.
 		if (startedAt === null) startedAt = Date.now();

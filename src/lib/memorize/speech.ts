@@ -86,6 +86,40 @@ export interface SpeechSession {
 	stop(): void;
 }
 
+/**
+ * Accumulates a transcript across recognition sessions.
+ *
+ * iOS Safari ends recognition after each utterance, so a verse recited in more
+ * than one breath arrives as several sessions. Each one's `results` starts
+ * empty, so without folding the finished session into a running total the
+ * second utterance would replace the first instead of continuing it.
+ */
+export function createTranscript() {
+	let committed = '';
+	let session = '';
+	return {
+		/** Text for the results just received, including the interim tail. */
+		update(chunks: SpeechChunk[]): string {
+			const { final, interim } = splitTranscript(chunks);
+			session = final;
+			return joinSpoken(committed, joinSpoken(final, interim));
+		},
+		/** Folds the finished session in so a restart continues from it. */
+		endSession(): void {
+			committed = joinSpoken(committed, session);
+			session = '';
+		},
+		text(): string {
+			return joinSpoken(committed, session);
+		}
+	};
+}
+
+/** How many times a session may restart before we conclude it is looping
+ *  rather than listening. A long verse with thinking pauses needs a good few;
+ *  a recognizer that ends instantly every time needs to be stopped. */
+const MAX_RESTARTS = 20;
+
 export interface SpeechHandlers {
 	/** Fired on every result with the full text so far — settled plus the tail
 	 *  currently being revised — so the box can show speech as it lands. */
@@ -119,10 +153,26 @@ export function startSpeech(handlers: SpeechHandlers, lang = 'ko-KR'): SpeechSes
 
 	const rec = new Ctor();
 	rec.lang = lang;
-	// A verse takes several seconds and pauses mid-sentence; without continuous
-	// the recognizer stops at the first pause and the reader loses the rest.
-	rec.continuous = true;
+	// Not continuous, deliberately. iOS Safari ignores the flag and ends after
+	// each utterance — and asking for it there produced a session whose onend
+	// never arrived, which stranded the button on 중지 with no way back and read
+	// as the whole UI freezing. Restarting on end gives the same "keep listening
+	// through a pause" behaviour on every platform, with no UA sniffing.
+	rec.continuous = false;
 	rec.interimResults = true;
+
+	const transcript = createTranscript();
+	/** The reader has asked to stop; no further restarts. */
+	let stopped = false;
+	/** onEnd is reported exactly once, however many sessions ran. */
+	let settled = false;
+	let restarts = 0;
+
+	function finish() {
+		if (settled) return;
+		settled = true;
+		handlers.onEnd();
+	}
 
 	rec.onresult = (e) => {
 		const chunks: SpeechChunk[] = [];
@@ -130,21 +180,53 @@ export function startSpeech(handlers: SpeechHandlers, lang = 'ko-KR'): SpeechSes
 			const r = e.results[i];
 			chunks.push({ transcript: r[0].transcript, isFinal: r.isFinal });
 		}
-		const { final, interim } = splitTranscript(chunks);
-		handlers.onText(joinSpoken(final, interim));
+		handlers.onText(transcript.update(chunks));
 	};
+
 	rec.onerror = (e) => {
-		// 'aborted' is what stop() produces; it is not a failure worth reporting.
-		if (e.error !== 'aborted') handlers.onError(speechErrorMessage(e.error));
+		// 'aborted' is what stop() produces, and 'no-speech' is just a pause —
+		// neither is worth putting on screen. Anything else ends the attempt
+		// rather than restarting into the same failure.
+		if (e.error === 'aborted') return;
+		if (e.error === 'no-speech') return;
+		stopped = true;
+		handlers.onError(speechErrorMessage(e.error));
 	};
-	rec.onend = () => handlers.onEnd();
+
+	rec.onend = () => {
+		transcript.endSession();
+		if (stopped || restarts >= MAX_RESTARTS) {
+			finish();
+			return;
+		}
+		restarts += 1;
+		try {
+			rec.start();
+		} catch {
+			finish();
+		}
+	};
 
 	try {
 		rec.start();
 	} catch {
-		// start() throws if a session is already running — treat it as a no-op
-		// rather than tearing down the panel.
-		return { stop: () => rec.abort() };
+		// start() throws when a session is already running. Report the end so the
+		// caller never sits in a listening state it cannot leave.
+		finish();
+		return { stop: () => finish() };
 	}
-	return { stop: () => rec.stop() };
+
+	return {
+		stop: () => {
+			stopped = true;
+			try {
+				rec.stop();
+			} catch {
+				/* already gone */
+			}
+			// Does not wait for onend. On iOS it may never arrive, and the caller's
+			// only way out of the listening state must not depend on it.
+			finish();
+		}
+	};
 }
