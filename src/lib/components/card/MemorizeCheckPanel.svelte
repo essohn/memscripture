@@ -12,6 +12,8 @@
 		type Hint
 	} from '$lib/memorize/grade';
 	import { hasTypedOpening, startDifficultyFor } from '$lib/memorize/timing';
+	import { isSpeechSupported, joinSpoken, startSpeech, type SpeechSession } from '$lib/memorize/speech';
+	import { Mic, Square } from 'lucide-svelte';
 
 	interface Props {
 		verse: string;
@@ -157,6 +159,43 @@
 		hintsUsed += 1;
 	}
 
+	// ─── 말하기: dictation into the box, never into the grader ────────────────
+	/** Decided once. Firefox ships no implementation, and a control that is
+	 *  present but always fails is worse than one that was never offered. */
+	const speechSupported = isSpeechSupported();
+	let listening = $state(false);
+	let speechError = $state<string | null>(null);
+	let session: SpeechSession | null = null;
+	/** What was in the box when the mic opened. Speech is appended to it, so a
+	 *  reader can type the part they are sure of and say the rest. */
+	let spokenBase = '';
+
+	function toggleSpeech() {
+		if (listening) {
+			session?.stop();
+			return;
+		}
+		speechError = null;
+		spokenBase = typed;
+		// Opening the mic IS beginning the attempt, unlike a stray card tap — so
+		// unlike the panel opening, this does start the clock.
+		if (startedAt === null) startedAt = Date.now();
+		session = startSpeech({
+			onText: (text) => (typed = joinSpoken(spokenBase, text)),
+			onEnd: () => {
+				listening = false;
+				session = null;
+			},
+			onError: (message) => (speechError = message)
+		});
+		listening = session !== null;
+	}
+
+	// Recognition holds the microphone open, so it has to be released when the
+	// panel goes away or the attempt is submitted — not left running behind a
+	// success screen.
+	$effect(() => () => session?.stop());
+
 	/** The pace bands as elapsed times, so the bar is scaled by the same
 	 *  thresholds that decide the rating. */
 	const scale = $derived(paceScale(normalizeForGrading(verse).length));
@@ -192,6 +231,7 @@
 	}
 
 	function submit() {
+		session?.stop();
 		const accuracy = accuracyOf(verse, typed);
 		const result = {
 			start: openingAtMs === null ? null : startDifficultyFor(openingAtMs),
@@ -221,6 +261,7 @@
 	 * history keeps the shape of the attempt.
 	 */
 	function giveUp() {
+		session?.stop();
 		proposed = { start: null, full: null };
 		gaveUp = true;
 		confirming = true;
@@ -283,6 +324,8 @@
 	 *  carrying its elapsed time into the next one would misreport it. */
 	function restart() {
 		onRestart?.();
+		session?.stop();
+		speechError = null;
 		saved = null;
 		typed = '';
 		openingAtMs = null;
@@ -439,7 +482,33 @@
 				</p>
 			{/if}
 		</div>
+		{#if speechError}
+			<p class="mt-2 text-[12px] text-[var(--color-danger)]">{speechError}</p>
+		{/if}
 		<div class="mt-2 flex items-center gap-1.5">
+			{#if speechSupported}
+				<!-- Dictation writes into the box, not into the grader. Recognition is
+				     trained on modern Korean and this corpus is 개역한글, so a clean
+				     recitation comes back misheard often enough that scoring it
+				     directly would mark a reader down for the recognizer's mistakes.
+				     Here they can see the mishearing and fix it. -->
+				<button
+					type="button"
+					onclick={toggleSpeech}
+					aria-pressed={listening}
+					class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors {listening
+						? 'border-transparent bg-[var(--color-danger)] text-white'
+						: 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-card)]'}"
+				>
+					{#if listening}
+						<Square size={12} strokeWidth={2.5} fill="currentColor" />
+						중지
+					{:else}
+						<Mic size={13} strokeWidth={2} />
+						말하기
+					{/if}
+				</button>
+			{/if}
 			<button
 				type="button"
 				disabled={stuckIndex === -1}
