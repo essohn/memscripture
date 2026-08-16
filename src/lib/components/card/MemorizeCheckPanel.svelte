@@ -36,8 +36,21 @@
 		}) => void;
 		/** 닫기: leave memorize mode and return to the ordinary card. */
 		onClose: () => void;
+		/** A fresh attempt is starting — 다시 from the success screen, or 취소 out
+		 *  of a confirmation. The card uses it to cover the verse back up: saving
+		 *  reveals it, which is right once the check is over, but leaving the
+		 *  answer on screen would turn the next attempt into copying. */
+		onRestart?: () => void;
 	}
-	let { verse, history = [], onPickStart, onPickFull, onGraded, onClose }: Props = $props();
+	let {
+		verse,
+		history = [],
+		onPickStart,
+		onPickFull,
+		onGraded,
+		onClose,
+		onRestart
+	}: Props = $props();
 
 	let typed = $state('');
 	let inputEl = $state<HTMLTextAreaElement | undefined>();
@@ -269,6 +282,7 @@
 	 *  text and both clocks: the previous attempt is finished and recorded, so
 	 *  carrying its elapsed time into the next one would misreport it. */
 	function restart() {
+		onRestart?.();
 		saved = null;
 		typed = '';
 		openingAtMs = null;

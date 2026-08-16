@@ -397,6 +397,7 @@
 						.catch(() => {});
 				}}
 				onClose={exitMode}
+				onRestart={() => (revealedCount = 0)}
 			/>
 		{/if}
 	{:else}

@@ -88,6 +88,40 @@ describe('점검: the typing panel', () => {
 		expect(screen.getByTestId('verse-body')).toBeInTheDocument();
 	});
 
+	// Saving reveals the verse, which is right — the check is over. But 다시
+	// starts a fresh attempt, and leaving the answer on screen makes the next
+	// attempt a copying exercise.
+	it('hides the verse again when 다시 starts a fresh check', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '점검' }));
+		await fireEvent.input(screen.getByLabelText('암송 구절 입력'), {
+			target: { value: verse.w }
+		});
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(screen.getByTestId('verse-body')).toBeInTheDocument();
+
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
+		expect(screen.queryByTestId('verse-body')).toBeNull();
+	});
+
+	// Same hazard by the other route: 포기 puts the verse on screen inside the
+	// panel, and 취소 hands back a blank box for another try.
+	it('hides the verse again when 취소 hands back a fresh check', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '점검' }));
+		await fireEvent.input(screen.getByLabelText('암송 구절 입력'), {
+			target: { value: verse.w }
+		});
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
+		await fireEvent.input(screen.getByLabelText('암송 구절 입력'), {
+			target: { value: '전혀 다른 문장' }
+		});
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
+		expect(screen.queryByTestId('verse-body')).toBeNull();
+	});
+
 	// The whole point of the panel is to feed the ratings the card already
 	// persists, without any page needing new wiring.
 	it('routes a perfect attempt into both rating callbacks', async () => {
