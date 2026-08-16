@@ -361,22 +361,27 @@
 
 	{#if mode !== 'rehearse'}
 		<!--
-			Always render the body so the card height is stable when toggling Eye,
-			and when a check opens. Hiding is done by making the glyphs transparent —
-			layout (line wrap, padding) stays identical, screen readers still get the
-			text. In check mode it stays hidden until a result is recorded or the
-			reader gives up, since a legible verse turns typing it into copying.
+			In read mode the body is always rendered so the card height is stable
+			when toggling Eye; !showBody only makes the glyphs transparent, so line
+			wrap and padding stay identical and screen readers still get the text.
+
+			A check removes it outright rather than hiding it in place. Transparent
+			text still occupies its lines, which left a blank gap the height of the
+			verse between the reference and the panel — the reader saw the check
+			pushed down the card by nothing. It comes back once a result is
+			recorded or the reader gives up.
 		-->
-		<p
-			data-testid="verse-body"
-			class="mt-1.5 whitespace-pre-line break-keep text-[calc(19px*var(--vfs))] leading-[1.6] {(
-				mode === 'check' ? allRevealed : showBody
-			)
-				? 'text-[var(--color-text)]'
-				: 'select-none text-transparent'}"
-		>
-			{verse.w}
-		</p>
+		{#if mode === 'read' || allRevealed}
+			<p
+				data-testid="verse-body"
+				class="mt-1.5 whitespace-pre-line break-keep text-[calc(19px*var(--vfs))] leading-[1.6] {mode ===
+					'check' || showBody
+					? 'text-[var(--color-text)]'
+					: 'select-none text-transparent'}"
+			>
+				{verse.w}
+			</p>
+		{/if}
 		{#if mode === 'check'}
 			<MemorizeCheckPanel
 				verse={verse.w}

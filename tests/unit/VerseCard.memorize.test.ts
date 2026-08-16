@@ -62,11 +62,20 @@ describe('점검: the typing panel', () => {
 		expect(screen.queryByText(CURTAIN)).toBeNull();
 	});
 
-	// The verse must not be legible while it is being typed from memory.
-	it('hides the verse body until the check is over', async () => {
+	// The verse must not be legible while it is being typed from memory — and
+	// not merely invisible: transparent text still occupies its lines, which
+	// left the panel pushed down the card by a blank gap the height of the verse.
+	it('removes the verse body outright while the check runs', async () => {
 		setup();
 		await fireEvent.click(screen.getByRole('button', { name: '점검' }));
-		expect(screen.getByTestId('verse-body').className).toContain('text-transparent');
+		expect(screen.queryByTestId('verse-body')).toBeNull();
+	});
+
+	// The reader should be typing, not hunting for the box.
+	it('focuses the input as soon as the check opens', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '점검' }));
+		expect(document.activeElement).toBe(screen.getByLabelText('암송 구절 입력'));
 	});
 
 	it('reveals the verse once a result is saved', async () => {
@@ -76,7 +85,7 @@ describe('점검: the typing panel', () => {
 			target: { value: verse.w }
 		});
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		expect(screen.getByTestId('verse-body').className).not.toContain('text-transparent');
+		expect(screen.getByTestId('verse-body')).toBeInTheDocument();
 	});
 
 	// The whole point of the panel is to feed the ratings the card already

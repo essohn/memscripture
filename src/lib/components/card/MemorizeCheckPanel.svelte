@@ -7,6 +7,7 @@
 		fullDifficultyFrom,
 		markMismatchedWords,
 		nextHint,
+		paceScale,
 		normalizeForGrading,
 		type Hint
 	} from '$lib/memorize/grade';
@@ -39,6 +40,15 @@
 	let { verse, history = [], onPickStart, onPickFull, onGraded, onClose }: Props = $props();
 
 	let typed = $state('');
+	let inputEl = $state<HTMLTextAreaElement | undefined>();
+
+	// Focus the box as soon as it exists, so 점검 goes straight to typing rather
+	// than costing a second tap. It re-runs whenever the element is replaced —
+	// after 취소 or 다시 — which is exactly when the reader wants to type again.
+	// This does not start the clock: that still waits for the first keystroke.
+	$effect(() => {
+		inputEl?.focus();
+	});
 	let elapsedMs = $state(0);
 	/** Set the moment the opening is first produced, then never revised — the
 	 *  reading is "how long to recall the start", not "how long in total". */
@@ -133,6 +143,24 @@
 		hintPresses += 1;
 		hintsUsed += 1;
 	}
+
+	/** The pace bands as elapsed times, so the bar is scaled by the same
+	 *  thresholds that decide the rating. */
+	const scale = $derived(paceScale(normalizeForGrading(verse).length));
+	/** How far along the scale the clock has run, capped so a long attempt
+	 *  stops at full rather than overflowing the track. */
+	const pacePct = $derived(
+		scale.totalMs > 0 ? Math.min(100, (elapsedMs / scale.totalMs) * 100) : 0
+	);
+	/** Which band the attempt is in right now: 0 fast, 1 middling, 2 past the
+	 *  last threshold. Counting marks already passed avoids restating the band
+	 *  boundaries a second time. */
+	const paceBand = $derived(scale.marks.filter((m) => elapsedMs > m).length);
+	const PACE_STYLE = [
+		{ label: '빠름', color: 'var(--color-ribbon-green)' },
+		{ label: '보통', color: 'var(--color-ribbon-amber)' },
+		{ label: '느림', color: 'var(--color-ribbon-red)' }
+	];
 
 	function mmss(ms: number): string {
 		const s = Math.floor(ms / 1000);
@@ -299,42 +327,11 @@
 			/>
 		</div>
 	{:else if !confirming}
-		<div class="mb-2 flex items-center justify-between gap-2 text-[11px]">
-			<span data-testid="elapsed" class="tabular-nums text-[var(--color-text-secondary)]"
-				>⏱ {mmss(elapsedMs)}</span
-			>
-			{#if openingAtMs !== null}
-				<span class="text-[var(--color-text-tertiary)]">도입부 {mmss(openingAtMs)}</span>
-			{/if}
-			{#if history.length > 0}
-				<button
-					type="button"
-					onclick={() => (historyOpen = !historyOpen)}
-					aria-expanded={historyOpen}
-					class="ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-card)] hover:text-[var(--color-text)]"
-				>
-					지난 점검 {history.length}회 · 최근 {history[0].start ?? '—'}·{history[0].full ?? '—'}
-					<span aria-hidden="true">{historyOpen ? '▴' : '▾'}</span>
-				</button>
-			{/if}
-		</div>
-		{#if historyOpen}
-			<ul data-testid="check-history" class="mb-2 space-y-0.5 text-[11px]">
-				{#each history as h (h.id)}
-					<li class="flex items-center justify-between gap-3 text-[var(--color-text-secondary)]">
-						<span class="tabular-nums">{shortDate(h.checkedAt)}</span>
-						<span class="tabular-nums">
-							시작 {h.start ?? '—'} · 전체 {h.full ?? '—'}
-							<!-- A 5 reached with eight nudges is not the same 5 as one
-							     reached cold, and only this column can say so. -->
-							{#if h.hints}<span class="text-[var(--color-text-tertiary)]">· 힌트 {h.hints}</span
-								>{/if}
-						</span>
-					</li>
-				{/each}
-			</ul>
-		{/if}
+		<!-- The box comes first. It is the only thing on this panel the reader has
+		     to act on, and it is now focused on open, so anything above it would
+		     sit between them and a cursor that is already blinking. -->
 		<textarea
+			bind:this={inputEl}
 			bind:value={typed}
 			rows="3"
 			aria-label="암송 구절 입력"
@@ -342,6 +339,80 @@
 			placeholder="외운 구절을 입력하세요"
 			class="w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-2 text-[14px] text-[var(--color-text)]"
 		></textarea>
+
+		<!-- The clock, as a bar rather than a number alone. The track is the pace
+		     scale the rating actually uses, so the fill answers the question a
+		     bare stopwatch cannot: not "how long has it been" but "how am I doing".
+		     Ticks sit where a band ends. -->
+		<div
+			class="relative mt-2 h-8 overflow-hidden rounded-lg bg-[var(--color-card)]"
+			role="timer"
+			aria-label="경과 시간"
+		>
+			<!-- No width transition on purpose. The clock ticks every 250ms, so a
+			     300ms transition is restarted before it can finish and the fill
+			     trails the number beside it; in a throttled background tab it never
+			     advanced past zero at all, leaving an empty track under a running
+			     clock. The step per tick is under 3px, which needs no easing. -->
+			<div
+				class="absolute inset-y-0 left-0"
+				style="width: {pacePct}%; background-color: {PACE_STYLE[paceBand].color}; opacity: 0.22;"
+			></div>
+			{#each scale.marks.slice(0, -1) as m (m)}
+				<span
+					class="absolute inset-y-1 w-px bg-[var(--color-border)]"
+					style="left: {(m / scale.totalMs) * 100}%"
+					aria-hidden="true"
+				></span>
+			{/each}
+			<div class="absolute inset-0 flex items-center justify-between px-3">
+				<span
+					data-testid="elapsed"
+					class="text-[13px] font-semibold tabular-nums text-[var(--color-text)]"
+				>
+					{mmss(elapsedMs)}
+				</span>
+				<span class="flex items-center gap-2 text-[11px] text-[var(--color-text-secondary)]">
+					{#if openingAtMs !== null}
+						<span class="tabular-nums">도입부 {mmss(openingAtMs)}</span>
+					{/if}
+					<span style="color: {PACE_STYLE[paceBand].color}" class="font-semibold">
+						{PACE_STYLE[paceBand].label}
+					</span>
+				</span>
+			</div>
+		</div>
+
+		{#if history.length > 0}
+			<div class="mt-2 text-[11px]">
+				<button
+					type="button"
+					onclick={() => (historyOpen = !historyOpen)}
+					aria-expanded={historyOpen}
+					class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-card)] hover:text-[var(--color-text)]"
+				>
+					지난 점검 {history.length}회 · 최근 {history[0].start ?? '—'}·{history[0].full ?? '—'}
+					<span aria-hidden="true">{historyOpen ? '▴' : '▾'}</span>
+				</button>
+				{#if historyOpen}
+					<ul data-testid="check-history" class="mt-1 space-y-0.5">
+						{#each history as h (h.id)}
+							<li class="flex items-center justify-between gap-3 text-[var(--color-text-secondary)]">
+								<span class="tabular-nums">{shortDate(h.checkedAt)}</span>
+								<span class="tabular-nums">
+									시작 {h.start ?? '—'} · 전체 {h.full ?? '—'}
+									<!-- A 5 reached with eight nudges is not the same 5 as one
+									     reached cold, and only this column can say so. -->
+									{#if h.hints}<span class="text-[var(--color-text-tertiary)]"
+											>· 힌트 {h.hints}</span
+										>{/if}
+								</span>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</div>
+		{/if}
 		<!-- The row is always here, empty or not. 힌트 is pressed repeatedly, and
 		     a line that appears on the first press would shove the button out
 		     from under the finger already on it. -->

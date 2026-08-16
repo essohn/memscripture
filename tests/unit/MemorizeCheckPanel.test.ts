@@ -367,3 +367,27 @@ describe('포기', () => {
 		expect(screen.getByRole('button', { name: '포기' })).toBeEnabled();
 	});
 });
+
+describe('the input comes first', () => {
+	it('focuses the box on open so 점검 goes straight to typing', () => {
+		setup();
+		expect(document.activeElement).toBe(screen.getByRole('textbox'));
+	});
+
+	// The box is the only thing here to act on, so nothing sits above it.
+	it('puts the box ahead of the clock in the document', () => {
+		setup();
+		const box = screen.getByRole('textbox');
+		const clock = screen.getByTestId('elapsed');
+		expect(box.compareDocumentPosition(clock) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+	});
+
+	it('refocuses after 취소 hands back a fresh attempt', async () => {
+		setup();
+		await type('그들에게 율례와');
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
+		expect(document.activeElement).toBe(screen.getByRole('textbox'));
+	});
+});
+

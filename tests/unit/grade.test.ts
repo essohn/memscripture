@@ -6,6 +6,7 @@ import {
 	levenshtein,
 	markMismatchedWords,
 	nextHint,
+	paceScale,
 	normalizeForGrading
 } from '../../src/lib/memorize/grade';
 
@@ -339,6 +340,31 @@ describe('nextHint', () => {
 
 	it('treats a wrong word as the stuck point', () => {
 		expect(nextHint(V, '그들에게 율례와 법전을', 1)?.word).toBe('법도를');
+	});
+});
+
+describe('paceScale', () => {
+	// The bar has to mean something, so its scale is the one the rating already
+	// uses: the elapsed times at which an attempt drops out of each pace band.
+	it('marks where each pace band ends', () => {
+		// 60 characters: 1.5 chars/sec runs out at 40s, 0.8 at 75s.
+		expect(paceScale(60)).toEqual({ marks: [40_000, 75_000], totalMs: 75_000 });
+	});
+
+	// Pace is per character, so a verse twice as long gets twice the time and a
+	// long verse is not marked down for being long.
+	it('scales with the length of the verse', () => {
+		expect(paceScale(120).totalMs).toBe(paceScale(60).totalMs * 2);
+	});
+
+	it('ends at the last mark, past which pace cannot lower the rating further', () => {
+		const { marks, totalMs } = paceScale(45);
+		expect(totalMs).toBe(marks[marks.length - 1]);
+	});
+
+	// Guarding the caller's division rather than making it guard itself.
+	it('collapses to zero for a verse with no gradeable length', () => {
+		expect(paceScale(0)).toEqual({ marks: [0, 0], totalMs: 0 });
 	});
 });
 

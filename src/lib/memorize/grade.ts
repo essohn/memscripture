@@ -75,6 +75,30 @@ const PACE_BANDS: { minCharsPerSecond: number; level: DifficultyLevel }[] = [
 	{ minCharsPerSecond: 0, level: 1 }
 ];
 
+export interface PaceScale {
+	/** Elapsed ms at which each pace band ends, ascending. */
+	marks: number[];
+	/** The last mark — past it, pace cannot lower the rating any further, so it
+	 *  is the natural full width for a progress bar. */
+	totalMs: number;
+}
+
+/**
+ * The pace bands of a verse, as elapsed times.
+ *
+ * PACE_BANDS is expressed as characters per second because that is what the
+ * rating needs; a reader watching a clock needs the same thresholds as
+ * seconds. Deriving them here rather than hardcoding a bar width keeps the
+ * visible scale and the actual grading from drifting apart when the bands are
+ * tuned.
+ */
+export function paceScale(verseLength: number): PaceScale {
+	const marks = PACE_BANDS.filter((b) => b.minCharsPerSecond > 0).map((b) =>
+		Math.round((verseLength / b.minCharsPerSecond) * 1000)
+	);
+	return { marks, totalMs: marks[marks.length - 1] ?? 0 };
+}
+
 /**
  * 전체 암송 난이도 from accuracy first, then pace.
  *
