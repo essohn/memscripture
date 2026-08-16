@@ -187,3 +187,54 @@ describe('card tap', () => {
 		expect(screen.queryByLabelText('암송 구절 입력')).toBeNull();
 	});
 });
+
+describe('밑줄: reader-placed underlines', () => {
+	const MARKS = [{ i: 2, w: '법도를' }];
+
+	it('underlines a marked word in read mode', () => {
+		setup({ marks: MARKS });
+		const body = screen.getByTestId('verse-body');
+		expect(body.querySelector('.underlined')?.textContent).toBe('법도를');
+	});
+
+	// An OYO verse can be edited under a mark. Moving the underline onto a
+	// different word would tell the reader to watch a spot they never missed.
+	it('drops a mark whose word has been edited away', () => {
+		setup({ marks: [{ i: 2, w: '옛날말' }] });
+		expect(screen.getByTestId('verse-body').querySelector('.underlined')).toBeNull();
+	});
+
+	// Marking borrows the tap, which the curtain drag also wants, so it is a
+	// mode rather than something always live.
+	it('offers no 밑줄 control without a way to persist it', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '암송' }));
+		expect(screen.queryByRole('button', { name: /밑줄/ })).toBeNull();
+	});
+
+	it('toggles a word through the callback while marking is on', async () => {
+		const onToggleMark = vi.fn();
+		setup({ onToggleMark });
+		await fireEvent.click(screen.getByRole('button', { name: '암송' }));
+		await fireEvent.click(screen.getByRole('button', { name: /밑줄/ }));
+		await fireEvent.click(screen.getByText('법도를'));
+		expect(onToggleMark).toHaveBeenCalledWith(2, '법도를');
+	});
+
+	// You cannot usefully mark a word you cannot read.
+	it('opens the curtain when marking starts', async () => {
+		setup({ onToggleMark: vi.fn() });
+		await fireEvent.click(screen.getByRole('button', { name: '암송' }));
+		await fireEvent.click(screen.getByRole('button', { name: /밑줄/ }));
+		expect(screen.getByText(/자주 틀리는 단어를 눌러 밑줄/)).toBeInTheDocument();
+		expect(document.querySelectorAll('.word.covered')).toHaveLength(0);
+	});
+
+	it('does not toggle while marking is off', async () => {
+		const onToggleMark = vi.fn();
+		setup({ onToggleMark });
+		await fireEvent.click(screen.getByRole('button', { name: '암송' }));
+		await fireEvent.click(screen.getByText('법도를'));
+		expect(onToggleMark).not.toHaveBeenCalled();
+	});
+});

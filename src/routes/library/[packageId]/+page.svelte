@@ -20,6 +20,8 @@
 	} from '$lib/db/viewOptions';
 	import { db } from '$lib/db/local';
 	import { setBookmark, clearBookmark } from '$lib/db/bookmarks';
+	import { listMarksForPackage, toggleVerseMark } from '$lib/db/verseMarks';
+	import type { StoredMark } from '$lib/memorize/marks';
 	import {
 		setStartDifficulty,
 		setFullDifficulty,
@@ -42,6 +44,7 @@
 	const showVerseText = $derived(verseVisibility.shown);
 	let fontScale = $state<VerseFontScale>(1.0);
 	let ratingsByVerseNo = $state<Map<number, VerseRowRating>>(new Map());
+	let marksByVerseNo = $state<Map<number, StoredMark[]>>(new Map());
 	let bookmarksByVerseNo = $state<Map<number, BookmarkColor>>(new Map());
 
 	// Multi-select: a Set of verse.no the user has tapped. When non-empty, the
@@ -228,13 +231,14 @@
 			}
 		})().catch(() => {});
 
-		// One bulk read each for ratings + bookmarks — avoids N round-trips for
-		// long lists. Both tables are indexed on packageId; rows only exist after
-		// the user interacts, so the scans stay small.
+		// One bulk read each for ratings + bookmarks + marks — avoids N round-trips
+		// for long lists. All three tables are indexed on packageId; rows only
+		// exist after the user interacts, so the scans stay small.
 		(async () => {
-			const [ratingRows, bookmarkRows] = await Promise.all([
+			const [ratingRows, bookmarkRows, markRows] = await Promise.all([
 				db.verseRatings.where('packageId').equals(currentPackageId).toArray(),
-				db.bookmarks.where('packageId').equals(currentPackageId).toArray()
+				db.bookmarks.where('packageId').equals(currentPackageId).toArray(),
+				listMarksForPackage(currentPackageId)
 			]);
 			if (!active) return;
 			const nextRatings = new Map<number, VerseRowRating>();
@@ -248,6 +252,7 @@
 			const nextBookmarks = new Map<number, BookmarkColor>();
 			for (const b of bookmarkRows) nextBookmarks.set(b.verseNo, b.color);
 			bookmarksByVerseNo = nextBookmarks;
+			marksByVerseNo = markRows;
 		})().catch(() => {});
 		return () => {
 			active = false;
@@ -264,6 +269,19 @@
 		next.delete(verseNo);
 		bookmarksByVerseNo = next;
 		clearBookmark(packageId, verseNo).catch(() => {});
+	}
+
+	/** Optimistic in effect: the underline flips as soon as the write resolves,
+	 *  and verseMarks serializes writes so a fast double-tap cannot land out of
+	 *  order. The map is replaced rather than mutated — a mutated Map is the
+	 *  same object, and the card would never see it change. */
+	async function onToggleMark(verseNo: number, index: number, word: string) {
+		if (!packageId) return;
+		const next = await toggleVerseMark(packageId, verseNo, index, word);
+		const map = new Map(marksByVerseNo);
+		if (next.length === 0) map.delete(verseNo);
+		else map.set(verseNo, next);
+		marksByVerseNo = map;
 	}
 
 	function pickStart(verseNo: number, level: DifficultyLevel | null) {
@@ -415,6 +433,8 @@
 					onBookmarkClear={() => clearVerseBookmark(v.no)}
 					startDifficulty={rating?.start ?? null}
 					fullDifficulty={rating?.full ?? null}
+					marks={marksByVerseNo.get(v.no) ?? []}
+					onToggleMark={(i, word) => onToggleMark(v.no, i, word)}
 					onPickStartDifficulty={(l) => pickStart(v.no, l)}
 					onPickFullDifficulty={(l) => pickFull(v.no, l)}
 					showBody={showVerseText}

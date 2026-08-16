@@ -55,6 +55,17 @@ export interface CheckRecord {
 	hints?: number;
 }
 
+/** Words the reader underlined on one verse — the places they keep tripping
+ *  over. Stored per verse rather than per word so the whole set reads and
+ *  writes as a single row. */
+export interface VerseMark {
+	id: string;
+	packageId: string;
+	verseNo: number;
+	words: { i: number; w: string }[];
+	updatedAt: number;
+}
+
 export interface VerseRating {
 	id: string;
 	packageId: string;
@@ -75,6 +86,7 @@ class LocalDB extends Dexie {
 	recentBundles!: Table<RecentBundle, string>;
 	verseRatings!: Table<VerseRating, string>;
 	checkHistory!: Table<CheckRecord, string>;
+	verseMarks!: Table<VerseMark, string>;
 
 	constructor() {
 		super('memscripture');
@@ -141,6 +153,20 @@ class LocalDB extends Dexie {
 			recentBundles: '&id, createdAt',
 			verseRatings: '&id, packageId',
 			checkHistory: '&id, verseKey, checkedAt'
+		});
+		// v8 adds verseMarks. Additive again, so no data callback.
+		this.version(8).stores({
+			packages: '&id, name',
+			verses: '[package_id+no], package_id',
+			settings: '&key',
+			progress: '&id, packageId, bucket',
+			activity: '&dateKey',
+			bookmarks: '&id, packageId, color',
+			recentVerses: '&id, viewedAt',
+			recentBundles: '&id, createdAt',
+			verseRatings: '&id, packageId',
+			checkHistory: '&id, verseKey, checkedAt',
+			verseMarks: '&id, packageId'
 		});
 	}
 }

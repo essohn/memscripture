@@ -7,8 +7,8 @@ beforeEach(async () => {
 	await db.open();
 });
 
-describe('local db schema v7', () => {
-	it('exposes all 10 tables', () => {
+describe('local db schema v8', () => {
+	it('exposes all 11 tables', () => {
 		const names = db.tables.map((t) => t.name).sort();
 		expect(names).toEqual([
 			'activity',
@@ -19,9 +19,32 @@ describe('local db schema v7', () => {
 			'recentBundles',
 			'recentVerses',
 			'settings',
+			'verseMarks',
 			'verseRatings',
 			'verses'
 		]);
+	});
+
+	it('round-trips a verse mark', async () => {
+		await db.verseMarks.put({
+			id: '5_krv:1',
+			packageId: '5_krv',
+			verseNo: 1,
+			words: [{ i: 2, w: '법도를' }],
+			updatedAt: 1000
+		});
+		const m = await db.verseMarks.get('5_krv:1');
+		expect(m?.words).toEqual([{ i: 2, w: '법도를' }]);
+	});
+
+	it('verseMarks has a packageId index so one read covers a package', async () => {
+		await db.verseMarks.put({
+			id: '5_krv:1', packageId: '5_krv', verseNo: 1, words: [{ i: 0, w: 'a' }], updatedAt: 0
+		});
+		await db.verseMarks.put({
+			id: '60_krv:1', packageId: '60_krv', verseNo: 1, words: [{ i: 0, w: 'b' }], updatedAt: 0
+		});
+		expect(await db.verseMarks.where('packageId').equals('5_krv').toArray()).toHaveLength(1);
 	});
 
 	it('round-trips a recent bundle with its captured filter', async () => {

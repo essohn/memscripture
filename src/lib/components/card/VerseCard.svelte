@@ -9,6 +9,8 @@
 	import MemorizeCheckPanel from './MemorizeCheckPanel.svelte';
 	import type { DifficultyLevel } from '$lib/db/verseRatings';
 	import { normalizeForGrading } from '$lib/memorize/grade';
+	import { activeMarks, tokenizeVerse, type StoredMark } from '$lib/memorize/marks';
+	import { Highlighter } from 'lucide-svelte';
 	import { listChecks, recordCheck } from '$lib/db/checkHistory';
 	import type { CheckRecord } from '$lib/db/local';
 	import { goto } from '$app/navigation';
@@ -52,6 +54,13 @@
 		highlighted?: boolean;
 		/** When set, the package label becomes a link (e.g. back to the package list). */
 		packageHref?: string;
+		/** Words the reader has underlined on this verse. Passed in rather than
+		 *  read per card: the page loads a package's marks in one query, the same
+		 *  way it already does for ratings and bookmarks. */
+		marks?: StoredMark[];
+		/** Toggles one word's underline. Marking is offered only when this is
+		 *  wired, so pages that cannot persist do not show the control. */
+		onToggleMark?: (index: number, word: string) => void;
 	}
 	let {
 		verse,
@@ -75,7 +84,9 @@
 		selecting = false,
 		tapToCheck = true,
 		highlighted = false,
-		packageHref
+		packageHref,
+		marks = [],
+		onToggleMark
 	}: Props = $props();
 
 	const bookmarksEnabled = $derived(Boolean(onBookmarkPick && onBookmarkClear));
@@ -112,8 +123,24 @@
 	let wordsPerLine = 5;
 	let paragraphEl: HTMLParagraphElement | undefined = $state();
 
+	// Read mode renders tokens so the corpus's line breaks survive; the curtain
+	// renders `words`. Both number words identically — tokenizeVerse guarantees
+	// it — so one stored index means the same word in either.
+	const tokens = $derived(tokenizeVerse(verse.w));
 	const words = $derived(verse.w.split(/\s+/).filter(Boolean));
 	const totalWords = $derived(words.length);
+	/** Marks that still point at the word they were placed on. An OYO edit can
+	 *  strand one, and an underline on the wrong word is worse than none. */
+	const marked = $derived(activeMarks(words, marks));
+	const markingEnabled = $derived(Boolean(onToggleMark));
+	/** Marking borrows the tap, so it cannot share the drag. While it is on the
+	 *  curtain is fully open — you cannot usefully mark a word you cannot read. */
+	let marking = $state(false);
+
+	function toggleMarking() {
+		marking = !marking;
+		if (marking) revealAll();
+	}
 	const allRevealed = $derived(revealedCount >= totalWords);
 
 	// Loaded when the panel opens rather than on every card render — a 900-row
@@ -122,6 +149,7 @@
 
 	function enterRehearse() {
 		mode = 'rehearse';
+		marking = false;
 		// Single-word verses have no curtain to drag — show immediately.
 		revealedCount = totalWords <= 1 ? totalWords : 0;
 	}
@@ -143,6 +171,7 @@
 	}
 	function exitMode() {
 		mode = 'read';
+		marking = false;
 		revealedCount = 0;
 	}
 
@@ -153,7 +182,7 @@
 	let dragHorizontal = false;
 
 	function onPointerDown(e: PointerEvent) {
-		if (mode !== 'rehearse' || totalWords <= 1) return;
+		if (mode !== 'rehearse' || marking || totalWords <= 1) return;
 		dragBaseline = revealedCount;
 		dragStartX = e.clientX;
 		dragStartY = e.clientY;
@@ -372,15 +401,15 @@
 			recorded or the reader gives up.
 		-->
 		{#if mode === 'read' || allRevealed}
+			{@const bodyVisible = mode === 'check' || showBody}
 			<p
 				data-testid="verse-body"
-				class="mt-1.5 whitespace-pre-line break-keep text-[calc(19px*var(--vfs))] leading-[1.6] {mode ===
-					'check' || showBody
+				class="mt-1.5 whitespace-pre-line break-keep text-[calc(19px*var(--vfs))] leading-[1.6] {bodyVisible
 					? 'text-[var(--color-text)]'
 					: 'select-none text-transparent'}"
-			>
-				{verse.w}
-			</p>
+			>{#each tokens as t, i (i)}{#if t.wordIndex === null}{t.text}{:else}<span
+							class:underlined={bodyVisible && marked.has(t.wordIndex)}>{t.text}</span
+						>{/if}{/each}</p>
 		{/if}
 		{#if mode === 'check'}
 			<MemorizeCheckPanel
@@ -410,12 +439,41 @@
 			onpointermove={onPointerMove}
 			onpointerup={onPointerUp}
 			onpointercancel={onPointerUp}
-		>{#each words as word, i (i)}<span class="word" class:covered={i >= revealedCount}><span class="word-text">{word}</span></span>{' '}{/each}</p>
+		>{#each words as word, i (i)}<span
+				class="word"
+				class:covered={i >= revealedCount}
+				class:markable={marking}
+				class:underlined={marked.has(i)}
+				role={marking ? 'button' : undefined}
+				tabindex={marking ? 0 : undefined}
+				onclick={marking ? () => onToggleMark?.(i, word) : undefined}
+				onkeydown={marking
+					? (e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								onToggleMark?.(i, word);
+							}
+						}
+					: undefined}
+			><span class="word-text">{word}</span></span>{' '}{/each}</p>
 		<div class="mt-3 flex items-center justify-between gap-3 text-[11px]">
 			<span class="text-[var(--color-text-tertiary)]">
-				{#if allRevealed}모두 열렸습니다{:else}← 좌→우로 드래그해서 단어 열기{/if}
+				{#if marking}자주 틀리는 단어를 눌러 밑줄{:else if allRevealed}모두 열렸습니다{:else}← 좌→우로 드래그해서 단어 열기{/if}
 			</span>
 			<div class="flex items-center gap-3">
+				{#if markingEnabled}
+					<button
+						type="button"
+						onclick={toggleMarking}
+						aria-pressed={marking}
+						class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium transition-colors {marking
+							? 'bg-[var(--color-accent)] text-white'
+							: 'text-[var(--color-text-secondary)] hover:bg-[var(--color-elevated)]'}"
+					>
+						<Highlighter size={12} strokeWidth={2} />
+						밑줄
+					</button>
+				{/if}
 				<button
 					type="button"
 					onclick={resetReveal}
@@ -497,6 +555,27 @@
 		100% {
 			box-shadow: var(--shadow-card);
 		}
+	}
+
+	/* Reader-placed underline: "I keep missing this one". Sits below the
+	   baseline rather than through the text so it never fights the Korean
+	   glyphs, and uses the accent so it reads as a note rather than an error —
+	   the red/green marking in the check panel already means something else. */
+	.underlined {
+		text-decoration: underline;
+		text-decoration-color: var(--color-accent);
+		text-decoration-thickness: 2px;
+		text-underline-offset: 5px;
+	}
+
+	/* While marking, every word is a target. The cue is the cursor and a hover
+	   tint; outlining each word would redraw the whole verse. */
+	.markable {
+		cursor: pointer;
+		border-radius: 4px;
+	}
+	.markable:hover {
+		background-color: var(--color-accent-soft);
 	}
 
 	/* Memorize-mode curtain: each word sits under a striped cover until revealed. */
