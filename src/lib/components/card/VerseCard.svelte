@@ -168,6 +168,7 @@
 		);
 		speech = speak(segments, {
 			rate: opts.speakRate,
+			voice: opts.speakVoice || undefined,
 			repeat: opts.speakRepeat,
 			onEnd: () => {
 				speaking = false;

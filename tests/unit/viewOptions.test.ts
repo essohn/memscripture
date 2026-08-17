@@ -62,7 +62,8 @@ describe('읽어주기 options', () => {
 		expect(await getSpeakOptions()).toEqual({
 			speakTitle: false,
 			speakRate: 0.9,
-			speakRepeat: false
+			speakRepeat: false,
+			speakVoice: ''
 		});
 	});
 
@@ -72,7 +73,7 @@ describe('읽어주기 options', () => {
 		await setSpeakOption('speakRepeat', true);
 		await setSpeakOption('speakRate', 0.6);
 		const o = await getSpeakOptions();
-		expect(o).toEqual({ speakTitle: false, speakRate: 0.6, speakRepeat: true });
+		expect(o).toEqual({ speakTitle: false, speakRate: 0.6, speakRepeat: true, speakVoice: '' });
 	});
 
 	it('leaves the unrelated view options alone', async () => {

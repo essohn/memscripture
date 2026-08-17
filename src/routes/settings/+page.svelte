@@ -4,6 +4,7 @@
 	import ConfirmDialog from '$lib/components/feedback/ConfirmDialog.svelte';
 	import { goto } from '$app/navigation';
 	import { Cloud, CloudOff, RotateCcw, BookOpen, Volume2 } from 'lucide-svelte';
+	import { koreanVoices, speak, speechSegments, type VoiceLike } from '$lib/memorize/speak';
 	import {
 		SPEAK_RATES,
 		getSpeakOptions,
@@ -31,12 +32,24 @@
 	let speakTitle = $state(false);
 	let speakRepeat = $state(false);
 	let speakRate = $state<SpeakRate>(0.9);
+	let speakVoice = $state('');
+	let voices = $state<VoiceLike[]>([]);
+
+	// getVoices() is commonly empty on first call and filled asynchronously, so
+	// the list is read again when the browser says it changed.
+	$effect(() => {
+		const load = () => (voices = koreanVoices());
+		load();
+		speechSynthesis?.addEventListener?.('voiceschanged', load);
+		return () => speechSynthesis?.removeEventListener?.('voiceschanged', load);
+	});
 	$effect(() => {
 		getSpeakOptions()
 			.then((o) => {
 				speakTitle = o.speakTitle;
 				speakRepeat = o.speakRepeat;
 				speakRate = o.speakRate;
+				speakVoice = o.speakVoice;
 			})
 			.catch(() => {});
 	});
@@ -252,6 +265,42 @@
 				class="h-4 w-4 shrink-0 accent-[var(--color-accent)]"
 			/>
 		</label>
+
+		{#if voices.length > 0}
+			<div class="mt-4">
+				<span class="text-[13px] text-[var(--color-text)]">목소리</span>
+				<div class="mt-2 flex items-center gap-2">
+					<select
+						bind:value={speakVoice}
+						onchange={() => setSpeakOption('speakVoice', speakVoice)}
+						aria-label="읽어줄 목소리"
+						class="min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[13px] text-[var(--color-text)]"
+					>
+						<option value="">자동 (가장 좋은 음성)</option>
+						{#each voices as v (v.name)}
+							<option value={v.name}>
+								{v.name}{v.localService === false ? ' · 신경망' : ''}
+							</option>
+						{/each}
+					</select>
+					<button
+						type="button"
+						onclick={() =>
+							speak(speechSegments({ cite: '요한복음 3 : 16', w: '하나님이 세상을 이처럼 사랑하사' }), {
+								rate: speakRate,
+								voice: speakVoice || undefined
+							})}
+						class="shrink-0 rounded-full border border-[var(--color-border)] px-3 py-2 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)]"
+					>
+						들어보기
+					</button>
+				</div>
+				<p class="mt-1.5 text-[11px] text-[var(--color-text-tertiary)]">
+					신경망 음성이 가장 자연스럽습니다. iPhone은 설정 → 손쉬운 사용 → 라이브 음성에서 고품질
+					한국어 음성을 내려받으면 더 좋아집니다.
+				</p>
+			</div>
+		{/if}
 
 		<div class="mt-4">
 			<span class="text-[13px] text-[var(--color-text)]">읽는 속도</span>

@@ -85,6 +85,67 @@ export function speechSegments(
 	return segments;
 }
 
+// ─── Voice selection ────────────────────────────────────────────────────────
+
+/** The shape of SpeechSynthesisVoice this module needs, so the ranking can be
+ *  tested without a browser. */
+export interface VoiceLike {
+	name: string;
+	lang: string;
+	localService?: boolean;
+}
+
+/**
+ * Voices worth reaching for, best first.
+ *
+ * The network voices — Google's on Chrome, Microsoft's Natural/Neural on Edge
+ * — are neural and sound markedly better than the compact local ones. Yuna is
+ * Apple's actual Korean narration voice, and gets better still if the reader
+ * has downloaded its Enhanced or Premium variant.
+ */
+const PREFERRED_VOICES = [/Natural/i, /Neural/i, /SunHi/i, /InJoon/i, /Google/i, /Yuna/i];
+
+/**
+ * Apple ships a row of character voices that are the wrong register for
+ * scripture — and they sort ahead of Yuna alphabetically, so leaving the
+ * choice to the platform is how a verse ends up read by "Grandpa".
+ */
+const NOVELTY_VOICES =
+	/^(Eddy|Flo|Grandma|Grandpa|Reed|Rocko|Sandy|Shelley|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Good News|Jester|Organ|Superstar|Trinoids|Whisper|Wobble|Zarvox)\b/i;
+
+function voiceRank(v: VoiceLike): number {
+	const preferred = PREFERRED_VOICES.findIndex((re) => re.test(v.name));
+	if (preferred !== -1) return preferred;
+	return NOVELTY_VOICES.test(v.name) ? 100 : 50;
+}
+
+/**
+ * The Korean voice to read with.
+ *
+ * `wanted` is the reader's explicit choice and wins whenever it is still
+ * installed — voices come and go with OS updates, so a stale name falls back
+ * to the ranking rather than to silence.
+ */
+export function pickKoreanVoice<T extends VoiceLike>(voices: T[], wanted?: string): T | null {
+	const korean = voices.filter((v) => /^ko/i.test(v.lang));
+	if (korean.length === 0) return null;
+	if (wanted) {
+		const exact = korean.find((v) => v.name === wanted);
+		if (exact) return exact;
+	}
+	return [...korean].sort((a, b) => voiceRank(a) - voiceRank(b))[0];
+}
+
+/** Korean voices installed here, best first, for the settings picker. */
+export function koreanVoices(): VoiceLike[] {
+	if (!isTtsSupported()) return [];
+	return window.speechSynthesis
+		.getVoices()
+		.filter((v) => /^ko/i.test(v.lang))
+		.sort((a, b) => voiceRank(a) - voiceRank(b))
+		.map((v) => ({ name: v.name, lang: v.lang, localService: v.localService }));
+}
+
 // ─── Playback ───────────────────────────────────────────────────────────────
 
 export interface SpeakHandle {
@@ -93,6 +154,9 @@ export interface SpeakHandle {
 
 export interface SpeakOptions {
 	rate?: number;
+	/** Reader's chosen voice name; falls back to the ranking when absent or
+	 *  no longer installed. */
+	voice?: string;
 	/** Keep reading the verse over and over until stopped. */
 	repeat?: boolean;
 	onEnd?: () => void;
@@ -142,6 +206,10 @@ export function speak(segments: string[], opts: SpeakOptions = {}): SpeakHandle 
 		}
 		const u = new SpeechSynthesisUtterance(segments[index]);
 		u.lang = 'ko-KR';
+		// Chosen explicitly. With only `lang` set the platform picks, and on
+		// macOS the character voices sort ahead of the narration one.
+		const chosen = pickKoreanVoice(synth.getVoices(), opts.voice);
+		if (chosen) u.voice = chosen as SpeechSynthesisVoice;
 		u.rate = opts.rate ?? 1;
 		u.onend = () => say(index + 1);
 		// An error would otherwise leave the caller stuck showing "playing"

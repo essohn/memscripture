@@ -79,12 +79,16 @@ export interface SpeakOptionsStored {
 	speakRate: SpeakRate;
 	/** Keep reading the verse until stopped. */
 	speakRepeat: boolean;
+	/** Chosen voice name, or '' to let the ranking decide. Voices differ by
+	 *  device and taste, so this is the reader's call when they want it. */
+	speakVoice: string;
 }
 
 const SPEAK_DEFAULTS: SpeakOptionsStored = {
 	speakTitle: false,
 	speakRate: 0.9,
-	speakRepeat: false
+	speakRepeat: false,
+	speakVoice: ''
 };
 
 export async function getSpeakOptions(): Promise<SpeakOptionsStored> {
@@ -94,7 +98,8 @@ export async function getSpeakOptions(): Promise<SpeakOptionsStored> {
 		speakTitle: typeof raw.speakTitle === 'boolean' ? raw.speakTitle : SPEAK_DEFAULTS.speakTitle,
 		speakRate: rate ?? SPEAK_DEFAULTS.speakRate,
 		speakRepeat:
-			typeof raw.speakRepeat === 'boolean' ? raw.speakRepeat : SPEAK_DEFAULTS.speakRepeat
+			typeof raw.speakRepeat === 'boolean' ? raw.speakRepeat : SPEAK_DEFAULTS.speakRepeat,
+		speakVoice: typeof raw.speakVoice === 'string' ? raw.speakVoice : SPEAK_DEFAULTS.speakVoice
 	};
 }
 

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
-import { bodyToSpeech, citeToSpeech, speechSegments } from '../../src/lib/memorize/speak';
+import {
+	bodyToSpeech,
+	citeToSpeech,
+	pickKoreanVoice,
+	speechSegments
+} from '../../src/lib/memorize/speak';
 
 describe('citeToSpeech', () => {
 	// Every shape present in the shipped corpus, with its count at the time of
@@ -91,5 +96,57 @@ describe('speechSegments', () => {
 
 	it('skips an empty body rather than speaking silence', () => {
 		expect(speechSegments({ ...verse, w: '  ' })).toEqual(['출애굽기 18장 20절']);
+	});
+});
+
+describe('pickKoreanVoice', () => {
+	// The real macOS list, in the order the platform reports it. Eight character
+	// voices sort ahead of the narration one, so leaving the choice to the
+	// platform is how scripture ends up read by "Grandpa".
+	const MACOS = [
+		'Eddy (Korean (South Korea))',
+		'Flo (Korean (South Korea))',
+		'Grandma (Korean (South Korea))',
+		'Grandpa (Korean (South Korea))',
+		'Reed (Korean (South Korea))',
+		'Rocko (Korean (South Korea))',
+		'Sandy (Korean (South Korea))',
+		'Shelley (Korean (South Korea))',
+		'Yuna',
+		'Google 한국의'
+	].map((name) => ({ name, lang: 'ko-KR' }));
+
+	it('picks the neural network voice over every local one', () => {
+		expect(pickKoreanVoice(MACOS)?.name).toBe('Google 한국의');
+	});
+
+	it('falls back to the narration voice, never a character one', () => {
+		const noNetwork = MACOS.filter((v) => !v.name.startsWith('Google'));
+		expect(pickKoreanVoice(noNetwork)?.name).toBe('Yuna');
+	});
+
+	it('prefers a Natural/Neural voice where one exists', () => {
+		const edge = [
+			{ name: 'Microsoft SunHi Online (Natural) - Korean (Korea)', lang: 'ko-KR' },
+			{ name: 'Google 한국의', lang: 'ko-KR' }
+		];
+		expect(pickKoreanVoice(edge)?.name).toContain('SunHi');
+	});
+
+	it('honours an explicit choice', () => {
+		expect(pickKoreanVoice(MACOS, 'Yuna')?.name).toBe('Yuna');
+	});
+
+	// Voices come and go with OS updates. A stale name must not mean silence.
+	it('falls back to the ranking when the chosen voice is gone', () => {
+		expect(pickKoreanVoice(MACOS, 'Yuna Premium (removed)')?.name).toBe('Google 한국의');
+	});
+
+	it('ignores voices of other languages', () => {
+		expect(pickKoreanVoice([{ name: 'Samantha', lang: 'en-US' }])).toBeNull();
+	});
+
+	it('returns null when nothing Korean is installed', () => {
+		expect(pickKoreanVoice([])).toBeNull();
 	});
 });
