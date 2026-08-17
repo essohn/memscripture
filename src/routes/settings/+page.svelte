@@ -3,7 +3,13 @@
 	import Toast from '$lib/components/feedback/Toast.svelte';
 	import ConfirmDialog from '$lib/components/feedback/ConfirmDialog.svelte';
 	import { goto } from '$app/navigation';
-	import { Cloud, CloudOff, RotateCcw, BookOpen } from 'lucide-svelte';
+	import { Cloud, CloudOff, RotateCcw, BookOpen, Volume2 } from 'lucide-svelte';
+	import {
+		SPEAK_RATES,
+		getSpeakOptions,
+		setSpeakOption,
+		type SpeakRate
+	} from '$lib/db/viewOptions';
 	import { getGoogleOauthClientId } from '$lib/sync/clientId';
 	import {
 		connectGoogleDrive,
@@ -21,6 +27,19 @@
 	} from '$lib/sync/preSyncBackup';
 
 	const clientId = getGoogleOauthClientId();
+
+	let speakTitle = $state(false);
+	let speakRepeat = $state(false);
+	let speakRate = $state<SpeakRate>(0.9);
+	$effect(() => {
+		getSpeakOptions()
+			.then((o) => {
+				speakTitle = o.speakTitle;
+				speakRepeat = o.speakRepeat;
+				speakRate = o.speakRate;
+			})
+			.catch(() => {});
+	});
 	let auth = $state<GoogleAuthState | null>(null);
 
 	let confirmState = $state<{
@@ -190,6 +209,71 @@
 				</button>
 			</div>
 		{/if}
+	</section>
+
+	<section
+		class="mt-4 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] px-6 py-5"
+	>
+		<h2 class="flex items-center gap-2 text-[15px] font-semibold text-[var(--color-text)]">
+			<Volume2 size={18} strokeWidth={1.75} />
+			구절 읽어주기
+		</h2>
+		<p class="mt-2 text-[12px] text-[var(--color-text-secondary)]">
+			카드의 스피커 버튼으로 장절과 본문을 들을 수 있습니다.
+		</p>
+
+		<label class="mt-4 flex items-center justify-between gap-3">
+			<span class="text-[13px] text-[var(--color-text)]">제목도 함께 읽기</span>
+			<input
+				type="checkbox"
+				checked={speakTitle}
+				onchange={(e) => {
+					speakTitle = e.currentTarget.checked;
+					setSpeakOption('speakTitle', speakTitle);
+				}}
+				class="h-4 w-4 accent-[var(--color-accent)]"
+			/>
+		</label>
+
+		<label class="mt-3 flex items-center justify-between gap-3">
+			<span class="text-[13px] text-[var(--color-text)]">
+				무한 반복
+				<span class="block text-[11px] text-[var(--color-text-tertiary)]">
+					중지를 누를 때까지 계속 읽습니다
+				</span>
+			</span>
+			<input
+				type="checkbox"
+				checked={speakRepeat}
+				onchange={(e) => {
+					speakRepeat = e.currentTarget.checked;
+					setSpeakOption('speakRepeat', speakRepeat);
+				}}
+				class="h-4 w-4 shrink-0 accent-[var(--color-accent)]"
+			/>
+		</label>
+
+		<div class="mt-4">
+			<span class="text-[13px] text-[var(--color-text)]">읽는 속도</span>
+			<div class="mt-2 flex flex-wrap gap-1.5">
+				{#each SPEAK_RATES as r (r)}
+					<button
+						type="button"
+						aria-pressed={speakRate === r}
+						onclick={() => {
+							speakRate = r;
+							setSpeakOption('speakRate', r);
+						}}
+						class="rounded-full border px-3 py-1 text-[12px] font-medium tabular-nums transition-colors {speakRate ===
+						r
+							? 'border-transparent bg-[var(--color-accent)] text-white'
+							: 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-elevated)]'}"
+					>
+						{r}x
+					</button>
+				{/each}
+			</div>
+		</div>
 	</section>
 
 	<!-- The search-landing pages, linked from inside the app. Users get the

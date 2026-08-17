@@ -64,3 +64,51 @@ export async function setVerseFontScale(v: VerseFontScale): Promise<void> {
 	writeQueue = next.catch(() => {});
 	return next;
 }
+
+// ─── 읽어주기 (TTS) ──────────────────────────────────────────────────────────
+
+/** Playback speeds offered. Slower than normal is the useful direction for
+ *  memorizing, so the range leans that way. */
+export const SPEAK_RATES = [0.6, 0.75, 0.9, 1.0, 1.2] as const;
+export type SpeakRate = (typeof SPEAK_RATES)[number];
+
+export interface SpeakOptionsStored {
+	/** Read the topical title before the reference. Off by default — it is a
+	 *  label, not scripture. */
+	speakTitle: boolean;
+	speakRate: SpeakRate;
+	/** Keep reading the verse until stopped. */
+	speakRepeat: boolean;
+}
+
+const SPEAK_DEFAULTS: SpeakOptionsStored = {
+	speakTitle: false,
+	speakRate: 0.9,
+	speakRepeat: false
+};
+
+export async function getSpeakOptions(): Promise<SpeakOptionsStored> {
+	const raw = await readRaw();
+	const rate = SPEAK_RATES.find((r) => Math.abs(r - (raw.speakRate as number)) < 0.001);
+	return {
+		speakTitle: typeof raw.speakTitle === 'boolean' ? raw.speakTitle : SPEAK_DEFAULTS.speakTitle,
+		speakRate: rate ?? SPEAK_DEFAULTS.speakRate,
+		speakRepeat:
+			typeof raw.speakRepeat === 'boolean' ? raw.speakRepeat : SPEAK_DEFAULTS.speakRepeat
+	};
+}
+
+/** Writes one option, merged into whatever else is stored. Shares the module
+ *  write queue so a burst of toggles cannot lose one to a stale read. */
+export async function setSpeakOption<K extends keyof SpeakOptionsStored>(
+	key: K,
+	value: SpeakOptionsStored[K]
+): Promise<void> {
+	const next = writeQueue.then(async () => {
+		const raw = await readRaw();
+		await db.settings.put({ key: KEY, value: { ...raw, [key]: value } });
+		await touchDataModified();
+	});
+	writeQueue = next.catch(() => {});
+	return next;
+}

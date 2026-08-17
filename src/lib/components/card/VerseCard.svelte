@@ -10,7 +10,9 @@
 	import type { DifficultyLevel } from '$lib/db/verseRatings';
 	import { normalizeForGrading } from '$lib/memorize/grade';
 	import { activeMarks, tokenizeVerse, type StoredMark } from '$lib/memorize/marks';
-	import { Highlighter } from 'lucide-svelte';
+	import { Highlighter, Repeat, Square, Volume2 } from 'lucide-svelte';
+	import { isTtsSupported, speak, speechSegments, type SpeakHandle } from '$lib/memorize/speak';
+	import { getSpeakOptions } from '$lib/db/viewOptions';
 	import { listChecks, recordCheck } from '$lib/db/checkHistory';
 	import type { CheckRecord } from '$lib/db/local';
 	import { goto } from '$app/navigation';
@@ -137,6 +139,48 @@
 	 *  curtain is fully open — you cannot usefully mark a word you cannot read. */
 	let marking = $state(false);
 
+	// ─── 읽어주기 ─────────────────────────────────────────────────────────────
+	/** Decided once; the control is absent rather than broken where synthesis
+	 *  is missing. */
+	const ttsSupported = isTtsSupported();
+	let speaking = $state(false);
+	/** Mirrors the stored setting so the button can show a loop is armed before
+	 *  the reader presses it, rather than surprising them with one. */
+	let repeatArmed = $state(false);
+	let speech: SpeakHandle | null = null;
+
+	$effect(() => {
+		getSpeakOptions()
+			.then((o) => (repeatArmed = o.speakRepeat))
+			.catch(() => {});
+	});
+
+	async function toggleSpeak() {
+		if (speaking) {
+			speech?.stop();
+			return;
+		}
+		const opts = await getSpeakOptions();
+		repeatArmed = opts.speakRepeat;
+		const segments = speechSegments(
+			{ title: verse.title, cite: verse.cite, w: verse.w },
+			{ includeTitle: opts.speakTitle }
+		);
+		speech = speak(segments, {
+			rate: opts.speakRate,
+			repeat: opts.speakRepeat,
+			onEnd: () => {
+				speaking = false;
+				speech = null;
+			}
+		});
+		speaking = speech !== null;
+	}
+
+	// Synthesis is global and outlives the component, so a card scrolled out of
+	// a 900-row list must not leave a voice running behind it.
+	$effect(() => () => speech?.stop());
+
 	function toggleMarking() {
 		marking = !marking;
 		if (marking) revealAll();
@@ -154,6 +198,7 @@
 		revealedCount = totalWords <= 1 ? totalWords : 0;
 	}
 	function enterCheck() {
+		speech?.stop();
 		mode = 'check';
 		if (packageId) {
 			listChecks(packageId, verse.no)
@@ -351,6 +396,33 @@
 								onpick={onPickFullDifficulty!}
 							/>
 						</div>
+					{/if}
+					{#if ttsSupported}
+						<!-- Icon only: the header already carries two badges and two
+						     mode buttons, and a fifth text pill does not fit a phone.
+						     The repeat icon stands in for the speaker when looping is
+						     armed, so a loop is never a surprise. -->
+						<button
+							type="button"
+							onclick={toggleSpeak}
+							aria-pressed={speaking}
+							aria-label={speaking
+								? '읽기 중지'
+								: repeatArmed
+									? `${verse.title} 반복해서 듣기`
+									: `${verse.title} 듣기`}
+							class="inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors {speaking
+								? 'bg-[var(--color-accent)] text-white'
+								: 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]'}"
+						>
+							{#if speaking}
+								<Square size={11} strokeWidth={2.5} fill="currentColor" />
+							{:else if repeatArmed}
+								<Repeat size={15} strokeWidth={2} />
+							{:else}
+								<Volume2 size={15} strokeWidth={2} />
+							{/if}
+						</button>
 					{/if}
 					<button
 						type="button"
