@@ -3,6 +3,9 @@ import { readFileSync, readdirSync } from 'node:fs';
 import {
 	bodyToSpeech,
 	citeToSpeech,
+	estimateDurationMs,
+	sliceFrom,
+	totalChars,
 	pickKoreanVoice,
 	voiceGender,
 	speechSegments
@@ -212,3 +215,52 @@ describe('picking by gender', () => {
 	});
 });
 
+
+describe('estimateDurationMs', () => {
+	// Chrome reports real boundary events; iOS Safari fires none, so without an
+	// estimate the bar would sit still through the whole verse there.
+	it('scales with the number of spoken characters', () => {
+		expect(estimateDurationMs('가'.repeat(55), 1)).toBe(10_000);
+	});
+
+	it('ignores whitespace, which is not spoken', () => {
+		expect(estimateDurationMs('가 나 다', 1)).toBe(estimateDurationMs('가나다', 1));
+	});
+
+	it('takes longer at a slower rate', () => {
+		expect(estimateDurationMs('가'.repeat(55), 0.5)).toBeGreaterThan(
+			estimateDurationMs('가'.repeat(55), 1)
+		);
+	});
+
+	it('is zero for nothing to say', () => {
+		expect(estimateDurationMs('   ', 1)).toBe(0);
+	});
+});
+
+describe('sliceFrom', () => {
+	const SCRIPT = ['창세기 28장 14절', '네 자손이 땅의 티끌'];
+
+	it('returns everything from the start', () => {
+		expect(sliceFrom(SCRIPT, 0)).toEqual(SCRIPT);
+	});
+
+	// Landing mid-word plays that word rather than skipping it, and never
+	// begins mid-syllable.
+	it('snaps back to the start of the word it lands in', () => {
+		const offset = SCRIPT[0].length + '네 자손'.length;
+		expect(sliceFrom(SCRIPT, offset)[0]).toBe('자손이 땅의 티끌');
+	});
+
+	it('drops the segments already spoken', () => {
+		expect(sliceFrom(SCRIPT, SCRIPT[0].length)).toEqual(['네 자손이 땅의 티끌']);
+	});
+
+	it('is empty past the end', () => {
+		expect(sliceFrom(SCRIPT, 999)).toEqual([]);
+	});
+
+	it('counts the whole script for the progress fraction', () => {
+		expect(totalChars(SCRIPT)).toBe(SCRIPT[0].length + SCRIPT[1].length);
+	});
+});

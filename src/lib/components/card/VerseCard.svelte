@@ -11,8 +11,9 @@
 	import { normalizeForGrading } from '$lib/memorize/grade';
 	import { activeMarks, tokenizeVerse, type StoredMark } from '$lib/memorize/marks';
 	import { Highlighter, Repeat, Square, Volume2 } from 'lucide-svelte';
-	import { isTtsSupported, speak, speechSegments, type SpeakHandle } from '$lib/memorize/speak';
-	import { getSpeakOptions, type SpeakOptionsStored } from '$lib/db/viewOptions';
+	import { createPlayer, isTtsSupported, speechSegments, type PlayerHandle } from '$lib/memorize/speak';
+	import VersePlayer from './VersePlayer.svelte';
+	import { getSpeakOptions, setSpeakOption, type SpeakOptionsStored } from '$lib/db/viewOptions';
 	import { listChecks, recordCheck } from '$lib/db/checkHistory';
 	import type { CheckRecord } from '$lib/db/local';
 	import { goto } from '$app/navigation';
@@ -161,7 +162,11 @@
 		speakVoice: '',
 		speakGender: 'auto'
 	});
-	let speech: SpeakHandle | null = null;
+	let player: PlayerHandle | null = null;
+	/** Shown while the player bar is open, which outlives a pause — closing it
+	 *  is a separate act from pausing, the same as any player. */
+	let playerOpen = $state(false);
+	let progress = $state({ fraction: 0, elapsedMs: 0, totalMs: 0 });
 
 	function refreshSpeakOpts() {
 		getSpeakOptions()
@@ -170,34 +175,70 @@
 	}
 	$effect(refreshSpeakOpts);
 
-	/** Synchronous from tap to speak(). Do not make this async. */
-	function toggleSpeak() {
-		if (speaking) {
-			speech?.stop();
-			return;
-		}
+	/** Synchronous from tap to speak(). Do not make this async: iOS only honours
+	 *  synthesis reached straight from the gesture. */
+	function startSpeaking(seekTo = 0) {
 		const segments = speechSegments(
 			{ title: verse.title, cite: verse.cite, w: verse.w },
 			{ includeTitle: speakOpts.speakTitle }
 		);
-		speech = speak(segments, {
+		player = createPlayer(segments, {
 			rate: speakOpts.speakRate,
 			voice: speakOpts.speakVoice || undefined,
 			gender: speakOpts.speakGender === 'auto' ? undefined : speakOpts.speakGender,
 			repeat: speakOpts.speakRepeat,
+			onProgress: (p) => (progress = p),
 			onEnd: () => {
 				speaking = false;
-				speech = null;
+				player = null;
 			}
 		});
-		speaking = speech !== null;
+		speaking = player !== null;
+		playerOpen = speaking;
+		if (seekTo > 0) player?.seek(seekTo);
 		// Pick up a settings change for next time, now that the gesture is spent.
 		refreshSpeakOpts();
 	}
 
+	function toggleSpeak() {
+		if (speaking) {
+			player?.pause();
+			speaking = false;
+			return;
+		}
+		if (player) {
+			player.resume();
+			speaking = true;
+			return;
+		}
+		startSpeaking();
+	}
+
+	function closePlayer() {
+		player?.stop();
+		player = null;
+		speaking = false;
+		playerOpen = false;
+		progress = { fraction: 0, elapsedMs: 0, totalMs: 0 };
+	}
+
+	function toggleSpeakRepeat() {
+		const next = !speakOpts.speakRepeat;
+		speakOpts = { ...speakOpts, speakRepeat: next };
+		setSpeakOption('speakRepeat', next).catch(() => {});
+		// The running utterance was created with the old setting, so restart to
+		// apply it rather than having the toggle take effect a verse later.
+		if (speaking) {
+			const at = progress.fraction;
+			player?.stop();
+			player = null;
+			startSpeaking(at);
+		}
+	}
+
 	// Synthesis is global and outlives the component, so a card scrolled out of
 	// a 900-row list must not leave a voice running behind it.
-	$effect(() => () => speech?.stop());
+	$effect(() => () => player?.stop());
 
 	function toggleMarking() {
 		marking = !marking;
@@ -216,7 +257,7 @@
 		revealedCount = totalWords <= 1 ? totalWords : 0;
 	}
 	function enterCheck() {
-		speech?.stop();
+		closePlayer();
 		mode = 'check';
 		if (packageId) {
 			listChecks(packageId, verse.no)
@@ -582,6 +623,25 @@
 				{/if}
 			</div>
 		</div>
+	{/if}
+
+	{#if playerOpen}
+		<VersePlayer
+			playing={speaking}
+			fraction={progress.fraction}
+			elapsedMs={progress.elapsedMs}
+			totalMs={progress.totalMs}
+			repeat={speakOpts.speakRepeat}
+			onToggle={toggleSpeak}
+			onSeek={(f) => {
+				player?.seek(f);
+				if (!speaking) {
+					speaking = true;
+				}
+			}}
+			onToggleRepeat={toggleSpeakRepeat}
+			onClose={closePlayer}
+		/>
 	{/if}
 
 	<!-- Bottom meta row: package name + tags. The verse number and bookmark ribbon

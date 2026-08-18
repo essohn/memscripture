@@ -295,3 +295,207 @@ export function speak(segments: string[], opts: SpeakOptions = {}): SpeakHandle 
 		}
 	};
 }
+
+// ─── Player ─────────────────────────────────────────────────────────────────
+
+/**
+ * Korean characters spoken per second at rate 1.0.
+ *
+ * Only an estimate, and only needed where the browser withholds the truth:
+ * Chrome reports real `boundary` events and the bar follows those exactly,
+ * but iOS Safari fires none, so without a fallback the bar would sit still
+ * through the whole verse.
+ */
+const CHARS_PER_SECOND = 5.5;
+
+export function estimateDurationMs(text: string, rate = 1): number {
+	const chars = text.replace(/\s+/g, '').length;
+	if (chars === 0) return 0;
+	return Math.round((chars / (CHARS_PER_SECOND * Math.max(rate, 0.1))) * 1000);
+}
+
+/** Characters in the whole script, which is what a progress fraction is of. */
+export function totalChars(segments: string[]): number {
+	return segments.reduce((n, s) => n + s.length, 0);
+}
+
+/**
+ * The script from a character offset onward, snapped back to the start of the
+ * word the offset lands in.
+ *
+ * Snapping backward rather than forward means a seek plays the word you landed
+ * on rather than skipping it — and never starts mid-syllable, which in Korean
+ * is not a sound anyone wants to hear.
+ */
+export function sliceFrom(segments: string[], offset: number): string[] {
+	if (offset <= 0) return [...segments];
+	let seen = 0;
+	for (let i = 0; i < segments.length; i++) {
+		const seg = segments[i];
+		if (offset < seen + seg.length) {
+			const within = offset - seen;
+			const head = seg.slice(0, within);
+			const wordStart = /\s/.test(seg[within] ?? '') ? within : head.lastIndexOf(' ') + 1;
+			return [seg.slice(wordStart).trimStart(), ...segments.slice(i + 1)].filter(Boolean);
+		}
+		seen += seg.length;
+	}
+	return [];
+}
+
+export interface PlayerProgress {
+	/** 0..1 through the whole script. */
+	fraction: number;
+	elapsedMs: number;
+	totalMs: number;
+}
+
+export interface PlayerHandle {
+	pause(): void;
+	resume(): void;
+	/** Jump to a fraction of the script and carry on from there. */
+	seek(fraction: number): void;
+	stop(): void;
+}
+
+export interface PlayerOptions extends SpeakOptions {
+	onProgress?: (p: PlayerProgress) => void;
+}
+
+/**
+ * Playback with a position — the difference between a speaker button and a
+ * player.
+ *
+ * The Web Speech API has no seek and no reliable pause on iOS, so both are
+ * built the same way: stop, and start again from a character offset. That one
+ * mechanism covers seeking, resuming, and repeating, and behaves identically
+ * on every platform rather than only where pause() happens to work.
+ */
+export function createPlayer(segments: string[], opts: PlayerOptions = {}): PlayerHandle | null {
+	if (!isTtsSupported() || segments.length === 0) return null;
+	const synth = window.speechSynthesis;
+
+	const chars = totalChars(segments);
+	const totalMs = estimateDurationMs(segments.join(' '), opts.rate ?? 1);
+
+	/** Characters completed before the current utterance began. */
+	let baseOffset = 0;
+	/** Position within the current utterance, from boundary events. */
+	let charInUtterance = 0;
+	let startedAt = 0;
+	let elapsedBefore = 0;
+	let stopped = false;
+	let paused = false;
+	let ticker: ReturnType<typeof setInterval> | null = null;
+	let current: SpeechSynthesisUtterance | null = null;
+
+	function elapsed(): number {
+		return paused || stopped ? elapsedBefore : elapsedBefore + (Date.now() - startedAt);
+	}
+
+	function report() {
+		// Boundary events give the truth where they exist; elsewhere the clock
+		// carries the bar. Whichever is further along is the honest one, since a
+		// missing boundary event never means we went backwards.
+		const byChars = chars > 0 ? (baseOffset + charInUtterance) / chars : 0;
+		const byClock = totalMs > 0 ? elapsed() / totalMs : 0;
+		opts.onProgress?.({
+			fraction: Math.min(1, Math.max(byChars, byClock)),
+			elapsedMs: elapsed(),
+			totalMs
+		});
+	}
+
+	function playFrom(offset: number) {
+		if (stopped) return;
+		const rest = sliceFrom(segments, offset);
+		if (rest.length === 0) {
+			finish();
+			return;
+		}
+		baseOffset = offset;
+		charInUtterance = 0;
+		// One utterance for the remainder: boundary charIndex is per utterance,
+		// so keeping it whole keeps the offset arithmetic in one place.
+		const u = new SpeechSynthesisUtterance(rest.join(' '));
+		u.lang = 'ko-KR';
+		const chosen = pickKoreanVoice(synth.getVoices(), {
+			wanted: opts.voice,
+			gender: opts.gender
+		});
+		if (chosen) u.voice = chosen as SpeechSynthesisVoice;
+		u.rate = opts.rate ?? 1;
+		u.onboundary = (e) => {
+			charInUtterance = e.charIndex ?? 0;
+			report();
+		};
+		u.onend = () => {
+			if (stopped || paused) return;
+			if (opts.repeat) {
+				elapsedBefore = 0;
+				startedAt = Date.now();
+				playFrom(0);
+				return;
+			}
+			finish();
+		};
+		u.onerror = () => finish();
+		current = u;
+		if (synth.speaking || synth.pending) synth.cancel();
+		synth.speak(u);
+	}
+
+	function finish() {
+		if (stopped) return;
+		stopped = true;
+		if (ticker !== null) clearInterval(ticker);
+		opts.onProgress?.({ fraction: 1, elapsedMs: totalMs, totalMs });
+		opts.onEnd?.();
+	}
+
+	ticker = setInterval(() => {
+		if (!stopped && !paused) report();
+	}, 200);
+
+	startedAt = Date.now();
+	playFrom(0);
+
+	return {
+		pause() {
+			if (stopped || paused) return;
+			paused = true;
+			elapsedBefore += Date.now() - startedAt;
+			synth.cancel();
+			report();
+		},
+		resume() {
+			if (stopped || !paused) return;
+			paused = false;
+			startedAt = Date.now();
+			playFrom(baseOffset + charInUtterance);
+		},
+		seek(fraction) {
+			if (stopped) return;
+			const clamped = Math.min(1, Math.max(0, fraction));
+			elapsedBefore = Math.round(totalMs * clamped);
+			startedAt = Date.now();
+			const offset = Math.round(chars * clamped);
+			if (paused) {
+				baseOffset = offset;
+				charInUtterance = 0;
+				report();
+				return;
+			}
+			playFrom(offset);
+			report();
+		},
+		stop() {
+			if (stopped) return;
+			stopped = true;
+			if (ticker !== null) clearInterval(ticker);
+			synth.cancel();
+			current = null;
+			opts.onEnd?.();
+		}
+	};
+}
