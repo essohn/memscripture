@@ -238,3 +238,54 @@ describe('밑줄: reader-placed underlines', () => {
 		expect(onToggleMark).not.toHaveBeenCalled();
 	});
 });
+
+describe('읽어주기 reaches the synthesizer from the tap itself', () => {
+	function stubSynthesis() {
+		const spoken: string[] = [];
+		const w = window as unknown as Record<string, unknown>;
+		w.speechSynthesis = {
+			speaking: false,
+			pending: false,
+			paused: false,
+			getVoices: () => [],
+			cancel: () => {},
+			resume: () => {},
+			speak: (u: { text: string }) => spoken.push(u.text)
+		};
+		w.SpeechSynthesisUtterance = class {
+			text: string;
+			lang = '';
+			rate = 1;
+			voice: unknown = null;
+			onend: (() => void) | null = null;
+			onerror: (() => void) | null = null;
+			constructor(text: string) {
+				this.text = text;
+			}
+		};
+		return {
+			spoken,
+			restore() {
+				delete w.speechSynthesis;
+				delete w.SpeechSynthesisUtterance;
+			}
+		};
+	}
+
+	// iOS Safari only honours speak() when it is reached synchronously from the
+	// gesture. Reading the options from IndexedDB first put an await in that
+	// path, and iOS answered with silence and no error — while desktop Chrome,
+	// which has no such rule, worked fine. Clicking without awaiting is what
+	// makes this test able to catch it coming back.
+	it('speaks without yielding to a microtask first', () => {
+		const synth = stubSynthesis();
+		try {
+			setup();
+			screen.getByRole('button', { name: /듣기/ }).click();
+			expect(synth.spoken.length).toBeGreaterThan(0);
+			expect(synth.spoken[0]).toContain('장');
+		} finally {
+			synth.restore();
+		}
+	});
+})

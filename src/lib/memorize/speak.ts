@@ -234,7 +234,10 @@ export function speak(segments: string[], opts: SpeakOptions = {}): SpeakHandle 
 	const synth = window.speechSynthesis;
 	// Whatever another card was saying stops here — speechSynthesis is one
 	// global queue, so two cards playing at once is not a thing that can happen.
-	synth.cancel();
+	// Guarded rather than unconditional: on iOS a cancel() immediately followed
+	// by speak() in the same tick swallows the utterance, so nothing is
+	// cancelled when there was nothing to cancel.
+	if (synth.speaking || synth.pending) synth.cancel();
 
 	let stopped = false;
 	let keepalive: ReturnType<typeof setInterval> | null = null;

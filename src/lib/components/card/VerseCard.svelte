@@ -12,7 +12,7 @@
 	import { activeMarks, tokenizeVerse, type StoredMark } from '$lib/memorize/marks';
 	import { Highlighter, Repeat, Square, Volume2 } from 'lucide-svelte';
 	import { isTtsSupported, speak, speechSegments, type SpeakHandle } from '$lib/memorize/speak';
-	import { getSpeakOptions } from '$lib/db/viewOptions';
+	import { getSpeakOptions, type SpeakOptionsStored } from '$lib/db/viewOptions';
 	import { listChecks, recordCheck } from '$lib/db/checkHistory';
 	import type { CheckRecord } from '$lib/db/local';
 	import { goto } from '$app/navigation';
@@ -144,39 +144,55 @@
 	 *  is missing. */
 	const ttsSupported = isTtsSupported();
 	let speaking = $state(false);
-	/** Mirrors the stored setting so the button can show a loop is armed before
-	 *  the reader presses it, rather than surprising them with one. */
-	let repeatArmed = $state(false);
+	/**
+	 * The stored options, held in memory.
+	 *
+	 * Loaded ahead of time on purpose. iOS Safari only honours
+	 * speechSynthesis.speak() when it is reached synchronously from the tap
+	 * that triggered it, and reading these from IndexedDB first put an await in
+	 * that path — which ended the gesture and made iOS refuse to speak, with no
+	 * error and no sound. Desktop Chrome has no such rule, which is why this
+	 * only ever failed on the phone.
+	 */
+	let speakOpts = $state<SpeakOptionsStored>({
+		speakTitle: false,
+		speakRate: 0.9,
+		speakRepeat: false,
+		speakVoice: '',
+		speakGender: 'auto'
+	});
 	let speech: SpeakHandle | null = null;
 
-	$effect(() => {
+	function refreshSpeakOpts() {
 		getSpeakOptions()
-			.then((o) => (repeatArmed = o.speakRepeat))
+			.then((o) => (speakOpts = o))
 			.catch(() => {});
-	});
+	}
+	$effect(refreshSpeakOpts);
 
-	async function toggleSpeak() {
+	/** Synchronous from tap to speak(). Do not make this async. */
+	function toggleSpeak() {
 		if (speaking) {
 			speech?.stop();
 			return;
 		}
-		const opts = await getSpeakOptions();
-		repeatArmed = opts.speakRepeat;
 		const segments = speechSegments(
 			{ title: verse.title, cite: verse.cite, w: verse.w },
-			{ includeTitle: opts.speakTitle }
+			{ includeTitle: speakOpts.speakTitle }
 		);
 		speech = speak(segments, {
-			rate: opts.speakRate,
-			voice: opts.speakVoice || undefined,
-			gender: opts.speakGender === 'auto' ? undefined : opts.speakGender,
-			repeat: opts.speakRepeat,
+			rate: speakOpts.speakRate,
+			voice: speakOpts.speakVoice || undefined,
+			gender: speakOpts.speakGender === 'auto' ? undefined : speakOpts.speakGender,
+			repeat: speakOpts.speakRepeat,
 			onEnd: () => {
 				speaking = false;
 				speech = null;
 			}
 		});
 		speaking = speech !== null;
+		// Pick up a settings change for next time, now that the gesture is spent.
+		refreshSpeakOpts();
 	}
 
 	// Synthesis is global and outlives the component, so a card scrolled out of
@@ -410,7 +426,7 @@
 							aria-pressed={speaking}
 							aria-label={speaking
 								? '읽기 중지'
-								: repeatArmed
+								: speakOpts.speakRepeat
 									? `${verse.title} 반복해서 듣기`
 									: `${verse.title} 듣기`}
 							class="inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors {speaking
@@ -419,7 +435,7 @@
 						>
 							{#if speaking}
 								<Square size={11} strokeWidth={2.5} fill="currentColor" />
-							{:else if repeatArmed}
+							{:else if speakOpts.speakRepeat}
 								<Repeat size={15} strokeWidth={2} />
 							{:else}
 								<Volume2 size={15} strokeWidth={2} />
