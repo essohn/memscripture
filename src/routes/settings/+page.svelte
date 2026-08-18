@@ -4,7 +4,13 @@
 	import ConfirmDialog from '$lib/components/feedback/ConfirmDialog.svelte';
 	import { goto } from '$app/navigation';
 	import { Cloud, CloudOff, RotateCcw, BookOpen, Volume2 } from 'lucide-svelte';
-	import { koreanVoices, speak, speechSegments, type VoiceLike } from '$lib/memorize/speak';
+	import {
+		koreanVoices,
+		speak,
+		speechSegments,
+		voiceGender,
+		type VoiceLike
+	} from '$lib/memorize/speak';
 	import {
 		SPEAK_RATES,
 		getSpeakOptions,
@@ -33,6 +39,13 @@
 	let speakRepeat = $state(false);
 	let speakRate = $state<SpeakRate>(0.9);
 	let speakVoice = $state('');
+	let speakGender = $state<'male' | 'female' | 'auto'>('auto');
+	const GENDERS = [
+		{ id: 'auto', label: '자동' },
+		{ id: 'female', label: '여성' },
+		{ id: 'male', label: '남성' }
+	] as const;
+	const GENDER_LABEL = { male: '남', female: '여' } as const;
 	let voices = $state<VoiceLike[]>([]);
 
 	// getVoices() is commonly empty on first call and filled asynchronously, so
@@ -50,6 +63,7 @@
 				speakRepeat = o.speakRepeat;
 				speakRate = o.speakRate;
 				speakVoice = o.speakVoice;
+				speakGender = o.speakGender;
 			})
 			.catch(() => {});
 	});
@@ -268,6 +282,32 @@
 
 		{#if voices.length > 0}
 			<div class="mt-4">
+				<span class="text-[13px] text-[var(--color-text)]">목소리 성별</span>
+				<div class="mt-2 flex flex-wrap gap-1.5">
+					{#each GENDERS as g (g.id)}
+						<button
+							type="button"
+							aria-pressed={speakGender === g.id}
+							onclick={() => {
+								speakGender = g.id;
+								setSpeakOption('speakGender', g.id);
+							}}
+							class="rounded-full border px-3 py-1 text-[12px] font-medium transition-colors {speakGender ===
+							g.id
+								? 'border-transparent bg-[var(--color-accent)] text-white'
+								: 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-elevated)]'}"
+						>
+							{g.label}
+						</button>
+					{/each}
+				</div>
+				<p class="mt-1.5 text-[11px] text-[var(--color-text-tertiary)]">
+					자동은 기기에서 가장 품질이 좋은 음성을 씁니다. 기기에 해당 성별의 한국어 음성이 없으면
+					가장 좋은 음성으로 대신합니다.
+				</p>
+			</div>
+
+			<div class="mt-4">
 				<span class="text-[13px] text-[var(--color-text)]">목소리</span>
 				<div class="mt-2 flex items-center gap-2">
 					<select
@@ -278,8 +318,11 @@
 					>
 						<option value="">자동 (가장 좋은 음성)</option>
 						{#each voices as v (v.name)}
+							{@const g = voiceGender(v.name)}
 							<option value={v.name}>
-								{v.name}{v.localService === false ? ' · 신경망' : ''}
+								{v.name}{g ? ` (${GENDER_LABEL[g]})` : ''}{v.localService === false
+									? ' · 신경망'
+									: ''}
 							</option>
 						{/each}
 					</select>
@@ -288,7 +331,8 @@
 						onclick={() =>
 							speak(speechSegments({ cite: '요한복음 3 : 16', w: '하나님이 세상을 이처럼 사랑하사' }), {
 								rate: speakRate,
-								voice: speakVoice || undefined
+								voice: speakVoice || undefined,
+								gender: speakGender === 'auto' ? undefined : speakGender
 							})}
 						class="shrink-0 rounded-full border border-[var(--color-border)] px-3 py-2 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)]"
 					>
@@ -296,8 +340,8 @@
 					</button>
 				</div>
 				<p class="mt-1.5 text-[11px] text-[var(--color-text-tertiary)]">
-					신경망 음성이 가장 자연스럽습니다. iPhone은 설정 → 손쉬운 사용 → 라이브 음성에서 고품질
-					한국어 음성을 내려받으면 더 좋아집니다.
+					비워두면 위 성별 설정에 따라 자동으로 고릅니다. iPhone은 설정 → 손쉬운 사용 → 라이브
+					음성에서 고품질 한국어 음성을 내려받으면 더 좋아집니다.
 				</p>
 			</div>
 		{/if}

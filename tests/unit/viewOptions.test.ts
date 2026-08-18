@@ -63,7 +63,8 @@ describe('읽어주기 options', () => {
 			speakTitle: false,
 			speakRate: 0.9,
 			speakRepeat: false,
-			speakVoice: ''
+			speakVoice: '',
+			speakGender: 'auto'
 		});
 	});
 
@@ -73,7 +74,13 @@ describe('읽어주기 options', () => {
 		await setSpeakOption('speakRepeat', true);
 		await setSpeakOption('speakRate', 0.6);
 		const o = await getSpeakOptions();
-		expect(o).toEqual({ speakTitle: false, speakRate: 0.6, speakRepeat: true, speakVoice: '' });
+		expect(o).toEqual({
+			speakTitle: false,
+			speakRate: 0.6,
+			speakRepeat: true,
+			speakVoice: '',
+			speakGender: 'auto'
+		});
 	});
 
 	it('leaves the unrelated view options alone', async () => {

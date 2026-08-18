@@ -105,6 +105,46 @@ export interface VoiceLike {
  */
 const PREFERRED_VOICES = [/Natural/i, /Neural/i, /SunHi/i, /InJoon/i, /Google/i, /Yuna/i];
 
+export type VoiceGender = 'male' | 'female';
+
+/**
+ * Gender by voice name, because the Web Speech API does not report it.
+ *
+ * Only names are available, so this is a lookup table of the Korean voices
+ * actually shipped by the three platforms. Apple's eight character voices use
+ * the same names in every language, so their genders hold across locales.
+ * A name that is not listed reports null rather than being guessed at.
+ */
+const VOICE_GENDERS: { re: RegExp; gender: VoiceGender }[] = [
+	// Microsoft neural — InJoon is the male one, SunHi the female.
+	{ re: /InJoon/i, gender: 'male' },
+	{ re: /SunHi|Heami/i, gender: 'female' },
+	// Apple narration
+	{ re: /^Yuna\b/i, gender: 'female' },
+	// Apple character voices, best-sounding first within each gender.
+	{ re: /^Reed\b/i, gender: 'male' },
+	{ re: /^Rocko\b/i, gender: 'male' },
+	{ re: /^Eddy\b/i, gender: 'male' },
+	{ re: /^Grandpa\b/i, gender: 'male' },
+	{ re: /^Flo\b/i, gender: 'female' },
+	{ re: /^Sandy\b/i, gender: 'female' },
+	{ re: /^Shelley\b/i, gender: 'female' },
+	{ re: /^Grandma\b/i, gender: 'female' },
+	// Chrome exposes exactly one Korean voice, and it is female.
+	{ re: /^Google/i, gender: 'female' }
+];
+
+export function voiceGender(name: string): VoiceGender | null {
+	return VOICE_GENDERS.find((g) => g.re.test(name))?.gender ?? null;
+}
+
+/** Order within a gender, so asking for a male voice still gets the best male
+ *  voice rather than the first one the platform happens to list. */
+function genderRank(v: VoiceLike): number {
+	const at = VOICE_GENDERS.findIndex((g) => g.re.test(v.name));
+	return at === -1 ? VOICE_GENDERS.length : at;
+}
+
 /**
  * Apple ships a row of character voices that are the wrong register for
  * scripture — and they sort ahead of Yuna alphabetically, so leaving the
@@ -126,14 +166,24 @@ function voiceRank(v: VoiceLike): number {
  * installed — voices come and go with OS updates, so a stale name falls back
  * to the ranking rather than to silence.
  */
-export function pickKoreanVoice<T extends VoiceLike>(voices: T[], wanted?: string): T | null {
+export function pickKoreanVoice<T extends VoiceLike>(
+	voices: T[],
+	opts: { wanted?: string; gender?: VoiceGender } = {}
+): T | null {
 	const korean = voices.filter((v) => /^ko/i.test(v.lang));
 	if (korean.length === 0) return null;
-	if (wanted) {
-		const exact = korean.find((v) => v.name === wanted);
+	if (opts.wanted) {
+		const exact = korean.find((v) => v.name === opts.wanted);
 		if (exact) return exact;
 	}
-	return [...korean].sort((a, b) => voiceRank(a) - voiceRank(b))[0];
+	// A gender preference narrows the field only when that field is not empty.
+	// Not every platform ships both, and no voice at all is worse than the
+	// wrong one.
+	const pool = opts.gender
+		? (korean.filter((v) => voiceGender(v.name) === opts.gender) ?? [])
+		: korean;
+	const field = pool.length > 0 ? pool : korean;
+	return [...field].sort((a, b) => voiceRank(a) - voiceRank(b) || genderRank(a) - genderRank(b))[0];
 }
 
 /** Korean voices installed here, best first, for the settings picker. */
@@ -157,6 +207,8 @@ export interface SpeakOptions {
 	/** Reader's chosen voice name; falls back to the ranking when absent or
 	 *  no longer installed. */
 	voice?: string;
+	/** Preferred gender, applied only when the device has such a voice. */
+	gender?: VoiceGender;
 	/** Keep reading the verse over and over until stopped. */
 	repeat?: boolean;
 	onEnd?: () => void;
@@ -208,7 +260,10 @@ export function speak(segments: string[], opts: SpeakOptions = {}): SpeakHandle 
 		u.lang = 'ko-KR';
 		// Chosen explicitly. With only `lang` set the platform picks, and on
 		// macOS the character voices sort ahead of the narration one.
-		const chosen = pickKoreanVoice(synth.getVoices(), opts.voice);
+		const chosen = pickKoreanVoice(synth.getVoices(), {
+			wanted: opts.voice,
+			gender: opts.gender
+		});
 		if (chosen) u.voice = chosen as SpeechSynthesisVoice;
 		u.rate = opts.rate ?? 1;
 		u.onend = () => say(index + 1);

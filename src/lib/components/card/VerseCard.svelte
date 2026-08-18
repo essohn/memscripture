@@ -169,6 +169,7 @@
 		speech = speak(segments, {
 			rate: opts.speakRate,
 			voice: opts.speakVoice || undefined,
+			gender: opts.speakGender === 'auto' ? undefined : opts.speakGender,
 			repeat: opts.speakRepeat,
 			onEnd: () => {
 				speaking = false;

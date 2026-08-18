@@ -82,13 +82,19 @@ export interface SpeakOptionsStored {
 	/** Chosen voice name, or '' to let the ranking decide. Voices differ by
 	 *  device and taste, so this is the reader's call when they want it. */
 	speakVoice: string;
+	/** Preferred voice gender. 'auto' takes whichever voice ranks best. */
+	speakGender: 'male' | 'female' | 'auto';
 }
 
 const SPEAK_DEFAULTS: SpeakOptionsStored = {
 	speakTitle: false,
 	speakRate: 0.9,
 	speakRepeat: false,
-	speakVoice: ''
+	speakVoice: '',
+	// Auto, which the quality ranking resolves to the neural voice — 'Google
+	// 한국의' on Chrome. Naming it here instead would go silent on iPhone,
+	// where it does not exist; the ranking degrades to the next best.
+	speakGender: 'auto'
 };
 
 export async function getSpeakOptions(): Promise<SpeakOptionsStored> {
@@ -99,7 +105,11 @@ export async function getSpeakOptions(): Promise<SpeakOptionsStored> {
 		speakRate: rate ?? SPEAK_DEFAULTS.speakRate,
 		speakRepeat:
 			typeof raw.speakRepeat === 'boolean' ? raw.speakRepeat : SPEAK_DEFAULTS.speakRepeat,
-		speakVoice: typeof raw.speakVoice === 'string' ? raw.speakVoice : SPEAK_DEFAULTS.speakVoice
+		speakVoice: typeof raw.speakVoice === 'string' ? raw.speakVoice : SPEAK_DEFAULTS.speakVoice,
+		speakGender:
+			raw.speakGender === 'male' || raw.speakGender === 'female' || raw.speakGender === 'auto'
+				? raw.speakGender
+				: SPEAK_DEFAULTS.speakGender
 	};
 }
 

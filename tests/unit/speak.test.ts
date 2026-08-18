@@ -4,6 +4,7 @@ import {
 	bodyToSpeech,
 	citeToSpeech,
 	pickKoreanVoice,
+	voiceGender,
 	speechSegments
 } from '../../src/lib/memorize/speak';
 
@@ -134,12 +135,12 @@ describe('pickKoreanVoice', () => {
 	});
 
 	it('honours an explicit choice', () => {
-		expect(pickKoreanVoice(MACOS, 'Yuna')?.name).toBe('Yuna');
+		expect(pickKoreanVoice(MACOS, { wanted: 'Yuna' })?.name).toBe('Yuna');
 	});
 
 	// Voices come and go with OS updates. A stale name must not mean silence.
 	it('falls back to the ranking when the chosen voice is gone', () => {
-		expect(pickKoreanVoice(MACOS, 'Yuna Premium (removed)')?.name).toBe('Google 한국의');
+		expect(pickKoreanVoice(MACOS, { wanted: 'Yuna Premium (removed)' })?.name).toBe('Google 한국의');
 	});
 
 	it('ignores voices of other languages', () => {
@@ -150,3 +151,64 @@ describe('pickKoreanVoice', () => {
 		expect(pickKoreanVoice([])).toBeNull();
 	});
 });
+
+describe('voice gender', () => {
+	// The API reports no gender, so this is a table of the voices the three
+	// platforms actually ship. An unknown name says so rather than guessing.
+	it.each([
+		['Yuna', 'female'],
+		['Google 한국의', 'female'],
+		['Microsoft SunHi Online (Natural) - Korean (Korea)', 'female'],
+		['Microsoft InJoon Online (Natural) - Korean (Korea)', 'male'],
+		['Reed (Korean (South Korea))', 'male'],
+		['Rocko (Korean (South Korea))', 'male'],
+		['Grandpa (Korean (South Korea))', 'male'],
+		['Grandma (Korean (South Korea))', 'female']
+	])('%s is %s', (name, gender) => {
+		expect(voiceGender(name)).toBe(gender);
+	});
+
+	it('admits when it does not know a voice', () => {
+		expect(voiceGender('Some Future Voice')).toBeNull();
+	});
+});
+
+describe('picking by gender', () => {
+	const MACOS = [
+		'Eddy (Korean (South Korea))',
+		'Grandpa (Korean (South Korea))',
+		'Reed (Korean (South Korea))',
+		'Rocko (Korean (South Korea))',
+		'Yuna',
+		'Google 한국의'
+	].map((name) => ({ name, lang: 'ko-KR' }));
+
+	// On macOS every male Korean voice is one of Apple's character voices, so
+	// asking for male means picking the best of those — not the first listed.
+	it('picks the best male voice, not merely the first', () => {
+		expect(pickKoreanVoice(MACOS, { gender: 'male' })?.name).toContain('Reed');
+	});
+
+	it('picks the neural voice when female is asked for', () => {
+		expect(pickKoreanVoice(MACOS, { gender: 'female' })?.name).toBe('Google 한국의');
+	});
+
+	it('prefers a neural male voice over a character one', () => {
+		const edge = [
+			{ name: 'Microsoft InJoon Online (Natural) - Korean (Korea)', lang: 'ko-KR' },
+			{ name: 'Reed (Korean (South Korea))', lang: 'ko-KR' }
+		];
+		expect(pickKoreanVoice(edge, { gender: 'male' })?.name).toContain('InJoon');
+	});
+
+	// No voice at all is worse than the wrong gender.
+	it('falls back rather than going silent when the gender is unavailable', () => {
+		const femaleOnly = [{ name: 'Google 한국의', lang: 'ko-KR' }];
+		expect(pickKoreanVoice(femaleOnly, { gender: 'male' })?.name).toBe('Google 한국의');
+	});
+
+	it('lets an explicit choice override the gender preference', () => {
+		expect(pickKoreanVoice(MACOS, { wanted: 'Yuna', gender: 'male' })?.name).toBe('Yuna');
+	});
+});
+
