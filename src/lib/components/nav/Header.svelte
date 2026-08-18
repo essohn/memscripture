@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Settings, Eye, EyeOff } from 'lucide-svelte';
+	import { Settings, Eye, EyeOff, Search } from 'lucide-svelte';
 	import { verseVisibility } from '$lib/state/verseVisibility.svelte';
 
 	interface Props {
@@ -8,8 +8,17 @@
 		onBack?: () => void;
 		/** Screens with no verse text on them hide the reveal toggle. */
 		showVerseToggle?: boolean;
+		/** Off on the search screen itself, which would otherwise offer a way
+		 *  back to where you already are. */
+		showSearch?: boolean;
 	}
-	let { title, showSettings = true, onBack, showVerseToggle = true }: Props = $props();
+	let {
+		title,
+		showSettings = true,
+		onBack,
+		showVerseToggle = true,
+		showSearch = true
+	}: Props = $props();
 
 	// Header is on every screen, so this is also where the stored preference
 	// gets read — once, guarded inside the store.
@@ -35,6 +44,15 @@
 		{/if}
 		<h1 class="text-lg font-semibold text-[var(--color-text)]">{title}</h1>
 		<div class="-mr-2 flex items-center">
+			{#if showSearch}
+				<a
+					href="/search"
+					aria-label="구절 검색"
+					class="p-2 text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
+				>
+					<Search size={20} strokeWidth={1.75} />
+				</a>
+			{/if}
 			{#if showVerseToggle}
 				<button
 					type="button"

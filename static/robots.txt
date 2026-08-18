@@ -9,5 +9,6 @@ Disallow: /bookmarks
 Disallow: /stats
 Disallow: /today
 Disallow: /settings
+Disallow: /search
 
 Sitemap: https://mem.lifescripture.org/sitemap.xml
