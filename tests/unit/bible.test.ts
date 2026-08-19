@@ -248,8 +248,10 @@ describe('citationSortKey', () => {
 		expect(citationSortKey('없는책 1 : 1')).toBeNull();
 	});
 
-	// 900_krv writes 느헤미야, 242_krv writes 느헤미아. Both are in shipped
-	// data, so both must resolve — this is an alias, not a correction.
+	// The shipped data now spells it 느헤미야 throughout — 242_krv used to write
+	// 느헤미아 and was corrected. The old form stays resolvable because a
+	// hand-typed OYO citation can still carry it, and a citation that resolves
+	// to nothing loses its reader link with no explanation.
 	it('accepts both spellings of 느헤미야', () => {
 		expect(getBookOrdinal('느헤미아')).toBe(16);
 		expect(getBookOrdinal('느헤미야')).toBe(16);

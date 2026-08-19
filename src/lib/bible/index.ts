@@ -14,7 +14,7 @@ const BOOK_ABBREVIATIONS = [
 
 const BOOK_FULL_NAMES = [
 	'창세기', '출애굽기', '레위기', '민수기', '신명기', '여호수아', '사사기', '룻기',
-	'사무엘상', '사무엘하', '열왕기상', '열왕기하', '역대상', '역대하', '에스라', '느헤미아',
+	'사무엘상', '사무엘하', '열왕기상', '열왕기하', '역대상', '역대하', '에스라', '느헤미야',
 	'에스더', '욥기', '시편', '잠언', '전도서', '아가', '이사야', '예레미야', '예레미야애가',
 	'에스겔', '다니엘', '호세아', '요엘', '아모스', '오바댜', '요나', '미가', '나훔',
 	'하박국', '스바냐', '학개', '스가랴', '말라기', '마태복음', '마가복음', '누가복음',
@@ -34,12 +34,17 @@ export interface ParsedRef {
 	endVerse: number | null;
 }
 
-/** Spellings present in the curated data that the canonical table does not
- *  carry. 900_krv writes '느헤미야' (the standard form) while 242_krv writes
- *  the table's '느헤미아', so both must resolve — replacing the table entry
- *  would simply break the other package. */
+/**
+ * Spellings that are not the canonical one but must still resolve.
+ *
+ * The table used to carry '느헤미아' because 242_krv spelled it that way while
+ * 900_krv used the standard '느헤미야'. The data has since been corrected, so
+ * the standard form is canonical and the old one is kept as an alias — an OYO
+ * verse typed by hand can still carry it, and a citation that resolves to
+ * nothing silently loses its reader link.
+ */
 const BOOK_ALIASES: Record<string, string> = {
-	느헤미야: '느헤미아'
+	느헤미아: '느헤미야'
 };
 
 /**

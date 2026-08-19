@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
-import { BOOKS_KO, parseVerseRef, readerHref } from '../../src/lib/bible/reference';
+import { parseVerseRef, readerHref } from '../../src/lib/bible/reference';
+import { getBookOrdinal } from '../../src/lib/bible/index';
 
-describe('BOOKS_KO', () => {
-	// The index IS the URL segment, so the order is load-bearing.
-	it('holds the whole canon in order', () => {
-		expect(BOOKS_KO).toHaveLength(66);
-		expect(BOOKS_KO[0]).toBe('창세기');
-		expect(BOOKS_KO[65]).toBe('요한계시록');
+describe('the canon comes from one table', () => {
+	// The URL segment is the shared table's ordinal minus one. This module used
+	// to carry a second copy of the 66 names, which promptly disagreed with the
+	// first about how to spell Nehemiah.
+	it('matches getBookOrdinal, zero-based', () => {
+		expect(parseVerseRef('창세기 1 : 1')?.bookIndex).toBe(getBookOrdinal('창세기')! - 1);
+		expect(parseVerseRef('요한계시록 22 : 21')?.bookIndex).toBe(getBookOrdinal('요한계시록')! - 1);
 	});
 });
 
@@ -21,13 +23,15 @@ describe('parseVerseRef', () => {
 	});
 
 	it('handles a book whose name carries a numeral', () => {
-		expect(parseVerseRef('요한일서 5 : 11-12')?.bookIndex).toBe(BOOKS_KO.indexOf('요한일서'));
+		expect(parseVerseRef('요한일서 5 : 11-12')?.bookIndex).toBe(getBookOrdinal('요한일서')! - 1);
 	});
 
-	// This corpus writes 느헤미아; the reader spells it 느헤미야. Aliased rather
-	// than corrected in data that is not ours to rewrite.
-	it('accepts this corpus spelling of Nehemiah', () => {
-		expect(parseVerseRef('느헤미아 8 : 8')?.bookIndex).toBe(BOOKS_KO.indexOf('느헤미야'));
+	// The data now spells it the standard way, but the old form stays resolvable
+	// — an OYO verse typed by hand can still carry it, and an unresolved
+	// citation loses its link with no explanation.
+	it('still accepts the old spelling of Nehemiah', () => {
+		expect(parseVerseRef('느헤미아 8 : 8')?.bookIndex).toBe(getBookOrdinal('느헤미야')! - 1);
+		expect(parseVerseRef('느헤미야 8 : 8')?.bookIndex).toBe(getBookOrdinal('느헤미야')! - 1);
 	});
 
 	// A link into the wrong book is worse than no link: it looks like the app
