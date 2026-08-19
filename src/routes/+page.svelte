@@ -2,6 +2,7 @@
 	import Header from '$lib/components/nav/Header.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
 	import EventSection from '$lib/components/home/EventSection.svelte';
+	import { getGoogleOauthClientId } from '$lib/sync/clientId';
 	import { getJoinedGroups } from '$lib/db/groups';
 	import { Sparkles, X, Info, ChevronRight } from 'lucide-svelte';
 	import {
@@ -189,6 +190,7 @@
 <main class="mx-auto max-w-2xl px-5 pb-8 pt-6">
 	<EventSection
 		events={eventCards}
+		clientId={getGoogleOauthClientId()}
 		onEmpty={() => (toast = { message: '내보낼 구절이 없습니다' })}
 		onError={() => (toast = { message: '내보내기 실패: 다시 시도해주세요' })}
 	/>
