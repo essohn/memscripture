@@ -446,23 +446,29 @@
 >
 	<header class="space-y-1">
 		<div class="flex items-start justify-between gap-3">
-			<h2
-				class="min-w-0 flex-1 text-[calc(19px*var(--vfs))] font-bold leading-tight text-[var(--color-text)]"
-			>
-				{verse.title}
-			</h2>
+			<!-- The popper rides with the title, not with the difficulty badges: it
+			     is something the verse earned, while that cluster is a set of
+			     controls. Outside the h2 rather than inside it so the heading's
+			     accessible name stays the title alone. items-center keeps the icon
+			     on the text's optical centre for the one-line titles that are the
+			     norm here. -->
+			<div class="flex min-w-0 flex-1 items-center gap-1.5">
+				<h2
+					class="min-w-0 text-[calc(19px*var(--vfs))] font-bold leading-tight text-[var(--color-text)]"
+				>
+					{verse.title}
+				</h2>
+				{#if mode === 'read' && (perfect || earnedNow)}
+					<PartyPopper
+						size={15}
+						strokeWidth={2}
+						class="shrink-0 text-[var(--color-accent)]"
+						aria-label="완벽하게 암송한 구절"
+					/>
+				{/if}
+			</div>
 			<div class="flex shrink-0 items-center gap-1">
 				{#if mode === 'read'}
-					{#if perfect || earnedNow}
-						<!-- Beside the difficulty badges: this is a mark of how the verse
-						     has gone, which is what that cluster is for. -->
-						<PartyPopper
-							size={15}
-							strokeWidth={2}
-							class="shrink-0 text-[var(--color-accent)]"
-							aria-label="완벽하게 암송한 구절"
-						/>
-					{/if}
 					{#if ratingsEnabled}
 						<div class="flex items-center gap-1">
 							<DifficultyBadge

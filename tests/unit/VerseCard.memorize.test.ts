@@ -303,8 +303,8 @@ describe('완벽 배지', () => {
 		expect(badge()).toBeInTheDocument();
 	});
 
-	// It sits with the difficulty badges, which the header only shows in read
-	// mode, so it appears as the card closes back — no reload needed. The
+	// It sits beside the title, which the header only renders in read mode,
+	// so it appears as the card closes back — no reload needed. The
 	// success view auto-closes a few seconds after the confetti, so in practice
 	// the two land together.
 	it('appears without a reload once the check closes', async () => {
