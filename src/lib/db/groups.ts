@@ -1,6 +1,6 @@
 import { db } from './local';
 import { touchDataModified } from './touchData';
-import { normalizeGroupCode } from '$lib/groups/visibility';
+import { normalizeGroupCode, resolveGroupCode } from '$lib/groups/visibility';
 
 const KEY = 'joined_groups';
 const CATALOG_URL = '/data/groups.json';
@@ -31,9 +31,11 @@ export async function getJoinedGroups(): Promise<string[]> {
 /** Joins a group by code. Returns the group when the code is known, null when
  *  it is not — the caller says so rather than silently storing a typo. */
 export async function joinGroup(code: string): Promise<GroupInfo | null> {
-	const id = normalizeGroupCode(code);
-	if (!id) return null;
 	const catalog = await loadGroupCatalog();
+	// Resolved against the catalog rather than normalized blindly, so CDMB and
+	// CDM-B both land on cdm-b — and an ambiguous code lands on nothing.
+	const id = resolveGroupCode(Object.keys(catalog), code);
+	if (!id) return null;
 	const info = catalog[id];
 	if (!info) return null;
 	await serialize(async () => {

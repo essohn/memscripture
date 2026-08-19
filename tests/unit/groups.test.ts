@@ -28,8 +28,10 @@ describe('joining a group', () => {
 	});
 
 	// Someone who heard the code at a meeting types it however it sounded.
-	it('accepts the code however it was typed', async () => {
-		expect(await joinGroup(' CDM B ')).not.toBeNull();
+	it.each([' CDM B ', 'CDMB', 'cdm_b', 'CDM-B'])('accepts %s', async (typed) => {
+		expect(await joinGroup(typed)).not.toBeNull();
+		// Stored canonically whatever was typed, so the id in packages.json and
+		// events.json is the only form that has to be got right.
 		expect(await getJoinedGroups()).toEqual(['cdm-b']);
 	});
 

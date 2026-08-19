@@ -19,9 +19,8 @@ export interface GroupScoped {
 }
 
 /**
- * Codes are compared loosely: a reader typing what they heard at a meeting
- * writes `CDM-B`, `cdm b` or `cdm_b`, and all three mean the group whose id is
- * `cdm-b`. Only the stored ids are canonical.
+ * Canonical form, used for storage and display: lowercase, separators unified
+ * to a single hyphen.
  */
 export function normalizeGroupCode(code: string): string {
 	return code
@@ -32,11 +31,42 @@ export function normalizeGroupCode(code: string): string {
 		.replace(/^-|-$/g, '');
 }
 
+/**
+ * The loose key codes are compared on: letters and digits only.
+ *
+ * A reader typing what they heard at a meeting writes `CDM-B`, `CDMB`,
+ * `cdm b` or `cdm_b`, and every one of them means the group whose id is
+ * `cdm-b`. Nobody remembers where the hyphen went, so it cannot be the thing
+ * that decides whether they get in.
+ */
+export function groupMatchKey(code: string): string {
+	return code.toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
+}
+
+/**
+ * The group a typed code refers to, or null.
+ *
+ * An exact id wins outright. Otherwise the loose key decides — but only if it
+ * picks out exactly one group: dropping separators makes `cdm-b` and `cd-mb`
+ * the same key, and with more than one group in the catalog that is a real
+ * collision. Guessing between two groups would put a reader in the wrong 지구
+ * silently, so an ambiguous code is refused like an unknown one.
+ */
+export function resolveGroupCode(catalogIds: string[], code: string): string | null {
+	const exact = normalizeGroupCode(code);
+	if (!exact) return null;
+	if (catalogIds.includes(exact)) return exact;
+	const key = groupMatchKey(code);
+	if (!key) return null;
+	const hits = catalogIds.filter((id) => groupMatchKey(id) === key);
+	return hits.length === 1 ? hits[0] : null;
+}
+
 /** Whether a reader in `myGroups` may see `item`. */
 export function isVisibleTo(item: GroupScoped, myGroups: string[]): boolean {
 	if (!item.groups || item.groups.length === 0) return true;
-	const mine = new Set(myGroups.map(normalizeGroupCode));
-	return item.groups.some((g) => mine.has(normalizeGroupCode(g)));
+	const mine = new Set(myGroups.map(groupMatchKey));
+	return item.groups.some((g) => mine.has(groupMatchKey(g)));
 }
 
 export function visibleTo<T extends GroupScoped>(items: T[], myGroups: string[]): T[] {

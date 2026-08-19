@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+	groupMatchKey,
 	isVisibleTo,
 	normalizeGroupCode,
+	resolveGroupCode,
 	visiblePackages,
 	visibleTo
 } from '../../src/lib/groups/visibility';
@@ -14,6 +16,48 @@ describe('normalizeGroupCode', () => {
 
 	it('leaves an already-canonical code alone', () => {
 		expect(normalizeGroupCode('cdm-b')).toBe('cdm-b');
+	});
+});
+
+describe('groupMatchKey', () => {
+	// Nobody remembers where the hyphen went, so it cannot decide whether a
+	// reader gets in.
+	it.each(['CDM-B', 'CDMB', 'cdm b', 'cdm_b', 'c d m b'])('%s matches cdm-b', (typed) => {
+		expect(groupMatchKey(typed)).toBe(groupMatchKey('cdm-b'));
+	});
+
+	it('keeps different codes apart', () => {
+		expect(groupMatchKey('cdm-b')).not.toBe(groupMatchKey('cdm-c'));
+	});
+
+	it('handles a Korean code', () => {
+		expect(groupMatchKey('강남 지구')).toBe(groupMatchKey('강남지구'));
+	});
+});
+
+describe('resolveGroupCode', () => {
+	const CATALOG = ['cdm-b', 'cdm-c'];
+
+	it('accepts the code written any way', () => {
+		for (const typed of ['cdm-b', 'CDM-B', 'CDMB', 'cdm b', ' cdm_b ']) {
+			expect(resolveGroupCode(CATALOG, typed)).toBe('cdm-b');
+		}
+	});
+
+	it('refuses a code for no group', () => {
+		expect(resolveGroupCode(CATALOG, 'cdm-z')).toBeNull();
+		expect(resolveGroupCode(CATALOG, '  ')).toBeNull();
+	});
+
+	// Dropping separators makes these one key. Guessing would put a reader in
+	// the wrong 지구 without saying so, so an ambiguous code is refused.
+	it('refuses rather than guessing between two groups that collide', () => {
+		expect(resolveGroupCode(['cdm-b', 'cd-mb'], 'cdmb')).toBeNull();
+	});
+
+	// An id typed exactly still wins, even where the loose key is ambiguous.
+	it('takes an exact id over an ambiguous loose match', () => {
+		expect(resolveGroupCode(['cdm-b', 'cd-mb'], 'cd-mb')).toBe('cd-mb');
 	});
 });
 
@@ -42,6 +86,7 @@ describe('isVisibleTo', () => {
 
 	it('compares loosely on both sides', () => {
 		expect(isVisibleTo({ groups: ['CDM-B'] }, ['cdm b'])).toBe(true);
+		expect(isVisibleTo({ groups: ['cdm-b'] }, ['CDMB'])).toBe(true);
 	});
 });
 
