@@ -10,7 +10,7 @@
 	import type { DifficultyLevel } from '$lib/db/verseRatings';
 	import { normalizeForGrading } from '$lib/memorize/grade';
 	import { activeMarks, tokenizeVerse, type StoredMark } from '$lib/memorize/marks';
-	import { BookOpen, Highlighter, PartyPopper, Repeat, Square, Volume2 } from 'lucide-svelte';
+	import { BookOpen, Highlighter, PartyPopper, Play, Square } from 'lucide-svelte';
 	import { readerHref } from '$lib/bible/reference';
 	import { createPlayer, isTtsSupported, speechSegments, type PlayerHandle } from '$lib/memorize/speak';
 	import VersePlayer from './VersePlayer.svelte';
@@ -480,8 +480,13 @@
 					{#if ttsSupported}
 						<!-- Icon only: the header already carries two badges and two
 						     mode buttons, and a fifth text pill does not fit a phone.
-						     The repeat icon stands in for the speaker when looping is
-						     armed, so a loop is never a surprise. -->
+
+						     Always a play triangle. It used to swap to a repeat symbol
+						     when looping was armed, on the idea that a loop should not
+						     surprise anyone — but that made the control announce a
+						     setting instead of what pressing it does, and it read as a
+						     repeat button. The loop is still visible where it can be
+						     acted on: the player bar's own repeat toggle lights up. -->
 						<button
 							type="button"
 							onclick={toggleSpeak}
@@ -497,10 +502,8 @@
 						>
 							{#if speaking}
 								<Square size={11} strokeWidth={2.5} fill="currentColor" />
-							{:else if speakOpts.speakRepeat}
-								<Repeat size={15} strokeWidth={2} />
 							{:else}
-								<Volume2 size={15} strokeWidth={2} />
+								<Play size={14} strokeWidth={2} fill="currentColor" />
 							{/if}
 						</button>
 					{/if}
