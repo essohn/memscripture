@@ -91,6 +91,14 @@
  * from the prod build and the bookmark UI renders with transparent dots.
  */
 :root {
+	/*
+	 * Ink for anything sitting on --color-accent. Not theme-flipped on purpose:
+	 * the accent is a light gold in BOTH themes (#c9a86a / #d4b47a), so the only
+	 * legible ink on it is a dark brown either way. --color-text cannot serve —
+	 * it inverts to cream in dark, which on gold is barely 2:1.
+	 */
+	--color-on-accent: #3a2e25;
+
 	--color-ribbon-red: #b5654e;
 	--color-ribbon-amber: #d4a55a;
 	--color-ribbon-green: #6b8e5a;

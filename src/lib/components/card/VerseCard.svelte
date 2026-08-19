@@ -526,7 +526,7 @@
 					target="_blank"
 					rel="noopener"
 					aria-label="{verse.cite} 성경에서 보기"
-					class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-accent)]"
+					class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-soft)] text-[var(--color-accent)] transition-opacity hover:opacity-80"
 				>
 					<BookOpen size={15} strokeWidth={2} />
 				</a>
@@ -541,7 +541,9 @@
 				     A speaker, not a transport control: beside the book link it has
 				     to read as "hear this verse" the way the book reads as "read this
 				     verse", and a play triangle beside a book looked like a media
-				     widget the card does not have. It also stays one symbol — it used
+				     widget the card does not have. Filled where the book link is
+				     tinted, because this one acts on the card while the book leaves
+				     for another site. It also stays one symbol — it used
 				     to swap to a repeat mark when looping was armed, which announced a
 				     setting rather than what pressing it does. The loop stays visible
 				     where it can be acted on: the player bar's own repeat toggle
@@ -556,12 +558,13 @@
 							? `${verse.title} 반복해서 듣기`
 							: `${verse.title} 듣기`}
 					class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors {speaking
-						? 'bg-[var(--color-accent)] text-white'
-						: 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]'}"
+						? 'bg-[var(--color-text)] text-[var(--color-canvas)]'
+						: 'bg-[var(--color-accent)] text-[var(--color-on-accent)] hover:opacity-90'}"
 				>
 					{#if speaking}
-						<!-- Stop, not a muted speaker: the accent fill already says it is
-						     playing, and the tap has to promise what it does. -->
+						<!-- Stop, not a muted speaker: the tap has to promise what it does.
+						     The chip inks over while speaking — the gold fill is now the
+						     idle look, so playing needs a state of its own. -->
 						<Square size={11} strokeWidth={2.5} fill="currentColor" />
 					{:else}
 						<Volume2 size={15} strokeWidth={2} />
