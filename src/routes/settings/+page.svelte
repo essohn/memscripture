@@ -316,7 +316,7 @@
 				type="text"
 				autocapitalize="characters"
 				aria-label="그룹 코드"
-				placeholder="그룹 코드 (예: CDM-B)"
+				placeholder="그룹 코드"
 				class="min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[13px] text-[var(--color-text)] placeholder:text-[var(--color-text-tertiary)]"
 			/>
 			<button

@@ -2,12 +2,36 @@ import { db, type StoredVerse } from './local';
 import { seedOyoPackageIfMissing } from './oyo';
 import { getPackageOrder } from './packageOrder';
 import { getJoinedGroups } from './groups';
-import { packagesToInstall } from '$lib/groups/visibility';
+import { visiblePackages } from '$lib/groups/visibility';
 import type { IndexGroup, PackageMeta, Verse } from '$lib/types';
 
 const PACKAGES_URL = '/data/packages.json';
 const GROUPS_URL = '/data/packages_index.json';
 let groupsCache: IndexGroup[] | null = null;
+
+/**
+ * Packages the reader has actually worked in.
+ *
+ * One index scan of unique keys per table rather than a count per package —
+ * the library list calls this on every render, and seven packages times four
+ * tables would be twenty-eight queries for a question answered by four.
+ *
+ * checkHistory is not consulted: finishing a check always writes a rating, so
+ * it would never add a package the ratings table has not already named.
+ */
+async function packagesWithUserData(): Promise<Set<string>> {
+	const touched = new Set<string>();
+	const tables = [db.verseRatings, db.progress, db.bookmarks, db.verseMarks];
+	await Promise.all(
+		tables.map((t) =>
+			t
+				.orderBy('packageId')
+				.eachUniqueKey((k) => touched.add(String(k)))
+				.catch(() => {})
+		)
+	);
+	return touched;
+}
 
 export async function listPackages(): Promise<PackageMeta[]> {
 	// Ordering rules, in priority order:
@@ -37,10 +61,22 @@ export async function listPackages(): Promise<PackageMeta[]> {
 	// race where the library could render without the OYO card on a fresh IDB.
 	await seedOyoPackageIfMissing();
 
+	// Group-scoped packages are withheld from readers outside the group — but
+	// never from one who has worked in them. Filtered on read rather than
+	// deleted: joining later brings the package back with its rows intact.
+	const [joined, touched] = await Promise.all([
+		getJoinedGroups().catch(() => [] as string[]),
+		packagesWithUserData().catch(() => new Set<string>())
+	]);
+
 	const cached = await db.packages.toArray();
 	const hasCurated = cached.some((p) => (p.kind ?? 'builtin') === 'builtin');
 	if (hasCurated) {
-		return cached.map((p) => ({ ...p, kind: p.kind ?? 'builtin' })).sort(byOrder);
+		return visiblePackages(
+			cached.map((p) => ({ ...p, kind: p.kind ?? 'builtin' })),
+			joined,
+			touched
+		).sort(byOrder);
 	}
 
 	// First time on this device: curated packages not yet installed. Fetch and
@@ -53,20 +89,15 @@ export async function listPackages(): Promise<PackageMeta[]> {
 		id,
 		kind: meta.kind ?? 'builtin'
 	}));
-	// Group-scoped packages are only installed for readers who belong. Anything
-	// already on the device is kept regardless — see packagesToInstall.
-	const joined = await getJoinedGroups().catch(() => [] as string[]);
-	await db.packages.bulkPut(
-		packagesToInstall(
-			curated,
-			joined,
-			cached.map((p) => p.id)
-		)
-	);
+	await db.packages.bulkPut(curated);
 
 	// Re-read so any user-kind rows (OYO seeded above) come along.
 	const all = await db.packages.toArray();
-	return all.map((p) => ({ ...p, kind: p.kind ?? 'builtin' })).sort(byOrder);
+	return visiblePackages(
+		all.map((p) => ({ ...p, kind: p.kind ?? 'builtin' })),
+		joined,
+		touched
+	).sort(byOrder);
 }
 
 export async function isPackageInstalled(packageId: string): Promise<boolean> {

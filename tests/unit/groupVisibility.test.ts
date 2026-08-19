@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	isVisibleTo,
 	normalizeGroupCode,
-	packagesToInstall,
+	visiblePackages,
 	visibleTo
 } from '../../src/lib/groups/visibility';
 
@@ -45,34 +45,43 @@ describe('isVisibleTo', () => {
 	});
 });
 
-describe('packagesToInstall', () => {
+describe('visiblePackages', () => {
 	const AVAILABLE = [
 		{ id: '5_krv' },
 		{ id: '100_krv', groups: ['cdm-b'] },
 		{ id: '900_krv', groups: ['cdm-b'] }
 	];
 
-	it('installs the open packages for everyone', () => {
-		expect(packagesToInstall(AVAILABLE, [], []).map((p) => p.id)).toEqual(['5_krv']);
+	it('shows the open packages to everyone', () => {
+		expect(visiblePackages(AVAILABLE, [], []).map((p) => p.id)).toEqual(['5_krv']);
 	});
 
 	it('adds the group packages for a member', () => {
-		expect(packagesToInstall(AVAILABLE, ['cdm-b'], []).map((p) => p.id)).toEqual([
+		expect(visiblePackages(AVAILABLE, ['cdm-b'], []).map((p) => p.id)).toEqual([
 			'5_krv',
 			'100_krv',
 			'900_krv'
 		]);
 	});
 
-	// The one rule that matters most. Every reader had all seven packages before
-	// groups existed, and some have memorized their way through 900구절.
-	// Withdrawing a package because a boundary was drawn later would delete the
-	// shelf their work sits on.
-	it('never withdraws a package the reader already has', () => {
-		const ids = packagesToInstall(AVAILABLE, [], ['900_krv']).map((p) => p.id);
-		expect(ids).toContain('900_krv');
-		expect(ids).toContain('5_krv');
-		expect(ids).not.toContain('100_krv');
+	// The rule that matters most: a reader who has memorized their way through
+	// 900구절 must not lose it because a boundary was drawn later.
+	it('keeps a package the reader has worked in', () => {
+		const ids = visiblePackages(AVAILABLE, [], ['900_krv']).map((p) => p.id);
+		expect(ids).toEqual(['5_krv', '900_krv']);
+	});
+
+	// The mistake this replaced. Every reader was auto-given all seven packages
+	// on first launch, so keying on "installed" kept everything for everyone and
+	// the gate did nothing at all.
+	it('is not satisfied by mere installation', () => {
+		expect(visiblePackages(AVAILABLE, [], []).map((p) => p.id)).not.toContain('900_krv');
+	});
+
+	// 내 구절 is the reader's own and belongs to no group by construction.
+	it('always keeps the user own package', () => {
+		const withOyo = [...AVAILABLE, { id: 'oyo', kind: 'user' }];
+		expect(visiblePackages(withOyo, [], []).map((p) => p.id)).toContain('oyo');
 	});
 });
 

@@ -44,19 +44,25 @@ export function visibleTo<T extends GroupScoped>(items: T[], myGroups: string[])
 }
 
 /**
- * Which packages to auto-install for this reader.
+ * Which packages this reader should see.
  *
- * Anything already installed stays, whatever group it names. Readers had every
- * package before groups existed, and some of them have memorized their way
- * through 900구절 — taking a package away because a group boundary was drawn
- * later would delete the shelf their work sits on. Group scoping decides what
- * is *offered*, never what is *removed*.
+ * A group package is shown to a member, and to anyone who has actually worked
+ * in it — ratings, progress, bookmarks or underlines. Nothing else earns it.
+ *
+ * The distinction is *used*, not *installed*, and getting that wrong once made
+ * the whole gate invisible: every reader was auto-given all seven packages on
+ * first launch, so "keep what is installed" kept everything for everyone.
+ * Meanwhile a reader who has memorized their way through 900구절 must not lose
+ * it because a boundary was drawn later — that would delete the shelf their
+ * work sits on. Having worked in it is what separates the two.
  */
-export function packagesToInstall<T extends GroupScoped & { id: string }>(
+export function visiblePackages<T extends GroupScoped & { id: string; kind?: string }>(
 	available: T[],
 	myGroups: string[],
-	installedIds: string[]
+	packagesWithData: Iterable<string>
 ): T[] {
-	const installed = new Set(installedIds);
-	return available.filter((p) => installed.has(p.id) || isVisibleTo(p, myGroups));
+	const touched = new Set(packagesWithData);
+	return available.filter(
+		(p) => p.kind === 'user' || isVisibleTo(p, myGroups) || touched.has(p.id)
+	);
 }
