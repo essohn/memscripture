@@ -427,3 +427,79 @@ describe('confetti fires only for a flawless recitation', () => {
 		expect(asked()).toBe('false');
 	});
 })
+
+describe('the success view closes itself', () => {
+	const countdown = () => screen.queryByTestId('auto-close')?.textContent?.trim();
+
+	async function succeed() {
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+	}
+
+	it('counts down from five beside 닫기', async () => {
+		setup();
+		await succeed();
+		expect(countdown()).toBe('5');
+	});
+
+	it('closes when it reaches zero', async () => {
+		vi.useFakeTimers();
+		try {
+			const { onClose } = setup();
+			await type(VERSE);
+			await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+			expect(onClose).not.toHaveBeenCalled();
+			await vi.advanceTimersByTimeAsync(5000);
+			expect(onClose).toHaveBeenCalledTimes(1);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	// The success view carries editable difficulty badges. Closing while
+	// someone is choosing a level would take the screen out from under them.
+	it('stops on a touch inside the panel', async () => {
+		vi.useFakeTimers();
+		try {
+			const { onClose } = setup();
+			await type(VERSE);
+			await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+			await fireEvent.pointerDown(screen.getByTestId('memorize-success'));
+			await vi.advanceTimersByTimeAsync(8000);
+			expect(onClose).not.toHaveBeenCalled();
+			expect(countdown()).toBeUndefined();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('stops when a level is adjusted', async () => {
+		vi.useFakeTimers();
+		try {
+			const { onClose } = setup();
+			await type(VERSE);
+			await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+			await fireEvent.click(screen.getByLabelText(/전체 암송 난이도/));
+			await fireEvent.click(screen.getByRole('menuitemradio', { name: /^3 / }));
+			await vi.advanceTimersByTimeAsync(8000);
+			expect(onClose).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	// 다시 leaves the success view for a fresh attempt; nothing should close it.
+	it('does not close after 다시 returns to the input', async () => {
+		vi.useFakeTimers();
+		try {
+			const { onClose } = setup();
+			await type(VERSE);
+			await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+			await fireEvent.click(screen.getByRole('button', { name: '다시' }));
+			await vi.advanceTimersByTimeAsync(8000);
+			expect(onClose).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+})

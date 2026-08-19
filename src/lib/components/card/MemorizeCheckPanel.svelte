@@ -88,6 +88,52 @@
 	 * themselves would celebrate the wrong thing.
 	 */
 	let celebrate = $state(false);
+
+	/**
+	 * Seconds left before the success view closes itself, or null once it is not
+	 * closing.
+	 *
+	 * Safe to automate because nothing is lost: the result is already written by
+	 * the time this view appears, and reopening is one tap. That is the
+	 * difference from the auto-commit countdown this app removed earlier — that
+	 * one performed a write on the reader's behalf.
+	 */
+	const AUTO_CLOSE_SECONDS = 5;
+	let closingIn = $state<number | null>(null);
+
+	/** Any deliberate touch inside the panel stops the clock. The success view
+	 *  carries editable difficulty badges, and closing while someone is choosing
+	 *  a level would take the screen out from under them. */
+	function cancelAutoClose() {
+		closingIn = null;
+	}
+
+	/** Whether the success view is up — deliberately a boolean rather than
+	 *  `saved` itself. Adjusting a level reassigns `saved`, and an effect that
+	 *  depended on the object restarted the countdown on the very interaction
+	 *  that was supposed to stop it. */
+	const showingSuccess = $derived(saved !== null);
+
+	$effect(() => {
+		if (!showingSuccess) {
+			closingIn = null;
+			return;
+		}
+		closingIn = AUTO_CLOSE_SECONDS;
+		const id = setInterval(() => {
+			if (closingIn === null) {
+				clearInterval(id);
+				return;
+			}
+			closingIn -= 1;
+			if (closingIn <= 0) {
+				clearInterval(id);
+				closingIn = null;
+				onClose();
+			}
+		}, 1000);
+		return () => clearInterval(id);
+	});
 	/** Collapsed by default: the input is what the reader came for, and ten rows
 	 *  above it would push the textarea off a phone screen. */
 	let historyOpen = $state(false);
@@ -331,6 +377,7 @@
 	 *  a change lands immediately, the same as tapping a badge on the card. */
 	function adjust(patch: { start?: DifficultyLevel | null; full?: DifficultyLevel | null }) {
 		if (!saved) return;
+		cancelAutoClose();
 		saved = { ...saved, ...patch };
 		// Here a null IS the reader's choice, so it is written through — unlike
 		// the withheld null in commit().
@@ -363,7 +410,13 @@
 		<!-- The result has been written. Retiring the input matters as much as
 		     showing the levels: leaving 제출 on screen after a successful save
 		     reads as "nothing happened", which is exactly how this shipped. -->
-		<div data-testid="memorize-success" class="flex items-center gap-3">
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			data-testid="memorize-success"
+			class="flex items-center gap-3"
+			onpointerdown={cancelAutoClose}
+			onkeydown={cancelAutoClose}
+		>
 			<div>
 				<p class="text-[13px] font-semibold text-[var(--color-text)]">
 					{saved.full === 5 ? '완벽합니다' : '저장했습니다'}
@@ -381,6 +434,15 @@
 				>
 					다시
 				</button>
+				{#if closingIn !== null}
+					<span
+						data-testid="auto-close"
+						aria-hidden="true"
+						class="text-[12px] tabular-nums text-[var(--color-text-tertiary)]"
+					>
+						{closingIn}
+					</span>
+				{/if}
 				<button
 					type="button"
 					onclick={onClose}
