@@ -3,7 +3,14 @@
 	import Toast from '$lib/components/feedback/Toast.svelte';
 	import ConfirmDialog from '$lib/components/feedback/ConfirmDialog.svelte';
 	import { goto } from '$app/navigation';
-	import { Cloud, CloudOff, RotateCcw, Volume2 } from 'lucide-svelte';
+	import { Cloud, CloudOff, RotateCcw, Volume2, Users } from 'lucide-svelte';
+	import {
+		getJoinedGroups,
+		joinGroup,
+		leaveGroup,
+		loadGroupCatalog,
+		type GroupInfo
+	} from '$lib/db/groups';
 	import {
 		koreanVoices,
 		speak,
@@ -34,6 +41,35 @@
 	} from '$lib/sync/preSyncBackup';
 
 	const clientId = getGoogleOauthClientId();
+
+	let joined = $state<GroupInfo[]>([]);
+	let groupCode = $state('');
+	let groupMessage = $state<{ ok: boolean; text: string } | null>(null);
+
+	async function refreshGroups() {
+		const [ids, catalog] = await Promise.all([getJoinedGroups(), loadGroupCatalog()]);
+		joined = ids.map((id) => catalog[id] ?? { id, name: id });
+	}
+	$effect(() => {
+		refreshGroups().catch(() => {});
+	});
+
+	async function onJoin() {
+		const info = await joinGroup(groupCode);
+		if (!info) {
+			groupMessage = { ok: false, text: '그런 코드의 그룹이 없습니다' };
+			return;
+		}
+		groupCode = '';
+		groupMessage = { ok: true, text: `${info.name}에 참여했습니다` };
+		await refreshGroups();
+	}
+
+	async function onLeave(id: string) {
+		await leaveGroup(id);
+		groupMessage = null;
+		await refreshGroups();
+	}
 
 	let speakTitle = $state(false);
 	let speakRepeat = $state(false);
@@ -236,6 +272,73 @@
 				</button>
 			</div>
 		{/if}
+	</section>
+
+	<section
+		class="mt-4 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] px-6 py-5"
+	>
+		<h2 class="flex items-center gap-2 text-[15px] font-semibold text-[var(--color-text)]">
+			<Users size={18} strokeWidth={1.75} />
+			그룹
+		</h2>
+		<p class="mt-2 text-[12px] leading-[1.7] text-[var(--color-text-secondary)]">
+			그룹에 참여하면 그 그룹의 구절 패키지와 암송 DAY 일정이 함께 열립니다.
+		</p>
+
+		{#if joined.length > 0}
+			<ul class="mt-3 space-y-1.5">
+				{#each joined as g (g.id)}
+					<li
+						class="flex items-center justify-between gap-3 rounded-xl bg-[var(--color-elevated)] px-3.5 py-2"
+					>
+						<span class="text-[13px] font-medium text-[var(--color-text)]">{g.name}</span>
+						<button
+							type="button"
+							onclick={() => onLeave(g.id)}
+							class="shrink-0 text-[12px] text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-danger)]"
+						>
+							나가기
+						</button>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+
+		<form
+			class="mt-3 flex items-center gap-2"
+			onsubmit={(e) => {
+				e.preventDefault();
+				onJoin();
+			}}
+		>
+			<input
+				bind:value={groupCode}
+				type="text"
+				autocapitalize="characters"
+				aria-label="그룹 코드"
+				placeholder="그룹 코드 (예: CDM-B)"
+				class="min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[13px] text-[var(--color-text)] placeholder:text-[var(--color-text-tertiary)]"
+			/>
+			<button
+				type="submit"
+				disabled={groupCode.trim().length === 0}
+				class="shrink-0 rounded-full bg-[var(--color-accent)] px-4 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+			>
+				참여
+			</button>
+		</form>
+		{#if groupMessage}
+			<p
+				class="mt-2 text-[12px] {groupMessage.ok
+					? 'text-[var(--color-success)]'
+					: 'text-[var(--color-danger)]'}"
+			>
+				{groupMessage.text}
+			</p>
+		{/if}
+		<p class="mt-2 text-[11px] leading-[1.6] text-[var(--color-text-tertiary)]">
+			나가더라도 이미 받은 구절과 암송 기록은 그대로 남습니다.
+		</p>
 	</section>
 
 	<section

@@ -2,6 +2,8 @@ import type { EventRange, MemEvent } from '$lib/types';
 import type { VerseRating } from './local';
 import { db } from './local';
 import { loadPackageData, filterVerses, isPackageInstalled } from './verses';
+import { getJoinedGroups } from './groups';
+import { visibleTo } from '$lib/groups/visibility';
 
 /** D-day = dueAt 자정 − today 자정, 일 단위. 둘 다 'YYYY-MM-DD' 로컬. */
 export function dDay(dueAt: string, today: string): number {
@@ -141,7 +143,11 @@ async function rangeLabel(range: EventRange, verseNos: number[]): Promise<string
 
 /** 홈 렌더용 뷰모델 빌드: 활성 이벤트 × 해석 가능한 범위. */
 export async function buildEventCards(today: string): Promise<EventCardVM[]> {
-	const events = activeEvents(await loadEvents(), today);
+	// A schedule belongs to whoever it was set for. A reader outside the group
+	// should not be shown another 지구's deadline, and would have nothing to
+	// study for it anyway — its packages are not offered to them either.
+	const joined = await getJoinedGroups().catch(() => [] as string[]);
+	const events = activeEvents(visibleTo(await loadEvents(), joined), today);
 	const cards: EventCardVM[] = [];
 	for (const e of events) {
 		const ranges: RangeCardVM[] = [];

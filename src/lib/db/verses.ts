@@ -1,6 +1,8 @@
 import { db, type StoredVerse } from './local';
 import { seedOyoPackageIfMissing } from './oyo';
 import { getPackageOrder } from './packageOrder';
+import { getJoinedGroups } from './groups';
+import { packagesToInstall } from '$lib/groups/visibility';
 import type { IndexGroup, PackageMeta, Verse } from '$lib/types';
 
 const PACKAGES_URL = '/data/packages.json';
@@ -51,7 +53,16 @@ export async function listPackages(): Promise<PackageMeta[]> {
 		id,
 		kind: meta.kind ?? 'builtin'
 	}));
-	await db.packages.bulkPut(curated);
+	// Group-scoped packages are only installed for readers who belong. Anything
+	// already on the device is kept regardless — see packagesToInstall.
+	const joined = await getJoinedGroups().catch(() => [] as string[]);
+	await db.packages.bulkPut(
+		packagesToInstall(
+			curated,
+			joined,
+			cached.map((p) => p.id)
+		)
+	);
 
 	// Re-read so any user-kind rows (OYO seeded above) come along.
 	const all = await db.packages.toArray();

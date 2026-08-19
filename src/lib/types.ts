@@ -18,6 +18,9 @@ export interface PackageMeta {
 	version: number;
 	source: string;
 	default: boolean;
+	/** Groups this package is offered to. Absent means everyone — see
+	 *  $lib/groups/visibility. */
+	groups?: string[];
 	/**
 	 * Distinguishes shipped (curated JSON) packages from user-owned packages
 	 * like OYO. Defaults to 'builtin' when absent for backward compatibility
@@ -75,6 +78,8 @@ export interface EventRange {
 }
 
 export interface MemEvent {
+	/** Groups this event belongs to. Absent means everyone. */
+	groups?: string[];
 	id: string;
 	title: string;
 	dueAt: string; // 'YYYY-MM-DD' (local)
