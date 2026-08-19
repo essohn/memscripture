@@ -49,8 +49,8 @@ export function pageTitle(title?: string): string {
  * is nothing to see.
  */
 export const SITEMAP_ROUTES: { path: string; changefreq: string; priority: string }[] = [
-	{ path: '/', changefreq: 'weekly', priority: '1.0' },
-	{ path: '/guide', changefreq: 'monthly', priority: '0.9' },
-	{ path: '/amsong-day', changefreq: 'monthly', priority: '0.8' },
-	{ path: '/about', changefreq: 'monthly', priority: '0.8' }
+	{ path: '/', changefreq: 'weekly', priority: '1.0' }
+	// The three landing pages are held back pending a content review — see
+	// drafts/pages/README.md. A sitemap entry is an invitation to crawl, so
+	// they come out of here first.
 ];

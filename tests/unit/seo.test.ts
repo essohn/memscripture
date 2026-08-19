@@ -57,8 +57,19 @@ describe('site copy', () => {
 });
 
 describe('sitemap routes', () => {
+	// The three landing pages are held back pending a content review, so the
+	// sitemap is down to the app root — see drafts/pages/README.md.
 	it('lists only pages that render text without the reader’s own data', () => {
-		expect(SITEMAP_ROUTES.map((r) => r.path)).toEqual(['/', '/guide', '/amsong-day', '/about']);
+		expect(SITEMAP_ROUTES.map((r) => r.path)).toEqual(['/']);
+	});
+
+	// A sitemap entry invites a crawler in. While the pages are unpublished,
+	// naming one here would advertise a URL that now falls through to the app
+	// shell — which is exactly what must not get indexed under their names.
+	it('advertises none of the held-back pages', () => {
+		for (const p of ['/guide', '/about', '/amsong-day']) {
+			expect(SITEMAP_ROUTES.some((r) => r.path === p)).toBe(false);
+		}
 	});
 
 	// The sitemap is a promise that these URLs have something to read. Every
@@ -82,10 +93,12 @@ describe('isContentPage', () => {
 	// This predicate does three jobs at once: it strips the app chrome, and it
 	// tells hooks.server.ts which pages own their head tags. A page that is
 	// server-rendered but not listed here would ship two <title> tags.
-	it('matches the server-rendered landing pages', () => {
-		expect(isContentPage('/guide')).toBe(true);
-		expect(isContentPage('/about')).toBe(true);
-		expect(isContentPage('/amsong-day')).toBe(true);
+	// Empty while the landing pages are held back: nothing is server-rendered,
+	// so nothing needs its app chrome stripped or owns its own head tags.
+	it('matches nothing while no content page is published', () => {
+		for (const p of ['/guide', '/about', '/amsong-day']) {
+			expect(isContentPage(p)).toBe(false);
+		}
 	});
 
 	it('does not match the app screens', () => {

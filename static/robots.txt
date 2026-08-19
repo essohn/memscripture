@@ -11,4 +11,11 @@ Disallow: /today
 Disallow: /settings
 Disallow: /search
 
+# Landing pages held back pending a content review. They are not built, so
+# these URLs fall through to the app shell — this keeps a crawler from
+# indexing that shell under their names.
+Disallow: /guide
+Disallow: /about
+Disallow: /amsong-day
+
 Sitemap: https://mem.lifescripture.org/sitemap.xml
