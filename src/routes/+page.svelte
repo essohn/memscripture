@@ -3,7 +3,7 @@
 	import Toast from '$lib/components/feedback/Toast.svelte';
 	import EventSection from '$lib/components/home/EventSection.svelte';
 	import { getJoinedGroups } from '$lib/db/groups';
-	import { Sparkles, X } from 'lucide-svelte';
+	import { Sparkles, X, Info, ChevronRight } from 'lucide-svelte';
 	import {
 		listRecentBundles,
 		deleteRecentBundle,
@@ -318,9 +318,23 @@
 	{#if inATeam === false}
 		<a
 			href="/settings#team"
-			class="mt-8 block px-1 text-center text-[12px] leading-[1.7] text-[var(--color-text-tertiary)] underline-offset-4 transition-colors hover:text-[var(--color-text-secondary)] hover:underline"
+			class="team-hint mt-8 flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3.5 transition-colors hover:border-[var(--color-accent)]/50"
 		>
-			소속 팀을 지정하면 추가 패키지, 암송 DAY 일정을 받을 수 있습니다
+			<Info
+				size={16}
+				strokeWidth={2}
+				class="shrink-0 text-[var(--color-text-tertiary)]"
+				aria-hidden="true"
+			/>
+			<span class="min-w-0 flex-1 text-[12.5px] leading-[1.6] text-[var(--color-text-secondary)]">
+				소속 팀을 지정하면 추가 패키지, 암송 DAY 일정을 받을 수 있습니다
+			</span>
+			<ChevronRight
+				size={16}
+				strokeWidth={2}
+				class="shrink-0 text-[var(--color-text-tertiary)]"
+				aria-hidden="true"
+			/>
 		</a>
 	{/if}
 </main>
@@ -336,6 +350,11 @@
 
 <style>
 	.empty-card {
+		box-shadow: var(--shadow-soft);
+	}
+	/* Softer than the recent cards it sits under: this is an aside, not another
+	   thing to open, and it should not compete with the reader's own verses. */
+	.team-hint {
 		box-shadow: var(--shadow-soft);
 	}
 	.recent-card {
