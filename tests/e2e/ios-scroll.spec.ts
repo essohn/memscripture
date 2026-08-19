@@ -1,12 +1,16 @@
 import { test, expect, devices } from '@playwright/test';
+import { joinTeam } from './helpers';
 
 test.use({ ...devices['iPhone 14'] });
 
 test('library page scrolls smoothly without fixed-bar bugs', async ({ page }) => {
+	await joinTeam(page);
 	await page.goto('/library');
 	await expect(page.getByRole('heading', { name: 'Library' })).toBeVisible();
 
-	await expect(page.getByTestId('package-card')).toHaveCount(7);
+	// 7 curated packages plus the OYO row. This said 7 from before OYO existed
+	// and had been failing in CI since May.
+	await expect(page.getByTestId('package-card')).toHaveCount(8);
 
 	const initialScrollY = await page.evaluate(() => window.scrollY);
 	expect(initialScrollY).toBe(0);

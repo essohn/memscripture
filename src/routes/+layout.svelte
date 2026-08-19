@@ -20,7 +20,13 @@
 	// do it separately. See src/lib/db/verses.ts:listPackages.
 
 	/**
-	 * Invite links: /?g=cdm-b joins and then drops the parameter.
+	 * Invite links: /?team=cdm-b joins and then drops the parameter.
+	 *
+	 * Named `team`, not `g`: the package page already uses `g` for its group
+	 * filter, so /library/60_krv?s=0&g=0 would have tried to join a team called
+	 * "0" and then stripped the parameter the filter was reading. This layout
+	 * effect runs on every route, so an invite parameter has to be a name no
+	 * page could already mean something else by.
 	 *
 	 * The link is not a second mechanism, it is how the code travels — one tap
 	 * from a KakaoTalk message instead of typing what you heard at a meeting.
@@ -32,7 +38,7 @@
 	 */
 	let groupToast = $state<string | null>(null);
 	$effect(() => {
-		const code = page.url.searchParams.get('g');
+		const code = page.url.searchParams.get('team');
 		if (!code) return;
 		joinGroup(code)
 			.then((info) => {
@@ -41,7 +47,7 @@
 			.catch(() => {})
 			.finally(() => {
 				const url = new URL(page.url);
-				url.searchParams.delete('g');
+				url.searchParams.delete('team');
 				history.replaceState(history.state, '', url);
 			});
 	});

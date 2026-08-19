@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { joinTeam } from './helpers';
 
 test.describe('category filters', () => {
 	test('60_krv: series strip visible, group strip hidden until series selected', async ({
@@ -67,6 +68,8 @@ test.describe('category filters', () => {
 	test('100_krv: series strip visible, group strip hidden after series selection', async ({
 		page
 	}) => {
+		// 100구절 belongs to a team, so the spec has to say who it is first.
+		await joinTeam(page);
 		await page.goto('/library/100_krv?s=0');
 		await expect(page.getByTestId('verse-row').first()).toBeVisible();
 
@@ -85,11 +88,12 @@ test.describe('category filters', () => {
 
 	test('VerseCard tag tap navigates to filtered package detail', async ({ page }) => {
 		await page.goto('/library/60_krv/1');
-		// CategoryTag is the only article button with aria-pressed; difficulty
-		// badges use aria-haspopup, bookmark/overflow controls use aria-label.
-		// Anchoring on aria-pressed keeps the test stable as new badges are
-		// added to the card header.
-		const tagButtons = page.locator('article button[aria-pressed]');
+		// Anchored on the tag's own testid. This used to select on aria-pressed,
+		// on the reasoning that CategoryTag was the only article button with it —
+		// which stopped being true the moment the card grew a 듣기 toggle, and
+		// the test then clicked the speaker and waited for a navigation that
+		// never came. A testid says which control is meant.
+		const tagButtons = page.getByTestId('category-tag');
 		await expect(tagButtons.first()).toBeVisible();
 		await tagButtons.first().click();
 		await expect(page).toHaveURL(/\/library\/60_krv\?s=0/);

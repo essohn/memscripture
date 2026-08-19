@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { joinTeam } from './helpers';
 
 // The export options sheet is a modal and must sit above the fixed TabBar.
 // It first shipped at z-50 — the same z-index as the bar — and since an equal
@@ -8,6 +9,8 @@ import { test, expect } from '@playwright/test';
 // downloading. Asserting the class would not have caught that; asserting what
 // receives the tap does.
 test('export sheet buttons receive their own taps, not the TabBar behind them', async ({ page }) => {
+	// The export sheet hangs off the 암송 DAY card, which belongs to a team.
+	await joinTeam(page);
 	await page.goto('/');
 
 	await page.getByRole('button', { name: /엑셀로 다운로드/ }).click();

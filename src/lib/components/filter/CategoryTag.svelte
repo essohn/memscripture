@@ -24,6 +24,7 @@
 	<button
 		type="button"
 		class="{baseClass} {levelClass} {activeRing} cursor-pointer"
+		data-testid="category-tag"
 		aria-pressed={active}
 		{onclick}
 	>

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { joinTeam } from './helpers';
 
 // The home dashboard links a bundle/event range as /library/{id}?sel=127,128,...
 // The list must anchor the FIRST verse of the range just under the sticky
@@ -6,6 +7,7 @@ import { test, expect } from '@playwright/test';
 const RANGE = Array.from({ length: 36 }, (_, i) => 127 + i);
 
 test('?sel deep-link anchors the first verse near the top, not the middle', async ({ page }) => {
+	await joinTeam(page);
 	await page.goto(`/library/900_krv?sel=${RANGE.join(',')}`);
 
 	const first = page.locator('#verse-127');
