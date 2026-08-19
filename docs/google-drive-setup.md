@@ -19,9 +19,19 @@ not** confuse this with a client *secret* (we never use one).
 ## 3. Configure the OAuth consent screen
 
 1. APIs & Services → OAuth consent screen
-2. User type: **External**. Publishing status starts as "Testing" — that's fine for the maintainer's account; production verification is not required as long as the scope stays at `drive.file` (least-privilege, doesn't require Google verification).
-3. App info: app name = "MemScripture", user support email = your email.
-4. Scopes: add **all three**
+2. User type: **External**.
+3. Publishing status: **publish the app**. It starts as "Testing", where only
+   accounts added under "Test users" can sign in at all — everyone else is
+   turned away with "Google에서 인증하지 않은 앱", which reads like a fault in
+   the app but is only the consent screen refusing a stranger. Testing also
+   caps at 100 test users, each added by email by hand.
+
+   Publishing needs **no verification review here**, because all three scopes
+   below are non-sensitive. Verification is what sensitive and restricted
+   scopes require — `drive`, `drive.readonly` and the like — and this app asks
+   for none of them. Press "APP 게시" and sign-in works for anyone.
+4. App info: app name = "MemScripture", user support email = your email.
+5. Scopes: add **all three**
    - `https://www.googleapis.com/auth/drive.appdata` — the sync file lives in
      the hidden per-app `appDataFolder` space (`drive.ts`), and that space has
      its own scope. `drive.file` does not reach it: omit this and every Drive
@@ -109,8 +119,11 @@ conversely, setting it only in the build environment does nothing.
 - **"Error 400: redirect_uri_mismatch"** → you missed adding the local
   origin to step 4. GIS uses `postMessage` to the origin; it must be
   in the allowlist.
-- **"This app isn't verified" warning** → expected on Testing
-  publishing status; click "Advanced" → "Go to MemScripture (unsafe)"
-  for test users.
+- **"Google에서 인증하지 않은 앱" / sign-in refused** → the consent screen is
+  still in "Testing", where only listed test users may sign in. This is the
+  one to expect on a second device signed into a different Google account.
+  Fix it by publishing the app (step 3); no review is involved, since every
+  scope here is non-sensitive. Adding the account under "Test users" also
+  works, but only for that account and only up to 100 of them.
 - **Popup blocked** → first-time browser sessions may block; allow
   popups for the app origin and retry.
