@@ -16,7 +16,7 @@ test('export sheet buttons receive their own taps, not the TabBar behind them', 
 	await page.getByRole('button', { name: /내보내기/ }).click();
 	await expect(page.getByRole('dialog')).toBeVisible();
 
-	for (const name of ['다운로드', 'Google Sheets', '취소']) {
+	for (const name of ['엑셀 다운로드', 'Google Sheets', '취소']) {
 		const button = page.getByRole('button', { name, exact: true });
 		await expect(button).toBeVisible();
 

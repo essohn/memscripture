@@ -17,6 +17,7 @@
 <script lang="ts">
 	import type { ExportOptions } from '$lib/export/eventWorkbook';
 	import GoogleSheetsIcon from '$lib/components/icons/GoogleSheetsIcon.svelte';
+	import ExcelIcon from '$lib/components/icons/ExcelIcon.svelte';
 
 	interface Props {
 		eventTitle: string;
@@ -124,15 +125,21 @@
 				<GoogleSheetsIcon size={15} />
 				{sheetBusy ? '보내는 중…' : 'Google Sheets'}
 			</button>
+			<!-- The accessible name matches the visible one. It is a static label
+			     because the visible text becomes 만드는 중… while the file is
+			     building, and a name that changes mid-press leaves a screen
+			     reader announcing a different button than the one that was
+			     activated — aria-busy carries the progress instead. -->
 			<button
 				type="button"
 				disabled={busy}
-				aria-label="다운로드"
+				aria-label="엑셀 다운로드"
 				aria-busy={busy}
 				onclick={() => onConfirm(options)}
-				class="rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+				class="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
 			>
-				{busy ? '만드는 중…' : '다운로드'}
+				<ExcelIcon size={15} />
+				{busy ? '만드는 중…' : '엑셀 다운로드'}
 			</button>
 		</div>
 	</div>

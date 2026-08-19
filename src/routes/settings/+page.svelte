@@ -239,6 +239,18 @@
 			클라우드 동기화
 		</h2>
 
+		<!-- Stated before the connect button, not after: what an app will reach
+		     for in someone's Drive is the question they have while deciding, and
+		     Google's own consent screen names scopes rather than purposes. Every
+		     clause here is one the code can be held to — drive.file reaches only
+		     files this app created, and the email is read solely to show which
+		     account is connected. -->
+		<p class="mt-2 text-[12px] leading-relaxed text-[var(--color-text-tertiary)]">
+			암송 기록을 내 Google Drive에 저장해 다른 기기에서 이어서 보기 위한 용도로만
+			사용합니다. 이 앱이 만든 파일(동기화 파일과 직접 내보낸 Google Sheets 문서)에만
+			접근하며, 연결된 계정을 보여주기 위해 이메일 주소를 읽습니다.
+		</p>
+
 		{#if !clientId}
 			<p class="mt-3 text-[13px] text-[var(--color-text-tertiary)]">
 				이 배포에는 Google OAuth 클라이언트 ID가 설정되지 않았습니다.

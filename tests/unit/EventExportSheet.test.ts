@@ -28,7 +28,7 @@ describe('EventExportSheet', () => {
 	it('confirms the defaults untouched', async () => {
 		const onConfirm = vi.fn();
 		render(EventExportSheet, { ...props, ...handlers(), onConfirm });
-		await fireEvent.click(screen.getByRole('button', { name: '다운로드' }));
+		await fireEvent.click(screen.getByRole('button', { name: '엑셀 다운로드' }));
 		expect(onConfirm).toHaveBeenCalledWith({
 			includeDifficulty: true,
 			sortByScripture: true
@@ -41,14 +41,14 @@ describe('EventExportSheet', () => {
 		const onConfirm = vi.fn();
 		render(EventExportSheet, { ...props, ...handlers(), onConfirm });
 		await fireEvent.click(screen.getByLabelText(/장절 순서/));
-		await fireEvent.click(screen.getByRole('button', { name: '다운로드' }));
+		await fireEvent.click(screen.getByRole('button', { name: '엑셀 다운로드' }));
 		expect(onConfirm).toHaveBeenLastCalledWith({
 			includeDifficulty: true,
 			sortByScripture: false
 		});
 
 		await fireEvent.click(screen.getByLabelText(/난이도 열 포함/));
-		await fireEvent.click(screen.getByRole('button', { name: '다운로드' }));
+		await fireEvent.click(screen.getByRole('button', { name: '엑셀 다운로드' }));
 		expect(onConfirm).toHaveBeenLastCalledWith({
 			includeDifficulty: false,
 			sortByScripture: false
@@ -57,19 +57,19 @@ describe('EventExportSheet', () => {
 
 	it('disables the confirm button while a download is running', () => {
 		render(EventExportSheet, { ...props, ...handlers(), busy: true });
-		expect(screen.getByRole('button', { name: /다운로드/ })).toBeDisabled();
+		expect(screen.getByRole('button', { name: /엑셀 다운로드/ })).toBeDisabled();
 	});
 
 	// The confirm button keeps a static aria-label, so aria-busy is the only
 	// way a screen reader hears the 만드는 중 progress state.
 	it('marks the confirm button aria-busy while a download is running', () => {
 		render(EventExportSheet, { ...props, ...handlers(), busy: true });
-		expect(screen.getByRole('button', { name: /다운로드/ })).toHaveAttribute('aria-busy', 'true');
+		expect(screen.getByRole('button', { name: /엑셀 다운로드/ })).toHaveAttribute('aria-busy', 'true');
 	});
 
 	it('leaves the confirm button aria-busy false when idle', () => {
 		render(EventExportSheet, { ...props, ...handlers() });
-		expect(screen.getByRole('button', { name: '다운로드' })).toHaveAttribute('aria-busy', 'false');
+		expect(screen.getByRole('button', { name: '엑셀 다운로드' })).toHaveAttribute('aria-busy', 'false');
 	});
 });
 
@@ -96,7 +96,7 @@ describe('EventExportSheet — Google Sheets', () => {
 
 		render(EventExportSheet, { ...props, ...handlers(), sheetBusy: true });
 		expect(screen.getByRole('button', { name: 'Google Sheets' })).toBeDisabled();
-		expect(screen.getByRole('button', { name: '다운로드' })).toBeEnabled();
+		expect(screen.getByRole('button', { name: '엑셀 다운로드' })).toBeEnabled();
 	});
 
 	it('marks the Sheets button aria-busy while it runs', () => {
