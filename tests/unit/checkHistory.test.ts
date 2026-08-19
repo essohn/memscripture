@@ -1,7 +1,12 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { db } from '../../src/lib/db/local';
-import { HISTORY_LIMIT, listChecks, recordCheck } from '../../src/lib/db/checkHistory';
+import {
+	HISTORY_LIMIT,
+	listChecks,
+	listPerfectVerseNos,
+	recordCheck
+} from '../../src/lib/db/checkHistory';
 
 beforeEach(async () => {
 	await db.delete();
@@ -52,5 +57,34 @@ describe('checkHistory', () => {
 
 	it('returns nothing for a verse never checked', async () => {
 		expect(await listChecks('900_krv', 99)).toEqual([]);
+	});
+});
+
+describe('listPerfectVerseNos', () => {
+	it('lists the verses recited flawlessly', async () => {
+		await recordCheck('900_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 9000 });
+		await recordCheck('900_krv', 2, { start: 2, full: 2, accuracy: 0.8, elapsedMs: 9000 });
+		expect([...(await listPerfectVerseNos('900_krv'))]).toEqual([1]);
+	});
+
+	// Once earned it stays. The badge records that the reader has done this,
+	// not that they could do it again this minute.
+	it('keeps a verse listed after a later slip', async () => {
+		await recordCheck('900_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 9000 });
+		await recordCheck('900_krv', 1, { start: 2, full: 2, accuracy: 0.6, elapsedMs: 9000 });
+		expect([...(await listPerfectVerseNos('900_krv'))]).toEqual([1]);
+	});
+
+	// The verseKey index is prefixed by the package id, so a scan must not
+	// spill across packages.
+	it('does not leak across packages', async () => {
+		await recordCheck('900_krv', 7, { start: 5, full: 5, accuracy: 1, elapsedMs: 1000 });
+		await recordCheck('100_krv', 9, { start: 5, full: 5, accuracy: 1, elapsedMs: 1000 });
+		expect([...(await listPerfectVerseNos('900_krv'))]).toEqual([7]);
+		expect([...(await listPerfectVerseNos('100_krv'))]).toEqual([9]);
+	});
+
+	it('is empty for a package with no checks', async () => {
+		expect((await listPerfectVerseNos('5_krv')).size).toBe(0);
 	});
 });

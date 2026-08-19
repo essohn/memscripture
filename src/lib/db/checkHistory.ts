@@ -73,3 +73,21 @@ export async function listChecks(
 	const rows = await db.checkHistory.where('verseKey').equals(verseKey(packageId, verseNo)).toArray();
 	return rows.sort((a, b) => b.checkedAt - a.checkedAt).slice(0, HISTORY_LIMIT);
 }
+
+/**
+ * Verse numbers in a package that have ever been recited flawlessly.
+ *
+ * Read from the history rather than stored as a flag on the verse: the record
+ * of a perfect check already exists, and a second copy could disagree with it.
+ * Once earned it stays — a later slip does not take it back, because the badge
+ * says "I have done this", not "I could do this today".
+ *
+ * One range scan on the verseKey index, which is prefixed by the package id,
+ * rather than a query per verse.
+ */
+export async function listPerfectVerseNos(packageId: string): Promise<Set<number>> {
+	const rows = await db.checkHistory.where('verseKey').startsWith(`${packageId}:`).toArray();
+	const out = new Set<number>();
+	for (const r of rows) if (r.accuracy >= 1) out.add(r.verseNo);
+	return out;
+}

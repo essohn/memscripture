@@ -10,7 +10,7 @@
 	import type { DifficultyLevel } from '$lib/db/verseRatings';
 	import { normalizeForGrading } from '$lib/memorize/grade';
 	import { activeMarks, tokenizeVerse, type StoredMark } from '$lib/memorize/marks';
-	import { Highlighter, Repeat, Square, Volume2 } from 'lucide-svelte';
+	import { Highlighter, PartyPopper, Repeat, Square, Volume2 } from 'lucide-svelte';
 	import { createPlayer, isTtsSupported, speechSegments, type PlayerHandle } from '$lib/memorize/speak';
 	import VersePlayer from './VersePlayer.svelte';
 	import { getSpeakOptions, setSpeakOption, type SpeakOptionsStored } from '$lib/db/viewOptions';
@@ -64,6 +64,8 @@
 		/** Toggles one word's underline. Marking is offered only when this is
 		 *  wired, so pages that cannot persist do not show the control. */
 		onToggleMark?: (index: number, word: string) => void;
+		/** This verse has been recited flawlessly at least once. */
+		perfect?: boolean;
 	}
 	let {
 		verse,
@@ -89,7 +91,8 @@
 		highlighted = false,
 		packageHref,
 		marks = [],
-		onToggleMark
+		onToggleMark,
+		perfect = false
 	}: Props = $props();
 
 	const bookmarksEnabled = $derived(Boolean(onBookmarkPick && onBookmarkClear));
@@ -249,6 +252,9 @@
 	// Loaded when the panel opens rather than on every card render — a 900-row
 	// list would otherwise issue 900 queries for history nobody is looking at.
 	let checkHistory = $state<CheckRecord[]>([]);
+	/** Set by a perfect check in this session, so the badge appears with the
+	 *  confetti rather than only after the page is next loaded. */
+	let earnedNow = $state(false);
 
 	function enterRehearse() {
 		mode = 'rehearse';
@@ -514,8 +520,19 @@
 				{/if}
 			</div>
 		</div>
-		<p class="text-[calc(19px*var(--vfs))] text-[var(--color-text-secondary)]">
+		<p class="flex items-center gap-1.5 text-[calc(19px*var(--vfs))] text-[var(--color-text-secondary)]">
 			{verse.cite}
+			{#if perfect || earnedNow}
+				<!-- Earned by a flawless recitation, and kept. A later slip does not
+				     take it back: it records that the reader has done this, not that
+				     they could do it right now. -->
+				<PartyPopper
+					size={15}
+					strokeWidth={2}
+					class="shrink-0 text-[var(--color-accent)]"
+					aria-label="완벽하게 암송한 구절"
+				/>
+			{/if}
 		</p>
 	</header>
 
@@ -550,6 +567,7 @@
 				history={checkHistory}
 				onGraded={(outcome) => {
 					revealAll();
+					if (outcome.accuracy >= 1) earnedNow = true;
 					if (!packageId) return;
 					recordCheck(packageId, verse.no, outcome)
 						.then(() => listChecks(packageId, verse.no))

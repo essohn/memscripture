@@ -289,3 +289,40 @@ describe('읽어주기 reaches the synthesizer from the tap itself', () => {
 		}
 	});
 })
+
+describe('완벽 배지', () => {
+	const badge = () => screen.queryByLabelText('완벽하게 암송한 구절');
+
+	it('is absent on a verse never recited flawlessly', () => {
+		setup();
+		expect(badge()).toBeNull();
+	});
+
+	it('marks a verse that has been', () => {
+		setup({ perfect: true });
+		expect(badge()).toBeInTheDocument();
+	});
+
+	// It should appear with the confetti, not only after the page is next
+	// loaded — the reader is looking right at the card when they earn it.
+	it('appears as soon as a perfect check lands', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '점검' }));
+		await fireEvent.input(screen.getByLabelText('암송 구절 입력'), {
+			target: { value: verse.w }
+		});
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(badge()).toBeInTheDocument();
+	});
+
+	it('is not awarded for a flawed attempt', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '점검' }));
+		await fireEvent.input(screen.getByLabelText('암송 구절 입력'), {
+			target: { value: '전혀 다른 문장' }
+		});
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
+		expect(badge()).toBeNull();
+	});
+})

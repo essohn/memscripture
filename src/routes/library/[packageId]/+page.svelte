@@ -16,6 +16,7 @@
 		import { db } from '$lib/db/local';
 	import { setBookmark, clearBookmark } from '$lib/db/bookmarks';
 	import { listMarksForPackage, toggleVerseMark } from '$lib/db/verseMarks';
+	import { listPerfectVerseNos } from '$lib/db/checkHistory';
 	import type { StoredMark } from '$lib/memorize/marks';
 	import {
 		setStartDifficulty,
@@ -39,6 +40,7 @@
 	const showVerseText = $derived(verseVisibility.shown);
 	let ratingsByVerseNo = $state<Map<number, VerseRowRating>>(new Map());
 	let marksByVerseNo = $state<Map<number, StoredMark[]>>(new Map());
+	let perfectVerseNos = $state<Set<number>>(new Set());
 	let bookmarksByVerseNo = $state<Map<number, BookmarkColor>>(new Map());
 
 	// Multi-select: a Set of verse.no the user has tapped. When non-empty, the
@@ -227,10 +229,11 @@
 		// for long lists. All three tables are indexed on packageId; rows only
 		// exist after the user interacts, so the scans stay small.
 		(async () => {
-			const [ratingRows, bookmarkRows, markRows] = await Promise.all([
+			const [ratingRows, bookmarkRows, markRows, perfectRows] = await Promise.all([
 				db.verseRatings.where('packageId').equals(currentPackageId).toArray(),
 				db.bookmarks.where('packageId').equals(currentPackageId).toArray(),
-				listMarksForPackage(currentPackageId)
+				listMarksForPackage(currentPackageId),
+				listPerfectVerseNos(currentPackageId)
 			]);
 			if (!active) return;
 			const nextRatings = new Map<number, VerseRowRating>();
@@ -245,6 +248,7 @@
 			for (const b of bookmarkRows) nextBookmarks.set(b.verseNo, b.color);
 			bookmarksByVerseNo = nextBookmarks;
 			marksByVerseNo = markRows;
+			perfectVerseNos = perfectRows;
 		})().catch(() => {});
 		return () => {
 			active = false;
@@ -420,6 +424,7 @@
 					startDifficulty={rating?.start ?? null}
 					fullDifficulty={rating?.full ?? null}
 					marks={marksByVerseNo.get(v.no) ?? []}
+					perfect={perfectVerseNos.has(v.no)}
 					onToggleMark={(i, word) => onToggleMark(v.no, i, word)}
 					onPickStartDifficulty={(l) => pickStart(v.no, l)}
 					onPickFullDifficulty={(l) => pickFull(v.no, l)}
