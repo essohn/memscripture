@@ -10,7 +10,7 @@
 	import type { DifficultyLevel } from '$lib/db/verseRatings';
 	import { normalizeForGrading } from '$lib/memorize/grade';
 	import { activeMarks, tokenizeVerse, type StoredMark } from '$lib/memorize/marks';
-	import { BookOpen, Highlighter, PartyPopper, Play, Square } from 'lucide-svelte';
+	import { BookOpen, Highlighter, PartyPopper, Square, Volume2 } from 'lucide-svelte';
 	import { readerHref } from '$lib/bible/reference';
 	import { createPlayer, isTtsSupported, speechSegments, type PlayerHandle } from '$lib/memorize/speak';
 	import VersePlayer from './VersePlayer.svelte';
@@ -448,29 +448,30 @@
 		<div class="flex items-start justify-between gap-3">
 			<!-- The popper rides with the title, not with the difficulty badges: it
 			     is something the verse earned, while that cluster is a set of
-			     controls. Outside the h2 rather than inside it so the heading's
-			     accessible name stays the title alone. items-center keeps the icon
-			     on the text's optical centre for the one-line titles that are the
-			     norm here. -->
-			<div class="flex min-w-0 flex-1 items-center gap-1.5">
-				<h2
-					class="min-w-0 text-[calc(19px*var(--vfs))] font-bold leading-tight text-[var(--color-text)]"
-				>
-					{verse.title}
-				</h2>
-				{#if mode === 'read' && (perfect || earnedNow)}
-					<PartyPopper
-						size={15}
-						strokeWidth={2}
-						class="shrink-0 text-[var(--color-accent)]"
-						aria-label="완벽하게 암송한 구절"
-					/>
-				{/if}
-			</div>
-			<div class="flex shrink-0 items-center gap-1">
+			     controls.
+
+			     Inline inside the h2, and with no whitespace before it, so it
+			     trails the last word and wraps with it. As a flex sibling it sat
+			     centred against the whole block, which on a phone — where the
+			     button cluster leaves the title barely a third of the row, and
+			     most titles take two lines — left it floating in the margin
+			     beside neither line. It joins the heading's accessible name,
+			     which is the truth about the verse rather than noise. -->
+			<h2
+				class="min-w-0 flex-1 text-[calc(19px*var(--vfs))] font-bold leading-tight text-[var(--color-text)]"
+			>{verse.title}{#if mode === 'read' && (perfect || earnedNow)}<PartyPopper
+					size={15}
+					strokeWidth={2}
+					class="ml-1.5 inline align-middle text-[var(--color-accent)]"
+					aria-label="완벽하게 암송한 구절"
+				/>{/if}</h2>
+			<!-- gap-2 rather than gap-1: these are four separate targets on a
+			     phone, each smaller than a fingertip, and 4px between them made
+			     난이도 and 암송 trade taps. -->
+			<div class="flex shrink-0 items-center gap-2">
 				{#if mode === 'read'}
 					{#if ratingsEnabled}
-						<div class="flex items-center gap-1">
+						<div class="flex items-center gap-1.5">
 							<DifficultyBadge
 								value={startDifficulty}
 								label="첫 시작 난이도"
@@ -483,40 +484,10 @@
 							/>
 						</div>
 					{/if}
-					{#if ttsSupported}
-						<!-- Icon only: the header already carries two badges and two
-						     mode buttons, and a fifth text pill does not fit a phone.
-
-						     Always a play triangle. It used to swap to a repeat symbol
-						     when looping was armed, on the idea that a loop should not
-						     surprise anyone — but that made the control announce a
-						     setting instead of what pressing it does, and it read as a
-						     repeat button. The loop is still visible where it can be
-						     acted on: the player bar's own repeat toggle lights up. -->
-						<button
-							type="button"
-							onclick={toggleSpeak}
-							aria-pressed={speaking}
-							aria-label={speaking
-								? '읽기 중지'
-								: speakOpts.speakRepeat
-									? `${verse.title} 반복해서 듣기`
-									: `${verse.title} 듣기`}
-							class="inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors {speaking
-								? 'bg-[var(--color-accent)] text-white'
-								: 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]'}"
-						>
-							{#if speaking}
-								<Square size={11} strokeWidth={2.5} fill="currentColor" />
-							{:else}
-								<Play size={14} strokeWidth={2} fill="currentColor" />
-							{/if}
-						</button>
-					{/if}
 					<button
 						type="button"
 						onclick={enterRehearse}
-						class="rounded-full bg-[var(--color-accent-soft)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-accent)] transition-opacity hover:opacity-90"
+						class="rounded-full bg-[var(--color-accent-soft)] px-3.5 py-1 text-[11px] font-semibold text-[var(--color-accent)] transition-opacity hover:opacity-90"
 					>
 						암송
 					</button>
@@ -524,7 +495,7 @@
 						<button
 							type="button"
 							onclick={enterCheck}
-							class="rounded-full border border-[var(--color-border)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
+							class="rounded-full border border-[var(--color-border)] px-3.5 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
 						>
 							점검
 						</button>
@@ -544,7 +515,7 @@
 				{/if}
 			</div>
 		</div>
-		<p class="flex items-center gap-1.5 text-[calc(19px*var(--vfs))] text-[var(--color-text-secondary)]">
+		<p class="flex items-center gap-2 text-[calc(19px*var(--vfs))] text-[var(--color-text-secondary)]">
 			{verse.cite}
 			{#if reader}
 				<!-- Opens the verse in its chapter, which is the question a memorised
@@ -559,6 +530,43 @@
 				>
 					<BookOpen size={15} strokeWidth={2} />
 				</a>
+			{/if}
+			{#if mode === 'read' && ttsSupported}
+				<!-- On the reference line beside the book link, not up in the button
+				     cluster: both of these open the verse elsewhere — one to read it
+				     in its chapter, one to hear it — while the cluster is where the
+				     card's own modes live. It also gives the title room and keeps
+				     four small targets from crowding one corner.
+
+				     A speaker, not a transport control: beside the book link it has
+				     to read as "hear this verse" the way the book reads as "read this
+				     verse", and a play triangle beside a book looked like a media
+				     widget the card does not have. It also stays one symbol — it used
+				     to swap to a repeat mark when looping was armed, which announced a
+				     setting rather than what pressing it does. The loop stays visible
+				     where it can be acted on: the player bar's own repeat toggle
+				     lights up. -->
+				<button
+					type="button"
+					onclick={toggleSpeak}
+					aria-pressed={speaking}
+					aria-label={speaking
+						? '읽기 중지'
+						: speakOpts.speakRepeat
+							? `${verse.title} 반복해서 듣기`
+							: `${verse.title} 듣기`}
+					class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors {speaking
+						? 'bg-[var(--color-accent)] text-white'
+						: 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]'}"
+				>
+					{#if speaking}
+						<!-- Stop, not a muted speaker: the accent fill already says it is
+						     playing, and the tap has to promise what it does. -->
+						<Square size={11} strokeWidth={2.5} fill="currentColor" />
+					{:else}
+						<Volume2 size={15} strokeWidth={2} />
+					{/if}
+				</button>
 			{/if}
 		</p>
 	</header>
