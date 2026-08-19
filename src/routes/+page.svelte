@@ -2,6 +2,7 @@
 	import Header from '$lib/components/nav/Header.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
 	import EventSection from '$lib/components/home/EventSection.svelte';
+	import { getJoinedGroups } from '$lib/db/groups';
 	import { Sparkles, X } from 'lucide-svelte';
 	import {
 		listRecentBundles,
@@ -31,6 +32,17 @@
 	let editMode = $state(false);
 	let toast = $state<{ message: string; actionLabel?: string; onAction?: () => void } | null>(null);
 	let eventCards = $state<EventCardVM[]>([]);
+
+	/**
+	 * Null until read, so the hint below never flashes on screen for a reader
+	 * who does turn out to belong to a team.
+	 */
+	let inATeam = $state<boolean | null>(null);
+	$effect(() => {
+		getJoinedGroups()
+			.then((g) => (inATeam = g.length > 0))
+			.catch(() => (inATeam = true));
+	});
 
 	$effect(() => {
 		let active = true;
@@ -295,6 +307,22 @@
 			</ul>
 		{/if}
 	</div>
+
+	<!--
+		Only for readers with no team. It is the one thing they cannot discover on
+		their own — the packages and the schedule a team carries are invisible
+		until they join, so there is nothing on screen to prompt the question.
+		Deliberately quiet: it sits below the recents, and someone who is not in a
+		team should be able to ignore it forever.
+	-->
+	{#if inATeam === false}
+		<a
+			href="/settings#team"
+			class="mt-8 block px-1 text-center text-[12px] leading-[1.7] text-[var(--color-text-tertiary)] underline-offset-4 transition-colors hover:text-[var(--color-text-secondary)] hover:underline"
+		>
+			소속 팀을 지정하면 추가 패키지, 암송 DAY 일정을 받을 수 있습니다
+		</a>
+	{/if}
 </main>
 
 {#if toast}

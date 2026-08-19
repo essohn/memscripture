@@ -3,6 +3,7 @@
 	import Toast from '$lib/components/feedback/Toast.svelte';
 	import ConfirmDialog from '$lib/components/feedback/ConfirmDialog.svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { Cloud, CloudOff, RotateCcw, Volume2, Users } from 'lucide-svelte';
 	import {
 		getJoinedGroups,
@@ -43,6 +44,25 @@
 	const clientId = getGoogleOauthClientId();
 
 	let joined = $state<GroupInfo[]>([]);
+	let teamSection = $state<HTMLElement | undefined>();
+	let teamHighlighted = $state(false);
+
+	/**
+	 * Arriving from the home hint lands on #team.
+	 *
+	 * The browser's own anchor jump does not fire reliably here: the section is
+	 * rendered after the settings reads resolve, so at navigation time the
+	 * element the hash names does not exist yet. Scrolling once it does is the
+	 * only moment that works, and the ring says which of six sections the link
+	 * meant.
+	 */
+	$effect(() => {
+		if (!teamSection || page.url.hash !== '#team') return;
+		teamSection.scrollIntoView({ block: 'center', behavior: 'smooth' });
+		teamHighlighted = true;
+		const id = setTimeout(() => (teamHighlighted = false), 2000);
+		return () => clearTimeout(id);
+	});
 	let groupCode = $state('');
 	let groupMessage = $state<{ ok: boolean; text: string } | null>(null);
 
@@ -57,7 +77,7 @@
 	async function onJoin() {
 		const info = await joinGroup(groupCode);
 		if (!info) {
-			groupMessage = { ok: false, text: '그런 코드의 그룹이 없습니다' };
+			groupMessage = { ok: false, text: '그런 코드의 팀이 없습니다' };
 			return;
 		}
 		groupCode = '';
@@ -275,14 +295,18 @@
 	</section>
 
 	<section
-		class="mt-4 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] px-6 py-5"
+		id="team"
+		bind:this={teamSection}
+		class="mt-4 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] px-6 py-5 transition-shadow {teamHighlighted
+			? 'ring-2 ring-[var(--color-accent)]'
+			: ''}"
 	>
 		<h2 class="flex items-center gap-2 text-[15px] font-semibold text-[var(--color-text)]">
 			<Users size={18} strokeWidth={1.75} />
-			그룹
+			소속 팀
 		</h2>
 		<p class="mt-2 text-[12px] leading-[1.7] text-[var(--color-text-secondary)]">
-			그룹에 참여하면 그 그룹의 구절 패키지와 암송 DAY 일정이 함께 열립니다.
+			팀에 참여하면 그 팀의 구절 패키지와 암송 DAY 일정이 함께 열립니다.
 		</p>
 
 		{#if joined.length > 0}
@@ -315,8 +339,8 @@
 				bind:value={groupCode}
 				type="text"
 				autocapitalize="characters"
-				aria-label="그룹 코드"
-				placeholder="그룹 코드"
+				aria-label="팀 코드"
+				placeholder="팀 코드"
 				class="min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[13px] text-[var(--color-text)] placeholder:text-[var(--color-text-tertiary)]"
 			/>
 			<button
