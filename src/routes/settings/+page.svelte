@@ -206,12 +206,8 @@
 				return 'Drive에 처음 저장했습니다';
 			case 'remote-equal':
 				return '이미 최신 상태입니다';
-			case 'local-newer-uploaded':
-				return 'Drive로 올렸습니다';
-			case 'remote-newer-imported':
-				return 'Drive에서 받아왔습니다';
-			case 'remote-newer-declined':
-				return '동기화를 취소했습니다';
+			case 'merged':
+				return '동기화했습니다 — 양쪽 기록을 합쳤습니다';
 			case 'error':
 				return `동기화 실패: ${result.message}`;
 		}

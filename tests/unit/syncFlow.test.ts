@@ -91,34 +91,53 @@ describe('performSync', () => {
 		expect(applySyncSnapshot).not.toHaveBeenCalled();
 	});
 
-	it('local newer → PATCH uploads local to existing file', async () => {
+	it('an existing remote file is merged, applied locally and uploaded back', async () => {
 		vi.mocked(findSyncFile).mockResolvedValue({ id: 'fid', modifiedTime: 'x' });
 		vi.mocked(downloadSyncFile).mockResolvedValue(snap('2026-05-29T09:00:00Z'));
 		vi.mocked(buildSyncSnapshot).mockResolvedValue(snap('2026-05-29T10:00:00Z'));
 		vi.mocked(uploadSyncFile).mockResolvedValue({ id: 'fid' });
-		const res = await performSync({ confirmOverwrite: async () => true }, CLIENT_ID);
-		expect(res.kind).toBe('local-newer-uploaded');
+
+		const res = await performSync({}, CLIENT_ID);
+
+		expect(res.kind).toBe('merged');
+		// Both sides end up holding the same merged snapshot.
+		expect(vi.mocked(applySyncSnapshot)).toHaveBeenCalledTimes(1);
 		expect(vi.mocked(uploadSyncFile).mock.calls[0][1]).toBe('fid');
+		expect(vi.mocked(uploadSyncFile).mock.calls[0][2]).toEqual(
+			vi.mocked(applySyncSnapshot).mock.calls[0][0]
+		);
 	});
 
-	it('remote newer + user confirms → saves backup + applies remote', async () => {
+	// The direction that used to run unattended. A device whose clock is ahead
+	// but whose records are thin must no longer be able to replace the remote.
+	it('never uploads a snapshot that drops what the remote had', async () => {
+		const remote = {
+			...snap('2026-01-01T00:00:00Z'),
+			verseRatings: [
+				{ id: 'p:1', packageId: 'p', verseNo: 1, startDifficulty: 5, fullDifficulty: 5, updatedAt: 10 }
+			]
+		};
+		const freshLocal = { ...snap('2026-08-20T00:00:00Z'), verseRatings: [] };
 		vi.mocked(findSyncFile).mockResolvedValue({ id: 'fid', modifiedTime: 'x' });
-		vi.mocked(downloadSyncFile).mockResolvedValue(snap('2026-05-29T11:00:00Z'));
-		vi.mocked(buildSyncSnapshot).mockResolvedValue(snap('2026-05-29T10:00:00Z'));
-		const res = await performSync({ confirmOverwrite: async () => true }, CLIENT_ID);
-		expect(res.kind).toBe('remote-newer-imported');
-		expect(savePreSyncBackup).toHaveBeenCalledTimes(1);
-		expect(applySyncSnapshot).toHaveBeenCalledTimes(1);
+		vi.mocked(downloadSyncFile).mockResolvedValue(remote);
+		vi.mocked(buildSyncSnapshot).mockResolvedValue(freshLocal);
+		vi.mocked(uploadSyncFile).mockResolvedValue({ id: 'fid' });
+
+		await performSync({}, CLIENT_ID);
+
+		const uploaded = vi.mocked(uploadSyncFile).mock.calls[0][2] as { verseRatings: unknown[] };
+		expect(uploaded.verseRatings).toHaveLength(1);
 	});
 
-	it('remote newer + user declines → no backup, no apply', async () => {
+	it('keeps a pre-sync backup, the only way back from a bad remote file', async () => {
 		vi.mocked(findSyncFile).mockResolvedValue({ id: 'fid', modifiedTime: 'x' });
-		vi.mocked(downloadSyncFile).mockResolvedValue(snap('2026-05-29T11:00:00Z'));
+		vi.mocked(downloadSyncFile).mockResolvedValue(snap('2026-05-29T09:00:00Z'));
 		vi.mocked(buildSyncSnapshot).mockResolvedValue(snap('2026-05-29T10:00:00Z'));
-		const res = await performSync({ confirmOverwrite: async () => false }, CLIENT_ID);
-		expect(res.kind).toBe('remote-newer-declined');
-		expect(savePreSyncBackup).not.toHaveBeenCalled();
-		expect(applySyncSnapshot).not.toHaveBeenCalled();
+		vi.mocked(uploadSyncFile).mockResolvedValue({ id: 'fid' });
+
+		await performSync({}, CLIENT_ID);
+
+		expect(vi.mocked(savePreSyncBackup)).toHaveBeenCalledTimes(1);
 	});
 
 	it('returns error result when a Drive call throws', async () => {

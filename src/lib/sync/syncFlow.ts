@@ -10,18 +10,18 @@ import {
 	type SyncSnapshot
 } from './snapshot';
 import { savePreSyncBackup } from './preSyncBackup';
+import { mergeSnapshots } from './merge';
 
 export type SyncResult =
 	| { kind: 'no-remote-uploaded' }
 	| { kind: 'remote-equal' }
-	| { kind: 'local-newer-uploaded' }
-	| { kind: 'remote-newer-imported' }
-	| { kind: 'remote-newer-declined' }
+	| { kind: 'merged' }
 	| { kind: 'error'; message: string };
 
 export interface SyncHandlers {
-	/** Resolves with true when the user agreed to overwrite local state. */
-	confirmOverwrite: () => Promise<boolean>;
+	/** Kept for callers that still pass one. Nothing asks any more: a merge
+	 *  discards nothing, so there is no longer a question to put to the user. */
+	confirmOverwrite?: () => Promise<boolean>;
 }
 
 /** Refresh this far ahead of the stated expiry, so a sync that starts just
@@ -46,12 +46,20 @@ async function withFreshToken(
 	return refreshAccessToken(clientId, auth.email).catch(() => null);
 }
 
-/** Single-button sync orchestrator. Decision tree:
- *  - not authenticated → error
- *  - no remote file    → upload local (create)
- *  - timestamps equal  → no-op
- *  - local newer       → upload local (PATCH)
- *  - remote newer      → confirm → save backup + apply remote (or decline) */
+/**
+ * Single-button sync orchestrator.
+ *
+ * - not authenticated → error
+ * - no remote file    → upload local (create)
+ * - otherwise         → merge both, apply locally, upload the result
+ *
+ * It used to compare one timestamp and replace the whole snapshot with the
+ * newer side, which deleted the loser's records. Worse, the guards were on the
+ * wrong branch: overwriting this device asked and kept a backup, while
+ * overwriting everyone else's history did neither — so the destructive
+ * direction was the unattended one. Merging removes the choice rather than
+ * moving the guard.
+ */
 export async function performSync(
 	handlers: SyncHandlers,
 	clientId: string | null
@@ -75,25 +83,16 @@ export async function performSync(
 
 		const remoteRaw = await downloadSyncFile(auth.accessToken, found.id);
 		const remoteSnap = remoteRaw as SyncSnapshot;
-		const localTs = localSnap.lastModifiedAt;
-		// Fallback for a remote envelope missing lastModifiedAt (legacy or
-		// hand-edited): treat as the lexicographic minimum so any real local
-		// ISO timestamp wins and uploads. ISO-8601 strings compare correctly
-		// in normal lexicographic order.
-		const remoteTs = remoteSnap.lastModifiedAt ?? '';
 
-		if (localTs === remoteTs) return { kind: 'remote-equal' };
-		if (localTs > remoteTs) {
-			await uploadSyncFile(auth.accessToken, found.id, localSnap);
-			return { kind: 'local-newer-uploaded' };
-		}
+		if (localSnap.lastModifiedAt === remoteSnap.lastModifiedAt) return { kind: 'remote-equal' };
 
-		// remote > local
-		const ok = await handlers.confirmOverwrite();
-		if (!ok) return { kind: 'remote-newer-declined' };
+		const merged = mergeSnapshots(localSnap, remoteSnap);
+		// Still kept, even though the merge discards nothing: it is the only
+		// way back from a bad remote file, and it costs one settings row.
 		await savePreSyncBackup(localSnap);
-		await applySyncSnapshot(remoteSnap);
-		return { kind: 'remote-newer-imported' };
+		await applySyncSnapshot(merged);
+		await uploadSyncFile(auth.accessToken, found.id, merged);
+		return { kind: 'merged' };
 	} catch (err) {
 		return {
 			kind: 'error',
