@@ -10,7 +10,8 @@
 	import type { DifficultyLevel } from '$lib/db/verseRatings';
 	import { normalizeForGrading } from '$lib/memorize/grade';
 	import { activeMarks, tokenizeVerse, type StoredMark } from '$lib/memorize/marks';
-	import { Highlighter, PartyPopper, Repeat, Square, Volume2 } from 'lucide-svelte';
+	import { BookOpen, Highlighter, PartyPopper, Repeat, Square, Volume2 } from 'lucide-svelte';
+	import { readerHref } from '$lib/bible/reference';
 	import { createPlayer, isTtsSupported, speechSegments, type PlayerHandle } from '$lib/memorize/speak';
 	import VersePlayer from './VersePlayer.svelte';
 	import { getSpeakOptions, setSpeakOption, type SpeakOptionsStored } from '$lib/db/viewOptions';
@@ -116,6 +117,10 @@
 	 *  A body of pure punctuation (an OYO verse typed as "***") normalizes to ""
 	 *  and would score a perfect match for nothing typed. */
 	const checkable = $derived(ratingsEnabled && normalizeForGrading(verse.w).length > 0);
+
+	/** Null for a citation the reader app cannot place — a hand-written OYO one,
+	 *  say — in which case no link is offered at all. */
+	const reader = $derived(readerHref(verse.cite));
 
 	// The card reacts to a tap when it can select, or when a tap starts a
 	// check. Both only apply in read mode; while a mode is open, drags reveal
@@ -448,6 +453,16 @@
 			</h2>
 			<div class="flex shrink-0 items-center gap-1">
 				{#if mode === 'read'}
+					{#if perfect || earnedNow}
+						<!-- Beside the difficulty badges: this is a mark of how the verse
+						     has gone, which is what that cluster is for. -->
+						<PartyPopper
+							size={15}
+							strokeWidth={2}
+							class="shrink-0 text-[var(--color-accent)]"
+							aria-label="완벽하게 암송한 구절"
+						/>
+					{/if}
 					{#if ratingsEnabled}
 						<div class="flex items-center gap-1">
 							<DifficultyBadge
@@ -522,16 +537,19 @@
 		</div>
 		<p class="flex items-center gap-1.5 text-[calc(19px*var(--vfs))] text-[var(--color-text-secondary)]">
 			{verse.cite}
-			{#if perfect || earnedNow}
-				<!-- Earned by a flawless recitation, and kept. A later slip does not
-				     take it back: it records that the reader has done this, not that
-				     they could do it right now. -->
-				<PartyPopper
-					size={15}
-					strokeWidth={2}
-					class="shrink-0 text-[var(--color-accent)]"
-					aria-label="완벽하게 암송한 구절"
-				/>
+			{#if reader}
+				<!-- Opens the verse in its chapter, which is the question a memorised
+				     verse most often raises: what comes either side of it. New tab,
+				     because leaving mid-check would lose the attempt. -->
+				<a
+					href={reader}
+					target="_blank"
+					rel="noopener"
+					aria-label="{verse.cite} 성경에서 보기"
+					class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-accent)]"
+				>
+					<BookOpen size={15} strokeWidth={2} />
+				</a>
 			{/if}
 		</p>
 	</header>

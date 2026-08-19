@@ -303,15 +303,18 @@ describe('완벽 배지', () => {
 		expect(badge()).toBeInTheDocument();
 	});
 
-	// It should appear with the confetti, not only after the page is next
-	// loaded — the reader is looking right at the card when they earn it.
-	it('appears as soon as a perfect check lands', async () => {
+	// It sits with the difficulty badges, which the header only shows in read
+	// mode, so it appears as the card closes back — no reload needed. The
+	// success view auto-closes a few seconds after the confetti, so in practice
+	// the two land together.
+	it('appears without a reload once the check closes', async () => {
 		setup();
 		await fireEvent.click(screen.getByRole('button', { name: '점검' }));
 		await fireEvent.input(screen.getByLabelText('암송 구절 입력'), {
 			target: { value: verse.w }
 		});
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '닫기' }));
 		expect(badge()).toBeInTheDocument();
 	});
 
@@ -323,6 +326,31 @@ describe('완벽 배지', () => {
 		});
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
+		await fireEvent.click(screen.getByRole('button', { name: '닫기' }));
 		expect(badge()).toBeNull();
+	});
+})
+
+describe('성경에서 보기 링크', () => {
+	it('links the verse to its chapter in the reader', () => {
+		setup();
+		const link = screen.getByLabelText(/성경에서 보기/);
+		expect(link).toHaveAttribute(
+			'href',
+			'https://bible.lifescripture.org/r/krv/1/18#v-20'
+		);
+	});
+
+	// Leaving mid-check would lose the attempt.
+	it('opens in a new tab', () => {
+		setup();
+		expect(screen.getByLabelText(/성경에서 보기/)).toHaveAttribute('target', '_blank');
+	});
+
+	// A hand-written OYO citation may name no book the reader knows. No link is
+	// better than one into the wrong book.
+	it('is absent when the citation cannot be placed', () => {
+		setup({ verse: { ...verse, cite: '내 메모 1 : 1' } });
+		expect(screen.queryByLabelText(/성경에서 보기/)).toBeNull();
 	});
 })
