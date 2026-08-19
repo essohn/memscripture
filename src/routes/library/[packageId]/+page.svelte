@@ -5,7 +5,7 @@
 	import SeriesSubTabStrip from '$lib/components/filter/SeriesSubTabStrip.svelte';
 	import GroupSubStrip from '$lib/components/filter/GroupSubStrip.svelte';
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
-	import FontScalePicker from '$lib/components/card/FontScalePicker.svelte';
+	import { fontScale } from '$lib/state/fontScale.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
 	import { Bookmark } from 'lucide-svelte';
 	import { page } from '$app/state';
@@ -13,12 +13,7 @@
 	import { level1Groups, level2GroupsInSeries, filterVerses } from '$lib/db/verses';
 	import { recordPackageView } from '$lib/db/recent';
 	import { recordRecentBundle } from '$lib/db/recentBundles';
-	import {
-		getVerseFontScale,
-		setVerseFontScale,
-		type VerseFontScale
-	} from '$lib/db/viewOptions';
-	import { db } from '$lib/db/local';
+		import { db } from '$lib/db/local';
 	import { setBookmark, clearBookmark } from '$lib/db/bookmarks';
 	import { listMarksForPackage, toggleVerseMark } from '$lib/db/verseMarks';
 	import type { StoredMark } from '$lib/memorize/marks';
@@ -42,7 +37,6 @@
 
 	// Read-through to the header toggle, which every screen shares.
 	const showVerseText = $derived(verseVisibility.shown);
-	let fontScale = $state<VerseFontScale>(1.0);
 	let ratingsByVerseNo = $state<Map<number, VerseRowRating>>(new Map());
 	let marksByVerseNo = $state<Map<number, StoredMark[]>>(new Map());
 	let bookmarksByVerseNo = $state<Map<number, BookmarkColor>>(new Map());
@@ -225,9 +219,7 @@
 		const currentPackageId = packageId;
 		recordPackageView(currentPackageId).catch(() => {});
 		(async () => {
-			const scale = await getVerseFontScale();
 			if (active) {
-				fontScale = scale;
 			}
 		})().catch(() => {});
 
@@ -300,11 +292,6 @@
 			full: level
 		});
 		setFullDifficulty(packageId, verseNo, level).catch(() => {});
-	}
-
-	function pickFontScale(scale: VerseFontScale) {
-		fontScale = scale;
-		setVerseFontScale(scale).catch(() => {});
 	}
 
 	// Derive filter state from URL search params
@@ -411,7 +398,6 @@
 			>
 				{selecting ? '완료' : '선택'}
 			</button>
-			<FontScalePicker value={fontScale} onpick={pickFontScale} />
 		</div>
 	</div>
 
@@ -438,7 +424,7 @@
 					onPickStartDifficulty={(l) => pickStart(v.no, l)}
 					onPickFullDifficulty={(l) => pickFull(v.no, l)}
 					showBody={showVerseText}
-					{fontScale}
+					fontScale={fontScale.value}
 					{selecting}
 					selected={selectedVerseNos.has(v.no)}
 					dimmed={selectionActive && !selectedVerseNos.has(v.no)}

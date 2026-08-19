@@ -2,18 +2,13 @@
 	import Header from '$lib/components/nav/Header.svelte';
 	import { verseVisibility } from '$lib/state/verseVisibility.svelte';
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
-	import FontScalePicker from '$lib/components/card/FontScalePicker.svelte';
+	import { fontScale } from '$lib/state/fontScale.svelte';
 	import VerseEditSheet, {
 		type VerseEditValues
 	} from '$lib/components/oyo/VerseEditSheet.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
 	import { Plus, FolderInput, FolderOutput, ArrowDownUp } from 'lucide-svelte';
-	import {
-		getVerseFontScale,
-		setVerseFontScale,
-		type VerseFontScale
-	} from '$lib/db/viewOptions';
-	import {
+		import {
 		createOyoVerse,
 		deleteOyoVerse,
 		listOyoVerses,
@@ -33,7 +28,6 @@
 	let verses = $state<StoredVerse[]>([]);
 	// Read-through to the header toggle, which every screen shares.
 	const showVerseText = $derived(verseVisibility.shown);
-	let fontScale = $state<VerseFontScale>(1.0);
 	// Per-verse difficulty cache keyed by verse.no — separate maps for each
 	// dimension so a write to one doesn't blow away the other.
 	let startDifficulties = $state<Record<number, DifficultyLevel | null>>({});
@@ -51,10 +45,9 @@
 	$effect(() => {
 		let active = true;
 		(async () => {
-			const [list, scale] = await Promise.all([listOyoVerses(), getVerseFontScale()]);
+			const list = await listOyoVerses();
 			if (!active) return;
 			verses = list;
-			fontScale = scale;
 
 			// Hydrate difficulty maps after the list lands. Done in a second
 			// pass so the list renders fast even if there are many verses.
@@ -86,11 +79,6 @@
 		setFullDifficulty(OYO_PACKAGE_ID, verseNo, level).catch(() => {});
 	}
 
-
-	function pickFontScale(scale: VerseFontScale) {
-		fontScale = scale;
-		setVerseFontScale(scale).catch(() => {});
-	}
 
 	function openCreate() {
 		sheet = { mode: 'create' };
@@ -246,7 +234,6 @@
 				<Plus size={14} strokeWidth={2} />
 				구절 추가
 			</button>
-			<FontScalePicker value={fontScale} onpick={pickFontScale} />
 		</div>
 	</div>
 
@@ -289,7 +276,7 @@
 					packageName="OYO"
 					packageId="oyo"
 					showBody={showVerseText}
-					{fontScale}
+					fontScale={fontScale.value}
 					startDifficulty={startDifficulties[verse.no] ?? null}
 					fullDifficulty={fullDifficulties[verse.no] ?? null}
 					onPickStartDifficulty={(l) => pickStart(verse.no, l)}

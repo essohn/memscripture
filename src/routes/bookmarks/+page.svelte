@@ -2,7 +2,7 @@
 	import Header from '$lib/components/nav/Header.svelte';
 	import { verseVisibility } from '$lib/state/verseVisibility.svelte';
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
-	import FontScalePicker from '$lib/components/card/FontScalePicker.svelte';
+	import { fontScale } from '$lib/state/fontScale.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
 	import { goto } from '$app/navigation';
 	import { setBookmark, clearBookmark, clearAllOfColor } from '$lib/db/bookmarks';
@@ -12,12 +12,7 @@
 		setFullDifficulty,
 		type DifficultyLevel
 	} from '$lib/db/verseRatings';
-	import {
-		getVerseFontScale,
-		setVerseFontScale,
-		type VerseFontScale
-	} from '$lib/db/viewOptions';
-	import { BOOKMARK_COLORS, type BookmarkColor } from '$lib/types';
+		import { BOOKMARK_COLORS, type BookmarkColor } from '$lib/types';
 	import type { BookmarksLoadData, BookmarkedRow } from './+page';
 
 	let { data }: { data: BookmarksLoadData } = $props();
@@ -26,7 +21,6 @@
 	let selected = $state<BookmarkColor>('red');
 	// Read-through to the header toggle, which every screen shares.
 	const showVerseText = $derived(verseVisibility.shown);
-	let fontScale = $state<VerseFontScale>(1.0);
 	// Composite-keyed difficulty cache. Bookmarks span packages, so verse.no
 	// alone isn't unique — `${packageId}:${verseNo}` is.
 	let startDifficulties = $state<Record<string, DifficultyLevel | null>>({});
@@ -50,9 +44,6 @@
 	$effect(() => {
 		let active = true;
 		(async () => {
-			const scale = await getVerseFontScale();
-			if (!active) return;
-			fontScale = scale;
 
 			// Hydrate difficulty maps for every bookmarked row in one pass.
 			const ratings = await Promise.all(
@@ -86,11 +77,6 @@
 		setFullDifficulty(packageId, verseNo, level).catch(() => {});
 	}
 
-
-	function pickFontScale(scale: VerseFontScale) {
-		fontScale = scale;
-		setVerseFontScale(scale).catch(() => {});
-	}
 
 	const COLOR_LABELS: Record<BookmarkColor, string> = {
 		red: '빨강',
@@ -215,7 +201,6 @@
 				>
 					이 색 전부 지우기
 				</button>
-				<FontScalePicker value={fontScale} onpick={pickFontScale} />
 			</div>
 		</div>
 
@@ -239,7 +224,7 @@
 					onPickFullDifficulty={(l) =>
 						pickFull(row.bookmark.packageId, row.bookmark.verseNo, l)}
 					showBody={showVerseText}
-					{fontScale}
+					fontScale={fontScale.value}
 				/>
 			{/each}
 		</div>

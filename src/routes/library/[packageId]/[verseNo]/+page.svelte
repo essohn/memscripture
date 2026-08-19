@@ -2,7 +2,7 @@
 	import Header from '$lib/components/nav/Header.svelte';
 	import { verseVisibility } from '$lib/state/verseVisibility.svelte';
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
-	import FontScalePicker from '$lib/components/card/FontScalePicker.svelte';
+	import { fontScale } from '$lib/state/fontScale.svelte';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import { page } from '$app/state';
 	import {
@@ -20,12 +20,7 @@
 		setFullDifficulty,
 		type DifficultyLevel
 	} from '$lib/db/verseRatings';
-	import {
-		getVerseFontScale,
-		setVerseFontScale,
-		type VerseFontScale
-	} from '$lib/db/viewOptions';
-	import type { BookmarkColor, PackageMeta, IndexGroup } from '$lib/types';
+		import type { BookmarkColor, PackageMeta, IndexGroup } from '$lib/types';
 	import type { StoredVerse } from '$lib/db/local';
 
 	const packageId = $derived(page.params.packageId!);
@@ -41,7 +36,6 @@
 	let error: string | null = $state(null);
 	// Read-through to the header toggle, which every screen shares.
 	const showVerseText = $derived(verseVisibility.shown);
-	let fontScale = $state<VerseFontScale>(1.0);
 
 	// Verse numbers can be sparse (e.g., 1, 2, 5, 7) — sort by `no` so prev/next
 	// reflect the package's natural order, not the storage order.
@@ -57,9 +51,7 @@
 	$effect(() => {
 		let active = true;
 		(async () => {
-			const scale = await getVerseFontScale();
 			if (active) {
-				fontScale = scale;
 			}
 		})().catch(() => {});
 		return () => {
@@ -67,11 +59,6 @@
 		};
 	});
 
-
-	function pickFontScale(scale: VerseFontScale) {
-		fontScale = scale;
-		setVerseFontScale(scale).catch(() => {});
-	}
 
 	$effect(() => {
 		let active = true;
@@ -163,7 +150,6 @@
 		<p role="status" class="text-[var(--color-text-tertiary)]">불러오는 중...</p>
 	{:else}
 		<div class="mb-3 flex items-center justify-end gap-1 px-1">
-			<FontScalePicker value={fontScale} onpick={pickFontScale} />
 		</div>
 		<!--
 			Re-key on verse number so per-card popover state (bookmark, difficulty
@@ -186,7 +172,7 @@
 				{onPickFullDifficulty}
 				showBody={showVerseText}
 				tapToCheck={false}
-				{fontScale}
+				fontScale={fontScale.value}
 			/>
 		{/key}
 

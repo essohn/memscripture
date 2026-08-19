@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { Settings, Eye, EyeOff, Search } from 'lucide-svelte';
 	import { verseVisibility } from '$lib/state/verseVisibility.svelte';
+	import { fontScale } from '$lib/state/fontScale.svelte';
+	import FontScalePicker from '$lib/components/card/FontScalePicker.svelte';
 
 	interface Props {
 		title: string;
@@ -11,19 +13,24 @@
 		/** Off on the search screen itself, which would otherwise offer a way
 		 *  back to where you already are. */
 		showSearch?: boolean;
+		/** Text-size picker. Shown wherever verses are, which is the same set of
+		 *  screens as the reveal toggle. */
+		showFontScale?: boolean;
 	}
 	let {
 		title,
 		showSettings = true,
 		onBack,
 		showVerseToggle = true,
-		showSearch = true
+		showSearch = true,
+		showFontScale = true
 	}: Props = $props();
 
 	// Header is on every screen, so this is also where the stored preference
 	// gets read — once, guarded inside the store.
 	$effect(() => {
 		if (showVerseToggle) verseVisibility.load();
+		if (showFontScale) fontScale.load();
 	});
 </script>
 
@@ -52,6 +59,9 @@
 				>
 					<Search size={20} strokeWidth={1.75} />
 				</a>
+			{/if}
+			{#if showFontScale}
+				<FontScalePicker value={fontScale.value} onpick={(s) => fontScale.pick(s)} />
 			{/if}
 			{#if showVerseToggle}
 				<button
