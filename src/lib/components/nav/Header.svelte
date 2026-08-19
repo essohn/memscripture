@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Settings, Eye, EyeOff, Search } from 'lucide-svelte';
+	import { Settings, Eye, EyeOff, Search, ArrowLeft } from 'lucide-svelte';
 	import { verseVisibility } from '$lib/state/verseVisibility.svelte';
 	import { fontScale } from '$lib/state/fontScale.svelte';
 	import FontScalePicker from '$lib/components/card/FontScalePicker.svelte';
@@ -38,28 +38,48 @@
 	class="sticky top-0 bg-[var(--color-canvas)]/90 backdrop-blur z-40 border-b border-[var(--color-border)]"
 	style="padding-top: env(safe-area-inset-top);"
 >
-	<div class="flex items-center justify-between h-14 max-w-2xl mx-auto px-5">
-		{#if onBack}
-			<button
-				type="button"
-				onclick={onBack}
-				aria-label="뒤로"
-				class="text-[var(--color-text-secondary)] -ml-2 p-2"
-			>←</button>
-		{:else}
-			<span class="w-6"></span>
-		{/if}
-		<h1 class="text-lg font-semibold text-[var(--color-text)]">{title}</h1>
-		<div class="-mr-2 flex items-center">
+	<!--
+		Three layers rather than a flex row with justify-between: that centres the
+		title in the space left over, so it drifted left whenever the right side
+		carried more icons than the left — which is every screen. Absolute
+		positioning centres it against the header itself, whatever flanks it.
+	-->
+	<div class="relative flex items-center h-14 max-w-2xl mx-auto px-5">
+		<div class="flex items-center -ml-2">
+			{#if onBack}
+				<button
+					type="button"
+					onclick={onBack}
+					aria-label="뒤로"
+					class="inline-flex h-11 w-11 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
+				>
+					<ArrowLeft size={24} strokeWidth={2.5} />
+				</button>
+			{/if}
 			{#if showSearch}
+				<!-- Left, beside back. Four icons on the right read as one dense
+				     cluster, and search is the one that opens a screen of its own
+				     rather than adjusting the one you are on. -->
 				<a
 					href="/search"
 					aria-label="구절 검색"
-					class="p-2 text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
+					class="inline-flex h-11 w-11 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
 				>
-					<Search size={20} strokeWidth={1.75} />
+					<Search size={20} strokeWidth={2} />
 				</a>
 			{/if}
+		</div>
+
+		<!-- Centred on the header, not between its neighbours. Truncates rather
+		     than running under the icons, and ignores pointer events so the
+		     overlap can never eat a tap. -->
+		<h1
+			class="pointer-events-none absolute left-1/2 max-w-[52%] -translate-x-1/2 truncate text-center text-lg font-semibold text-[var(--color-text)]"
+		>
+			{title}
+		</h1>
+
+		<div class="-mr-2 ml-auto flex items-center">
 			{#if showFontScale}
 				<FontScalePicker value={fontScale.value} onpick={(s) => fontScale.pick(s)} />
 			{/if}
@@ -82,8 +102,6 @@
 				<a href="/settings" aria-label="설정" class="p-2 text-[var(--color-text-secondary)]">
 					<Settings size={20} strokeWidth={1.75} />
 				</a>
-			{:else if !showVerseToggle}
-				<span class="w-6"></span>
 			{/if}
 		</div>
 	</div>
