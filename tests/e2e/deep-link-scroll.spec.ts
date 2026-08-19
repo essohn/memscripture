@@ -11,7 +11,11 @@ test('?sel deep-link anchors the first verse near the top, not the middle', asyn
 	await page.goto(`/library/900_krv?sel=${RANGE.join(',')}`);
 
 	const first = page.locator('#verse-127');
-	await expect(first).toBeAttached();
+	// Generous on purpose: this is the 900-verse package, so the first paint
+	// waits on installing and rendering all 900 rows. The default 5s covers it
+	// on a laptop and does not on a CI runner, which is exactly the shape of
+	// flake that gets a suite ignored.
+	await expect(first).toBeAttached({ timeout: 20_000 });
 
 	// The jump is a smooth scroll across ~33,000px; wait for scrollY to settle.
 	await page.waitForFunction(
