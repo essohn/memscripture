@@ -36,3 +36,14 @@ test('body uses min-height 100dvh, not 100vh', async ({ page }) => {
 	expect(minHeight).not.toBe('auto');
 	expect(minHeight).not.toBe('0px');
 });
+
+// iOS Safari zooms in when a focused control's text is under 16px, and never
+// zooms back out — leaving the page scrolling sideways after every check. The
+// only reliable prevention is not being under 16px in the first place.
+test('form controls are large enough that iOS will not zoom', async ({ page }) => {
+	await page.goto('/search');
+	const size = await page
+		.getByLabel('구절 검색')
+		.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+	expect(size).toBeGreaterThanOrEqual(16);
+});

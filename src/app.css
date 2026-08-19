@@ -124,6 +124,27 @@ body {
 }
 
 /*
+ * iOS Safari zooms the page in when a focused form control's text is smaller
+ * than 16px — and it does not zoom back out when the control loses focus. The
+ * reader was left in a magnified page that scrolled sideways after every
+ * check, which reads as the app breaking rather than as a browser behaviour.
+ *
+ * Sized here rather than on each control because there were seven of them and
+ * the eighth would have reintroduced it. !important is deliberate: it has to
+ * beat utility classes, including ones not written yet.
+ *
+ * Gated on a coarse pointer so the desktop keeps its typography; a phone gets
+ * 16px inputs, which it should have anyway.
+ */
+@media (pointer: coarse) {
+	input,
+	textarea,
+	select {
+		font-size: 16px !important;
+	}
+}
+
+/*
  * Tailwind v3's Preflight set `cursor: pointer` on buttons; v4 dropped it to
  * match the bare browser default, so every button in this app — 암송, 점검,
  * the difficulty badges, the whole toolbar — showed a plain arrow. Put it back
