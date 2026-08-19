@@ -1,5 +1,6 @@
 <script lang="ts">
 	import DifficultyBadge from './DifficultyBadge.svelte';
+	import Confetti from '$lib/components/feedback/Confetti.svelte';
 	import type { CheckRecord } from '$lib/db/local';
 	import { DIFFICULTY_LABELS, type DifficultyLevel } from '$lib/db/verseRatings';
 	import {
@@ -79,6 +80,14 @@
 	 *  Without it a perfect attempt saved in silence and left the panel
 	 *  untouched — the reader who recited it best got no reply at all. */
 	let saved = $state<{ start: DifficultyLevel | null; full: DifficultyLevel | null } | null>(null);
+	/**
+	 * Set only by a flawless attempt, and only there.
+	 *
+	 * Not derived from saved.full === 5: the reader can raise a flawed attempt
+	 * to 5 by hand afterwards, and confetti for a rating they awarded
+	 * themselves would celebrate the wrong thing.
+	 */
+	let celebrate = $state(false);
 	/** Collapsed by default: the input is what the reader came for, and ten rows
 	 *  above it would push the textarea off a phone screen. */
 	let historyOpen = $state(false);
@@ -250,6 +259,7 @@
 		};
 		if (accuracy === 1) {
 			commit(result);
+			celebrate = true;
 			saved = result;
 			onGraded({ ...result, accuracy, elapsedMs, hints: hintsUsed });
 			return;
@@ -333,6 +343,7 @@
 	 *  carrying its elapsed time into the next one would misreport it. */
 	function restart() {
 		onRestart?.();
+		celebrate = false;
 		session?.stop();
 		speechError = null;
 		saved = null;
@@ -344,6 +355,8 @@
 		hintsUsed = 0;
 	}
 </script>
+
+<Confetti fire={celebrate} />
 
 <div class="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-elevated)] p-3">
 	{#if saved}

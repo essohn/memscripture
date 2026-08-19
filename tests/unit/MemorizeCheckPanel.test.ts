@@ -391,3 +391,39 @@ describe('the input comes first', () => {
 	});
 });
 
+
+describe('confetti fires only for a flawless recitation', () => {
+	// What the panel owns is the decision to fire; whether pixels move is the
+	// canvas's business and jsdom has no 2d context to run it in, so that part
+	// is verified in a real browser instead.
+	const asked = () => document.querySelector('[data-testid="confetti"]')?.getAttribute('data-fire');
+
+	it('appears when the attempt is perfect', async () => {
+		setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(asked()).toBe('true');
+	});
+
+	// A flawed attempt is confirmed by hand, and the reader can set 5 there
+	// themselves. Celebrating a rating they awarded themselves would be
+	// congratulating the wrong thing.
+	it('does not appear when a flawed attempt is rated 5 by hand', async () => {
+		setup();
+		await type(VERSE.replace('가르쳐서', '가르치고'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByLabelText(/전체 암송 난이도/));
+		await fireEvent.click(screen.getByRole('menuitemradio', { name: /^5 / }));
+		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
+		expect(screen.getByTestId('memorize-success')).toBeInTheDocument();
+		expect(asked()).toBe('false');
+	});
+
+	it('is armed again for the next attempt', async () => {
+		setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
+		expect(asked()).toBe('false');
+	});
+})
