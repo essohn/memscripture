@@ -129,6 +129,10 @@ export interface RangeCardVM {
 export interface EventCardVM {
 	eventId: string;
 	eventTitle: string;
+	/** The DAY itself, ISO yyyy-mm-dd. Carried alongside dDay because an
+	 *  export is a document someone keeps: "D-11" is only true on the day it
+	 *  was made, the date stays true. */
+	dueAt: string;
 	dDay: number;
 	ranges: RangeCardVM[];
 }
@@ -165,7 +169,13 @@ export async function buildEventCards(today: string): Promise<EventCardVM[]> {
 			});
 		}
 		if (ranges.length > 0) {
-			cards.push({ eventId: e.id, eventTitle: e.title, dDay: dDay(e.dueAt, today), ranges });
+			cards.push({
+				eventId: e.id,
+				eventTitle: e.title,
+				dueAt: e.dueAt,
+				dDay: dDay(e.dueAt, today),
+				ranges
+			});
 		}
 	}
 	return cards;

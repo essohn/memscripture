@@ -17,6 +17,7 @@ const { exportEventToSheets } = await import('../../src/lib/export/eventSheetExp
 const { getEventSheetId, setEventSheetId } = await import('../../src/lib/export/sheetRegistry');
 const { db } = await import('../../src/lib/db/local');
 
+const EVENT = { title: '여름 DAY', dueAt: '2026-08-31' };
 const RANGES = [] as RangeCardVM[];
 const OPTIONS = { includeDifficulty: true, sortByScripture: true };
 const VERSE = {
@@ -49,7 +50,7 @@ describe('exportEventToSheets', () => {
 	// reader's time on the likeliest failure of the whole flow.
 	it.each(['not-connected', 'expired'] as const)('reports %s without reading verses', async (kind) => {
 		getFreshAuth.mockResolvedValue({ kind });
-		expect(await exportEventToSheets('summer', '여름 DAY', RANGES, OPTIONS, 'cid')).toEqual({
+		expect(await exportEventToSheets('summer', EVENT, RANGES, OPTIONS, 'cid')).toEqual({
 			kind
 		});
 		expect(collectEventVerses).not.toHaveBeenCalled();
@@ -60,7 +61,7 @@ describe('exportEventToSheets', () => {
 	it('refuses to create an empty document', async () => {
 		connected();
 		collectEventVerses.mockResolvedValue([]);
-		expect(await exportEventToSheets('summer', '여름 DAY', RANGES, OPTIONS, 'cid')).toEqual({
+		expect(await exportEventToSheets('summer', EVENT, RANGES, OPTIONS, 'cid')).toEqual({
 			kind: 'empty'
 		});
 		expect(uploadSpreadsheet).not.toHaveBeenCalled();
@@ -68,7 +69,7 @@ describe('exportEventToSheets', () => {
 
 	it('creates a document and returns where to open it', async () => {
 		connected();
-		expect(await exportEventToSheets('summer', '여름 DAY', RANGES, OPTIONS, 'cid')).toEqual({
+		expect(await exportEventToSheets('summer', EVENT, RANGES, OPTIONS, 'cid')).toEqual({
 			kind: 'ok',
 			url: 'https://docs.google.com/spreadsheets/d/sheet-1/edit',
 			created: true
@@ -81,7 +82,7 @@ describe('exportEventToSheets', () => {
 		await setEventSheetId('a@x.com', 'summer', 'sheet-1');
 		uploadSpreadsheet.mockResolvedValue({ id: 'sheet-1', created: false });
 
-		const result = await exportEventToSheets('summer', '여름 DAY', RANGES, OPTIONS, 'cid');
+		const result = await exportEventToSheets('summer', EVENT, RANGES, OPTIONS, 'cid');
 		expect(result).toMatchObject({ kind: 'ok', created: false });
 		expect(uploadSpreadsheet).toHaveBeenCalledWith(
 			'tok',
@@ -99,14 +100,14 @@ describe('exportEventToSheets', () => {
 		await setEventSheetId('a@x.com', 'summer', 'deleted-sheet');
 		uploadSpreadsheet.mockResolvedValue({ id: 'sheet-2', created: true });
 
-		await exportEventToSheets('summer', '여름 DAY', RANGES, OPTIONS, 'cid');
+		await exportEventToSheets('summer', EVENT, RANGES, OPTIONS, 'cid');
 		expect(await getEventSheetId('a@x.com', 'summer')).toBe('sheet-2');
 	});
 
 	it('reports an upload failure rather than throwing at the caller', async () => {
 		connected();
 		uploadSpreadsheet.mockRejectedValue(new Error('Sheets create: HTTP 500'));
-		expect(await exportEventToSheets('summer', '여름 DAY', RANGES, OPTIONS, 'cid')).toEqual({
+		expect(await exportEventToSheets('summer', EVENT, RANGES, OPTIONS, 'cid')).toEqual({
 			kind: 'error'
 		});
 	});

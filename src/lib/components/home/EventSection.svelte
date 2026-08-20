@@ -49,7 +49,13 @@
 		const tab = window.open('', '_blank');
 		sheetBusy = true;
 		sheetNotice = null;
-		exportEventToSheets(ev.eventId, ev.eventTitle, ev.ranges, options, clientId)
+		exportEventToSheets(
+			ev.eventId,
+			{ title: ev.eventTitle, dueAt: ev.dueAt },
+			ev.ranges,
+			options,
+			clientId
+		)
 			.then((result) => {
 				if (result.kind === 'ok') {
 					if (tab) tab.location.replace(result.url);
@@ -86,7 +92,12 @@
 		try {
 			// exportEventXlsx never rejects — it routes both the empty and the
 			// error path through callbacks — so only success closes the sheet.
-			const produced = await exportEventXlsx(ev.eventTitle, ev.ranges, options, todayLocalKey(), {
+			const produced = await exportEventXlsx(
+				{ title: ev.eventTitle, dueAt: ev.dueAt },
+				ev.ranges,
+				options,
+				todayLocalKey(),
+				{
 				onEmpty,
 				onError
 			});

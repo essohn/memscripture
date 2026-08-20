@@ -1,7 +1,7 @@
 import type { RangeCardVM } from '$lib/db/events';
 import { getFreshAuth } from '$lib/cloud/session';
 import { spreadsheetName, spreadsheetUrl, uploadSpreadsheet } from '$lib/cloud/sheets';
-import { buildEventSheet, type ExportOptions } from './eventWorkbook';
+import { buildEventSheet, type ExportEvent, type ExportOptions } from './eventWorkbook';
 import { writeXlsx } from './xlsx';
 import { collectEventVerses } from './eventExport';
 import { getEventSheetId, setEventSheetId } from './sheetRegistry';
@@ -30,7 +30,7 @@ export type SheetExportResult =
  */
 export async function exportEventToSheets(
 	eventId: string,
-	eventTitle: string,
+	event: ExportEvent,
 	ranges: RangeCardVM[],
 	options: ExportOptions,
 	clientId: string | null
@@ -43,12 +43,12 @@ export async function exportEventToSheets(
 		const verses = await collectEventVerses(ranges);
 		if (verses.length === 0) return { kind: 'empty' };
 
-		const bytes = writeXlsx(buildEventSheet(eventTitle, verses, options));
+		const bytes = writeXlsx(buildEventSheet(event, verses, options));
 		const existing = await getEventSheetId(email, eventId);
 		const { id, created } = await uploadSpreadsheet(
 			accessToken,
 			existing,
-			spreadsheetName(eventTitle),
+			spreadsheetName(event.title),
 			bytes
 		);
 		// Written back even when the id is unchanged: it is also how a

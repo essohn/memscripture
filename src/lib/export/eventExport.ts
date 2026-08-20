@@ -1,7 +1,12 @@
 import { db } from '$lib/db/local';
 import type { RangeCardVM } from '$lib/db/events';
 import type { DifficultyLevel } from '$lib/db/verseRatings';
-import { buildEventSheet, type ExportOptions, type ExportVerse } from './eventWorkbook';
+import {
+	buildEventSheet,
+	type ExportEvent,
+	type ExportOptions,
+	type ExportVerse
+} from './eventWorkbook';
 import { writeXlsx } from './xlsx';
 
 function isLevel(v: unknown): v is DifficultyLevel {
@@ -109,7 +114,7 @@ export interface ExportCallbacks {
  * whether to dismiss its confirm UI.
  */
 export async function exportEventXlsx(
-	eventTitle: string,
+	event: ExportEvent,
 	ranges: RangeCardVM[],
 	options: ExportOptions,
 	dayKey: string,
@@ -122,8 +127,8 @@ export async function exportEventXlsx(
 			callbacks.onEmpty?.();
 			return false;
 		}
-		const bytes = writeXlsx(buildEventSheet(eventTitle, verses, options));
-		downloadBlob(bytes, exportFileName(eventTitle, dayKey));
+		const bytes = writeXlsx(buildEventSheet(event, verses, options));
+		downloadBlob(bytes, exportFileName(event.title, dayKey));
 		return true;
 	} catch {
 		callbacks.onError?.();

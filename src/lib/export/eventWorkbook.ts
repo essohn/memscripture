@@ -17,6 +17,23 @@ export interface ExportOptions {
 	sortByScripture: boolean;
 }
 
+export interface ExportEvent {
+	title: string;
+	/** The 암송 DAY itself, ISO yyyy-mm-dd, straight from events.json. */
+	dueAt: string;
+}
+
+/**
+ * The DAY as a Korean reader writes it. Falls back to the raw value rather
+ * than dropping the caption: a date this function cannot parse is still
+ * information, and inventing a blank line would hide it.
+ */
+export function formatDueAt(dueAt: string): string {
+	const m = dueAt.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+	if (!m) return dueAt.trim();
+	return `${m[1]}년 ${Number(m[2])}월 ${Number(m[3])}일`;
+}
+
 /**
  * Print-tuned ramp, 1 (hardest) → 5 (easiest).
  *
@@ -77,6 +94,24 @@ function sortByScripture(verses: ExportVerse[]): ExportVerse[] {
 	return [...readable, ...rest].map((k) => k.v);
 }
 
+/**
+ * A text cell with the corpus's stray padding removed.
+ *
+ * 241 of the shipped verses begin with a space, and a handful of bodies,
+ * titles and citations end with one. On a card that padding is invisible —
+ * the browser collapses it — but a spreadsheet keeps every character: the
+ * column reads ragged, and an exact-match lookup or a sort on the cell
+ * silently misses the row.
+ *
+ * Trimmed here rather than in static/data because this is the medium that
+ * cares. The corpus is what the reader sees on the card and what the check
+ * grades against; a spreadsheet cell is neither, and it should not take a
+ * change to 1,495 shipped verses to make one column line up.
+ */
+function text(value: string): SheetCell {
+	return { v: value.trim() };
+}
+
 function difficultyCell(level: DifficultyLevel | null): SheetCell {
 	// null, not an empty string: an unrated verse must produce no cell at
 	// all, so nothing can imply a rating the user never gave. An empty cell
@@ -93,9 +128,9 @@ function difficultyCell(level: DifficultyLevel | null): SheetCell {
  *  is not a legal range. */
 function difficultyRules(bodyRowCount: number): ConditionalFill[] {
 	if (bodyRowCount === 0) return [];
-	// A and B are the two difficulty columns; row 1 is the header, so the body
-	// starts at row 2.
-	const range = `A2:B${bodyRowCount + 1}`;
+	// A and B are the two difficulty columns. Row 1 is the 암송 DAY caption and
+	// row 2 the header, so the body starts at row 3.
+	const range = `A3:B${bodyRowCount + 2}`;
 	// Levels come from the local palette rather than DIFFICULTY_LEVELS in
 	// db/verseRatings: that is a value export from a module which imports Dexie
 	// as a value, and pulling it in would end this module's purity. The
@@ -110,13 +145,19 @@ function difficultyRules(bodyRowCount: number): ConditionalFill[] {
 }
 
 export function buildEventSheet(
-	eventTitle: string,
+	event: ExportEvent,
 	verses: ExportVerse[],
 	options: ExportOptions
 ): Sheet {
 	const columns = options.includeDifficulty
 		? [...DIFFICULTY_COLUMNS, ...BASE_COLUMNS]
 		: BASE_COLUMNS;
+
+	// One cell, not one per column: a lone string spills across the empty
+	// neighbours to its right in both Excel and Sheets, which is what a caption
+	// should do. Padding the row out would instead leave blanks that a filter
+	// or a copy-paste has to step over.
+	const caption: SheetCell[] = [{ v: `암송 DAY · ${formatDueAt(event.dueAt)}`, bold: true }];
 
 	const header: SheetCell[] = columns.map((c) => ({
 		v: c.header,
@@ -129,11 +170,11 @@ export function buildEventSheet(
 
 	const body = ordered.map((v) => {
 		const base: SheetCell[] = [
-			{ v: v.packageAbbreviation },
+			text(v.packageAbbreviation),
 			{ v: v.no, align: 'center' },
-			{ v: v.title },
-			{ v: v.cite },
-			{ v: v.body }
+			text(v.title),
+			text(v.cite),
+			text(v.body)
 		];
 		return options.includeDifficulty
 			? [difficultyCell(v.startDifficulty), difficultyCell(v.fullDifficulty), ...base]
@@ -141,10 +182,13 @@ export function buildEventSheet(
 	});
 
 	return {
-		name: eventTitle,
+		name: event.title,
 		cols: columns.map((c) => ({ width: c.width, align: c.align })),
-		rows: [header, ...body],
-		freezeRows: 1,
+		rows: [caption, header, ...body],
+		// Both the caption and the header stay put while scrolling 900 verses —
+		// a frozen pane that showed the caption but not the column names would
+		// pin the least useful of the two.
+		freezeRows: 2,
 		conditionalFills: options.includeDifficulty ? difficultyRules(body.length) : []
 	};
 }

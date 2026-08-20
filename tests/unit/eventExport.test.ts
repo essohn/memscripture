@@ -99,7 +99,8 @@ describe('exportEventXlsx', () => {
 		const onEmpty = vi.fn();
 		const onError = vi.fn();
 
-		const produced = await exportEventXlsx('2026 여름 암송 DAY', ranges, options, '2026-08-10', {
+		const produced = await exportEventXlsx(
+			{ title: '2026 여름 암송 DAY', dueAt: '2026-08-31' }, ranges, options, '2026-08-10', {
 			onEmpty,
 			onError
 		});
@@ -116,7 +117,7 @@ describe('exportEventXlsx', () => {
 		const onError = vi.fn();
 
 		const produced = await exportEventXlsx(
-			'2026 여름 암송 DAY',
+			{ title: '2026 여름 암송 DAY', dueAt: '2026-08-31' },
 			[{ ...ranges[0], verseNos: [] }],
 			options,
 			'2026-08-10',
@@ -134,7 +135,8 @@ describe('exportEventXlsx', () => {
 		const onError = vi.fn();
 		vi.spyOn(db.packages, 'get').mockRejectedValueOnce(new Error('IDB version-change lock held'));
 
-		const produced = await exportEventXlsx('2026 여름 암송 DAY', ranges, options, '2026-08-10', {
+		const produced = await exportEventXlsx(
+			{ title: '2026 여름 암송 DAY', dueAt: '2026-08-31' }, ranges, options, '2026-08-10', {
 			onEmpty,
 			onError
 		});

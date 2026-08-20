@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
 	buildEventSheet,
 	DIFFICULTY_FILLS,
+	formatDueAt,
 	type ExportVerse
 } from '../../src/lib/export/eventWorkbook';
+
+const EVENT = { title: '2026 여름 암송 DAY', dueAt: '2026-08-31' };
 
 function verse(over: Partial<ExportVerse> = {}): ExportVerse {
 	return {
@@ -23,8 +26,8 @@ const DIFF_ON = { includeDifficulty: true, sortByScripture: false };
 
 describe('buildEventSheet columns', () => {
 	it('leads with the two difficulty columns when they are on', () => {
-		const s = buildEventSheet('2026 여름 암송 DAY', [verse()], DIFF_ON);
-		expect(s.rows[0].map((c) => c.v)).toEqual([
+		const s = buildEventSheet(EVENT, [verse()], DIFF_ON);
+		expect(s.rows[1].map((c) => c.v)).toEqual([
 			'시작',
 			'전체',
 			'구분',
@@ -37,14 +40,14 @@ describe('buildEventSheet columns', () => {
 	});
 
 	it('omits them entirely when they are off', () => {
-		const s = buildEventSheet('t', [verse()], BOTH_OFF);
-		expect(s.rows[0].map((c) => c.v)).toEqual(['구분', '번호', '제목', '장절', '본문']);
+		const s = buildEventSheet({ ...EVENT, title: 't' }, [verse()], BOTH_OFF);
+		expect(s.rows[1].map((c) => c.v)).toEqual(['구분', '번호', '제목', '장절', '본문']);
 		expect(s.cols).toHaveLength(5);
 	});
 
-	it('freezes the header row and names the sheet after the event', () => {
-		const s = buildEventSheet('2026 여름 암송 DAY', [verse()], BOTH_OFF);
-		expect(s.freezeRows).toBe(1);
+	it('freezes the caption and the header, and names the sheet after the event', () => {
+		const s = buildEventSheet(EVENT, [verse()], BOTH_OFF);
+		expect(s.freezeRows).toBe(2);
 		expect(s.name).toBe('2026 여름 암송 DAY');
 	});
 });
@@ -54,8 +57,8 @@ describe('header alignment', () => {
 	// width — otherwise widening a column (e.g. 번호) would silently
 	// left-align its header while the body cells stayed centred.
 	it('centers 시작/전체/번호 headers and leaves the rest unset', () => {
-		const s = buildEventSheet('t', [verse()], DIFF_ON);
-		expect(s.rows[0].map((c) => c.align)).toEqual([
+		const s = buildEventSheet({ ...EVENT, title: 't' }, [verse()], DIFF_ON);
+		expect(s.rows[1].map((c) => c.align)).toEqual([
 			'center',
 			'center',
 			undefined,
@@ -72,16 +75,16 @@ describe('difficulty cells', () => {
 	// level in the spreadsheet recolours the cell instead of leaving a fill
 	// that contradicts its own number.
 	it('writes the level as a bare number, with no cell fill', () => {
-		const s = buildEventSheet('t', [verse({ startDifficulty: 1, fullDifficulty: 5 })], DIFF_ON);
-		expect(s.rows[1][0]).toEqual({ v: 1, align: 'center' });
-		expect(s.rows[1][1]).toEqual({ v: 5, align: 'center' });
+		const s = buildEventSheet({ ...EVENT, title: 't' }, [verse({ startDifficulty: 1, fullDifficulty: 5 })], DIFF_ON);
+		expect(s.rows[2][0]).toEqual({ v: 1, align: 'center' });
+		expect(s.rows[2][1]).toEqual({ v: 5, align: 'center' });
 	});
 
 	it('covers both difficulty columns and every body row with rules', () => {
-		const s = buildEventSheet('t', [verse(), verse({ no: 128 }), verse({ no: 129 })], DIFF_ON);
+		const s = buildEventSheet({ ...EVENT, title: 't' }, [verse(), verse({ no: 128 }), verse({ no: 129 })], DIFF_ON);
 		expect(s.conditionalFills).toHaveLength(1);
-		// Row 1 is the header, so the body is rows 2..4.
-		expect(s.conditionalFills![0].range).toBe('A2:B4');
+		// Row 1 is the caption and row 2 the header, so the body is rows 3..5.
+		expect(s.conditionalFills![0].range).toBe('A3:B5');
 		expect(s.conditionalFills![0].byValue).toEqual([
 			{ value: 1, fill: DIFFICULTY_FILLS[1] },
 			{ value: 2, fill: DIFFICULTY_FILLS[2] },
@@ -92,16 +95,16 @@ describe('difficulty cells', () => {
 	});
 
 	it('emits no rules when the difficulty columns are off', () => {
-		const s = buildEventSheet('t', [verse()], BOTH_OFF);
+		const s = buildEventSheet({ ...EVENT, title: 't' }, [verse()], BOTH_OFF);
 		expect(s.conditionalFills).toEqual([]);
 	});
 
 	// An unrated verse must be a truly empty cell. It also matches no rule, so
 	// it stays uncoloured without any special handling.
 	it('leaves an unrated cell null and unfilled', () => {
-		const s = buildEventSheet('t', [verse()], DIFF_ON);
-		expect(s.rows[1][0].v).toBeNull();
-		expect(s.rows[1][0].fill).toBeUndefined();
+		const s = buildEventSheet({ ...EVENT, title: 't' }, [verse()], DIFF_ON);
+		expect(s.rows[2][0].v).toBeNull();
+		expect(s.rows[2][0].fill).toBeUndefined();
 	});
 
 	it('runs red at 1 through green at 5', () => {
@@ -124,32 +127,95 @@ describe('sorting', () => {
 	];
 
 	it('keeps input order by default', () => {
-		const s = buildEventSheet('t', rows, BOTH_OFF);
-		expect(s.rows.slice(1).map((r) => r[1].v)).toEqual([1, 2, 3, 4]);
+		const s = buildEventSheet({ ...EVENT, title: 't' }, rows, BOTH_OFF);
+		expect(s.rows.slice(2).map((r) => r[1].v)).toEqual([1, 2, 3, 4]);
 	});
 
 	it('orders by book, chapter, then verse when asked', () => {
-		const s = buildEventSheet('t', rows, { includeDifficulty: false, sortByScripture: true });
+		const s = buildEventSheet({ ...EVENT, title: 't' }, rows, { includeDifficulty: false, sortByScripture: true });
 		// 창세기 1:1, 창세기 1:27, 요한복음 3:16, then the unreadable one.
-		expect(s.rows.slice(1).map((r) => r[1].v)).toEqual([2, 3, 1, 4]);
+		expect(s.rows.slice(2).map((r) => r[1].v)).toEqual([2, 3, 1, 4]);
 	});
 
 	it('appends citations it cannot read rather than dropping them', () => {
-		const s = buildEventSheet('t', rows, { includeDifficulty: false, sortByScripture: true });
-		expect(s.rows).toHaveLength(5);
+		const s = buildEventSheet({ ...EVENT, title: 't' }, rows, { includeDifficulty: false, sortByScripture: true });
+		expect(s.rows).toHaveLength(6);
 		expect(s.rows.at(-1)![3].v).toBe('알수없는책 2 : 2');
 	});
 });
 
 describe('body rows', () => {
 	it('writes the verse fields in column order', () => {
-		const s = buildEventSheet('t', [verse()], BOTH_OFF);
-		expect(s.rows[1].map((c) => c.v)).toEqual([
+		const s = buildEventSheet({ ...EVENT, title: 't' }, [verse()], BOTH_OFF);
+		expect(s.rows[2].map((c) => c.v)).toEqual([
 			'900구절',
 			127,
 			'양  육',
 			'출애굽기 18 : 20',
 			'그들에게 율례와 법도를 가르쳐서'
 		]);
+	});
+});
+
+describe('the 암송 DAY caption', () => {
+	// The export is a document someone keeps and passes around; "D-11" is only
+	// true on the day it was made, so the row states the date itself.
+	it('heads the sheet with the date', () => {
+		const s = buildEventSheet(EVENT, [verse()], BOTH_OFF);
+		expect(s.rows[0][0].v).toBe('암송 DAY · 2026년 8월 31일');
+		expect(s.rows[0][0].bold).toBe(true);
+	});
+
+	// A single cell, so the text spills across its empty neighbours instead of
+	// leaving blanks a filter or a copy-paste has to step over.
+	it('occupies one cell, not one per column', () => {
+		expect(buildEventSheet(EVENT, [verse()], DIFF_ON).rows[0]).toHaveLength(1);
+	});
+
+	it('sits above the header, which still leads the table', () => {
+		const s = buildEventSheet(EVENT, [verse()], BOTH_OFF);
+		expect(s.rows[1].map((c) => c.v)).toEqual(['구분', '번호', '제목', '장절', '본문']);
+	});
+});
+
+describe('formatDueAt', () => {
+	it('reads as a Korean date', () => {
+		expect(formatDueAt('2026-08-31')).toBe('2026년 8월 31일');
+	});
+
+	it('drops the leading zeros a reader would not say', () => {
+		expect(formatDueAt('2026-01-05')).toBe('2026년 1월 5일');
+	});
+
+	// Losing the date entirely would be worse than showing it raw.
+	it.each(['', '미정', '2026/08/31'])('passes %o through when it cannot parse it', (raw) => {
+		expect(formatDueAt(raw)).toBe(raw);
+	});
+});
+
+describe('stray whitespace', () => {
+	// 241 shipped verses begin with a space. Invisible on a card, kept by a
+	// spreadsheet — the column reads ragged and an exact-match lookup misses.
+	it('trims the body', () => {
+		const s = buildEventSheet(EVENT, [verse({ body: ' 그들에게 율례와 ' })], BOTH_OFF);
+		expect(s.rows[2][4].v).toBe('그들에게 율례와');
+	});
+
+	it('trims the title, the citation and the package name', () => {
+		const s = buildEventSheet(
+			EVENT,
+			[verse({ title: ' 양  육 ', cite: '출애굽기 18 : 20 ', packageAbbreviation: ' 900구절' })],
+			BOTH_OFF
+		);
+		expect(s.rows[2][0].v).toBe('900구절');
+		expect(s.rows[2][2].v).toBe('양  육');
+		expect(s.rows[2][3].v).toBe('출애굽기 18 : 20');
+	});
+
+	// Only the ends. The double space in 양  육 is how the title is laid out,
+	// and rewriting the inside of a verse is not whitespace cleanup.
+	it('leaves the inside of the text alone', () => {
+		const s = buildEventSheet(EVENT, [verse({ body: '갈  길과\n할 일을' })], BOTH_OFF);
+		expect(s.rows[2][4].v).toBe('갈  길과\n할 일을');
 	});
 });

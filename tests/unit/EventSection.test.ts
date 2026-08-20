@@ -6,6 +6,7 @@ import type { EventCardVM } from '../../src/lib/db/events';
 const card: EventCardVM = {
 	eventId: 'e1',
 	eventTitle: '11월 암송 데이',
+	dueAt: '2026-08-31',
 	dDay: 12,
 	ranges: [
 		{
