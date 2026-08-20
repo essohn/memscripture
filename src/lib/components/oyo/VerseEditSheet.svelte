@@ -129,21 +129,21 @@
 		class="space-y-3"
 	>
 		<label class="block">
+			<span class="text-[12px] font-medium text-[var(--color-text-secondary)]">제목 (선택)</span>
+			<input
+				bind:value={title}
+				aria-label="제목 (선택)"
+				class="mt-1 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-canvas)] px-3 py-2 text-[14px] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50"
+			/>
+		</label>
+
+		<label class="block">
 			<span class="text-[12px] font-medium text-[var(--color-text-secondary)]">장절</span>
 			<input
 				bind:value={cite}
 				onblur={onCiteBlur}
 				placeholder="요한복음 3:16 또는 요3:16"
 				aria-label="장절"
-				class="mt-1 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-canvas)] px-3 py-2 text-[14px] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50"
-			/>
-		</label>
-
-		<label class="block">
-			<span class="text-[12px] font-medium text-[var(--color-text-secondary)]">제목 (선택)</span>
-			<input
-				bind:value={title}
-				aria-label="제목 (선택)"
 				class="mt-1 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-canvas)] px-3 py-2 text-[14px] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50"
 			/>
 		</label>
