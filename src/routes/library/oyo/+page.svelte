@@ -167,7 +167,11 @@
 	}
 </script>
 
-<Header title="내 구절" onBack={() => history.back()} />
+<Header
+	title="나의 구절(OYO)"
+	titleInfo="OYO는 Only Your Own — 정해진 구절집이 아니라, 내가 직접 고르고 담은 구절입니다."
+	onBack={() => history.back()}
+/>
 
 <main class="mx-auto max-w-2xl px-5 pb-8 pt-4">
 	<div class="mb-3 flex items-center justify-between px-1">

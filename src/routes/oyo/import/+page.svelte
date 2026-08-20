@@ -85,7 +85,7 @@
 		if (saving || chosen.size === 0) return;
 		saving = true;
 		try {
-			// Seeded first: a reader who has never opened 내 구절 has no OYO
+			// Seeded first: a reader who has never opened 나의 구절 has no OYO
 			// package row, and the verses would land in a package the library
 			// cannot render.
 			await seedOyoPackageIfMissing();
@@ -126,18 +126,18 @@
 			href="/library/oyo"
 			class="mt-5 inline-flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-4 py-2 text-[13px] font-medium text-[var(--color-on-accent)] transition-opacity hover:opacity-90"
 		>
-			내 구절로
+			나의 구절로
 		</a>
 	{:else if screen.kind === 'saved'}
 		<div class="flex items-center gap-2 text-[15px] font-semibold text-[var(--color-text)]">
 			<Check size={18} strokeWidth={2.25} class="text-[var(--color-success)]" />
-			{screen.count}개 구절을 내 구절에 담았습니다
+			{screen.count}개 구절을 나의 구절에 담았습니다
 		</div>
 		<a
 			href="/library/oyo"
 			class="mt-5 inline-flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-4 py-2 text-[13px] font-medium text-[var(--color-on-accent)] transition-opacity hover:opacity-90"
 		>
-			내 구절 보기
+			나의 구절 보기
 		</a>
 	{:else}
 		{@const verses = screen.verses}
@@ -193,7 +193,7 @@
 							placeholder="제목 (없으면 장절)"
 							aria-label="{v.cite} 제목"
 							maxlength="60"
-							class="w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-[14px] font-semibold text-[var(--color-text)] placeholder:font-normal placeholder:text-[var(--color-text-tertiary)] hover:border-[var(--color-border)] focus:border-[var(--color-accent)] focus:outline-none"
+							class="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-card)] px-2 py-1.5 text-[14px] font-semibold text-[var(--color-text)] placeholder:font-normal placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-accent)] focus:outline-none"
 						/>
 						<button
 							type="button"
@@ -227,7 +227,7 @@
 			class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-accent)] px-4 py-2.5 text-[14px] font-semibold text-[var(--color-on-accent)] transition-opacity hover:opacity-90 disabled:opacity-40"
 		>
 			<BookPlus size={16} strokeWidth={2} />
-			{saving ? '담는 중…' : `내 구절에 담기 (${chosen.size})`}
+			{saving ? '담는 중…' : `나의 구절에 담기 (${chosen.size})`}
 		</button>
 	{/if}
 </main>

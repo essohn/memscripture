@@ -64,6 +64,23 @@ describe('PackageMeta.kind backfill', () => {
 	});
 });
 
+/** A stored OYO row, for the cases that need one to already exist. */
+const OYO_ROW: PackageMeta = {
+	id: OYO_PACKAGE_ID,
+	name: '나의 구절(OYO)',
+	abbreviation: 'OYO',
+	verse_number: 0,
+	translation: 'krv',
+	translation_name: '사용자',
+	language: 'kor',
+	copyright: '',
+	copyright_text: '',
+	version: 1,
+	source: '',
+	default: false,
+	kind: 'user'
+};
+
 describe('seedOyoPackageIfMissing', () => {
 	it('inserts the OYO row when missing', async () => {
 		await seedOyoPackageIfMissing();
@@ -71,7 +88,7 @@ describe('seedOyoPackageIfMissing', () => {
 		expect(row).toBeDefined();
 		expect(row?.id).toBe(OYO_PACKAGE_ID);
 		expect(row?.kind).toBe('user');
-		expect(row?.name).toBe('내 구절');
+		expect(row?.name).toBe('나의 구절(OYO)');
 		expect(row?.abbreviation).toBe('OYO');
 	});
 
@@ -82,23 +99,21 @@ describe('seedOyoPackageIfMissing', () => {
 		expect(all).toHaveLength(1);
 	});
 
+	// Everyone who installed before the rename carries the old default. It is
+	// the package's visible name, so leaving it would split the wording across
+	// installs for a row nobody chose in the first place.
+	it('carries the previous default name forward', async () => {
+		await db.packages.put({ ...OYO_ROW, name: '내 구절', verse_number: 7 });
+		await seedOyoPackageIfMissing();
+		const row = await db.packages.get(OYO_PACKAGE_ID);
+		expect(row?.name).toBe('나의 구절(OYO)');
+		// The rename touches the name and nothing else.
+		expect(row?.verse_number).toBe(7);
+	});
+
 	it('does not overwrite an existing OYO row (preserves user state)', async () => {
 		// Simulate an OYO row with custom name (e.g., user renamed in a future phase).
-		await db.packages.put({
-			id: OYO_PACKAGE_ID,
-			name: '내가 바꾼 이름',
-			abbreviation: 'OYO',
-			verse_number: 0,
-			translation: 'krv',
-			translation_name: '사용자',
-			language: 'kor',
-			copyright: '',
-			copyright_text: '',
-			version: 1,
-			source: '',
-			default: false,
-			kind: 'user'
-		});
+		await db.packages.put({ ...OYO_ROW, name: '내가 바꾼 이름' });
 		await seedOyoPackageIfMissing();
 		const row = await db.packages.get(OYO_PACKAGE_ID);
 		expect(row?.name).toBe('내가 바꾼 이름');

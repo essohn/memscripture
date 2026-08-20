@@ -5,10 +5,14 @@ import { touchDataModified } from './touchData';
 
 export const OYO_PACKAGE_ID = 'oyo' as const;
 
+/** The name every install carried before the package was labelled with its
+ *  own abbreviation. Kept so the rename below can recognise it. */
+const OYO_LEGACY_NAME = '내 구절';
+
 /** The PackageMeta values used when seeding OYO for the first time. */
 const OYO_SEED: PackageMeta = {
 	id: OYO_PACKAGE_ID,
-	name: '내 구절',
+	name: '나의 구절(OYO)',
 	abbreviation: 'OYO',
 	verse_number: 0,
 	translation: 'krv',
@@ -29,8 +33,17 @@ const OYO_SEED: PackageMeta = {
  */
 export async function seedOyoPackageIfMissing(): Promise<void> {
 	const existing = await db.packages.get(OYO_PACKAGE_ID);
-	if (existing) return;
-	await db.packages.put(OYO_SEED);
+	if (!existing) {
+		await db.packages.put(OYO_SEED);
+		return;
+	}
+	// Carry the old default forward. Matched exactly, and only against the
+	// previous default, so this renames the rows nobody chose while leaving
+	// alone any row that says something else — the non-destructive promise
+	// above still holds for everything that is not this one known string.
+	if (existing.name === OYO_LEGACY_NAME) {
+		await db.packages.put({ ...existing, name: OYO_SEED.name });
+	}
 }
 
 export interface OyoVerseInput {

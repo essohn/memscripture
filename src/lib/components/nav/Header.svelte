@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Settings, Eye, EyeOff, Search, ArrowLeft } from 'lucide-svelte';
+	import { Settings, Eye, EyeOff, Search, ArrowLeft, Info } from 'lucide-svelte';
 	import { verseVisibility } from '$lib/state/verseVisibility.svelte';
 	import { fontScale } from '$lib/state/fontScale.svelte';
 	import FontScalePicker from '$lib/components/card/FontScalePicker.svelte';
@@ -16,6 +16,9 @@
 		/** Text-size picker. Shown wherever verses are, which is the same set of
 		 *  screens as the reveal toggle. */
 		showFontScale?: boolean;
+		/** When set, an (i) beside the title opens this text. For a title that
+		 *  carries a term the reader has no way to expand on their own. */
+		titleInfo?: string;
 	}
 	let {
 		title,
@@ -23,7 +26,8 @@
 		onBack,
 		showVerseToggle = true,
 		showSearch = true,
-		showFontScale = true
+		showFontScale = true,
+		titleInfo
 	}: Props = $props();
 
 	// Header is on every screen, so this is also where the stored preference
@@ -32,6 +36,12 @@
 		if (showVerseToggle) verseVisibility.load();
 		if (showFontScale) fontScale.load();
 	});
+
+	let infoOpen = $state(false);
+
+	function onWindowKey(e: KeyboardEvent) {
+		if (e.key === 'Escape') infoOpen = false;
+	}
 </script>
 
 <header
@@ -72,12 +82,26 @@
 
 		<!-- Centred on the header, not between its neighbours. Truncates rather
 		     than running under the icons, and ignores pointer events so the
-		     overlap can never eat a tap. -->
-		<h1
-			class="pointer-events-none absolute left-1/2 max-w-[52%] -translate-x-1/2 truncate text-center text-lg font-semibold text-[var(--color-text)]"
+		     overlap can never eat a tap — except the (i), which re-enables them
+		     for itself alone. -->
+		<div
+			class="pointer-events-none absolute left-1/2 flex max-w-[52%] -translate-x-1/2 items-center gap-1"
 		>
-			{title}
-		</h1>
+			<h1 class="truncate text-center text-lg font-semibold text-[var(--color-text)]">
+				{title}
+			</h1>
+			{#if titleInfo}
+				<button
+					type="button"
+					onclick={() => (infoOpen = !infoOpen)}
+					aria-expanded={infoOpen}
+					aria-label="{title} 설명"
+					class="pointer-events-auto inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
+				>
+					<Info size={16} strokeWidth={2} />
+				</button>
+			{/if}
+		</div>
 
 		<div class="-mr-2 ml-auto flex items-center">
 			{#if showFontScale}
@@ -105,4 +129,33 @@
 			{/if}
 		</div>
 	</div>
+
+	{#if titleInfo && infoOpen}
+		<!-- A tap-toggled panel rather than a hover tooltip: this text exists for
+		     someone meeting the term for the first time, and on a phone there is
+		     no hover to meet it with. -->
+		<div class="relative z-40 mx-auto max-w-2xl px-5 pb-3" role="note">
+			<p
+				class="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-[13px] leading-relaxed text-[var(--color-text-secondary)] shadow-[var(--shadow-popover)]"
+			>
+				{titleInfo}
+			</p>
+		</div>
+	{/if}
 </header>
+
+{#if titleInfo && infoOpen}
+	<!-- Outside the header on purpose. `backdrop-blur` up there is a filter, and
+	     a filtered element becomes the containing block for its fixed-position
+	     descendants — so a `fixed inset-0` backdrop declared inside covered the
+	     header strip and nothing else, and a tap on the page did not dismiss.
+	     Sat below the header's z-40 so the panel stays clickable above it. -->
+	<button
+		type="button"
+		class="fixed inset-0 z-30 cursor-default"
+		aria-label="설명 닫기"
+		onclick={() => (infoOpen = false)}
+	></button>
+{/if}
+
+<svelte:window onkeydown={onWindowKey} />

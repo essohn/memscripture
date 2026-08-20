@@ -39,7 +39,7 @@ export async function listPackages(): Promise<PackageMeta[]> {
 	//     includes OYO, so the user can place it anywhere.
 	//  2. Ranked packages always precede unranked ones (newly added packages).
 	//  3. Among unranked packages — including the default state before the user
-	//     ever reorders — OYO ("내 구절", the user-kind row) comes first, then
+	//     ever reorders — OYO ("나의 구절(OYO)", the user-kind row) comes first, then
 	//     curated packages in ascending verse-count order.
 	const order = await getPackageOrder();
 	const rank = new Map(order.map((id, i) => [id, i] as const));
