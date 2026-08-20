@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { displayTitle } from '$lib/utils/verseTitle';
 	import type { StoredVerse } from '$lib/db/local';
 	import { extractFirstClause } from '$lib/srs/firstClause';
 
@@ -22,7 +23,7 @@
 			다음 추천
 		</p>
 		<p class="text-[24px] font-semibold tabular-nums text-[var(--color-text)]">{verse.cite}</p>
-		<p class="text-[16px] text-[var(--color-text-secondary)]">{verse.title}</p>
+		<p class="text-[16px] text-[var(--color-text-secondary)]">{displayTitle(verse)}</p>
 	</header>
 
 	<p

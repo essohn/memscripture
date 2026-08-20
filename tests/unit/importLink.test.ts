@@ -6,7 +6,6 @@ import {
 	normalizeCite,
 	parseImportFragment,
 	readFragmentParam,
-	untitledRows,
 	type ImportVerse
 } from '../../src/lib/oyo/importLink';
 
@@ -224,29 +223,3 @@ describe('duplicateIndexes', () => {
 });
 
 
-describe('untitledRows', () => {
-	// 제목 is the one of the three fields the reader supplies; the citation is
-	// not a fallback for it, so the import waits rather than inventing one.
-	it('reports a chosen row with no title', () => {
-		expect(untitledRows([0, 1], ['부르심', ''])).toEqual([1]);
-	});
-
-	it('counts whitespace as no title', () => {
-		expect(untitledRows([0], ['   '])).toEqual([0]);
-	});
-
-	// A row nobody is importing has nothing to name.
-	it('ignores rows that are not chosen', () => {
-		expect(untitledRows([0], ['부르심', ''])).toEqual([]);
-	});
-
-	it('is empty when every chosen row is named', () => {
-		expect(untitledRows([0, 1], ['부르심', '언약'])).toEqual([]);
-	});
-
-	// A Set arrives from the screen in tap order; the caller renders the count
-	// and highlights rows, so a stable order keeps both from jittering.
-	it('returns them in row order whatever order they were chosen in', () => {
-		expect(untitledRows(new Set([2, 0]), ['', 'x', ''])).toEqual([0, 2]);
-	});
-});

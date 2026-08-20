@@ -18,6 +18,7 @@
 	import { listChecks, recordCheck } from '$lib/db/checkHistory';
 	import type { CheckRecord } from '$lib/db/local';
 	import { goto } from '$app/navigation';
+	import { citeShownSeparately, displayTitle } from '$lib/utils/verseTitle';
 
 	interface Props {
 		verse: StoredVerse;
@@ -121,6 +122,9 @@
 	/** Null for a citation the reader app cannot place — a hand-written OYO one,
 	 *  say — in which case no link is offered at all. */
 	const reader = $derived(readerHref(verse.cite));
+	/** The citation stands in when a user's verse was left unnamed. */
+	const heading = $derived(displayTitle(verse));
+	const citeOnOwnLine = $derived(citeShownSeparately(verse));
 
 	// The card reacts to a tap when it can select, or when a tap starts a
 	// check. Both only apply in read mode; while a mode is open, drags reveal
@@ -440,7 +444,7 @@
 	role={interactive ? 'button' : undefined}
 	tabindex={interactive ? 0 : undefined}
 	aria-pressed={selectable ? selected : undefined}
-	aria-label={selectable ? undefined : tapToCheck && checkable ? `${verse.title} 점검 시작` : undefined}
+	aria-label={selectable ? undefined : tapToCheck && checkable ? `${heading} 점검 시작` : undefined}
 	onclick={interactive ? handleCardClick : undefined}
 	onkeydown={interactive ? handleCardKey : undefined}
 >
@@ -459,7 +463,7 @@
 			     which is the truth about the verse rather than noise. -->
 			<h2
 				class="min-w-0 flex-1 text-[calc(19px*var(--vfs))] font-bold leading-tight text-[var(--color-text)]"
-			>{verse.title}{#if mode === 'read' && (perfect || earnedNow)}<PartyPopper
+			>{heading}{#if mode === 'read' && (perfect || earnedNow)}<PartyPopper
 					size={15}
 					strokeWidth={2}
 					class="ml-1.5 inline align-middle text-[var(--color-accent)]"
@@ -515,8 +519,11 @@
 				{/if}
 			</div>
 		</div>
+		<!-- The reference text is dropped when the heading is already showing it,
+		     so an untitled verse does not print its citation twice. The controls
+		     that share this line stay put either way. -->
 		<p class="flex items-center gap-2 text-[calc(19px*var(--vfs))] text-[var(--color-text-secondary)]">
-			{verse.cite}
+			{#if citeOnOwnLine}{verse.cite}{/if}
 			{#if reader}
 				<!-- Opens the verse in its chapter, which is the question a memorised
 				     verse most often raises: what comes either side of it. New tab,
@@ -555,8 +562,8 @@
 					aria-label={speaking
 						? '읽기 중지'
 						: speakOpts.speakRepeat
-							? `${verse.title} 반복해서 듣기`
-							: `${verse.title} 듣기`}
+							? `${heading} 반복해서 듣기`
+							: `${heading} 듣기`}
 					class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors {speaking
 						? 'bg-[var(--color-text)] text-[var(--color-canvas)]'
 						: 'bg-[var(--color-accent)] text-[var(--color-on-accent)] hover:opacity-90'}"

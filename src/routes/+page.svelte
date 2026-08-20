@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { displayTitle } from '$lib/utils/verseTitle';
 	import Header from '$lib/components/nav/Header.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
 	import EventSection from '$lib/components/home/EventSection.svelte';
@@ -290,7 +291,7 @@
 							</div>
 							<div class="mt-1.5 flex items-center justify-between gap-3">
 								<h3 class="truncate text-[16px] font-semibold text-[var(--color-text)]">
-									{row.frontVerse?.title}
+									{row.frontVerse ? displayTitle(row.frontVerse) : ''}
 								</h3>
 								{#if count > 1}
 									<span

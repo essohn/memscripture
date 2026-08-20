@@ -20,11 +20,15 @@ import { formatStandardRef, parsePassageRef } from '$lib/bible/index';
  *     "source": "bible.lifescripture.org",     // optional, shown to the reader
  *     "verses": [ { "cite": "창세기 12 : 1", "w": "…", "title": "…" } ] }
  *
- * An OYO verse is three things — 제목, 장절, 본문 — and all three have to be
- * there. The sender owns two of them: `cite` and `w` are both required, and a
- * row missing either is dropped rather than imported half-formed. `title` is
- * the reader's to give: the sender may suggest one, but the import screen is
- * where it is settled, and nothing is saved until every chosen row has one.
+ * The sender owns 장절 and 본문: `cite` and `w` are both required, and a row
+ * missing either is dropped rather than imported half-formed — a verse with
+ * no reference cannot be found again, and one with no body is nothing to
+ * memorize.
+ *
+ * 제목 is the reader's. The sender may suggest one and the import screen lets
+ * it be edited or left blank; an unnamed verse shows its citation where the
+ * title goes (see utils/verseTitle), which is a display fallback rather than
+ * a stored value.
  */
 
 export const IMPORT_VERSION = 1;
@@ -203,18 +207,4 @@ export function duplicateIndexes(verses: ImportVerse[], existingCites: string[])
 		if (have.has(v.cite)) out.add(i);
 	});
 	return out;
-}
-
-/**
- * Which chosen rows still have no title.
- *
- * The citation is not a fallback. It answers "which verse is this", which the
- * row already shows on its own line; a heading that merely repeats it names
- * nothing. 제목 is the one of the three fields the reader supplies, so the
- * import waits for it rather than inventing one.
- *
- * Only chosen rows count — a row nobody is importing has nothing to name.
- */
-export function untitledRows(chosen: Iterable<number>, titles: string[]): number[] {
-	return [...chosen].filter((i) => (titles[i] ?? '').trim().length === 0).sort((a, b) => a - b);
 }
