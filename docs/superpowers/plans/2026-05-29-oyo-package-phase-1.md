@@ -202,7 +202,7 @@ git add src/lib/types.ts src/lib/db/verses.ts tests/unit/oyo.test.ts
 git commit -m "$(cat <<'EOF'
 feat(types): add PackageMeta.kind discriminator for user packages
 
-Prepares for OYO ("Only Your Own") — a user-owned package that lives
+Prepares for OYO ("On Your Own") — a user-owned package that lives
 in Dexie alongside curated ones. listPackages backfills kind='builtin'
 on legacy rows; installPackage early-returns for kind='user' so user
 packages don't try to fetch a non-existent JSON source.

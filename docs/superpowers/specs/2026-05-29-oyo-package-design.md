@@ -1,4 +1,4 @@
-# OYO ("Only Your Own") Package — Design
+# OYO ("On Your Own") Package — Design
 
 **Status:** Approved (2026-05-29) · phased delivery, Phase 1 first.
 
