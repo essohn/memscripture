@@ -6,7 +6,7 @@ import {
 	normalizeCite,
 	parseImportFragment,
 	readFragmentParam,
-	resolveTitle,
+	untitledRows,
 	type ImportVerse
 } from '../../src/lib/oyo/importLink';
 
@@ -122,7 +122,7 @@ describe('parseImportFragment', () => {
 
 	// Lenient about rows, strict about the envelope: one bad entry among
 	// twenty must not cost the reader the other nineteen.
-	it('drops rows with no scripture and keeps the rest', () => {
+	it('drops incomplete rows and keeps the rest', () => {
 		const r = parseImportFragment(
 			senderEncodes({
 				v: 1,
@@ -132,8 +132,25 @@ describe('parseImportFragment', () => {
 		expect(r.ok && r.payload.verses).toHaveLength(1);
 	});
 
+	// An OYO verse is 제목 · 장절 · 본문. The sender owns two of those, and a
+	// row missing either is not a verse this app can hold — importing it would
+	// leave a card the reader has to repair.
+	it('requires a citation, not only a body', () => {
+		expect(parseImportFragment(senderEncodes({ v: 1, verses: [{ w: VERSE.w }] }))).toEqual({
+			ok: false,
+			reason: 'empty'
+		});
+	});
+
+	it('keeps the whole verses and drops the citationless ones', () => {
+		const r = parseImportFragment(
+			senderEncodes({ v: 1, verses: [{ w: '본문만 있음' }, VERSE] })
+		);
+		expect(r.ok && r.payload.verses).toEqual([{ cite: '창세기 12 : 1', title: null, w: VERSE.w }]);
+	});
+
 	it('reports empty when no row survives', () => {
-		expect(parseImportFragment(senderEncodes({ v: 1, verses: [{ cite: 'x' }] }))).toEqual({
+		expect(parseImportFragment(senderEncodes({ v: 1, verses: [{ cite: '창세기 12 : 1' }] }))).toEqual({
 			ok: false,
 			reason: 'empty'
 		});
@@ -207,15 +224,29 @@ describe('duplicateIndexes', () => {
 });
 
 
-describe('resolveTitle', () => {
-	it('uses what the reader typed', () => {
-		expect(resolveTitle('  부르심 ', '창세기 12 : 1')).toBe('부르심');
+describe('untitledRows', () => {
+	// 제목 is the one of the three fields the reader supplies; the citation is
+	// not a fallback for it, so the import waits rather than inventing one.
+	it('reports a chosen row with no title', () => {
+		expect(untitledRows([0, 1], ['부르심', ''])).toEqual([1]);
 	});
 
-	// The OYO card renders the title as its heading; an untitled card reads as
-	// broken rather than as deliberately unnamed.
-	it('falls back to the citation when the field is left empty', () => {
-		expect(resolveTitle('', '창세기 12 : 1')).toBe('창세기 12 : 1');
-		expect(resolveTitle('   ', '창세기 12 : 1')).toBe('창세기 12 : 1');
+	it('counts whitespace as no title', () => {
+		expect(untitledRows([0], ['   '])).toEqual([0]);
+	});
+
+	// A row nobody is importing has nothing to name.
+	it('ignores rows that are not chosen', () => {
+		expect(untitledRows([0], ['부르심', ''])).toEqual([]);
+	});
+
+	it('is empty when every chosen row is named', () => {
+		expect(untitledRows([0, 1], ['부르심', '언약'])).toEqual([]);
+	});
+
+	// A Set arrives from the screen in tap order; the caller renders the count
+	// and highlights rows, so a stable order keeps both from jittering.
+	it('returns them in row order whatever order they were chosen in', () => {
+		expect(untitledRows(new Set([2, 0]), ['', 'x', ''])).toEqual([0, 2]);
 	});
 });

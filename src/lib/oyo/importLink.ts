@@ -20,9 +20,11 @@ import { formatStandardRef, parsePassageRef } from '$lib/bible/index';
  *     "source": "bible.lifescripture.org",     // optional, shown to the reader
  *     "verses": [ { "cite": "창세기 12 : 1", "w": "…", "title": "…" } ] }
  *
- * `title` is optional. The import screen offers a title field for every row,
- * pre-filled with whatever the sender supplied and falling back to the
- * citation when both the sender and the reader leave it blank.
+ * An OYO verse is three things — 제목, 장절, 본문 — and all three have to be
+ * there. The sender owns two of them: `cite` and `w` are both required, and a
+ * row missing either is dropped rather than imported half-formed. `title` is
+ * the reader's to give: the sender may suggest one, but the import screen is
+ * where it is settled, and nothing is saved until every chosen row has one.
  */
 
 export const IMPORT_VERSION = 1;
@@ -34,13 +36,8 @@ export const MAX_IMPORT_VERSES = 200;
 
 export interface ImportVerse {
 	cite: string;
-	/** What the sender called it, or null when it said nothing.
-	 *
-	 *  Null rather than a citation-shaped default: the import screen offers a
-	 *  title field, and it can only leave that field empty — with the citation
-	 *  showing as a placeholder — if it can tell "the sender named this" from
-	 *  "nobody has named it yet". Pre-filling every row with its own citation
-	 *  would make the reader clear the box before they could type. */
+	/** What the sender suggested, or null when it said nothing. The reader
+	 *  settles it on the import screen either way. */
 	title: string | null;
 	w: string;
 }
@@ -108,15 +105,16 @@ export function normalizeCite(cite: string): string {
 	return parsed ? formatStandardRef(parsed) : trimmed;
 }
 
-/** Parses one entry, or null when it carries no scripture. */
+/** Parses one entry, or null when it is not a whole verse. */
 function parseVerse(raw: unknown): ImportVerse | null {
 	if (!raw || typeof raw !== 'object') return null;
 	const r = raw as Record<string, unknown>;
 	const w = cleanText(r.w);
 	const cite = normalizeCite(typeof r.cite === 'string' ? r.cite : '');
-	// The body is the verse. A row without one is nothing to memorize, and
-	// importing it would leave a blank card the reader has to hunt down.
-	if (w.length === 0) return null;
+	// Both, not either. The body is the verse and the citation is how it is
+	// found again — a row missing one of them is not a verse this app can
+	// hold, and importing it would leave a card the reader has to repair.
+	if (w.length === 0 || cite.length === 0) return null;
 	return { cite, title: cleanText(r.title) || null, w };
 }
 
@@ -208,13 +206,15 @@ export function duplicateIndexes(verses: ImportVerse[], existingCites: string[])
 }
 
 /**
- * The title a row will be saved under.
+ * Which chosen rows still have no title.
  *
- * The fallback is the citation, not a blank: it is what the OYO card renders
- * as its heading, and an untitled card reads as broken rather than as
- * deliberately unnamed. A reader who genuinely wants no title can still say
- * so by editing the verse afterwards, which is where that intent belongs.
+ * The citation is not a fallback. It answers "which verse is this", which the
+ * row already shows on its own line; a heading that merely repeats it names
+ * nothing. 제목 is the one of the three fields the reader supplies, so the
+ * import waits for it rather than inventing one.
+ *
+ * Only chosen rows count — a row nobody is importing has nothing to name.
  */
-export function resolveTitle(typed: string, cite: string): string {
-	return typed.trim() || cite;
+export function untitledRows(chosen: Iterable<number>, titles: string[]): number[] {
+	return [...chosen].filter((i) => (titles[i] ?? '').trim().length === 0).sort((a, b) => a - b);
 }

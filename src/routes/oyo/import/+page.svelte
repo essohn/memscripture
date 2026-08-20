@@ -6,7 +6,7 @@
 	import {
 		duplicateIndexes,
 		parseImportFragment,
-		resolveTitle,
+		untitledRows,
 		type ImportVerse
 	} from '$lib/oyo/importLink';
 	import { createOyoVerse, listOyoVerses, seedOyoPackageIfMissing } from '$lib/db/oyo';
@@ -20,11 +20,14 @@
 	let screen = $state<Screen>({ kind: 'loading' });
 	let chosen = $state<Set<number>>(new Set());
 	let duplicates = $state<Set<number>>(new Set());
-	/** Per-row title, edited in place. Empty means "use the citation" — the
-	 *  field shows that as its placeholder, so the default is visible without
-	 *  the reader having to clear a box before they can type. */
+	/** Per-row title, edited in place. The one of an OYO verse's three fields
+	 *  the reader supplies, so it starts empty unless the sender suggested
+	 *  something, and nothing saves until every chosen row has one. */
 	let titles = $state<string[]>([]);
 	let saving = $state(false);
+
+	const untitled = $derived(untitledRows(chosen, titles));
+	const canSave = $derived(chosen.size > 0 && untitled.length === 0);
 
 	const FAILURES: Record<string, string> = {
 		missing: '가져올 구절이 없습니다. 성경에서 구절을 선택한 뒤 다시 보내주세요.',
@@ -82,7 +85,7 @@
 	}
 
 	async function save(verses: ImportVerse[]) {
-		if (saving || chosen.size === 0) return;
+		if (saving || !canSave) return;
 		saving = true;
 		try {
 			// Seeded first: a reader who has never opened 내 구절 has no OYO
@@ -95,7 +98,7 @@
 			const order = [...chosen].sort((a, b) => a - b);
 			for (const i of order) {
 				const v = verses[i];
-				await createOyoVerse({ cite: v.cite, w: v.w, title: resolveTitle(titles[i], v.cite) });
+				await createOyoVerse({ cite: v.cite, w: v.w, title: titles[i].trim() });
 			}
 			history.replaceState(history.state, '', location.pathname);
 			screen = { kind: 'saved', count: order.length };
@@ -190,10 +193,14 @@
 						<input
 							type="text"
 							bind:value={titles[i]}
-							placeholder={v.cite}
+							placeholder="제목"
 							aria-label="{v.cite} 제목"
 							maxlength="60"
-							class="w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-[14px] font-semibold text-[var(--color-text)] placeholder:font-normal placeholder:text-[var(--color-text-tertiary)] hover:border-[var(--color-border)] focus:border-[var(--color-accent)] focus:outline-none"
+							class="w-full rounded-md border bg-transparent px-1.5 py-1 text-[14px] font-semibold text-[var(--color-text)] placeholder:font-normal placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-accent)] focus:outline-none {untitled.includes(
+								i
+							)
+								? 'border-[var(--color-warn)]'
+								: 'border-transparent hover:border-[var(--color-border)]'}"
 						/>
 						<button
 							type="button"
@@ -220,11 +227,23 @@
 			{/each}
 		</ul>
 
+		<!-- Says what is missing rather than leaving a dead button to be poked
+		     at. aria-live because the count changes as titles are typed, with
+		     nothing else on screen announcing it. -->
+		<p
+			aria-live="polite"
+			class="mt-4 min-h-[1.15rem] text-center text-[12px] text-[var(--color-warn)]"
+		>
+			{#if untitled.length > 0}
+				제목을 입력해주세요 · {untitled.length}개 남음
+			{/if}
+		</p>
+
 		<button
 			type="button"
-			disabled={saving || chosen.size === 0}
+			disabled={saving || !canSave}
 			onclick={() => save(verses)}
-			class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-accent)] px-4 py-2.5 text-[14px] font-semibold text-[var(--color-on-accent)] transition-opacity hover:opacity-90 disabled:opacity-40"
+			class="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-accent)] px-4 py-2.5 text-[14px] font-semibold text-[var(--color-on-accent)] transition-opacity hover:opacity-90 disabled:opacity-40"
 		>
 			<BookPlus size={16} strokeWidth={2} />
 			{saving ? '담는 중…' : `내 구절에 담기 (${chosen.size})`}
