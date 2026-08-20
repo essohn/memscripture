@@ -20,8 +20,9 @@ import { formatStandardRef, parsePassageRef } from '$lib/bible/index';
  *     "source": "bible.lifescripture.org",     // optional, shown to the reader
  *     "verses": [ { "cite": "창세기 12 : 1", "w": "…", "title": "…" } ] }
  *
- * `title` is optional — the import screen falls back to the citation, which
- * is what an OYO verse added by hand usually carries anyway.
+ * `title` is optional. The import screen offers a title field for every row,
+ * pre-filled with whatever the sender supplied and falling back to the
+ * citation when both the sender and the reader leave it blank.
  */
 
 export const IMPORT_VERSION = 1;
@@ -33,7 +34,14 @@ export const MAX_IMPORT_VERSES = 200;
 
 export interface ImportVerse {
 	cite: string;
-	title: string;
+	/** What the sender called it, or null when it said nothing.
+	 *
+	 *  Null rather than a citation-shaped default: the import screen offers a
+	 *  title field, and it can only leave that field empty — with the citation
+	 *  showing as a placeholder — if it can tell "the sender named this" from
+	 *  "nobody has named it yet". Pre-filling every row with its own citation
+	 *  would make the reader clear the box before they could type. */
+	title: string | null;
 	w: string;
 }
 
@@ -109,11 +117,7 @@ function parseVerse(raw: unknown): ImportVerse | null {
 	// The body is the verse. A row without one is nothing to memorize, and
 	// importing it would leave a blank card the reader has to hunt down.
 	if (w.length === 0) return null;
-	// Falling back to the citation rather than leaving the title blank: it is
-	// what the OYO card renders as its heading, and an untitled row reads as
-	// broken.
-	const title = cleanText(r.title) || cite;
-	return { cite, title, w };
+	return { cite, title: cleanText(r.title) || null, w };
 }
 
 /**
@@ -169,7 +173,13 @@ export function buildImportLink(origin: string, payload: ImportPayload): string 
 	const json = JSON.stringify({
 		v: IMPORT_VERSION,
 		source: payload.source ?? undefined,
-		verses: payload.verses
+		verses: payload.verses.map((v) => ({
+			cite: v.cite,
+			w: v.w,
+			// Omitted rather than sent as null: a receiver reading the documented
+			// shape should never have to special-case a key that means "absent".
+			...(v.title ? { title: v.title } : {})
+		}))
 	});
 	const base64 = btoa(String.fromCharCode(...new TextEncoder().encode(json)));
 	return `${origin}/oyo/import#v=${encodeURIComponent(base64)}`;
@@ -195,4 +205,16 @@ export function duplicateIndexes(verses: ImportVerse[], existingCites: string[])
 		if (have.has(v.cite)) out.add(i);
 	});
 	return out;
+}
+
+/**
+ * The title a row will be saved under.
+ *
+ * The fallback is the citation, not a blank: it is what the OYO card renders
+ * as its heading, and an untitled card reads as broken rather than as
+ * deliberately unnamed. A reader who genuinely wants no title can still say
+ * so by editing the verse afterwards, which is where that intent belongs.
+ */
+export function resolveTitle(typed: string, cite: string): string {
+	return typed.trim() || cite;
 }

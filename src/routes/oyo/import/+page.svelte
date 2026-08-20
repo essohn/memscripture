@@ -6,6 +6,7 @@
 	import {
 		duplicateIndexes,
 		parseImportFragment,
+		resolveTitle,
 		type ImportVerse
 	} from '$lib/oyo/importLink';
 	import { createOyoVerse, listOyoVerses, seedOyoPackageIfMissing } from '$lib/db/oyo';
@@ -19,6 +20,10 @@
 	let screen = $state<Screen>({ kind: 'loading' });
 	let chosen = $state<Set<number>>(new Set());
 	let duplicates = $state<Set<number>>(new Set());
+	/** Per-row title, edited in place. Empty means "use the citation" — the
+	 *  field shows that as its placeholder, so the default is visible without
+	 *  the reader having to clear a box before they can type. */
+	let titles = $state<string[]>([]);
 	let saving = $state(false);
 
 	const FAILURES: Record<string, string> = {
@@ -58,6 +63,7 @@
 			// chose these verses in the other app, so the import should not make
 			// them choose again — only reconsider the ones already on file.
 			chosen = new Set(verses.map((_, i) => i).filter((i) => !dupes.has(i)));
+			titles = verses.map((v) => v.title ?? '');
 			screen = { kind: 'review', source, verses };
 		})();
 		return () => {
@@ -88,7 +94,8 @@
 			// max and collide on the primary key.
 			const order = [...chosen].sort((a, b) => a - b);
 			for (const i of order) {
-				await createOyoVerse(verses[i]);
+				const v = verses[i];
+				await createOyoVerse({ cite: v.cite, w: v.w, title: resolveTitle(titles[i], v.cite) });
 			}
 			history.replaceState(history.state, '', location.pathname);
 			screen = { kind: 'saved', count: order.length };
@@ -154,32 +161,48 @@
 
 		<ul class="mt-4 space-y-2">
 			{#each verses as v, i (i)}
-				<li>
-					<!-- The whole row is the target. These are two-line blocks on a
-					     phone and a 16px checkbox beside them would be the only part
-					     that answered a tap. -->
+				<li
+					class="flex items-start gap-3 rounded-xl border px-4 py-3 transition-colors {chosen.has(
+						i
+					)
+						? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)]'
+						: 'border-[var(--color-border)] bg-[var(--color-card)]'}"
+				>
+					<!-- The row was one big button until it grew a title field. An
+					     input inside a button is invalid and unusable — the tap that
+					     should place a caret toggles the row instead — so the check
+					     and the scripture block are two targets now, and the field
+					     between them belongs to neither. -->
 					<button
 						type="button"
 						onclick={() => toggle(i)}
 						aria-pressed={chosen.has(i)}
-						class="flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-left transition-colors {chosen.has(
+						aria-label="{v.cite} 선택"
+						class="mt-1.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md border {chosen.has(
 							i
 						)
-							? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)]'
-							: 'border-[var(--color-border)] bg-[var(--color-card)]'}"
+							? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-on-accent)]'
+							: 'border-[var(--color-border)]'}"
 					>
-						<span
-							class="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md border {chosen.has(
-								i
-							)
-								? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-on-accent)]'
-								: 'border-[var(--color-border)]'}"
+						{#if chosen.has(i)}<Check size={12} strokeWidth={3} />{/if}
+					</button>
+					<div class="min-w-0 flex-1">
+						<input
+							type="text"
+							bind:value={titles[i]}
+							placeholder={v.cite}
+							aria-label="{v.cite} 제목"
+							maxlength="60"
+							class="w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-[14px] font-semibold text-[var(--color-text)] placeholder:font-normal placeholder:text-[var(--color-text-tertiary)] hover:border-[var(--color-border)] focus:border-[var(--color-accent)] focus:outline-none"
+						/>
+						<button
+							type="button"
+							onclick={() => toggle(i)}
+							tabindex="-1"
+							class="mt-0.5 block w-full px-1.5 text-left"
 						>
-							{#if chosen.has(i)}<Check size={12} strokeWidth={3} />{/if}
-						</span>
-						<span class="min-w-0 flex-1">
 							<span class="flex flex-wrap items-center gap-1.5">
-								<span class="text-[13px] font-semibold text-[var(--color-text)]">{v.cite}</span>
+								<span class="text-[12px] text-[var(--color-text-secondary)]">{v.cite}</span>
 								{#if duplicates.has(i)}
 									<span
 										class="rounded-full bg-[var(--color-elevated)] px-2 py-0.5 text-[11px] text-[var(--color-text-tertiary)]"
@@ -191,8 +214,8 @@
 							<span class="mt-1 block text-[13px] leading-relaxed text-[var(--color-text-secondary)]">
 								{v.w}
 							</span>
-						</span>
-					</button>
+						</button>
+					</div>
 				</li>
 			{/each}
 		</ul>

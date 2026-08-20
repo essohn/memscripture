@@ -6,6 +6,7 @@ import {
 	normalizeCite,
 	parseImportFragment,
 	readFragmentParam,
+	resolveTitle,
 	type ImportVerse
 } from '../../src/lib/oyo/importLink';
 
@@ -45,7 +46,7 @@ describe('parseImportFragment', () => {
 			ok: true,
 			payload: {
 				source: 'bible.lifescripture.org',
-				verses: [{ cite: '창세기 12 : 1', title: '창세기 12 : 1', w: VERSE.w }]
+				verses: [{ cite: '창세기 12 : 1', title: null, w: VERSE.w }]
 			}
 		});
 	});
@@ -65,6 +66,15 @@ describe('parseImportFragment', () => {
 	it('round-trips Korean text intact', () => {
 		const r = parseImportFragment(senderEncodes({ v: 1, verses: [VERSE] }));
 		expect(r.ok && r.payload.verses[0].w).toBe('여호와께서 아브람에게 이르시되');
+	});
+
+	it('omits an absent title rather than sending null', () => {
+		const link = buildImportLink('https://x', {
+			source: null,
+			verses: [{ cite: '창세기 12 : 1', title: null, w: VERSE.w }]
+		});
+		const json = decodeURIComponent(new URL(link).hash.replace('#v=', ''));
+		expect(atob(json)).not.toContain('title');
 	});
 
 	it('round-trips a link this module builds', () => {
@@ -129,9 +139,17 @@ describe('parseImportFragment', () => {
 		});
 	});
 
-	it('falls back to the citation when no title is sent', () => {
+	// Null, not a citation-shaped default: the screen can only leave its title
+	// field empty — with the citation as a placeholder — if it can tell "the
+	// sender named this" from "nobody has named it yet".
+	it('reports no title when the sender sent none', () => {
 		const r = parseImportFragment(senderEncodes({ v: 1, verses: [VERSE] }));
-		expect(r.ok && r.payload.verses[0].title).toBe('창세기 12 : 1');
+		expect(r.ok && r.payload.verses[0].title).toBeNull();
+	});
+
+	it('treats a blank title as none at all', () => {
+		const r = parseImportFragment(senderEncodes({ v: 1, verses: [{ ...VERSE, title: '   ' }] }));
+		expect(r.ok && r.payload.verses[0].title).toBeNull();
 	});
 
 	it('keeps a title the sender supplied', () => {
@@ -185,5 +203,19 @@ describe('duplicateIndexes', () => {
 
 	it('ignores blank rows in the library', () => {
 		expect(duplicateIndexes(incoming, ['', '   ']).size).toBe(0);
+	});
+});
+
+
+describe('resolveTitle', () => {
+	it('uses what the reader typed', () => {
+		expect(resolveTitle('  부르심 ', '창세기 12 : 1')).toBe('부르심');
+	});
+
+	// The OYO card renders the title as its heading; an untitled card reads as
+	// broken rather than as deliberately unnamed.
+	it('falls back to the citation when the field is left empty', () => {
+		expect(resolveTitle('', '창세기 12 : 1')).toBe('창세기 12 : 1');
+		expect(resolveTitle('   ', '창세기 12 : 1')).toBe('창세기 12 : 1');
 	});
 });
