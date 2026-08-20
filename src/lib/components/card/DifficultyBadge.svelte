@@ -5,6 +5,7 @@
 		DIFFICULTY_LEVELS,
 		type DifficultyLevel
 	} from '$lib/db/verseRatings';
+	import { placePopover } from '$lib/utils/popover';
 
 	interface Props {
 		/** Currently stored level, or null when the user hasn't rated yet. */
@@ -18,22 +19,40 @@
 
 	let expanded = $state(false);
 	let triggerEl: HTMLButtonElement | undefined = $state();
+	let popoverEl: HTMLDivElement | undefined = $state();
 	let popoverStyle = $state('');
+	/** Hidden for the frame between rendering and measuring, so the panel is
+	 *  never seen at the wrong place. Rendered rather than withheld because it
+	 *  has to have a size before it can be positioned by one. */
+	let placed = $state(false);
 
-	function open() {
-		if (!triggerEl) return;
-		const r = triggerEl.getBoundingClientRect();
-		// Drop below the badge, right-anchor so the popover doesn't run off
-		// the viewport edge on small screens.
-		popoverStyle = `top: ${r.bottom + 6}px; right: ${Math.max(8, window.innerWidth - r.right)}px;`;
-		expanded = true;
-	}
+	/**
+	 * Measured, not guessed. The panel's width depends on its longest label,
+	 * which changes with the badge ("첫 시작 난이도" vs "전체 암송 난이도") and
+	 * with whatever text size the reader's browser is set to — a hard-coded
+	 * width would be wrong for someone eventually, and being wrong here means
+	 * a menu off the edge of the screen.
+	 */
+	$effect(() => {
+		if (!expanded || !triggerEl || !popoverEl) return;
+		const t = triggerEl.getBoundingClientRect();
+		const p = popoverEl.getBoundingClientRect();
+		const { left, top } = placePopover(t, p, {
+			width: window.innerWidth,
+			height: window.innerHeight
+		});
+		popoverStyle = `left: ${left}px; top: ${top}px;`;
+		placed = true;
+	});
 
 	function toggle() {
 		if (expanded) {
 			expanded = false;
 		} else {
-			open();
+			// Position is settled by the effect once the panel has a size.
+			popoverStyle = '';
+			placed = false;
+			expanded = true;
 		}
 	}
 
@@ -83,8 +102,9 @@
 	<div
 		role="menu"
 		aria-label={`${label} 선택`}
-		class="popover fixed z-[60] min-w-[160px] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] py-1 shadow-lg"
-		style={popoverStyle}
+		bind:this={popoverEl}
+		class="popover fixed left-0 top-0 z-[60] min-w-[160px] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] py-1 shadow-lg"
+		style="{popoverStyle} visibility: {placed ? 'visible' : 'hidden'};"
 	>
 		<p
 			class="px-3 pb-1 pt-1.5 text-[10.5px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]"
