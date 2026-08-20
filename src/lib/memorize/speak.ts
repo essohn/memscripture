@@ -8,6 +8,8 @@
  * the shapes can be pinned against the whole corpus.
  */
 
+import { chapterUnit } from '$lib/bible/index';
+
 /** Verse-number separators seen in the corpus. The last is U+223C, a different
  *  character from the ASCII tilde and easy to miss by eye. */
 const RANGE_SEPARATORS = /[-~∼]/;
@@ -49,7 +51,8 @@ export function citeToSpeech(cite: string): string {
 		.map((p) => versePhrase(p))
 		.filter(Boolean)
 		.join(', ');
-	return `${book.trim()} ${chapter}장 ${spoken}`;
+	const name = book.trim();
+	return `${name} ${chapter}${chapterUnit(name)} ${spoken}`;
 }
 
 /**

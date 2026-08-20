@@ -96,6 +96,26 @@ export function parsePassageRef(input: string): ParsedRef | null {
  *   { bookId: 1, chapter: 12, startVerse: 1, endVerse: 3 }       → '창세기 12 : 1-3'
  *   { bookId: 1, chapter: 12, startVerse: null, endVerse: null } → '창세기 12'
  */
+/** Psalms, whose chapters are 편 rather than 장. The one book in the Korean
+ *  convention that differs, so this is a constant and not a table. */
+const PSALMS_ORDINAL = 19;
+
+/**
+ * The counter word for a book's chapters — 시편 118'편', everything else
+ * 118'장'.
+ *
+ * Only ever heard, never seen: the stored citation writes the chapter as a
+ * bare number ("시편 118 : 13"), so this exists for the synthesizer, which
+ * would otherwise say 118장 of a book Korean readers count in 편.
+ *
+ * Takes the book's name because that is what a citation carries. An unknown
+ * name falls back to 장, which is right for 65 of the 66 books and for
+ * anything a reader hand-typed.
+ */
+export function chapterUnit(bookName: string): string {
+	return getBookOrdinal(bookName.trim()) === PSALMS_ORDINAL ? '편' : '장';
+}
+
 export function formatStandardRef(parsed: ParsedRef): string {
 	const name = BOOK_FULL_NAMES[parsed.bookId - 1];
 	if (parsed.startVerse === null) return `${name} ${parsed.chapter}`;

@@ -18,7 +18,7 @@ describe('citeToSpeech', () => {
 		['창세기 28 : 14', '창세기 28장 14절'], // 1223 verses
 		['이사야 54 : 2-3', '이사야 54장 2절에서 3절'], // 239
 		['히브리서 11 : 24~26', '히브리서 11장 24절에서 26절'], // 17
-		['시편 143 : 8,10', '시편 143장 8절, 10절'], // 6
+		['시편 143 : 8,10', '시편 143편 8절, 10절'], // 6 — Psalms counts in 편
 		['고린도전서 12 : 4∼6', '고린도전서 12장 4절에서 6절'], // 5, U+223C
 		['역대하 16 : 9상', '역대하 16장 9절 상'], // 3
 		['창세기 22 : 12 ', '창세기 22장 12절'] // 2, trailing space
@@ -28,6 +28,26 @@ describe('citeToSpeech', () => {
 
 	it('handles a book whose name contains digits', () => {
 		expect(citeToSpeech('요한1서 3 : 16')).toBe('요한1서 3장 16절');
+	});
+
+	// Korean counts Psalms' chapters in 편. Every other book takes 장, so this
+	// is the one exception rather than a table.
+	it.each([
+		['시편 118 : 13', '시편 118편 13절'],
+		['시 23 : 1', '시 23편 1절'],
+		['시편 119 : 105', '시편 119편 105절']
+	])('%s → %s', (cite, spoken) => {
+		expect(citeToSpeech(cite)).toBe(spoken);
+	});
+
+	it('leaves every other book on 장', () => {
+		expect(citeToSpeech('잠언 3 : 5')).toBe('잠언 3장 5절');
+		expect(citeToSpeech('욥기 1 : 1')).toBe('욥기 1장 1절');
+	});
+
+	// A hand-typed OYO citation can name anything; 장 is right for 65 of 66.
+	it('falls back to 장 for a book it does not know', () => {
+		expect(citeToSpeech('토비트 3 : 1')).toBe('토비트 3장 1절');
 	});
 
 	// A hand-added OYO verse can cite anything. Flat is fine; "콜론" is not.
@@ -60,8 +80,20 @@ describe('citeToSpeech across the whole corpus', () => {
 	});
 
 	it('always states a chapter and a verse', () => {
-		const offenders = cites.map(citeToSpeech).filter((s) => !s.includes('장') || !s.includes('절'));
+		const offenders = cites
+			.map(citeToSpeech)
+			.filter((s) => !(s.includes('장') || s.includes('편')) || !s.includes('절'));
 		expect(offenders).toEqual([]);
+	});
+
+	// Guards the conversion against the real corpus rather than three examples:
+	// every shipped Psalm must be counted in 편, and nothing else may be.
+	it('counts every shipped Psalm in 편, and only those', () => {
+		const wrong = cites.filter((c) => {
+			const spoken = citeToSpeech(c);
+			return c.startsWith('시편') ? !spoken.includes('편 ') : spoken.includes('편 ');
+		});
+		expect(wrong).toEqual([]);
 	});
 });
 
