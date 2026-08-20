@@ -169,7 +169,7 @@
 
 <Header
 	title="나의 구절(OYO)"
-	titleInfo="OYO는 On Your Own — 정해진 구절집이 아니라, 내가 직접 고르고 담은 구절입니다."
+	titleInfo="OYO는 On Your Own — 나의 개인적인 암송 구절집입니다."
 	onBack={() => history.back()}
 />
 
