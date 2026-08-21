@@ -21,8 +21,8 @@ function verse(over: Partial<ExportVerse> = {}): ExportVerse {
 	};
 }
 
-const BOTH_OFF = { includeDifficulty: false, sortByScripture: false };
-const DIFF_ON = { includeDifficulty: true, sortByScripture: false };
+const BOTH_OFF = { includeDifficulty: false, sort: 'booklet' as const };
+const DIFF_ON = { includeDifficulty: true, sort: 'booklet' as const };
 
 describe('buildEventSheet columns', () => {
 	it('leads with the two difficulty columns when they are on', () => {
@@ -132,15 +132,42 @@ describe('sorting', () => {
 	});
 
 	it('orders by book, chapter, then verse when asked', () => {
-		const s = buildEventSheet({ ...EVENT, title: 't' }, rows, { includeDifficulty: false, sortByScripture: true });
+		const s = buildEventSheet({ ...EVENT, title: 't' }, rows, { includeDifficulty: false, sort: 'scripture' as const });
 		// 창세기 1:1, 창세기 1:27, 요한복음 3:16, then the unreadable one.
 		expect(s.rows.slice(2).map((r) => r[1].v)).toEqual([2, 3, 1, 4]);
 	});
 
 	it('appends citations it cannot read rather than dropping them', () => {
-		const s = buildEventSheet({ ...EVENT, title: 't' }, rows, { includeDifficulty: false, sortByScripture: true });
+		const s = buildEventSheet({ ...EVENT, title: 't' }, rows, { includeDifficulty: false, sort: 'scripture' as const });
 		expect(s.rows).toHaveLength(6);
 		expect(s.rows.at(-1)![3].v).toBe('알수없는책 2 : 2');
+	});
+});
+
+describe('difficulty order', () => {
+	// The export exists to show which verses are hard, so ordering by that is
+	// the same question the difficulty columns answer, asked of the whole list.
+	const rows = [
+		verse({ no: 1, startDifficulty: 5, fullDifficulty: 5 }),
+		verse({ no: 2, startDifficulty: 1, fullDifficulty: 4 }),
+		verse({ no: 3, startDifficulty: null, fullDifficulty: null }),
+		verse({ no: 4, startDifficulty: 3, fullDifficulty: 3 })
+	];
+	const nos = (o: 'booklet' | 'scripture' | 'difficulty') =>
+		buildEventSheet(EVENT, rows, { includeDifficulty: true, sort: o })
+			.rows.slice(2)
+			.map((r) => r[3].v);
+
+	it('puts the hardest verse at the top', () => {
+		expect(nos('difficulty')).toEqual([2, 4, 1, 3]);
+	});
+
+	it('leaves the unrated one last rather than assuming it is hard', () => {
+		expect(nos('difficulty').at(-1)).toBe(3);
+	});
+
+	it('is not what the other orders do', () => {
+		expect(nos('booklet')).toEqual([1, 2, 3, 4]);
 	});
 });
 

@@ -7,7 +7,7 @@
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
 	import { fontScale } from '$lib/state/fontScale.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
-	import { Bookmark } from 'lucide-svelte';
+	import { ArrowDownUp, Bookmark } from 'lucide-svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { level1Groups, level2GroupsInSeries, filterVerses } from '$lib/db/verses';
@@ -23,6 +23,7 @@
 		setFullDifficulty,
 		type DifficultyLevel
 	} from '$lib/db/verseRatings';
+	import { sortByDifficulty } from '$lib/verses/difficultySort';
 	import { BOOKMARK_COLORS, type BookmarkColor } from '$lib/types';
 	import { serializeEventRange } from '$lib/db/events';
 	import type { PageData } from './$types';
@@ -336,11 +337,20 @@
 
 	const series = $derived(level1Groups(data.groups));
 	const subGroups = $derived(level2GroupsInSeries(data.groups, seriesIndex));
+	/** Off by default: the shipped order matches the printed 구절집, and that
+	 *  is what someone following along with the book needs. */
+	let hardestFirst = $state(false);
+
 	const filteredVerses = $derived.by(() => {
 		const byGroup = filterVerses(data.verses, data.groups, seriesIndex, groupIndices);
-		if (!rangeActive) return byGroup;
-		const wanted = new Set(rangeVerseNos);
-		return byGroup.filter((v) => wanted.has(v.no));
+		const inRange = rangeActive
+			? byGroup.filter((v) => new Set(rangeVerseNos).has(v.no))
+			: byGroup;
+		// Sorted last, over the filtered list rather than the whole package, so
+		// "hardest" means hardest among what is actually on screen.
+		return hardestFirst
+			? sortByDifficulty(inRange, (v) => ratingsByVerseNo.get(v.no))
+			: inRange;
 	});
 
 	// URL mutation helpers
@@ -392,6 +402,17 @@
 			</button>
 		{/if}
 		<div class="ml-auto flex items-center gap-1">
+			<button
+				type="button"
+				onclick={() => (hardestFirst = !hardestFirst)}
+				aria-pressed={hardestFirst}
+				class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors {hardestFirst
+					? 'bg-[var(--color-accent)] text-[var(--color-on-accent)]'
+					: 'text-[var(--color-text-secondary)] hover:bg-[var(--color-elevated)]'}"
+			>
+				<ArrowDownUp size={12} strokeWidth={1.75} />
+				어려운 순
+			</button>
 			<button
 				type="button"
 				onclick={toggleSelecting}

@@ -78,7 +78,7 @@ describe('exportEventXlsx', () => {
 	const ranges = [
 		{ label: '900구절', done: 0, total: 2, href: '', packageId: '900_krv', verseNos: [127, 128] }
 	];
-	const options = { includeDifficulty: true, sortByScripture: false };
+	const options = { includeDifficulty: true, sort: 'booklet' as const };
 
 	beforeEach(() => {
 		// jsdom does not implement Blob URLs; stub the pieces downloadBlob

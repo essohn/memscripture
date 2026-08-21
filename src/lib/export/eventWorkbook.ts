@@ -1,4 +1,5 @@
 import { citationSortKey } from '$lib/bible/index';
+import { sortByDifficulty } from '$lib/verses/difficultySort';
 import type { DifficultyLevel } from '$lib/db/verseRatings';
 import type { ConditionalFill, Sheet, SheetCell } from './xlsx';
 
@@ -12,9 +13,18 @@ export interface ExportVerse {
 	fullDifficulty: DifficultyLevel | null;
 }
 
+/**
+ * How the rows are ordered.
+ *
+ * A named mode rather than the boolean this used to be: there are three
+ * answers now, and "sortByScripture: false" would have had to mean two
+ * different things.
+ */
+export type ExportSort = 'booklet' | 'scripture' | 'difficulty';
+
 export interface ExportOptions {
 	includeDifficulty: boolean;
-	sortByScripture: boolean;
+	sort: ExportSort;
 }
 
 export interface ExportEvent {
@@ -112,6 +122,20 @@ function text(value: string): SheetCell {
 	return { v: value.trim() };
 }
 
+/**
+ * Applies the chosen order.
+ *
+ * `booklet` is the order the verses arrived in — the packages' own numbering,
+ * which is what someone working through the printed 구절집 follows.
+ */
+function orderVerses(verses: ExportVerse[], sort: ExportSort): ExportVerse[] {
+	if (sort === 'scripture') return sortByScripture(verses);
+	if (sort === 'difficulty') {
+		return sortByDifficulty(verses, (v) => ({ start: v.startDifficulty, full: v.fullDifficulty }));
+	}
+	return verses;
+}
+
 function difficultyCell(level: DifficultyLevel | null): SheetCell {
 	// null, not an empty string: an unrated verse must produce no cell at
 	// all, so nothing can imply a rating the user never gave. An empty cell
@@ -166,7 +190,7 @@ export function buildEventSheet(
 		align: c.align
 	}));
 
-	const ordered = options.sortByScripture ? sortByScripture(verses) : verses;
+	const ordered = orderVerses(verses, options.sort);
 
 	const body = ordered.map((v) => {
 		const base: SheetCell[] = [

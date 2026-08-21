@@ -15,7 +15,7 @@
 </script>
 
 <script lang="ts">
-	import type { ExportOptions } from '$lib/export/eventWorkbook';
+	import type { ExportOptions, ExportSort } from '$lib/export/eventWorkbook';
 	import GoogleSheetsIcon from '$lib/components/icons/GoogleSheetsIcon.svelte';
 	import ExcelIcon from '$lib/components/icons/ExcelIcon.svelte';
 
@@ -31,13 +31,19 @@
 	let { eventTitle, busy, sheetBusy, sheetNotice, onConfirm, onSheets, onCancel }: Props =
 		$props();
 
-	// Both on by default. Difficulty is the reason the export exists, and a
-	// printed list is easier to work through in scripture order — the app's own
-	// order exists to match the printed 구절집, which the file is not.
+	// Difficulty is the reason the export exists. Scripture order is the
+	// default because a printed list is easier to work through that way — the
+	// app's own order exists to match the printed 구절집, which the file is not.
 	let includeDifficulty = $state(true);
-	let sortByScripture = $state(true);
+	let sort = $state<ExportSort>('scripture');
 
-	const options = $derived({ includeDifficulty, sortByScripture });
+	const SORTS: { id: ExportSort; label: string }[] = [
+		{ id: 'scripture', label: '장절 순' },
+		{ id: 'difficulty', label: '어려운 순' },
+		{ id: 'booklet', label: '구절집 순' }
+	];
+
+	const options = $derived({ includeDifficulty, sort });
 </script>
 
 <!-- z-[55]/z-[60], matching ConfirmDialog: the TabBar is fixed at z-50, and at
@@ -67,14 +73,28 @@
 			/>
 			난이도 열 포함 (시작 · 전체)
 		</label>
-		<label class="mt-2.5 flex items-center gap-2.5 text-[14px] text-[var(--color-text)]">
-			<input
-				type="checkbox"
-				bind:checked={sortByScripture}
-				class="h-4 w-4 accent-[var(--color-accent)]"
-			/>
-			장절 순서로 정렬
-		</label>
+		<!-- Three orders, so a radiogroup rather than the checkbox this was when
+		     there were two. Each one is a whole answer to "what order", which a
+		     checkbox stops being able to express the moment a third appears. -->
+		<div class="mt-3">
+			<p class="text-[12px] text-[var(--color-text-secondary)]">정렬</p>
+			<div role="radiogroup" aria-label="정렬" class="mt-1.5 flex flex-wrap gap-1.5">
+				{#each SORTS as option (option.id)}
+					<button
+						type="button"
+						role="radio"
+						aria-checked={sort === option.id}
+						onclick={() => (sort = option.id)}
+						class="rounded-full border px-3 py-1 text-[12px] font-medium transition-colors {sort ===
+						option.id
+							? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-on-accent)]'
+							: 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-elevated)]'}"
+					>
+						{option.label}
+					</button>
+				{/each}
+			</div>
+		</div>
 
 		<!-- aria-live so the outcome is announced: the export finishes long after
 		     the tap, and nothing else moves focus. -->

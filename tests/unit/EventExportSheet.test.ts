@@ -19,10 +19,10 @@ function handlers() {
 }
 
 describe('EventExportSheet', () => {
-	it('defaults both options on', () => {
+	it('defaults to difficulty columns and scripture order', () => {
 		render(EventExportSheet, { ...props, ...handlers() });
 		expect(screen.getByLabelText(/난이도 열 포함/)).toBeChecked();
-		expect(screen.getByLabelText(/장절 순서/)).toBeChecked();
+		expect(screen.getByRole('radio', { name: '장절 순' })).toBeChecked();
 	});
 
 	it('confirms the defaults untouched', async () => {
@@ -31,28 +31,50 @@ describe('EventExportSheet', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '엑셀 다운로드' }));
 		expect(onConfirm).toHaveBeenCalledWith({
 			includeDifficulty: true,
-			sortByScripture: true
+			sort: 'scripture' as const
 		});
 	});
 
-	// Both boxes now start checked, so unchecking is the path that proves the
-	// bindings are live rather than the confirm handler echoing its defaults.
-	it('reports each box after it is unchecked', async () => {
+	// Changing away from the defaults is what proves the bindings are live
+	// rather than the confirm handler echoing what it was given.
+	it('reports the order that was chosen', async () => {
 		const onConfirm = vi.fn();
 		render(EventExportSheet, { ...props, ...handlers(), onConfirm });
-		await fireEvent.click(screen.getByLabelText(/장절 순서/));
+		await fireEvent.click(screen.getByRole('radio', { name: '어려운 순' }));
 		await fireEvent.click(screen.getByRole('button', { name: '엑셀 다운로드' }));
 		expect(onConfirm).toHaveBeenLastCalledWith({
 			includeDifficulty: true,
-			sortByScripture: false
+			sort: 'difficulty'
 		});
 
+		await fireEvent.click(screen.getByRole('radio', { name: '구절집 순' }));
 		await fireEvent.click(screen.getByLabelText(/난이도 열 포함/));
 		await fireEvent.click(screen.getByRole('button', { name: '엑셀 다운로드' }));
 		expect(onConfirm).toHaveBeenLastCalledWith({
 			includeDifficulty: false,
-			sortByScripture: false
+			sort: 'booklet'
 		});
+	});
+
+	// Three orders, exactly one of them chosen — the property a checkbox
+	// stopped being able to express once there was a third answer.
+	it('offers three orders and marks only one', async () => {
+		render(EventExportSheet, { ...props, ...handlers() });
+		const radios = screen.getAllByRole('radio');
+		expect(radios).toHaveLength(3);
+		await fireEvent.click(screen.getByRole('radio', { name: '어려운 순' }));
+		expect(radios.filter((r) => r.getAttribute('aria-checked') === 'true')).toHaveLength(1);
+		expect(screen.getByRole('radio', { name: '어려운 순' })).toBeChecked();
+	});
+
+	// The Sheets button is the same export by another route; it must carry the
+	// same order rather than quietly defaulting.
+	it('sends the chosen order to Google Sheets too', async () => {
+		const onSheets = vi.fn();
+		render(EventExportSheet, { ...props, ...handlers(), onSheets });
+		await fireEvent.click(screen.getByRole('radio', { name: '어려운 순' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Google Sheets' }));
+		expect(onSheets).toHaveBeenCalledWith({ includeDifficulty: true, sort: 'difficulty' });
 	});
 
 	it('disables the confirm button while a download is running', () => {
@@ -83,7 +105,7 @@ describe('EventExportSheet — Google Sheets', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Google Sheets' }));
 		expect(onSheets).toHaveBeenCalledWith({
 			includeDifficulty: false,
-			sortByScripture: true
+			sort: 'scripture' as const
 		});
 	});
 
