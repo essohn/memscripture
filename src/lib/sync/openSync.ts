@@ -1,4 +1,5 @@
 import { getCurrentAuth } from '$lib/cloud/google';
+import { tokenUsable } from '$lib/cloud/session';
 import { cardActivity } from '$lib/state/cardActivity';
 import { performSync, type SyncResult } from './syncFlow';
 
@@ -16,7 +17,10 @@ import { performSync, type SyncResult } from './syncFlow';
  */
 
 export type OpenSyncOutcome =
-	| { kind: 'skipped'; why: 'not-connected' | 'offline' | 'no-client-id' | 'already-ran' }
+	| {
+			kind: 'skipped';
+			why: 'not-connected' | 'offline' | 'no-client-id' | 'already-ran' | 'needs-login';
+	  }
 	| { kind: 'ran'; result: SyncResult };
 
 /** One attempt per page load. A client-side navigation is not a new open, and
@@ -32,8 +36,9 @@ export function resetOpenSync(): void {
 export interface OpenSyncDeps {
 	clientId: string | null;
 	online?: boolean;
-	/** Injected so the guard order can be tested without a Drive account. */
-	isConnected?: () => Promise<boolean>;
+	/** Injected so the guard order can be tested without a Drive account.
+	 *  Returns the stored auth, or null when Drive was never connected. */
+	storedAuth?: () => Promise<{ expiresAt: number } | null>;
 	sync?: typeof performSync;
 	waitForIdle?: (timeoutMs?: number) => Promise<void>;
 }
@@ -45,7 +50,7 @@ export async function syncOnOpen(deps: OpenSyncDeps): Promise<OpenSyncOutcome> {
 	const {
 		clientId,
 		online = typeof navigator === 'undefined' ? true : navigator.onLine,
-		isConnected = async () => (await getCurrentAuth()) !== null,
+		storedAuth = getCurrentAuth,
 		sync = performSync,
 		waitForIdle = (ms?: number) => cardActivity.whenIdle(ms)
 	} = deps;
@@ -55,7 +60,15 @@ export async function syncOnOpen(deps: OpenSyncDeps): Promise<OpenSyncOutcome> {
 	// database read at launch.
 	if (!clientId) return { kind: 'skipped', why: 'no-client-id' };
 	if (!online) return { kind: 'skipped', why: 'offline' };
-	if (!(await isConnected())) return { kind: 'skipped', why: 'not-connected' };
+
+	const auth = await storedAuth();
+	if (!auth) return { kind: 'skipped', why: 'not-connected' };
+	// Refreshing a spent token means GIS opening a popup window, which flashes
+	// on screen even when it asks nothing — and on launch, that window appears
+	// for no reason the reader can connect to anything they did. An hour-old
+	// token waits for the sync button, which is attended and where a popup is
+	// expected. Nothing unattended may summon one.
+	if (!tokenUsable(auth)) return { kind: 'skipped', why: 'needs-login' };
 
 	// Silent by design, including on success: a toast on every launch would
 	// charge the reader's attention for something they did not ask for, and

@@ -3,7 +3,20 @@ import { getCurrentAuth, refreshAccessToken, type GoogleAuthState } from './goog
 /** Refresh this far ahead of the stated expiry, so a call that starts just
  *  under the wire can't have its token die mid-flight between two requests.
  *  Google access tokens last an hour. */
-const EXPIRY_MARGIN_MS = 5 * 60_000;
+export const EXPIRY_MARGIN_MS = 5 * 60_000;
+
+/**
+ * Whether the stored token can be used as it stands.
+ *
+ * Public because refreshing is not free: GIS gets a new token by opening a
+ * popup window, which flashes on screen even when it completes without asking
+ * anything. That is fine when someone pressed a button and is watching, and
+ * not fine on launch — so an unattended caller checks this first and does
+ * nothing rather than making a window appear out of nowhere.
+ */
+export function tokenUsable(auth: { expiresAt: number }, now = Date.now()): boolean {
+	return auth.expiresAt - now > EXPIRY_MARGIN_MS;
+}
 
 export type FreshAuth =
 	| { kind: 'ok'; auth: GoogleAuthState }
@@ -29,7 +42,7 @@ export type FreshAuth =
 export async function getFreshAuth(clientId: string | null): Promise<FreshAuth> {
 	const stored = await getCurrentAuth();
 	if (!stored) return { kind: 'not-connected' };
-	if (stored.expiresAt - Date.now() > EXPIRY_MARGIN_MS) return { kind: 'ok', auth: stored };
+	if (tokenUsable(stored)) return { kind: 'ok', auth: stored };
 	if (!clientId) return { kind: 'expired' };
 	const refreshed = await refreshAccessToken(clientId, stored.email).catch(() => null);
 	return refreshed ? { kind: 'ok', auth: refreshed } : { kind: 'expired' };
