@@ -57,9 +57,12 @@
 	}
 
 	function pick(level: DifficultyLevel) {
-		// Tapping the current level clears it — same affordance as the
-		// bookmark ribbon picker.
-		onpick(value === level ? null : level);
+		// Picking the level already set leaves it set. It used to clear it,
+		// borrowed from the bookmark ribbon — but a ribbon has no other way to
+		// come off, and this menu has 지우기 sitting right below. Confirming a
+		// rating is the likelier intent by far, and having it erase the rating
+		// instead is a trap the reader only finds by falling into it.
+		onpick(level);
 		expanded = false;
 	}
 
