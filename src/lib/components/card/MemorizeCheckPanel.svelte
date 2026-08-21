@@ -436,10 +436,10 @@
 			onkeydown={cancelAutoClose}
 		>
 			<div>
-				<p class="text-[13px] font-semibold text-[var(--color-text)]">
+				<p class="text-[calc(13px*var(--vfs))] font-semibold text-[var(--color-text)]">
 					{saved.full === 5 ? '완벽합니다' : '저장했습니다'}
 				</p>
-				<p class="mt-0.5 text-[12px] text-[var(--color-text-secondary)]">
+				<p class="mt-0.5 text-[calc(12px*var(--vfs))] text-[var(--color-text-secondary)]">
 					{saved.start === null ? '시작 —' : `시작 ${DIFFICULTY_LABELS[saved.start]}`}
 					· {saved.full === null ? '전체 —' : `전체 ${DIFFICULTY_LABELS[saved.full]}`}
 				</p>
@@ -448,7 +448,7 @@
 				<button
 					type="button"
 					onclick={restart}
-					class="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-card)]"
+					class="rounded-full px-3 py-1.5 text-[calc(12px*var(--vfs))] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-card)]"
 				>
 					다시
 				</button>
@@ -456,7 +456,7 @@
 					<span
 						data-testid="auto-close"
 						aria-hidden="true"
-						class="text-[12px] tabular-nums text-[var(--color-text-tertiary)]"
+						class="text-[calc(12px*var(--vfs))] tabular-nums text-[var(--color-text-tertiary)]"
 					>
 						{closingIn}
 					</span>
@@ -464,7 +464,7 @@
 				<button
 					type="button"
 					onclick={onClose}
-					class="rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
+					class="rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[calc(12px*var(--vfs))] font-medium text-white transition-opacity hover:opacity-90"
 				>
 					닫기
 				</button>
@@ -496,7 +496,7 @@
 			aria-label="암송 구절 입력"
 			onkeydown={onKeydown}
 			placeholder="외운 구절을 입력하세요"
-			class="w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-2 text-[14px] text-[var(--color-text)]"
+			class="w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-2 text-[calc(14px*var(--vfs))] text-[var(--color-text)] [--field-size:calc(14px*var(--vfs))]"
 		></textarea>
 
 		<!-- The clock, as a bar rather than a number alone. The track is the pace
@@ -527,11 +527,11 @@
 			<div class="absolute inset-0 flex items-center justify-between px-3">
 				<span
 					data-testid="elapsed"
-					class="text-[13px] font-semibold tabular-nums text-[var(--color-text)]"
+					class="text-[calc(13px*var(--vfs))] font-semibold tabular-nums text-[var(--color-text)]"
 				>
 					{mmss(elapsedMs)}
 				</span>
-				<span class="flex items-center gap-2 text-[11px] text-[var(--color-text-secondary)]">
+				<span class="flex items-center gap-2 text-[calc(11px*var(--vfs))] text-[var(--color-text-secondary)]">
 					{#if openingAtMs !== null}
 						<span class="tabular-nums">도입부 {mmss(openingAtMs)}</span>
 					{/if}
@@ -543,7 +543,7 @@
 		</div>
 
 		{#if history.length > 0}
-			<div class="mt-2 text-[11px]">
+			<div class="mt-2 text-[calc(11px*var(--vfs))]">
 				<button
 					type="button"
 					onclick={() => (historyOpen = !historyOpen)}
@@ -577,7 +577,7 @@
 		     from under the finger already on it. -->
 		<div class="mt-2 min-h-[1.35rem]">
 			{#if hint}
-				<p data-testid="hint" class="text-[13px] text-[var(--color-text-secondary)]">
+				<p data-testid="hint" class="text-[calc(13px*var(--vfs))] text-[var(--color-text-secondary)]">
 					다음: <span class="font-semibold tracking-[0.08em] text-[var(--color-text)]"
 						>{masked(hint)}</span
 					>
@@ -585,7 +585,7 @@
 			{/if}
 		</div>
 		{#if speechError}
-			<p class="mt-2 text-[12px] text-[var(--color-danger)]">{speechError}</p>
+			<p class="mt-2 text-[calc(12px*var(--vfs))] text-[var(--color-danger)]">{speechError}</p>
 		{/if}
 		<div class="mt-2 flex items-center gap-1.5">
 			{#if speechSupported}
@@ -598,7 +598,7 @@
 					type="button"
 					onclick={toggleSpeech}
 					aria-pressed={listening}
-					class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors {listening
+					class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[calc(12px*var(--vfs))] font-medium transition-colors {listening
 						? 'border-transparent bg-[var(--color-danger)] text-white'
 						: 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-card)]'}"
 				>
@@ -615,14 +615,14 @@
 				type="button"
 				disabled={stuckIndex === -1}
 				onclick={revealHint}
-				class="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-card)] disabled:opacity-40"
+				class="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-[calc(12px*var(--vfs))] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-card)] disabled:opacity-40"
 			>
 				힌트
 			</button>
 			<button
 				type="button"
 				onclick={giveUp}
-				class="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-card)] hover:text-[var(--color-text-secondary)]"
+				class="rounded-full px-3 py-1.5 text-[calc(12px*var(--vfs))] font-medium text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-card)] hover:text-[var(--color-text-secondary)]"
 			>
 				포기
 			</button>
@@ -630,13 +630,13 @@
 				type="button"
 				disabled={typed.trim().length === 0}
 				onclick={submit}
-				class="ml-auto rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+				class="ml-auto rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[calc(12px*var(--vfs))] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
 			>
 				제출
 			</button>
 		</div>
 	{:else}
-		<p class="text-[12px] text-[var(--color-text-secondary)]">
+		<p class="text-[calc(12px*var(--vfs))] text-[var(--color-text-secondary)]">
 			{gaveUp
 				? '원문을 확인하고 직접 느낀 난이도를 저장해주세요.'
 				: '틀린 곳이 있었습니다. 직접 느낀 난이도를 저장해주세요.'}
@@ -651,7 +651,7 @@
 			<p class="mt-3 text-[10.5px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
 				입력한 내용
 			</p>
-			<p data-testid="attempt-words" class="mt-1 text-[14px] leading-[1.7]">
+			<p data-testid="attempt-words" class="mt-1 text-[calc(14px*var(--vfs))] leading-[1.7]">
 				{#each attemptMarks as m, i (i)}<span
 						data-ok={m.ok}
 						class={m.ok
@@ -665,7 +665,7 @@
 		<p class="mt-3 text-[10.5px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
 			원문
 		</p>
-		<p data-testid="mismatched-words" class="mt-1 text-[14px] leading-[1.7]">
+		<p data-testid="mismatched-words" class="mt-1 text-[calc(14px*var(--vfs))] leading-[1.7]">
 			{#each mismatches as m, i (i)}<span
 					data-ok={m.ok}
 					class={m.ok
@@ -689,7 +689,7 @@
 				<button
 					type="button"
 					onclick={cancel}
-					class="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-card)]"
+					class="rounded-full px-3 py-1.5 text-[calc(12px*var(--vfs))] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-card)]"
 				>
 					취소
 				</button>
@@ -700,7 +700,7 @@
 					type="button"
 					disabled={!proposed || proposed.full === null}
 					onclick={save}
-					class="rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+					class="rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-[calc(12px*var(--vfs))] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
 				>
 					저장
 				</button>

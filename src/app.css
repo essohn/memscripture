@@ -148,7 +148,14 @@ body {
 	input,
 	textarea,
 	select {
-		font-size: 16px !important;
+		/*
+		 * A floor, not a fixed size. 16px is what stops iOS zooming; anything
+		 * larger is just as safe. A control that wants to follow the reader's
+		 * text-size setting sets --field-size and grows above the floor — the
+		 * check input did not, and stayed alone at one size while every other
+		 * word around it scaled.
+		 */
+		font-size: max(16px, var(--field-size, 16px)) !important;
 	}
 }
 

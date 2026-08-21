@@ -47,3 +47,16 @@ test('form controls are large enough that iOS will not zoom', async ({ page }) =
 		.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
 	expect(size).toBeGreaterThanOrEqual(16);
 });
+
+// The check input is the one people actually type into, and the only field
+// that opts into the reader's text-size setting — so it is the one where the
+// 16px floor is doing real work. Its own size is 14px at the default scale
+// and smaller still at the smallest, which is exactly what iOS zooms on.
+test('the check input is above the zoom threshold despite scaling', async ({ page }) => {
+	await page.goto('/library/5_krv');
+	await page.getByRole('button', { name: '점검' }).first().click();
+	const input = page.getByLabel('암송 구절 입력');
+	await expect(input).toBeVisible();
+	const size = await input.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+	expect(size).toBeGreaterThanOrEqual(16);
+});
