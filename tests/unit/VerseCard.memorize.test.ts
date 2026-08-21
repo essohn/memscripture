@@ -318,6 +318,21 @@ describe('완벽 배지', () => {
 		expect(badge()).toBeInTheDocument();
 	});
 
+	// The reported gap: the card was told at load that this verse was flawless,
+	// and kept saying so through a check that just proved otherwise.
+	it('takes the badge back when a later check is flawed', async () => {
+		setup({ perfect: true });
+		expect(badge()).toBeInTheDocument();
+		await fireEvent.click(screen.getByRole('button', { name: '점검' }));
+		await fireEvent.input(screen.getByLabelText('암송 구절 입력'), {
+			target: { value: '전혀 다른 문장' }
+		});
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
+		await fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+		expect(badge()).toBeNull();
+	});
+
 	it('is not awarded for a flawed attempt', async () => {
 		setup();
 		await fireEvent.click(screen.getByRole('button', { name: '점검' }));

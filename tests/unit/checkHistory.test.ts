@@ -67,11 +67,27 @@ describe('listPerfectVerseNos', () => {
 		expect([...(await listPerfectVerseNos('900_krv'))]).toEqual([1]);
 	});
 
-	// Once earned it stays. The badge records that the reader has done this,
-	// not that they could do it again this minute.
-	it('keeps a verse listed after a later slip', async () => {
-		await recordCheck('900_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 9000 });
-		await recordCheck('900_krv', 1, { start: 2, full: 2, accuracy: 0.6, elapsedMs: 9000 });
+	// The most recent check decides, not the best one ever recorded. The badge
+	// says the verse is solid now; one recited perfectly last month and fumbled
+	// this morning is not, and keeping the popper on it would be the card
+	// contradicting what the reader just did.
+	it('drops a verse whose latest check was flawed', async () => {
+		await recordCheck('900_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 9000 }, 1000);
+		await recordCheck('900_krv', 1, { start: 2, full: 2, accuracy: 0.6, elapsedMs: 9000 }, 2000);
+		expect([...(await listPerfectVerseNos('900_krv'))]).toEqual([]);
+	});
+
+	it('earns it back when the next check is flawless again', async () => {
+		await recordCheck('900_krv', 1, { start: 2, full: 2, accuracy: 0.6, elapsedMs: 9000 }, 1000);
+		await recordCheck('900_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 9000 }, 2000);
+		expect([...(await listPerfectVerseNos('900_krv'))]).toEqual([1]);
+	});
+
+	// Rows come back in index order, not chronological order, so "latest" has
+	// to be decided by checkedAt rather than by whichever arrived last.
+	it('uses the newest check even when it was recorded out of order', async () => {
+		await recordCheck('900_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 9000 }, 5000);
+		await recordCheck('900_krv', 1, { start: 2, full: 2, accuracy: 0.6, elapsedMs: 9000 }, 1000);
 		expect([...(await listPerfectVerseNos('900_krv'))]).toEqual([1]);
 	});
 

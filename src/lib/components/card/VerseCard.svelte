@@ -280,7 +280,16 @@
 	let checkHistory = $state<CheckRecord[]>([]);
 	/** Set by a perfect check in this session, so the badge appears with the
 	 *  confetti rather than only after the page is next loaded. */
-	let earnedNow = $state(false);
+	/**
+	 * How the check that just happened went, or null when none has this
+	 * session.
+	 *
+	 * Overrides the `perfect` prop rather than adding to it: that prop was
+	 * loaded when the page did, so after a slip it still says the verse was
+	 * flawless and would keep the popper lit on a verse the reader just got
+	 * wrong.
+	 */
+	let lastCheckPerfect = $state<boolean | null>(null);
 
 	function enterRehearse() {
 		mode = 'rehearse';
@@ -606,7 +615,7 @@
 			     which is the truth about the verse rather than noise. -->
 			<h2
 				class="min-w-0 flex-1 text-[calc(19px*var(--vfs))] font-bold leading-tight text-[var(--color-text)]"
-			>{heading}{#if mode === 'read' && (perfect || earnedNow)}<PartyPopper
+			>{heading}{#if mode === 'read' && (lastCheckPerfect ?? perfect)}<PartyPopper
 					size={15}
 					strokeWidth={2}
 					class="ml-1.5 inline align-middle text-[var(--color-accent)]"
@@ -755,7 +764,8 @@
 				history={checkHistory}
 				onGraded={(outcome) => {
 					revealAll();
-					if (outcome.accuracy >= 1) earnedNow = true;
+					// Assigned, not just raised: a flawed attempt takes the popper back.
+					lastCheckPerfect = outcome.accuracy >= 1;
 					if (!packageId) return;
 					recordCheck(packageId, verse.no, outcome)
 						.then(() => listChecks(packageId, verse.no))

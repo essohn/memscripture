@@ -87,7 +87,18 @@ export async function listChecks(
  */
 export async function listPerfectVerseNos(packageId: string): Promise<Set<number>> {
 	const rows = await db.checkHistory.where('verseKey').startsWith(`${packageId}:`).toArray();
+
+	// The most recent check decides, not the best one ever recorded. The badge
+	// says "this verse is solid right now"; a verse recited perfectly in May
+	// and fumbled this morning is not, and leaving the popper on it would be
+	// the card telling the reader something they just disproved.
+	const latest = new Map<number, { checkedAt: number; accuracy: number }>();
+	for (const r of rows) {
+		const seen = latest.get(r.verseNo);
+		if (!seen || r.checkedAt > seen.checkedAt) latest.set(r.verseNo, r);
+	}
+
 	const out = new Set<number>();
-	for (const r of rows) if (r.accuracy >= 1) out.add(r.verseNo);
+	for (const [verseNo, r] of latest) if (r.accuracy >= 1) out.add(verseNo);
 	return out;
 }
