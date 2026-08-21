@@ -20,6 +20,7 @@
 	import { goto } from '$app/navigation';
 	import { citeShownSeparately, displayTitle } from '$lib/utils/verseTitle';
 	import { cardActivity } from '$lib/state/cardActivity';
+	import { placeModalCard, type ModalPlacement } from '$lib/utils/modalCard';
 
 	interface Props {
 		verse: StoredVerse;
@@ -288,6 +289,10 @@
 	}
 	function enterCheck() {
 		closePlayer();
+		// Measured before the mode flips, while the card is still the size the
+		// list gave it — a frame later it is a modal and its own rect is the
+		// answer to a different question.
+		lift();
 		mode = 'check';
 		if (packageId) {
 			listChecks(packageId, verse.no)
@@ -307,7 +312,56 @@
 		mode = 'read';
 		marking = false;
 		revealedCount = 0;
+		placement = null;
+		rowHeight = 0;
 	}
+
+	/**
+	 * A check used to grow the card in place, which pushed everything below it
+	 * down and pulled it back up on close — so the button someone was reaching
+	 * for moved out from under their finger at the worst moment. The card now
+	 * lifts out of the list to be checked and settles back afterwards, and the
+	 * list itself never changes height.
+	 */
+	let cardEl: HTMLElement | undefined = $state();
+	let placement = $state<ModalPlacement | null>(null);
+	/** The space the card occupied, held open while it is lifted. */
+	let rowHeight = $state(0);
+
+	function lift() {
+		if (!cardEl) return;
+		const r = cardEl.getBoundingClientRect();
+		rowHeight = r.height;
+		placement = placeModalCard({ left: r.left, top: r.top, width: r.width }, window.innerHeight, TAB_BAR_INSET);
+	}
+
+	/** The fixed tab bar at the foot of every screen; a lifted card must not
+	 *  end up underneath it. */
+	const TAB_BAR_INSET = 64;
+
+	const lifted = $derived(placement !== null && mode === 'check');
+
+	function onWindowKey(e: KeyboardEvent) {
+		if (lifted && e.key === 'Escape') exitMode();
+	}
+	const modalStyle = $derived(
+		placement
+			? `position: fixed; left: ${placement.left}px; top: ${placement.top}px; width: ${placement.width}px; max-height: ${placement.maxHeight}px; overflow-y: auto; z-index: 50;`
+			: ''
+	);
+
+	/**
+	 * The page must not scroll while a card is lifted: the card is fixed and
+	 * the list behind it is not, so scrolling would slide the two apart.
+	 */
+	$effect(() => {
+		if (!lifted) return;
+		const previous = document.body.style.overflow;
+		document.body.style.overflow = 'hidden';
+		return () => {
+			document.body.style.overflow = previous;
+		};
+	});
 
 	let dragBaseline = 0;
 	let dragStartX = 0;
@@ -448,15 +502,30 @@
 	}
 </script>
 
+<svelte:window onkeydown={onWindowKey} />
+
+{#if lifted}
+	<!-- Holds the row's space so the list behind does not close up and reopen
+	     around the lifted card. -->
+	<div style="height: {rowHeight}px;" aria-hidden="true"></div>
+	<!-- Dimmed and blurred, and deliberately NOT a dismiss target: this change
+	     exists because a control moved out from under someone's finger, and a
+	     full-screen backdrop that discards a half-typed recitation on a stray
+	     tap would be the same injury by another route. ✕ and Escape close it. -->
+	<div class="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" aria-hidden="true"></div>
+{/if}
 <!-- role/tabindex are applied dynamically (button only when selectable); the
      static a11y check can't see that, so the noninteractive-tabindex rule is a
      false positive here. -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <article
+	bind:this={cardEl}
 	data-testid="verse-row"
-	style="--vfs: {fontScale};"
-	class={cardClass}
-	role={interactive ? 'button' : undefined}
+	data-lifted={lifted}
+	aria-modal={lifted ? 'true' : undefined}
+	style="--vfs: {fontScale}; {modalStyle}"
+	class="{cardClass}{lifted ? ' shadow-[var(--shadow-popover)]' : ''}"
+	role={lifted ? 'dialog' : interactive ? 'button' : undefined}
 	tabindex={interactive ? 0 : undefined}
 	aria-pressed={selectable ? selected : undefined}
 	aria-label={selectable ? undefined : tapToCheck && checkable ? `${heading} 점검 시작` : undefined}
