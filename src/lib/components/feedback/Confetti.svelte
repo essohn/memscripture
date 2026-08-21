@@ -3,6 +3,7 @@
 		celebrationBursts,
 		flutterScale,
 		isDead,
+		isLaunched,
 		particleAlpha,
 		prefersReducedMotion,
 		stepParticle,
@@ -12,8 +13,13 @@
 	interface Props {
 		/** Flip to true to fire once. Flipping back and true again fires again. */
 		fire: boolean;
+		/** The element the celebration belongs to — the verse card. Measured at
+		 *  fire time rather than passed as a rectangle, so a card that moved
+		 *  between the perfect recitation and the burst is still where the
+		 *  confetti comes from. */
+		origin?: HTMLElement | null;
 	}
-	let { fire }: Props = $props();
+	let { fire, origin = null }: Props = $props();
 
 	let canvas = $state<HTMLCanvasElement | undefined>();
 	let running = $state(false);
@@ -43,7 +49,11 @@
 		el.height = Math.floor(h * dpr);
 		ctx.scale(dpr, dpr);
 
-		let particles: Particle[] = celebrationBursts(w, h).map((p) => ({
+		// null falls the effect back to the bottom of the screen, which is right
+		// for a caller with no card and for one whose card is not laid out yet.
+		const box = origin?.getBoundingClientRect() ?? null;
+
+		let particles: Particle[] = celebrationBursts(w, h, box).map((p) => ({
 			...p,
 			color: resolveColor(p.color, el)
 		}));
@@ -64,6 +74,8 @@
 				const moved = stepParticle(p, dt);
 				if (isDead(moved, h)) continue;
 				next.push(moved);
+				// Held pieces are kept but not drawn — they have not been fired.
+				if (!isLaunched(moved)) continue;
 
 				ctx.save();
 				ctx.globalAlpha = particleAlpha(moved);

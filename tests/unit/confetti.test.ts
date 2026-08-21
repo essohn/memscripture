@@ -7,6 +7,7 @@ import {
 	isDead,
 	particleAlpha,
 	stepParticle,
+	isLaunched,
 	type Particle
 } from '../../src/lib/effects/confetti';
 
@@ -33,6 +34,7 @@ const burst = (over: Partial<Particle> = {}): Particle => ({
 	color: 'red',
 	age: 0,
 	life: 3,
+	delay: 0,
 	...over
 });
 
@@ -157,19 +159,84 @@ describe('isDead', () => {
 });
 
 describe('celebrationBursts', () => {
-	it('fires from both lower corners, inward', () => {
-		const ps = celebrationBursts(390, 844, seeded());
-		const left = ps.filter((p) => p.x < 195);
-		const right = ps.filter((p) => p.x > 195);
-		expect(left.length).toBeGreaterThan(0);
-		expect(right.length).toBeGreaterThan(0);
-		// aimed inward: the left popper throws right, the right one throws left
-		expect(left.every((p) => p.vx > 0)).toBe(true);
-		expect(right.every((p) => p.vx < 0)).toBe(true);
+	/** A verse card partway down a phone screen. */
+	const CARD = { left: 20, right: 370, top: 300, bottom: 460 };
+
+	// The outer pair is what keeps the middle clear of the message: whatever
+	// the inner two do, these two must throw across the card, not off it.
+	it('aims the outer poppers inward', () => {
+		const ps = celebrationBursts(390, 844, CARD, seeded());
+		const xs = [...new Set(ps.map((p) => p.x))].sort((a, b) => a - b);
+		const outerLeft = ps.filter((p) => p.x === xs[0]);
+		const outerRight = ps.filter((p) => p.x === xs[xs.length - 1]);
+		expect(outerLeft.every((p) => p.vx > 0)).toBe(true);
+		expect(outerRight.every((p) => p.vx < 0)).toBe(true);
 	});
 
-	it('starts everything below the middle and heading up', () => {
-		const ps = celebrationBursts(390, 844, seeded());
+	// The inner pair is close to vertical on purpose — it fans both ways, so
+	// the spray opens out instead of arriving as one wall.
+	it('throws the inner poppers mostly upward', () => {
+		const ps = celebrationBursts(390, 844, CARD, seeded());
+		const xs = [...new Set(ps.map((p) => p.x))].sort((a, b) => a - b);
+		const inner = ps.filter((p) => p.x === xs[1] || p.x === xs[2]);
+		expect(inner.every((p) => Math.abs(p.vy) > Math.abs(p.vx))).toBe(true);
+	});
+
+	it('starts everything heading up', () => {
+		expect(celebrationBursts(390, 844, CARD, seeded()).every((p) => p.vy < 0)).toBe(true);
+	});
+
+	// The celebration belongs to one verse. A burst from the corners of the
+	// display could be about anything on it.
+	it('goes off at the verse, not at the screen', () => {
+		const ps = celebrationBursts(390, 844, CARD, seeded());
+		expect(ps.every((p) => p.x >= CARD.left - 1 && p.x <= CARD.right + 1)).toBe(true);
+		expect(ps.every((p) => p.y >= CARD.top && p.y <= CARD.bottom + 10)).toBe(true);
+	});
+
+	it('falls back to the foot of the screen with no card', () => {
+		const ps = celebrationBursts(390, 844, null, seeded());
 		expect(ps.every((p) => p.y > 422 && p.vy < 0)).toBe(true);
+	});
+
+	// Four poppers, not two, and not all on the same frame — simultaneous
+	// launches read as one big burst rather than as four.
+	it('fires four poppers from four places', () => {
+		const ps = celebrationBursts(390, 844, CARD, seeded());
+		expect(new Set(ps.map((p) => `${p.x},${p.y}`)).size).toBe(4);
+	});
+
+	it('staggers them by a beat, starting immediately', () => {
+		const delays = [...new Set(celebrationBursts(390, 844, CARD, seeded()).map((p) => p.delay))];
+		expect(delays).toHaveLength(4);
+		expect(Math.min(...delays)).toBe(0);
+		// Short enough to read as one celebration rather than four events.
+		expect(Math.max(...delays)).toBeLessThan(0.35);
+	});
+});
+
+describe('a held particle', () => {
+	it('does not move or age while it waits', () => {
+		const held = stepParticle(burst({ delay: 0.2, x: 10, y: 20 }), 0.1);
+		expect(held).toMatchObject({ x: 10, y: 20, age: 0 });
+		expect(held.delay).toBeCloseTo(0.1);
+	});
+
+	it('launches once the wait runs out', () => {
+		const fired = stepParticle(burst({ delay: 0.05, y: 20 }), 0.1);
+		expect(fired.delay).toBe(0);
+		expect(isLaunched(fired)).toBe(true);
+		// The frame it launches on is the frame it starts moving.
+		expect(stepParticle(fired, 0.1).y).toBeLessThan(20);
+	});
+
+	// Its origin may be anywhere, including off screen; it has not been thrown.
+	it('is never dead while it waits', () => {
+		expect(isDead(burst({ delay: 0.2, y: 5000 }), 800)).toBe(false);
+	});
+
+	it('is not drawn until it launches', () => {
+		expect(isLaunched(burst({ delay: 0.2 }))).toBe(false);
+		expect(isLaunched(burst({ delay: 0 }))).toBe(true);
 	});
 });

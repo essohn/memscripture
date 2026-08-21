@@ -401,11 +401,29 @@
 		hintPresses = 0;
 		hintsUsed = 0;
 	}
+
+	let panelEl: HTMLDivElement | undefined = $state();
+
+	/**
+	 * The verse the celebration belongs to.
+	 *
+	 * Walked up from the panel rather than passed down from VerseCard: the card
+	 * already owns this panel's whole lifecycle, and threading an element
+	 * through for decoration would put a prop on every other caller too. The
+	 * panel itself is the fallback, which is the right shape even when the
+	 * card's testid eventually changes.
+	 */
+	function burstOrigin(): HTMLElement | null {
+		return panelEl?.closest<HTMLElement>('[data-testid="verse-row"]') ?? panelEl ?? null;
+	}
 </script>
 
-<Confetti fire={celebrate} />
+<Confetti fire={celebrate} origin={burstOrigin()} />
 
-<div class="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-elevated)] p-3">
+<div
+	bind:this={panelEl}
+	class="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-elevated)] p-3"
+>
 	{#if saved}
 		<!-- The result has been written. Retiring the input matters as much as
 		     showing the levels: leaving 제출 on screen after a successful save

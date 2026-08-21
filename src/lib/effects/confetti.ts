@@ -25,6 +25,11 @@ export interface Particle {
 	/** Seconds lived, and total lifetime. */
 	age: number;
 	life: number;
+	/** Seconds still to wait before this piece launches. Poppers that all go
+	 *  off on the same frame read as one big burst; a beat between them reads
+	 *  as four. Carried per-particle rather than as a queue in the component so
+	 *  the whole effect stays one array of pure state. */
+	delay: number;
 }
 
 /** Downward acceleration, px/s². Tuned by eye against a phone screen: real
@@ -65,6 +70,8 @@ export interface BurstOptions {
 	count: number;
 	speed: [number, number];
 	colors?: string[];
+	/** Seconds to hold this burst before it launches. */
+	delay?: number;
 	rng?: Rng;
 }
 
@@ -88,7 +95,8 @@ export function createBurst(opts: BurstOptions): Particle[] {
 			h: between(rng, 8, 15),
 			color: colors[Math.floor(rng() * colors.length) % colors.length],
 			age: 0,
-			life: between(rng, 2.2, 3.6)
+			life: between(rng, 2.2, 3.6),
+			delay: opts.delay ?? 0
 		});
 	}
 	return out;
@@ -102,6 +110,9 @@ export function createBurst(opts: BurstOptions): Particle[] {
  * what keeps a fast piece and a slow one from decelerating at the same rate.
  */
 export function stepParticle(p: Particle, dt: number): Particle {
+	// Still in the barrel: the clock runs down but nothing else moves, so a
+	// held piece neither drifts nor ages toward its fade before it is fired.
+	if (p.delay > 0) return { ...p, delay: Math.max(0, p.delay - dt) };
 	const decay = Math.pow(DRAG, dt);
 	const vx = p.vx * decay;
 	const vy = (p.vy + GRAVITY * dt) * decay;
@@ -126,7 +137,15 @@ export function particleAlpha(p: Particle): number {
 }
 
 export function isDead(p: Particle, viewportHeight: number): boolean {
+	// A piece waiting its turn is not dead, however far off screen its origin
+	// happens to be — it has not been thrown yet.
+	if (p.delay > 0) return false;
 	return p.age >= p.life || p.y > viewportHeight + 40;
+}
+
+/** Whether the piece has left the barrel and should be drawn. */
+export function isLaunched(p: Particle): boolean {
+	return p.delay <= 0;
 }
 
 /**
@@ -140,30 +159,66 @@ export function flutterScale(p: Particle): number {
 	return Math.abs(Math.cos(p.wobble));
 }
 
-/** Two poppers angled inward from the lower corners, which keeps the spray
- *  clear of the message in the middle. */
-export function celebrationBursts(width: number, height: number, rng?: Rng): Particle[] {
-	const count = 70;
-	return [
-		...createBurst({
-			x: width * 0.08,
-			y: height * 0.92,
-			angle: -Math.PI / 3,
-			spread: 0.42,
+/** Where the celebration goes off. Viewport coordinates, because the canvas
+ *  is fixed to the viewport. */
+export interface BurstOrigin {
+	left: number;
+	right: number;
+	top: number;
+	bottom: number;
+}
+
+/** Per popper: where along the origin it sits, which way it throws, and how
+ *  long after the first one it goes off.
+ *
+ *  Outer pair first and angled steeply inward, inner pair a beat later and
+ *  closer to vertical — so the spray opens outward from the verse rather than
+ *  arriving as one wall, and the middle stays clear of the message. The
+ *  offsets are small on purpose: far enough apart to read as four poppers,
+ *  near enough to read as one celebration. */
+const POPPERS = [
+	{ fx: 0.06, fy: 0.98, angle: -Math.PI / 3, delay: 0 },
+	{ fx: 0.94, fy: 0.98, angle: (-Math.PI * 2) / 3, delay: 0.05 },
+	{ fx: 0.28, fy: 1.02, angle: -Math.PI / 2.35, delay: 0.13 },
+	{ fx: 0.72, fy: 1.02, angle: -Math.PI / 1.74, delay: 0.19 }
+];
+
+/**
+ * Four poppers along the bottom of the verse that earned them.
+ *
+ * Fired from the card rather than the corners of the screen: the celebration
+ * belongs to one verse, and a burst from the edges of the display could be
+ * about anything on it. `origin` is the card's rectangle; without one — the
+ * card scrolled away, or a caller that has none — it falls back to the bottom
+ * of the viewport, which is where this started.
+ *
+ * Speeds are lower than a screen-corner burst needed. From a card in the
+ * middle of a tall phone the old throw carried the pieces off the top before
+ * they could arc, so the spray was over before it was seen.
+ */
+export function celebrationBursts(
+	width: number,
+	height: number,
+	origin?: BurstOrigin | null,
+	rng?: Rng
+): Particle[] {
+	const box = origin ?? { left: 0, right: width, top: height * 0.9, bottom: height * 0.94 };
+	const w = box.right - box.left;
+	const h = box.bottom - box.top;
+	const count = 45;
+
+	return POPPERS.flatMap((p) =>
+		createBurst({
+			x: box.left + w * p.fx,
+			y: box.top + h * p.fy,
+			angle: p.angle,
+			spread: 0.4,
 			count,
-			speed: [700, 1250],
-			rng
-		}),
-		...createBurst({
-			x: width * 0.92,
-			y: height * 0.92,
-			angle: (-Math.PI * 2) / 3,
-			spread: 0.42,
-			count,
-			speed: [700, 1250],
+			speed: [520, 980],
+			delay: p.delay,
 			rng
 		})
-	];
+	);
 }
 
 /** Honours the OS setting. The app already shortens its CSS transitions for
