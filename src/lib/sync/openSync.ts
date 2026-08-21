@@ -38,7 +38,7 @@ export interface OpenSyncDeps {
 	online?: boolean;
 	/** Injected so the guard order can be tested without a Drive account.
 	 *  Returns the stored auth, or null when Drive was never connected. */
-	storedAuth?: () => Promise<{ expiresAt: number } | null>;
+	storedAuth?: () => Promise<{ expiresAt: number; refreshToken?: string } | null>;
 	sync?: typeof performSync;
 	waitForIdle?: (timeoutMs?: number) => Promise<void>;
 }
@@ -63,12 +63,15 @@ export async function syncOnOpen(deps: OpenSyncDeps): Promise<OpenSyncOutcome> {
 
 	const auth = await storedAuth();
 	if (!auth) return { kind: 'skipped', why: 'not-connected' };
-	// Refreshing a spent token means GIS opening a popup window, which flashes
-	// on screen even when it asks nothing — and on launch, that window appears
-	// for no reason the reader can connect to anything they did. An hour-old
-	// token waits for the sync button, which is attended and where a popup is
-	// expected. Nothing unattended may summon one.
-	if (!tokenUsable(auth)) return { kind: 'skipped', why: 'needs-login' };
+	// A spent token is fine when there is a refresh token to renew it with:
+	// that path is a fetch to this app's own Worker and nothing appears on
+	// screen. Without one, renewing means GIS opening a popup window — which
+	// flashes on launch for no reason the reader can connect to anything they
+	// did. Those wait for the sync button, which is attended and where a popup
+	// is expected. Nothing unattended may summon one.
+	if (!tokenUsable(auth) && !auth.refreshToken) {
+		return { kind: 'skipped', why: 'needs-login' };
+	}
 
 	// Silent by design, including on success: a toast on every launch would
 	// charge the reader's attention for something they did not ask for, and

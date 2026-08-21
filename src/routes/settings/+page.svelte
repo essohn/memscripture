@@ -26,8 +26,9 @@
 		type SpeakRate
 	} from '$lib/db/viewOptions';
 	import { getGoogleOauthClientId } from '$lib/sync/clientId';
+	import { beginConnect } from '$lib/cloud/connect';
 	import {
-		connectGoogleDrive,
+		AUTH_SCOPES,
 		disconnectGoogleDrive,
 		getCurrentAuth,
 		type GoogleAuthState
@@ -163,12 +164,25 @@
 		};
 	});
 
+	/**
+	 * Sends the reader to Google's consent screen.
+	 *
+	 * A redirect, not the old popup: the code it comes back with can be traded
+	 * for a refresh token, and that is what lets every later renewal happen as
+	 * a plain fetch — no window appearing on launch, which is what the popup
+	 * flow cost. The callback at /auth/google/callback finishes the job and
+	 * returns here.
+	 */
 	async function onConnect() {
 		if (!clientId) return;
 		try {
-			auth = await connectGoogleDrive(clientId);
-			toast = { message: `${auth.email}으로 연결되었습니다` };
-		} catch (err) {
+			location.href = await beginConnect({
+				clientId,
+				scope: AUTH_SCOPES,
+				origin: location.origin,
+				store: sessionStorage
+			});
+		} catch {
 			toast = { message: '연결 실패: 다시 시도해주세요' };
 		}
 	}
@@ -275,6 +289,22 @@
 			<p class="mt-3 text-[13px] text-[var(--color-text-secondary)]">
 				연결됨 · <span class="font-medium text-[var(--color-text)]">{auth.email}</span>
 			</p>
+			{#if !auth.refreshToken}
+				<!-- Connected under the old flow, which has no refresh token: every
+				     renewal still opens a popup, and the launch sync skips this
+				     device rather than summoning one. Reconnecting once fixes both,
+				     and nobody would guess that on their own. -->
+				<p class="mt-2 text-[12px] leading-relaxed text-[var(--color-text-tertiary)]">
+					다시 연결하면 로그인 창 없이 자동으로 갱신되고, 앱을 열 때마다 동기화됩니다.
+					<button
+						type="button"
+						onclick={onConnect}
+						class="font-semibold text-[var(--color-accent)] underline underline-offset-2"
+					>
+						다시 연결
+					</button>
+				</p>
+			{/if}
 			<div class="mt-4 flex flex-wrap items-center gap-2">
 				<button
 					type="button"

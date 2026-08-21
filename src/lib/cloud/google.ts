@@ -1,4 +1,5 @@
 import { db } from '$lib/db/local';
+import { readTokenResponse } from './pkce';
 
 const AUTH_KEY = 'google_drive_auth';
 const GIS_SRC = 'https://accounts.google.com/gsi/client';
@@ -15,7 +16,7 @@ const APPDATA_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 /** Space-delimited, per the OAuth 2.0 scope syntax GIS expects. Must be
  *  identical in connect and refresh — asking for a different set on refresh
  *  turns the silent prompt into an incremental-consent popup. */
-const AUTH_SCOPES = `${DRIVE_SCOPE} ${APPDATA_SCOPE} ${EMAIL_SCOPE}`;
+export const AUTH_SCOPES = `${DRIVE_SCOPE} ${APPDATA_SCOPE} ${EMAIL_SCOPE}`;
 /** A silent refresh that needs user interaction never invokes the callback,
  *  which would hang performSync — and with it the sync button — forever.
  *  Bound the wait so the caller gets a failure it can report instead. */
@@ -27,6 +28,16 @@ export interface GoogleAuthState {
 	accessToken: string;
 	/** epoch ms — when the access token expires */
 	expiresAt: number;
+	/**
+	 * Long-lived, and what makes a refresh an ordinary fetch instead of a
+	 * popup. Absent for anyone who connected under the old GIS flow; they keep
+	 * working through that path until they reconnect.
+	 *
+	 * Device-local like the rest of this row — `google_drive_auth` is in
+	 * DEVICE_LOCAL_KEYS, so it is stripped from the sync snapshot and never
+	 * leaves the device it was issued to.
+	 */
+	refreshToken?: string;
 }
 
 /** Injects the GIS script tag exactly once. Resolves after onload, or
@@ -121,12 +132,58 @@ export async function getCurrentAuth(): Promise<GoogleAuthState | null> {
 	return a as GoogleAuthState;
 }
 
-/** Re-runs GIS silent prompt to refresh an access token. Returns the new
- *  state or throws on failure. */
+/** Persists an auth row. Exported so the code-flow callback can write one
+ *  without duplicating the key or the shape. */
+export async function storeAuth(auth: GoogleAuthState): Promise<void> {
+	await db.settings.put({ key: AUTH_KEY, value: auth });
+}
+
+/**
+ * Trades the stored refresh token for a new access token, through this app's
+ * own Worker — an ordinary fetch, with no window and no GIS.
+ *
+ * A refresh reply carries no refresh_token of its own: the existing one stays
+ * valid, and writing `undefined` over it would cost the reader the very thing
+ * that keeps them signed in.
+ */
+async function refreshViaWorker(auth: GoogleAuthState): Promise<GoogleAuthState | null> {
+	if (!auth.refreshToken) return null;
+	const res = await fetch('/api/google/refresh', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ refresh_token: auth.refreshToken })
+	});
+	if (!res.ok) return null;
+	const bundle = readTokenResponse(await res.json().catch(() => null));
+	if (!bundle) return null;
+	const next: GoogleAuthState = {
+		...auth,
+		accessToken: bundle.accessToken,
+		expiresAt: bundle.expiresAt,
+		refreshToken: bundle.refreshToken ?? auth.refreshToken
+	};
+	await storeAuth(next);
+	return next;
+}
+
+/**
+ * Refreshes an access token.
+ *
+ * Prefers the refresh token, which is silent. Falls back to the GIS prompt for
+ * anyone still on the old flow — that one opens a popup, which is why callers
+ * that run unattended check `tokenUsable` first and decline to come here.
+ */
 export async function refreshAccessToken(
 	clientId: string,
 	currentEmail: string
 ): Promise<GoogleAuthState> {
+	const stored = await getCurrentAuth();
+	if (stored?.refreshToken) {
+		const refreshed = await refreshViaWorker(stored);
+		if (refreshed) return refreshed;
+		// Fall through: a refresh token can be revoked, and the GIS prompt is
+		// then the only way back without making the reader hunt for Settings.
+	}
 	await loadGisClient();
 	const tokenResponse = await new Promise<TokenResponse>((resolve, reject) => {
 		const timer = setTimeout(
