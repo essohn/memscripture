@@ -208,6 +208,10 @@
 				return '이미 최신 상태입니다';
 			case 'merged':
 				return '동기화했습니다 — 양쪽 기록을 합쳤습니다';
+			// Only an unattended sync can be deferred; this button is attended,
+			// so it never gates. Handled anyway because the type says it can be.
+			case 'deferred':
+				return '암송 중이라 잠시 후 다시 시도해주세요';
 			case 'error':
 				return `동기화 실패: ${result.message}`;
 		}

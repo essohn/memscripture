@@ -19,6 +19,7 @@
 	import type { CheckRecord } from '$lib/db/local';
 	import { goto } from '$app/navigation';
 	import { citeShownSeparately, displayTitle } from '$lib/utils/verseTitle';
+	import { cardActivity } from '$lib/state/cardActivity';
 
 	interface Props {
 		verse: StoredVerse;
@@ -124,6 +125,20 @@
 	const reader = $derived(readerHref(verse.cite));
 	/** The citation stands in when a user's verse was left unnamed. */
 	const heading = $derived(displayTitle(verse));
+
+	/**
+	 * Hold off an unattended sync while this card is being worked in.
+	 *
+	 * Applying a snapshot rewrites every table, so a pull landing mid-점검 would
+	 * change the verse under the reader. Cleanup covers leaving the mode and
+	 * the card unmounting alike — a card scrolled out of a virtualised list
+	 * must not leave the counter stuck above zero.
+	 */
+	$effect(() => {
+		if (mode === 'read') return;
+		cardActivity.enter();
+		return () => cardActivity.leave();
+	});
 	const citeOnOwnLine = $derived(citeShownSeparately(verse));
 
 	// The card reacts to a tap when it can select, or when a tap starts a

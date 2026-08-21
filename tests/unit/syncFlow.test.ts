@@ -210,3 +210,67 @@ describe('performSync', () => {
 		});
 	});
 });
+
+describe('the apply gate', () => {
+	function differing() {
+		vi.mocked(findSyncFile).mockResolvedValue({ id: 'fid', modifiedTime: 'x' });
+		vi.mocked(downloadSyncFile).mockResolvedValue(snap('2026-05-29T09:00:00Z'));
+		vi.mocked(buildSyncSnapshot).mockResolvedValue(snap('2026-05-29T10:00:00Z'));
+		vi.mocked(uploadSyncFile).mockResolvedValue({ id: 'fid' });
+	}
+
+	// An unattended sync landing mid-점검 would rewrite every table under the
+	// reader. Refusing must leave BOTH sides untouched — a merge uploaded but
+	// not applied would leave this device behind its own remote file.
+	it('writes nothing, locally or remotely, when the gate refuses', async () => {
+		differing();
+		const res = await performSync(
+			{ beforeApply: () => Promise.reject(new Error('cards still open')) },
+			CLIENT_ID
+		);
+		expect(res).toEqual({ kind: 'deferred' });
+		expect(applySyncSnapshot).not.toHaveBeenCalled();
+		expect(uploadSyncFile).not.toHaveBeenCalled();
+		expect(savePreSyncBackup).not.toHaveBeenCalled();
+	});
+
+	it('proceeds once the gate opens', async () => {
+		differing();
+		const res = await performSync({ beforeApply: () => Promise.resolve() }, CLIENT_ID);
+		expect(res).toEqual({ kind: 'merged' });
+		expect(applySyncSnapshot).toHaveBeenCalled();
+		expect(uploadSyncFile).toHaveBeenCalled();
+	});
+
+	// The gate guards writes, not reads. Everything before it is a fetch, and
+	// asking a reader to wait before we even know there is anything to apply
+	// would hold the gesture open for nothing.
+	it('is consulted only after the remote has been read and merged', async () => {
+		differing();
+		const order: string[] = [];
+		vi.mocked(downloadSyncFile).mockImplementation(async () => {
+			order.push('download');
+			return snap('2026-05-29T09:00:00Z');
+		});
+		vi.mocked(applySyncSnapshot).mockImplementation(async () => {
+			order.push('apply');
+		});
+		await performSync(
+			{
+				beforeApply: async () => {
+					order.push('gate');
+				}
+			},
+			CLIENT_ID
+		);
+		expect(order).toEqual(['download', 'gate', 'apply']);
+	});
+
+	// The attended button passes no gate, and must behave exactly as before.
+	it('applies without a gate when none is given', async () => {
+		differing();
+		const res = await performSync({}, CLIENT_ID);
+		expect(res).toEqual({ kind: 'merged' });
+		expect(applySyncSnapshot).toHaveBeenCalled();
+	});
+});

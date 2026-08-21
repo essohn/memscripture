@@ -6,6 +6,8 @@
 	import { currentTab, isContentPage } from '$lib/utils/route';
 	import { joinGroup } from '$lib/db/groups';
 	import Toast from '$lib/components/feedback/Toast.svelte';
+	import { syncOnOpen } from '$lib/sync/openSync';
+	import { getGoogleOauthClientId } from '$lib/sync/clientId';
 
 	let { children } = $props();
 	const tab = $derived(currentTab(page.url.pathname));
@@ -36,6 +38,18 @@
 	 * The parameter is removed with replaceState so a refresh or a shared URL
 	 * does not re-announce a group the reader already belongs to.
 	 */
+	/**
+	 * Pull the other devices' records once, on open.
+	 *
+	 * Here rather than on the home page because this layout mounts once per
+	 * full load and a client-side route change is not a new open. Not awaited
+	 * and not reported: it must never hold up the first paint, and opening the
+	 * app offline is ordinary rather than something to announce.
+	 */
+	$effect(() => {
+		void syncOnOpen({ clientId: getGoogleOauthClientId() });
+	});
+
 	let groupToast = $state<string | null>(null);
 	$effect(() => {
 		const code = page.url.searchParams.get('team');

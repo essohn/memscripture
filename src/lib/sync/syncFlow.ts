@@ -16,12 +16,24 @@ export type SyncResult =
 	| { kind: 'no-remote-uploaded' }
 	| { kind: 'remote-equal' }
 	| { kind: 'merged' }
+	/** The gate never opened — nothing was written locally or remotely. */
+	| { kind: 'deferred' }
 	| { kind: 'error'; message: string };
 
 export interface SyncHandlers {
 	/** Kept for callers that still pass one. Nothing asks any more: a merge
 	 *  discards nothing, so there is no longer a question to put to the user. */
 	confirmOverwrite?: () => Promise<boolean>;
+	/**
+	 * Awaited immediately before the merged snapshot is written locally.
+	 *
+	 * Applying rewrites every table, which is fine when a person pressed the
+	 * button and is watching, and not fine when a sync starts on its own while
+	 * they are mid-점검 — the verse would change underneath them. A caller that
+	 * syncs unattended passes a gate here; rejecting it abandons the sync with
+	 * nothing written on either side, to be retried later.
+	 */
+	beforeApply?: () => Promise<void>;
 }
 
 /**
@@ -66,6 +78,18 @@ export async function performSync(
 		if (localSnap.lastModifiedAt === remoteSnap.lastModifiedAt) return { kind: 'remote-equal' };
 
 		const merged = mergeSnapshots(localSnap, remoteSnap);
+
+		// Everything above this line is reads. Past it the snapshot is written
+		// to every local table, so an unattended sync asks permission of
+		// whatever is on screen first.
+		if (handlers.beforeApply) {
+			try {
+				await handlers.beforeApply();
+			} catch {
+				return { kind: 'deferred' };
+			}
+		}
+
 		// Still kept, even though the merge discards nothing: it is the only
 		// way back from a bad remote file, and it costs one settings row.
 		await savePreSyncBackup(localSnap);
