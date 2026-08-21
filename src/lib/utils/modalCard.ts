@@ -3,56 +3,49 @@
  *
  * It keeps the list's left edge and width so the verse does not jump sideways
  * as it rises — the card the reader tapped should look like the same card,
- * lifted, not a different one that appeared. Vertically it starts where it
- * was, and only moves when staying there would leave no room for the panel.
+ * lifted, not a different one that appeared.
+ *
+ * Vertically it is placed so the whole card *fits*. An earlier version capped
+ * its height and let it scroll inside, which put a scrollbar around a panel
+ * that is already a form: the textarea scrolls, the page behind is locked, and
+ * a third scrolling region between them is one too many. The card moves
+ * instead of shrinking.
  */
 
 /** Clear of the screen edge, and of the fixed tab bar at the foot. */
-const MARGIN = 16;
+export const MARGIN = 16;
 
-/** Below this a check panel is not worth showing in place — a textarea, a
- *  pace bar and four buttons need room, and squeezing them into a sliver is
- *  worse than moving the card up the screen to make space. */
-const MIN_HEIGHT = 340;
-
-export interface CardBox {
-	left: number;
+export interface ModalFit {
 	top: number;
-	width: number;
-}
-
-export interface ModalPlacement {
-	left: number;
-	top: number;
-	width: number;
-	maxHeight: number;
+	/** A ceiling only when the card cannot fit the screen at all — otherwise
+	 *  null, meaning "as tall as it needs to be" and no inner scrolling. */
+	maxHeight: number | null;
 }
 
 /**
- * `bottomInset` is whatever fixed chrome covers the foot of the screen — the
- * tab bar — so a card lifted near the bottom does not end up underneath it.
- *
- * The height is a *max*, not a height: the panel grows as it is typed into and
- * shrinks again on success, and pinning an exact height would reintroduce the
- * shifting this whole change exists to remove. It scrolls inside instead.
+ * @param preferredTop where the card sat in the list, which is where it stays
+ *        whenever the content allows
+ * @param currentTop where it is now, or null on first placement. Passed so a
+ *        panel that grows slides the card up and a panel that shrinks leaves
+ *        it be — bouncing back down as the success view replaces the form
+ *        would be the movement this whole change removes.
+ * @param bottomInset fixed chrome at the foot of the screen (the tab bar)
  */
-export function placeModalCard(
-	card: CardBox,
+export function fitModalCard(
+	preferredTop: number,
+	contentHeight: number,
 	viewportHeight: number,
-	bottomInset = 0
-): ModalPlacement {
+	bottomInset: number,
+	currentTop: number | null = null
+): ModalFit {
 	const floor = viewportHeight - bottomInset - MARGIN;
-	const roomBelow = floor - card.top;
+	const available = floor - MARGIN;
 
-	// Staying put is the first choice; it is what makes the card look lifted
-	// rather than relocated.
-	const top =
-		roomBelow >= MIN_HEIGHT ? card.top : Math.max(MARGIN, floor - MIN_HEIGHT);
+	// Taller than the screen even at the top margin: nothing to be done but
+	// let it scroll, which is the one case a scrollbar is honest.
+	if (contentHeight > available) return { top: MARGIN, maxHeight: available };
 
-	return {
-		left: card.left,
-		top,
-		width: card.width,
-		maxHeight: Math.max(MIN_HEIGHT, floor - top)
-	};
+	const highestNeeded = floor - contentHeight;
+	const from = currentTop ?? preferredTop;
+	return { top: Math.max(MARGIN, Math.min(from, highestNeeded)), maxHeight: null };
 }

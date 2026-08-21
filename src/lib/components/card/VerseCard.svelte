@@ -17,10 +17,11 @@
 	import { getSpeakOptions, setSpeakOption, type SpeakOptionsStored } from '$lib/db/viewOptions';
 	import { listChecks, recordCheck } from '$lib/db/checkHistory';
 	import type { CheckRecord } from '$lib/db/local';
+	import { tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { citeShownSeparately, displayTitle } from '$lib/utils/verseTitle';
 	import { cardActivity } from '$lib/state/cardActivity';
-	import { placeModalCard, type ModalPlacement } from '$lib/utils/modalCard';
+	import { fitModalCard } from '$lib/utils/modalCard';
 
 	interface Props {
 		verse: StoredVerse;
@@ -312,8 +313,9 @@
 		mode = 'read';
 		marking = false;
 		revealedCount = 0;
-		placement = null;
+		anchor = null;
 		rowHeight = 0;
+		maxHeight = null;
 	}
 
 	/**
@@ -324,29 +326,82 @@
 	 * list itself never changes height.
 	 */
 	let cardEl: HTMLElement | undefined = $state();
-	let placement = $state<ModalPlacement | null>(null);
+	/** Where the card sat in the list: its left, width, and the top it keeps
+	 *  whenever the panel is short enough to allow it. */
+	let anchor = $state<{ left: number; top: number; width: number } | null>(null);
+	let appliedTop = $state(0);
+	let maxHeight = $state<number | null>(null);
 	/** The space the card occupied, held open while it is lifted. */
 	let rowHeight = $state(0);
-
-	function lift() {
-		if (!cardEl) return;
-		const r = cardEl.getBoundingClientRect();
-		rowHeight = r.height;
-		placement = placeModalCard({ left: r.left, top: r.top, width: r.width }, window.innerHeight, TAB_BAR_INSET);
-	}
 
 	/** The fixed tab bar at the foot of every screen; a lifted card must not
 	 *  end up underneath it. */
 	const TAB_BAR_INSET = 64;
 
-	const lifted = $derived(placement !== null && mode === 'check');
+	function lift() {
+		if (!cardEl) return;
+		const r = cardEl.getBoundingClientRect();
+		rowHeight = r.height;
+		anchor = { left: r.left, top: r.top, width: r.width };
+		appliedTop = r.top;
+		maxHeight = null;
+	}
+
+	/**
+	 * Re-place the card against its own rendered height.
+	 *
+	 * The panel changes size as it is used — a hint line appears, the success
+	 * view replaces the form — and the card slides up to keep its foot on
+	 * screen rather than growing a scrollbar of its own.
+	 */
+	function refit() {
+		if (!cardEl || !anchor) return;
+		const fit = fitModalCard(
+			anchor.top,
+			cardEl.offsetHeight,
+			window.innerHeight,
+			TAB_BAR_INSET,
+			appliedTop
+		);
+		if (fit.top !== appliedTop) appliedTop = fit.top;
+		if (fit.maxHeight !== maxHeight) maxHeight = fit.maxHeight;
+	}
+
+	const lifted = $derived(anchor !== null && mode === 'check');
 
 	function onWindowKey(e: KeyboardEvent) {
 		if (lifted && e.key === 'Escape') exitMode();
 	}
+
+	// Measured, not predicted: the panel's height depends on the verse, the
+	// reader's text size and which of its states it is in.
+	$effect(() => {
+		if (!lifted || !cardEl) return;
+		const el = cardEl;
+		// Placed as soon as the DOM has the modal styles, via tick() rather than
+		// a frame callback. requestAnimationFrame and ResizeObserver both
+		// deliver as part of the rendering steps, which a hidden tab does not
+		// run — so a card opened near the foot of the screen stayed hanging
+		// under the tab bar until some unrelated resize happened to fire.
+		// tick() resolves off the DOM update instead, whatever the tab is doing.
+		let live = true;
+		tick().then(() => {
+			if (live) refit();
+		});
+		const ro = new ResizeObserver(() => refit());
+		ro.observe(el);
+		window.addEventListener('resize', refit);
+		return () => {
+			live = false;
+			ro.disconnect();
+			window.removeEventListener('resize', refit);
+		};
+	});
+
 	const modalStyle = $derived(
-		placement
-			? `position: fixed; left: ${placement.left}px; top: ${placement.top}px; width: ${placement.width}px; max-height: ${placement.maxHeight}px; overflow-y: auto; z-index: 50;`
+		anchor
+			? `position: fixed; left: ${anchor.left}px; top: ${appliedTop}px; width: ${anchor.width}px; z-index: 50;` +
+				(maxHeight === null ? '' : ` max-height: ${maxHeight}px; overflow-y: auto;`)
 			: ''
 	);
 
@@ -508,11 +563,15 @@
 	<!-- Holds the row's space so the list behind does not close up and reopen
 	     around the lifted card. -->
 	<div style="height: {rowHeight}px;" aria-hidden="true"></div>
-	<!-- Dimmed and blurred, and deliberately NOT a dismiss target: this change
-	     exists because a control moved out from under someone's finger, and a
-	     full-screen backdrop that discards a half-typed recitation on a stray
-	     tap would be the same injury by another route. ✕ and Escape close it. -->
-	<div class="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" aria-hidden="true"></div>
+	<!-- Dimmed and blurred, and a tap anywhere on it leaves — the same exit as
+	     ✕ and Escape. A button rather than a div so it is a real target for a
+	     keyboard and for assistive tech, which a bare click handler is not. -->
+	<button
+		type="button"
+		aria-label="점검 닫기"
+		class="fixed inset-0 z-40 cursor-default bg-black/30 backdrop-blur-sm"
+		onclick={exitMode}
+	></button>
 {/if}
 <!-- role/tabindex are applied dynamically (button only when selectable); the
      static a11y check can't see that, so the noninteractive-tabindex rule is a
