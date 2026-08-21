@@ -4,6 +4,7 @@
 	import Toast from '$lib/components/feedback/Toast.svelte';
 	import EventSection from '$lib/components/home/EventSection.svelte';
 	import { getGoogleOauthClientId } from '$lib/sync/clientId';
+	import VersionFooter from '$lib/components/feedback/VersionFooter.svelte';
 	import { getJoinedGroups } from '$lib/db/groups';
 	import { Sparkles, X, Info, ChevronRight } from 'lucide-svelte';
 	import {
@@ -340,6 +341,7 @@
 			/>
 		</a>
 	{/if}
+	<VersionFooter version={__APP_VERSION__} />
 </main>
 
 {#if toast}

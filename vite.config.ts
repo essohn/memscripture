@@ -1,6 +1,6 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
@@ -55,8 +55,35 @@ function appVersion(): string {
 	return `${major}.${minor}.${patch}${shortSha ? `+${shortSha}` : ''}${dirty ? '-dev' : ''}`;
 }
 
+/**
+ * Publishes the built version as a file the running app can fetch.
+ *
+ * `__APP_VERSION__` is compiled into the bundle, so a tab that has been open
+ * since the last deploy only knows the version it was built with. Comparing
+ * that against this file is how it learns a newer one exists — there is no
+ * service worker in this app to announce it, and the deploy is a plain static
+ * upload with nothing to push.
+ *
+ * Emitted rather than written into static/: it has to be recomputed on every
+ * build, and a generated file checked into the tree is one someone edits by
+ * hand eventually.
+ */
+function emitVersionFile(): Plugin {
+	return {
+		name: 'memscripture-version-file',
+		apply: 'build',
+		generateBundle() {
+			this.emitFile({
+				type: 'asset',
+				fileName: 'version.json',
+				source: JSON.stringify({ version: appVersion() })
+			});
+		}
+	};
+}
+
 export default defineConfig({
-	plugins: [tailwindcss(), sveltekit()],
+	plugins: [tailwindcss(), sveltekit(), emitVersionFile()],
 	define: {
 		__APP_VERSION__: JSON.stringify(appVersion())
 	}
