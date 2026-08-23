@@ -235,6 +235,9 @@
 			speaking = false;
 			return;
 		}
+		// Recorded on the way in, not on the way out: a reader who starts the
+		// audio, hears the opening and stops it has still heard it.
+		heardAloud = true;
 		if (player) {
 			player.resume();
 			speaking = true;
@@ -291,6 +294,11 @@
 	 */
 	let lastCheckPerfect = $state<boolean | null>(null);
 
+	/** The verse has been played aloud since this card was last idle. Hearing
+	 *  it and then reciting it tests recognition, so the grading treats it the
+	 *  way it treats a hint. */
+	let heardAloud = $state(false);
+
 	function enterRehearse() {
 		mode = 'rehearse';
 		marking = false;
@@ -322,6 +330,7 @@
 		mode = 'read';
 		marking = false;
 		revealedCount = 0;
+		heardAloud = false;
 		anchor = null;
 		rowHeight = 0;
 		maxHeight = null;
@@ -759,6 +768,9 @@
 		{#if mode === 'check'}
 			<MemorizeCheckPanel
 				verse={verse.w}
+				currentStart={startDifficulty}
+				currentFull={fullDifficulty}
+				{heardAloud}
 				onPickStart={onPickStartDifficulty!}
 				onPickFull={onPickFullDifficulty!}
 				history={checkHistory}

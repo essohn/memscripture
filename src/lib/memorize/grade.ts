@@ -49,12 +49,18 @@ export function accuracyOf(expected: string, actual: string): number {
 	return Math.max(0, 1 - levenshtein(e, a) / longest);
 }
 
-/** Accuracy bands. Expected to need tuning after real use — keep them here. */
+/**
+ * Accuracy bands, tightened after real use.
+ *
+ * They were generous enough that a verse with a whole clause wrong still
+ * landed mid-scale, which made the rating agreeable rather than useful — the
+ * point of it is to tell the reader which verses still need work.
+ */
 const FULL_BANDS: { min: number; level: DifficultyLevel }[] = [
 	{ min: 1, level: 5 },
-	{ min: 0.95, level: 4 },
-	{ min: 0.85, level: 3 },
-	{ min: 0.7, level: 2 },
+	{ min: 0.98, level: 4 },
+	{ min: 0.92, level: 3 },
+	{ min: 0.8, level: 2 },
 	{ min: 0, level: 1 }
 ];
 
@@ -70,8 +76,8 @@ const FLAWED_CEILING: DifficultyLevel = 3;
  *  Rate rather than elapsed seconds: the corpus runs from short verses to 224
  *  characters, and a long one must not score badly for being long. */
 const PACE_BANDS: { minCharsPerSecond: number; level: DifficultyLevel }[] = [
-	{ minCharsPerSecond: 1.5, level: 3 },
-	{ minCharsPerSecond: 0.8, level: 2 },
+	{ minCharsPerSecond: 2, level: 3 },
+	{ minCharsPerSecond: 1.2, level: 2 },
 	{ minCharsPerSecond: 0, level: 1 }
 ];
 
@@ -111,12 +117,49 @@ export function paceScale(verseLength: number): PaceScale {
  * opening was recalled, 전체 from the pace across the whole verse. They
  * measure different things, but a slow day moves both.
  */
+/** The best a check can score when the reader was helped. Near the hard end
+ *  on purpose: a verse recited with the words in front of you is a verse you
+ *  have not recited, and a 5 there would quietly retire it from review. */
+const ASSISTED_CEILING: DifficultyLevel = 2;
+
+export interface GradeContext {
+	/** The verse's current 전체 rating, or null when never rated. */
+	previous?: DifficultyLevel | null;
+	/** A hint was revealed, or the verse was played aloud, before submitting. */
+	assisted?: boolean;
+}
+
+/**
+ * The 전체 rating for one check.
+ *
+ * A flawless check no longer jumps straight to 5. A verse the reader has been
+ * rating 1 does not become effortless because it went well once — that is one
+ * good morning, not mastery — so a perfect run moves it one step up the scale
+ * and it climbs to 5 across several. A verse with no history still starts at
+ * the top of what one perfect run can claim, because there is nothing to
+ * climb from.
+ *
+ * Assistance overrides all of it. Reading the verse off a hint, or hearing it
+ * a moment earlier, tests recognition rather than recall, and scoring that as
+ * easy is how a verse stops coming back for review while still being unknown.
+ */
 export function fullDifficultyFrom(
 	accuracy: number,
 	verseLength: number,
-	elapsedMs: number
+	elapsedMs: number,
+	context: GradeContext = {}
 ): DifficultyLevel {
-	if (accuracy >= 1) return 5;
+	const level = ungradedAssistance(accuracy, verseLength, elapsedMs, context.previous ?? null);
+	return context.assisted ? (Math.min(level, ASSISTED_CEILING) as DifficultyLevel) : level;
+}
+
+function ungradedAssistance(
+	accuracy: number,
+	verseLength: number,
+	elapsedMs: number,
+	previous: DifficultyLevel | null
+): DifficultyLevel {
+	if (accuracy >= 1) return previous === null ? 5 : (Math.min(5, previous + 1) as DifficultyLevel);
 	// No pace to compute without both a verse and a duration; fall back to the
 	// ceiling rather than punishing a measurement we do not have.
 	if (verseLength <= 0 || elapsedMs <= 0) return FLAWED_CEILING;

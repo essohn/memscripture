@@ -4,12 +4,19 @@ import MemorizeCheckPanel from '../../src/lib/components/card/MemorizeCheckPanel
 
 const VERSE = '그들에게 율례와 법도를 가르쳐서 마땅히 갈 길과 할 일을 그들에게 보이고';
 
-function setup() {
+function setup(extra: Record<string, unknown> = {}) {
 	const onPickStart = vi.fn();
 	const onPickFull = vi.fn();
 	const onClose = vi.fn();
 	const onGraded = vi.fn();
-	render(MemorizeCheckPanel, { verse: VERSE, onPickStart, onPickFull, onClose, onGraded });
+	render(MemorizeCheckPanel, {
+		verse: VERSE,
+		onPickStart,
+		onPickFull,
+		onClose,
+		onGraded,
+		...extra
+	});
 	return { onPickStart, onPickFull, onClose, onGraded };
 }
 
@@ -503,3 +510,75 @@ describe('the success view closes itself', () => {
 		}
 	});
 })
+
+describe('grading in context', () => {
+	// One good morning is not mastery: a verse the reader has been rating 1
+	// steps up rather than jumping to the top of the scale.
+	it('climbs one step from the level the verse already had', async () => {
+		const { onPickFull } = setup({ currentFull: 1 });
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(onPickFull).toHaveBeenCalledWith(2);
+	});
+
+	// Hearing the verse a moment earlier makes this recognition, not recall.
+	it('holds a flawless attempt back when the verse was heard first', async () => {
+		const { onPickFull } = setup({ heardAloud: true });
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(onPickFull).toHaveBeenCalledWith(2);
+	});
+
+	it('does the same when a hint was taken', async () => {
+		const { onPickFull } = setup();
+		await type('그들에게');
+		await fireEvent.click(screen.getByRole('button', { name: '힌트' }));
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(onPickFull).toHaveBeenCalledWith(2);
+	});
+});
+
+describe('keep or apply', () => {
+	async function perfectFrom(previous: number) {
+		const handles = setup({ currentFull: previous });
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		return handles;
+	}
+
+	// The graded value is already applied; this says so and offers the way back.
+	it('offers both, with the graded one in effect', async () => {
+		await perfectFrom(2);
+		expect(screen.getByRole('button', { name: /반영/ })).toHaveAttribute('aria-pressed', 'true');
+		expect(screen.getByRole('button', { name: /유지/ })).toHaveAttribute('aria-pressed', 'false');
+	});
+
+	it('writes the previous level back when 유지 is pressed', async () => {
+		const { onPickFull } = await perfectFrom(2);
+		await fireEvent.click(screen.getByRole('button', { name: /유지/ }));
+		expect(onPickFull).toHaveBeenLastCalledWith(2);
+	});
+
+	// Either can be pressed again, so nothing is lost to a wrong first tap.
+	it('goes back to the graded level when 반영 is pressed again', async () => {
+		const { onPickFull } = await perfectFrom(2);
+		await fireEvent.click(screen.getByRole('button', { name: /유지/ }));
+		await fireEvent.click(screen.getByRole('button', { name: /반영/ }));
+		expect(onPickFull).toHaveBeenLastCalledWith(3);
+	});
+
+	// Nothing to choose between when the check agreed with what was there.
+	it('stays out of the way when the rating did not move', async () => {
+		await perfectFrom(5);
+		expect(screen.queryByRole('button', { name: /유지/ })).toBeNull();
+	});
+
+	it('stays out of the way when the verse had no rating', async () => {
+		const handles = setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		void handles;
+		expect(screen.queryByRole('button', { name: /유지/ })).toBeNull();
+	});
+});

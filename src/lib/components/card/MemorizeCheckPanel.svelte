@@ -20,6 +20,15 @@
 		verse: string;
 		/** Past checks, newest first. Empty until the verse has been checked. */
 		history?: CheckRecord[];
+		/** The ratings this verse already carries. Snapshotted when the panel
+		 *  opens: grading reads the previous 전체 level, and the reader is offered
+		 *  a way back to it — both of which need the value from before the check
+		 *  overwrote it. */
+		currentStart?: DifficultyLevel | null;
+		currentFull?: DifficultyLevel | null;
+		/** The verse was played aloud before this attempt. Counts as assistance
+		 *  the same way a hint does. */
+		heardAloud?: boolean;
 		/** Per dimension rather than one combined result, so this component can
 		 *  express the difference between "no start rating was measurable, leave
 		 *  whatever is there" and "the reader cleared it". A single payload
@@ -48,12 +57,26 @@
 	let {
 		verse,
 		history = [],
+		currentStart = null,
+		currentFull = null,
+		heardAloud = false,
 		onPickStart,
 		onPickFull,
 		onGraded,
 		onClose,
 		onRestart
 	}: Props = $props();
+
+	// Read once. The panel is created fresh for each check, and these must
+	// survive the write that the check itself performs.
+	// svelte-ignore state_referenced_locally
+	const priorStart = currentStart;
+	// svelte-ignore state_referenced_locally
+	const priorFull = currentFull;
+
+	/** What this check graded the 전체 rating as — kept apart from `saved`, which
+	 *  follows whatever the reader has since chosen. */
+	let gradedFull = $state<DifficultyLevel | null>(null);
 
 	let typed = $state('');
 	let inputEl = $state<HTMLTextAreaElement | undefined>();
@@ -301,8 +324,14 @@
 			start: openingAtMs === null ? null : startDifficultyFor(openingAtMs),
 			// Pace is measured against the verse's own length, so a long verse is
 			// not marked down for taking longer to type.
-			full: fullDifficultyFrom(accuracy, normalizeForGrading(verse).length, elapsedMs)
+			full: fullDifficultyFrom(accuracy, normalizeForGrading(verse).length, elapsedMs, {
+				previous: priorFull,
+				// A hint read off the screen, or the verse heard a moment before,
+				// makes this a test of recognition rather than recall.
+				assisted: hintsUsed > 0 || heardAloud
+			})
 		};
+		gradedFull = result.full;
 		if (accuracy === 1) {
 			commit(result);
 			celebrate = true;
@@ -470,6 +499,42 @@
 				</button>
 			</div>
 		</div>
+		<!-- Keep or apply, when the check moved the 전체 rating off what the verse
+		     already carried.
+
+		     Both choices write immediately and either can be pressed again, so
+		     there is nothing to lose to the auto-close and no order to get
+		     right. The graded value is applied on submit as before — this says
+		     which one is in effect and offers the other, rather than holding the
+		     result hostage to a decision. -->
+		{#if priorFull !== null && priorFull !== gradedFull && gradedFull !== null}
+			<div class="mt-3 flex flex-wrap items-center gap-1.5">
+				<span class="text-[calc(11px*var(--vfs))] text-[var(--color-text-tertiary)]">난이도</span>
+				<button
+					type="button"
+					aria-pressed={saved.full === priorFull}
+					onclick={() => adjust({ full: priorFull })}
+					class="rounded-full border px-2.5 py-1 text-[calc(11px*var(--vfs))] font-medium transition-colors {saved.full ===
+					priorFull
+						? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-on-accent)]'
+						: 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-card)]'}"
+				>
+					유지 {DIFFICULTY_LABELS[priorFull]}
+				</button>
+				<button
+					type="button"
+					aria-pressed={saved.full === gradedFull}
+					onclick={() => adjust({ full: gradedFull })}
+					class="rounded-full border px-2.5 py-1 text-[calc(11px*var(--vfs))] font-medium transition-colors {saved.full ===
+					gradedFull
+						? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-on-accent)]'
+						: 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-card)]'}"
+				>
+					반영 {DIFFICULTY_LABELS[gradedFull]}
+				</button>
+			</div>
+		{/if}
+
 		<!-- Editable, not just reported: the proposal is a guess, and a reader who
 		     disagrees should not have to redo the attempt to change it. Same
 		     pickers as the confirm panel, so one control means one thing. -->

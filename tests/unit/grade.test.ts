@@ -9,6 +9,7 @@ import {
 	paceScale,
 	normalizeForGrading
 } from '../../src/lib/memorize/grade';
+import type { DifficultyLevel } from '../../src/lib/db/verseRatings';
 
 const VERSE = '그들에게 율례와 법도를 가르쳐서 마땅히 갈 길과 할 일을 그들에게 보이고';
 
@@ -77,12 +78,12 @@ describe('fullDifficultyFor', () => {
 	it.each([
 		[1, 5],
 		[0.99, 4],
-		[0.95, 4],
-		[0.9, 3],
-		[0.85, 3],
+		[0.98, 4],
+		[0.97, 3],
+		[0.92, 3],
+		[0.91, 2],
 		[0.8, 2],
-		[0.7, 2],
-		[0.69, 1],
+		[0.79, 1],
 		[0, 1]
 	])('maps accuracy %s to level %s', (accuracy, level) => {
 		expect(fullDifficultyFor(accuracy)).toBe(level);
@@ -285,15 +286,15 @@ describe('fullDifficultyFrom — accuracy capped, then slowed', () => {
 	});
 
 	it('drops a slow flawed attempt further', () => {
-		expect(fullDifficultyFrom(0.9, CHARS, secs(40))).toBe(3); // ~1.5 chars/s
-		expect(fullDifficultyFrom(0.9, CHARS, secs(70))).toBe(2); // ~0.9 chars/s
+		expect(fullDifficultyFrom(0.9, CHARS, secs(30))).toBe(3); // ~2.0 chars/s
+		expect(fullDifficultyFrom(0.9, CHARS, secs(45))).toBe(2); // ~1.4 chars/s
 		expect(fullDifficultyFrom(0.9, CHARS, secs(200))).toBe(1); // ~0.3 chars/s
 	});
 
 	// Rate, not absolute seconds: a long verse must not be punished for being
 	// long. Same pace, same rating.
 	it('judges pace rather than elapsed time', () => {
-		expect(fullDifficultyFrom(0.9, 61, secs(40))).toBe(fullDifficultyFrom(0.9, 224, secs(147)));
+		expect(fullDifficultyFrom(0.9, 61, secs(30))).toBe(fullDifficultyFrom(0.9, 224, secs(110)));
 	});
 
 	it('survives a zero-length verse or instant submit', () => {
@@ -347,8 +348,8 @@ describe('paceScale', () => {
 	// The bar has to mean something, so its scale is the one the rating already
 	// uses: the elapsed times at which an attempt drops out of each pace band.
 	it('marks where each pace band ends', () => {
-		// 60 characters: 1.5 chars/sec runs out at 40s, 0.8 at 75s.
-		expect(paceScale(60)).toEqual({ marks: [40_000, 75_000], totalMs: 75_000 });
+		// 60 characters: 2 chars/sec runs out at 30s, 1.2 at 50s.
+		expect(paceScale(60)).toEqual({ marks: [30_000, 50_000], totalMs: 50_000 });
 	});
 
 	// Pace is per character, so a verse twice as long gets twice the time and a
@@ -368,3 +369,66 @@ describe('paceScale', () => {
 	});
 });
 
+describe('a flawless check climbs rather than jumps', () => {
+	const CHARS = 61;
+	const secs = (n: number) => n * 1000;
+	const perfect = (previous: 1 | 2 | 3 | 4 | 5 | null) =>
+		fullDifficultyFrom(1, CHARS, secs(20), { previous });
+
+	// One good morning is not mastery. A verse the reader has been rating 1
+	// does not become effortless because it went well once.
+	it('moves a hard verse one step, not to the top', () => {
+		expect(perfect(1)).toBe(2);
+		expect(perfect(2)).toBe(3);
+	});
+
+	it('reaches 5 across several flawless checks', () => {
+		let level: DifficultyLevel = 1;
+		const seen: DifficultyLevel[] = [level];
+		for (let i = 0; i < 4; i++) {
+			level = perfect(level);
+			seen.push(level);
+		}
+		expect(seen).toEqual([1, 2, 3, 4, 5]);
+	});
+
+	it('stays at the top once it gets there', () => {
+		expect(perfect(5)).toBe(5);
+	});
+
+	// Nothing to climb from, so one perfect run claims what it can.
+	it('starts an unrated verse at the top', () => {
+		expect(perfect(null)).toBe(5);
+	});
+
+	// Without a previous level this is the old behaviour, which every existing
+	// caller relied on.
+	it('is unchanged when no context is given', () => {
+		expect(fullDifficultyFrom(1, CHARS, secs(20))).toBe(5);
+	});
+});
+
+describe('assistance caps the rating', () => {
+	const CHARS = 61;
+	const secs = (n: number) => n * 1000;
+
+	// Reading the verse off a hint, or hearing it a moment earlier, tests
+	// recognition rather than recall — and a 5 there would quietly retire the
+	// verse from review while it is still unknown.
+	it('holds a flawless assisted check near the hard end', () => {
+		expect(fullDifficultyFrom(1, CHARS, secs(20), { assisted: true })).toBe(2);
+	});
+
+	it('overrides the climb from a previous level', () => {
+		expect(fullDifficultyFrom(1, CHARS, secs(20), { previous: 4, assisted: true })).toBe(2);
+	});
+
+	// A cap, not a floor: an assisted attempt that was also bad stays bad.
+	it('never raises a worse result', () => {
+		expect(fullDifficultyFrom(0.5, CHARS, secs(200), { assisted: true })).toBe(1);
+	});
+
+	it('leaves an unassisted check alone', () => {
+		expect(fullDifficultyFrom(1, CHARS, secs(20), { assisted: false })).toBe(5);
+	});
+});
