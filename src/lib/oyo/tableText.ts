@@ -59,10 +59,16 @@ export function decodeTableFile(bytes: Uint8Array): DecodedTable {
 		text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 		encoding = 'utf-8';
 	} catch {
-		// Required of every browser by the Encoding Standard, and present in
-		// Node's full-ICU build, so this costs no dependency.
-		text = new TextDecoder('euc-kr').decode(bytes);
-		encoding = 'euc-kr';
+		try {
+			// Required of every browser by the Encoding Standard, and present in
+			// Node's full-ICU build, so this costs no dependency.
+			text = new TextDecoder('euc-kr').decode(bytes);
+			encoding = 'euc-kr';
+		} catch {
+			// A failed fallback decode is the same situation as empty bytes: nothing
+			// readable came out of it, and the reader already knows what to do.
+			throw new TableFileError('empty');
+		}
 	}
 
 	// Excel's "CSV UTF-8" writes a BOM. Left in place it would ride along on

@@ -68,4 +68,24 @@ describe('decodeTableFile', () => {
 			expect(err).toBeInstanceOf(TableFileError);
 		}
 	});
+
+	it('still throws a TableFileError when even the fallback decoder fails', () => {
+		const real = globalThis.TextDecoder;
+		class Broken {
+			constructor(label?: string) {
+				// The strict UTF-8 attempt must still behave normally; only the
+				// fallback is broken, which is the seam under test.
+				if (label === 'euc-kr') throw new Error('no such encoding');
+			}
+			decode() {
+				throw new TypeError('not utf-8');
+			}
+		}
+		globalThis.TextDecoder = Broken as unknown as typeof TextDecoder;
+		try {
+			expect(kindOf(() => decodeTableFile(new Uint8Array([0xbf, 0xe4])))).toBe('empty');
+		} finally {
+			globalThis.TextDecoder = real;
+		}
+	});
 });
