@@ -266,14 +266,30 @@ export function speak(segments: string[], opts: SpeakOptions = {}): SpeakHandle 
 	// playback's identity: the next playback relieves it by calling this.
 	function stop() {
 		// Order matters: mark stopped first so the chained onend does not
-		// start the next segment as cancel() tears the current one down.
+		// start the next segment as cancel() tears the current one down. A
+		// second call must stop there: once relieved, the global queue may
+		// already belong to a successor, and reaching synth.cancel() again
+		// would cancel *their* utterance — the same "cancel reads as
+		// finished" bug this file exists to fix, sprung from behind by a
+		// stale handle instead of by another playback starting.
 		const wasStopped = stopped;
 		stopped = true;
 		if (keepalive !== null) clearInterval(keepalive);
+		if (wasStopped) return;
 		releaseSynth(stop);
 		synth.cancel();
-		if (!wasStopped) opts.onEnd?.();
+		opts.onEnd?.();
 	}
+
+	// Assigned before claimSynth: relieving the previous owner can run this
+	// playback's own stop() synchronously — its onEnd chaining straight into
+	// a new playback, whose claim reaches back and relieves this one before
+	// it has spoken a word. stop() must find a real interval to clear then,
+	// not null, or the timer below outlives every handle that could clear it.
+	keepalive = setInterval(() => {
+		if (stopped) return;
+		if (synth.speaking && !synth.paused) synth.resume();
+	}, KEEPALIVE_MS);
 
 	claimSynth(stop);
 	// Still guarded rather than unconditional: on iOS a cancel() immediately
@@ -317,11 +333,6 @@ export function speak(segments: string[], opts: SpeakOptions = {}): SpeakHandle 
 		u.onerror = () => finish();
 		synth.speak(u);
 	}
-
-	keepalive = setInterval(() => {
-		if (stopped) return;
-		if (synth.speaking && !synth.paused) synth.resume();
-	}, KEEPALIVE_MS);
 
 	say(0);
 
