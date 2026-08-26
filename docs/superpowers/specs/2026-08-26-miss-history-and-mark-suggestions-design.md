@@ -204,26 +204,11 @@ repeat would be a caller bug rather than two misses.
 
 ### `src/lib/db/checkHistory.ts`
 
-Two changes.
+One change: `recordCheck()` accepts `missed?: number[]` in its entry object
+and stores it unchanged.
 
-`recordCheck()` accepts `missed?: number[]` in its entry object and stores it
-unchanged.
-
-```ts
-/** Suggestions for a whole package, keyed by verse number.
- *  One range scan on the verseKey index — the same shape as
- *  listPerfectVerseNos, because 900 verses must not mean 900 queries. */
-export async function listMissSuggestions(
-  packageId: string,
-  wordCounts: Map<number, number>
-): Promise<Map<number, Set<number>>>;
-```
-
-Groups the package's records by verse, sorts each group most-recent-first,
-and runs `suggestedMarks` per verse using that verse's word count. Verses with
-no suggestions are absent from the map rather than present with an empty set,
-so the caller can treat presence as meaning something — the same convention
-`listMarksForPackage` uses for empty mark rows.
+There is **no package-wide suggestion query**. `VerseCard` already owns the
+check history for its own verse and already loads it lazily; see below.
 
 ### `src/lib/components/card/MemorizeCheckPanel.svelte`
 
@@ -242,16 +227,42 @@ the evidence that pushes an older miss out of the window.
 
 ### `src/lib/components/card/VerseCard.svelte`
 
-One new prop and one class:
+The card computes its own suggestions. No new prop, and no route changes.
+
+`checkHistory` (`:283`) is already `$state` on this card, and `enterCheck()`
+(`:316`) already loads it lazily with the reason stated in the comment above
+it: *loaded when the panel opens rather than on every card render — a 900-row
+list would otherwise issue 900 queries for history nobody is looking at.*
+Marking mode gets the same treatment. The load is extracted so both entry
+points share it:
 
 ```ts
-/** Word indices proposed from the check history. Rendered only in marking
- *  mode: a suggestion the reader cannot act on is just noise. */
-suggested?: Set<number>;
+/** Loads this verse's checks. Lazy for the reason enterCheck states: a
+ *  900-row list must not issue 900 queries for history nobody opened. */
+function loadCheckHistory() {
+  if (!packageId) return;
+  listChecks(packageId, verse.no)
+    .then((rows) => (checkHistory = rows))
+    .catch(() => {});
+}
+```
+
+`enterCheck()` calls it in place of its inline query, and `toggleMarking()`
+calls it when turning marking on. Reusing one `$state` means a reader who
+checks a verse and then opens 밑줄 sees suggestions that include the check
+they just finished.
+
+```ts
+/** Words this reader keeps missing. Derived, never stored — see the spec's
+ *  "Why suggestions are not stored". Empty outside marking mode because a
+ *  suggestion the reader cannot act on is just noise. */
+const suggested = $derived(
+  marking ? suggestedMarks(checkHistory, totalWords) : new Set<number>()
+);
 ```
 
 ```svelte
-class:suggested={marking && suggested?.has(i) && !marked.has(i)}
+class:suggested={suggested.has(i) && !marked.has(i)}
 ```
 
 Styled as a dotted underline in `--color-text-tertiary`, clearly subordinate
@@ -261,15 +272,14 @@ through the existing path.
 
 The hint line at `:821` gains the branch in the table above.
 
-### `src/routes/library/[packageId]/+page.svelte`
-
-`:236` already loads `listMarksForPackage(currentPackageId)` in a batch.
-`listMissSuggestions(currentPackageId, wordCounts)` joins it, and the result
-is passed down per card. Word counts come from the verses already loaded for
-the list.
-
-The verse detail route (`[packageId]/[verseNo]`) gets the same treatment for
-its single verse.
+**Why the card and not the route.** The marks the card renders arrive as a
+prop because the route bulk-loads them for the whole list — but that is a
+scan of rows that *exist only where the reader marked something*. Check
+history is up to ten rows per checked verse, so the equivalent package scan
+would read thousands of rows on every list open to answer a question the
+reader asks on one verse, occasionally. Owning it in the card also means every
+screen that renders a `VerseCard` — the package list and the verse detail
+route — gets suggestions with no plumbing.
 
 ## Data flow
 
@@ -279,10 +289,10 @@ its single verse.
        └─ missed: number[]
             └─ onGraded → recordCheck → checkHistory.missed
 
-밑줄 mode open
-  └─ listMissSuggestions(packageId, wordCounts)   ← one range scan
-       └─ suggestedMarks(recent 5, wordCount)     ← pure
-            └─ VerseCard suggested → dotted words
+밑줄 pressed
+  └─ loadCheckHistory()                  ← one indexed query, this verse only
+       └─ suggestedMarks(recent 5, totalWords)   ← pure, $derived
+            └─ dotted words
                  └─ tap → onToggleMark → verseMarks   ← existing path
 ```
 
@@ -292,10 +302,11 @@ There is nothing to fail. `suggestedMarks` is total: an empty history, a
 history of records without `missed`, a `wordCount` of zero and out-of-range
 indices all produce an empty set rather than an error.
 
-If `listMissSuggestions` rejects, the page's existing load handling applies
-and the card renders with no suggestions — marking mode works exactly as it
-does today. A suggestion is an enhancement to a working feature, so its
-absence is a degraded view, never a blocked one.
+If the history query rejects, `loadCheckHistory` swallows it exactly as
+`enterCheck` does today and `checkHistory` stays as it was — so marking mode
+works exactly as it does now, with no suggestions. A suggestion is an
+enhancement to a working feature, so its absence is a degraded view, never a
+blocked one.
 
 ## Testing
 
@@ -316,16 +327,16 @@ absence is a degraded view, never a blocked one.
 
 - `missed` survives a write/read round trip
 - A flawless check stores `[]`, not `undefined`
-- `listMissSuggestions` returns one entry per qualifying verse and omits the
-  rest
-- Verses from other packages do not leak into the scan
+- A record written without `missed` reads back without it, so the field stays
+  distinguishable from an empty array
 
 Component coverage
 
-- `VerseCard`: a suggested word renders dotted in marking mode, renders
-  nothing in read mode, and is not dotted once it is really marked
-- `MemorizeCheckPanel`: a graded submit reports the missed indices, and a
-  flawless one reports `[]`
+- `VerseCard.memorize.test.ts`: pressing 밑줄 loads the history and dots the
+  repeatedly-missed words; a dotted word is not dotted once really marked;
+  read mode and the un-pressed curtain show no dots
+- `MemorizeCheckPanel.test.ts`: a graded submit reports the missed indices,
+  and a flawless one reports `[]`
 
 The existing suite (1103 tests) must stay green.
 
