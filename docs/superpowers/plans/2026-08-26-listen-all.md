@@ -1877,9 +1877,10 @@ Extend the lucide import to `import { CalendarCheck, Download, Play, Square } fr
 	});
 ```
 
-In the event header, immediately **before** the existing export `<button>`:
+In the event header, replace the existing export `<button>` — the one with `aria-label="{ev.eventTitle} 내보내기"` — with this wrapper holding both buttons. The `ml-auto` moves off the export button and onto the wrapper, so the pair still sits right of the title whether or not the play button is present:
 
 ```svelte
+				<div class="ml-auto flex items-center gap-1">
 					{#if player.supported && ev.verses.length > 0}
 						{@const open = player.openId === `event:${ev.eventId}`}
 						<!--
@@ -1890,9 +1891,10 @@ In the event header, immediately **before** the existing export `<button>`:
 						-->
 						<button
 							type="button"
-							onclick={() => (open ? player.close() : player.start(`event:${ev.eventId}`, ev.verses))}
+							onclick={() =>
+								open ? player.close() : player.start(`event:${ev.eventId}`, ev.verses)}
 							aria-label="{ev.eventTitle} {open ? '듣기 정지' : '전체 듣기'}"
-							class="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors {open
+							class="inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors {open
 								? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
 								: 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]'}"
 						>
@@ -1903,18 +1905,18 @@ In the event header, immediately **before** the existing export `<button>`:
 							{/if}
 						</button>
 					{/if}
-```
-
-The export button currently carries `ml-auto`; move that class off it, since the play button now takes that role when present. To keep the export button pushed right when the play button is absent, give the export button `class="ml-auto ..."` only via the wrapper: simplest is to leave `ml-auto` on the export button and remove it from the play button, then wrap both in `<div class="ml-auto flex items-center gap-1">`. Do that — replace the two sibling buttons with:
-
-```svelte
-				<div class="ml-auto flex items-center gap-1">
-					{#if player.supported && ev.verses.length > 0}
-						...play button, without ml-auto...
-					{/if}
-					...existing export button, without ml-auto...
+					<button
+						type="button"
+						onclick={() => openSheet(ev)}
+						aria-label="{ev.eventTitle} 내보내기"
+						class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
+					>
+						<Download size={15} strokeWidth={1.75} />
+					</button>
 				</div>
 ```
+
+The D-day `<span>` that follows stays exactly where it is, outside this wrapper.
 
 At the very end of the `<section>`, **outside** the `{#each}`:
 
