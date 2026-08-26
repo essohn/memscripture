@@ -23,11 +23,6 @@ import {
 // corruption of every future instance's idle state into a thrown error.
 const IDLE: PlayerProgress = Object.freeze({ fraction: 0, elapsedMs: 0, totalMs: 0 });
 
-/** A synchronous copy of SPEAK_DEFAULTS — spread rather than hand-copied so
- *  the two cannot drift apart. Held here so start() has something to speak
- *  with before load() resolves — see the note on start(). */
-const OPTION_DEFAULTS: SpeakOptionsStored = { ...SPEAK_DEFAULTS };
-
 /**
  * One reading of one list.
  *
@@ -49,8 +44,10 @@ export class PlaylistPlayer {
 	 * reading these from IndexedDB inside start() would end the gesture and
 	 * the phone would stay silent, with no error and no sound. VerseCard
 	 * carries the same note for the same reason.
+	 *
+	 * Spread rather than hand-copied so this cannot drift from SPEAK_DEFAULTS.
 	 */
-	#opts = $state<SpeakOptionsStored>({ ...OPTION_DEFAULTS });
+	#opts = $state<SpeakOptionsStored>({ ...SPEAK_DEFAULTS });
 
 	#openId = $state<string | null>(null);
 	#playing = $state(false);
@@ -179,11 +176,16 @@ export class PlaylistPlayer {
 		const written = setSpeakOption('speakListRepeat', next).catch(() => {});
 		// The running utterance was created with the old setting, so restart to
 		// apply it rather than having the toggle take effect a lap later.
+		// Same guard as toggle(): report() clamps fraction to 1 via the clock
+		// estimate, which outruns real speech, so restarting at a fraction of
+		// exactly 1 would seek past the end — sliceFrom returns [] and #play
+		// silently fails to start. Restart from the top instead, the same as
+		// a reader pressing play again on a finished list.
 		if (this.#playing && this.#list) {
 			const at = this.#progress.fraction;
 			this.#handle?.stop();
 			this.#handle = null;
-			this.#play(this.#list, at);
+			this.#play(this.#list, at >= 1 ? 0 : at);
 		}
 		return written;
 	}

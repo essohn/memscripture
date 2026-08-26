@@ -212,7 +212,10 @@ export interface SpeakOptions {
 	voice?: string;
 	/** Preferred gender, applied only when the device has such a voice. */
 	gender?: VoiceGender;
-	/** Keep reading the verse over and over until stopped. */
+	/** Keep reading the script over and over until stopped. What that means is
+	 *  the caller's choice, not this file's: one verse from `VerseCard`, a
+	 *  whole list from `PlaylistPlayer` — the engine loops whatever `segments`
+	 *  it was handed. */
 	repeat?: boolean;
 	onEnd?: () => void;
 }
@@ -297,7 +300,15 @@ export function speak(segments: string[], opts: SpeakOptions = {}): SpeakHandle 
 	// is cancelled when there was nothing to cancel. claimSynth has already
 	// relieved any playback this module started; this covers a queue left busy
 	// by something outside it.
-	if (synth.speaking || synth.pending) synth.cancel();
+	//
+	// Also guarded by `stopped`: claimSynth can synchronously run a chain of
+	// onEnd handlers that ends with a third playback claiming the queue and
+	// relieving *this* one before this line runs. Without the check, this
+	// would cancel that successor's utterance out from under it — say(0)'s own
+	// `if (stopped) return` already declines to speak in that case, but this
+	// cancel doesn't ask first, and the result is silence instead of the third
+	// playback's verse.
+	if (!stopped && (synth.speaking || synth.pending)) synth.cancel();
 
 	function finish() {
 		if (stopped) return;
