@@ -170,12 +170,17 @@
 		fillTotal = pending;
 		fillDone = 0;
 		filling = true;
+		// Which rows this run is trying to rescue, captured before it starts.
+		// This cannot be read from `statuses` inside the callback below:
+		// fillMissingBodies emits 'loading' for every row in a group before it
+		// emits any terminal status, so by the time 'ready' arrives the callback
+		// has already overwritten the very value it would need to check.
+		const rescuing = new Set(drafts.map((_, i) => i).filter((i) => statuses[i] === 'no-body'));
 		try {
 			const summary = await fillMissingBodies(
 				drafts,
 				(p) => {
 					if (run.signal.aborted) return;
-					const wasNoBody = statuses[p.index] === 'no-body';
 					// The fetched body is written back into the draft, so `drafts`
 					// stays the live row data. That is what lets 다시 시도 re-run
 					// over the whole list and touch only what is still missing.
@@ -190,7 +195,7 @@
 					// A row 다시 시도 rescued goes back in the save set. Gated on its
 					// previous status so that a row the reader unchecked on purpose,
 					// while it was still loading, stays unchecked.
-					if (p.status === 'ready' && wasNoBody && !duplicates.has(p.index))
+					if (p.status === 'ready' && rescuing.has(p.index) && !duplicates.has(p.index))
 						chosen = new Set(chosen).add(p.index);
 				},
 				{ signal: run.signal }

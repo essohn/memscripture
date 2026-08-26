@@ -168,4 +168,32 @@ describe('table import screen', () => {
 			'시편 23 : 1'
 		]);
 	});
+
+	it('puts a row 다시 시도 rescued back in the save set', async () => {
+		let failing = true;
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => {
+				if (failing) return { ok: false, status: 500 } as unknown as Response;
+				const verses = Array.from({ length: 40 }, (_, i) => ({
+					verse: i + 1,
+					text: `절 ${i + 1}`
+				}));
+				return { ok: true, json: async () => verses } as unknown as Response;
+			})
+		);
+		render(TableImportPage);
+		await paste('장절\n요 3:16');
+		await screen.findByText('이렇게 읽었습니다. 맞나요?');
+		await fireEvent.click(screen.getByRole('button', { name: '맞아요, 계속' }));
+		// The fetch failed, so the row left the save set and the button is dead.
+		expect(await screen.findByText('본문 없음 · 건너뜁니다')).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /나의 구절에 담기 \(0\)/ })).toBeDisabled();
+		// The network comes back and the reader retries.
+		failing = false;
+		await fireEvent.click(await screen.findByRole('button', { name: '다시 시도' }));
+		await waitFor(() =>
+			expect(screen.getByRole('button', { name: /나의 구절에 담기 \(1\)/ })).toBeEnabled()
+		);
+	});
 });
