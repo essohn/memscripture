@@ -6,12 +6,15 @@
 		DIFFICULTY_LEVELS,
 		type DifficultyLevel
 	} from '$lib/db/verseRatings';
-	import type { EventStats } from '$lib/db/events';
+	import { statsVersesHref, type EventStats } from '$lib/db/events';
 
 	interface Props {
 		stats: EventStats;
+		/** Needed only to build the links out of the chart — the page they open
+		 *  re-resolves the verses from it rather than being handed a list. */
+		eventId: string;
 	}
-	let { stats }: Props = $props();
+	let { stats, eventId }: Props = $props();
 
 	/** Plot height in px, and the shortest bar a non-zero count may draw.
 	 *  Sized in px rather than percent so the floor is expressible at all: a
@@ -88,6 +91,7 @@
 			{#each SERIES as s (s.key)}
 				{@const counts = countsOf(s.key)}
 				{@const rated = counts.some((n) => n > 0)}
+				{@const left = unrated(s.key)}
 				<!-- A flex column so the 미평가 footer can be pinned to the bottom.
 				     The grid stretches both columns to the taller one, so the two
 				     footers line up whether a column holds a chart or the note —
@@ -101,10 +105,20 @@
 					</p>
 
 					{#if rated}
-						<div class="mt-1 grid grid-cols-5 gap-1 border-b border-[var(--color-border)]">
+						<div class="mt-1 grid grid-cols-5 gap-1">
 							{#each DIFFICULTY_LEVELS as level (level)}
 								{@const count = counts[level - 1] ?? 0}
-								<div class="flex flex-col items-center">
+								<!-- The whole column is the target, not the mark: a level with
+								     one verse draws a 4px bar, and 4px is not something a
+								     finger can hit. An empty level is left inert — a link to
+								     an empty list is a dead end. -->
+								<svelte:element
+									this={count > 0 ? 'a' : 'div'}
+									href={count > 0 ? statsVersesHref(eventId, s.key, level) : undefined}
+									class="flex flex-col items-center rounded-md {count > 0
+										? 'transition-colors hover:bg-[var(--color-elevated)]'
+										: ''}"
+								>
 									<!-- Ink, not the bar's colour: the value is text, and the
 									     mark beneath it is what carries the level. -->
 									<span
@@ -117,7 +131,7 @@
 									     which shrink-wraps, and the bar's width is a percentage of
 									     this box. Without it every bar renders at zero width. -->
 									<div
-										class="flex w-full items-end"
+										class="flex w-full items-end border-b border-[var(--color-border)]"
 										style="height: {PLOT_PX}px"
 									>
 										<div
@@ -130,17 +144,13 @@
 											class="w-full rounded-t-[4px]"
 										></div>
 									</div>
-								</div>
-							{/each}
-						</div>
-						<div class="grid grid-cols-5 gap-1">
-							{#each DIFFICULTY_LEVELS as level (level)}
-								<span
-									data-testid="level-{s.key}-{level}"
-									class="pt-0.5 text-center text-[9px] tabular-nums text-[var(--color-text-tertiary)]"
-								>
-									{level}
-								</span>
+									<span
+										data-testid="level-{s.key}-{level}"
+										class="pt-0.5 text-[9px] tabular-nums text-[var(--color-text-tertiary)]"
+									>
+										{level}
+									</span>
+								</svelte:element>
 							{/each}
 						</div>
 					{:else}
@@ -154,12 +164,18 @@
 						</p>
 					{/if}
 
-					<p class="mt-auto pt-1 text-[10px] text-[var(--color-text-tertiary)]">
+					<svelte:element
+						this={left > 0 ? 'a' : 'p'}
+						href={left > 0 ? statsVersesHref(eventId, s.key, null) : undefined}
+						class="mt-auto pt-1 text-[10px] text-[var(--color-text-tertiary)] {left > 0
+							? 'underline-offset-2 hover:underline'
+							: ''}"
+					>
 						미평가
 						<span data-testid="unrated-{s.key}" class="font-semibold tabular-nums">
-							{unrated(s.key)}
+							{left}
 						</span>
-					</p>
+					</svelte:element>
 				</div>
 			{/each}
 		</div>

@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
 	dDay, activeEvents, isMemorized, rangeHref, serializeEventRange,
 	loadEvents, resolveRangeVerseNos, rangeProgress, buildEventCards, _resetEventsCache,
-	eventStats, type RangeCardVM
+	eventStats, versesAtLevel, statsVersesHref, type RangeCardVM
 } from '../../src/lib/db/events';
 import { recordCheck } from '../../src/lib/db/checkHistory';
 import { db } from '../../src/lib/db/local';
@@ -349,5 +349,115 @@ describe('eventStats', () => {
 
 	it('adds up the totals of ranges from different packages', async () => {
 		expect((await eventStats([range([1, 2]), range([1], '8_krv')])).total).toBe(3);
+	});
+});
+
+describe('versesAtLevel', () => {
+	beforeEach(async () => {
+		await db.delete();
+		await db.open();
+		vi.restoreAllMocks();
+		_resetEventsCache();
+	});
+
+	const range = (verseNos: number[], packageId = '5_krv'): RangeCardVM => ({
+		label: 'r',
+		done: 0,
+		total: verseNos.length,
+		href: '',
+		packageId,
+		verseNos
+	});
+
+	it('returns the verses rated at the level asked for', async () => {
+		await setStartDifficulty('5_krv', 1, 2);
+		await setStartDifficulty('5_krv', 2, 4);
+		await setStartDifficulty('5_krv', 3, 2);
+
+		const rows = await versesAtLevel([range([1, 2, 3])], 'start', 2);
+		expect(rows).toEqual([
+			{ packageId: '5_krv', verseNo: 1 },
+			{ packageId: '5_krv', verseNo: 3 }
+		]);
+	});
+
+	it('reads the dimension it was asked for, not the other one', async () => {
+		await setStartDifficulty('5_krv', 1, 2);
+		await setFullDifficulty('5_krv', 2, 2);
+
+		expect(await versesAtLevel([range([1, 2])], 'full', 2)).toEqual([
+			{ packageId: '5_krv', verseNo: 2 }
+		]);
+	});
+
+	// null is the 미평가 query: verses the reader has not judged on this
+	// dimension, including those they have judged on the other one.
+	it('returns the unrated verses for a null level', async () => {
+		await setStartDifficulty('5_krv', 1, 3);
+		await setFullDifficulty('5_krv', 2, 3);
+
+		expect(await versesAtLevel([range([1, 2, 3])], 'start', null)).toEqual([
+			{ packageId: '5_krv', verseNo: 2 },
+			{ packageId: '5_krv', verseNo: 3 }
+		]);
+	});
+
+	it('spans the packages the event covers', async () => {
+		await setStartDifficulty('5_krv', 1, 5);
+		await setStartDifficulty('8_krv', 4, 5);
+
+		expect(await versesAtLevel([range([1]), range([4], '8_krv')], 'start', 5)).toEqual([
+			{ packageId: '5_krv', verseNo: 1 },
+			{ packageId: '8_krv', verseNo: 4 }
+		]);
+	});
+
+	it('returns a verse once when two ranges both cover it', async () => {
+		await setStartDifficulty('5_krv', 1, 1);
+
+		expect(await versesAtLevel([range([1, 2]), range([1, 3])], 'start', 1)).toEqual([
+			{ packageId: '5_krv', verseNo: 1 }
+		]);
+	});
+
+	it('ignores ratings on verses outside the event', async () => {
+		await setStartDifficulty('5_krv', 9, 1);
+
+		expect(await versesAtLevel([range([1])], 'start', 1)).toEqual([]);
+	});
+
+	// The bar prints a number and the link opens a list; if the two disagree
+	// the reader has caught the app lying about its own arithmetic. They are
+	// separate reads, so nothing but a test keeps them honest.
+	it('returns exactly as many verses as the histogram counted', async () => {
+		await setStartDifficulty('5_krv', 1, 3);
+		await setStartDifficulty('5_krv', 2, 3);
+		await setStartDifficulty('5_krv', 4, 1);
+		await setFullDifficulty('8_krv', 1, 3);
+		const ranges = [range([1, 2, 3, 4]), range([1, 2], '8_krv')];
+
+		const stats = await eventStats(ranges);
+		for (const level of [1, 2, 3, 4, 5] as const) {
+			expect((await versesAtLevel(ranges, 'start', level)).length).toBe(stats.start[level - 1]);
+			expect((await versesAtLevel(ranges, 'full', level)).length).toBe(stats.full[level - 1]);
+		}
+		const ratedStart = stats.start.reduce((a, b) => a + b, 0);
+		expect((await versesAtLevel(ranges, 'start', null)).length).toBe(stats.total - ratedStart);
+	});
+});
+
+describe('statsVersesHref', () => {
+	it('names the event, the dimension and the level', () => {
+		expect(statsVersesHref('e1', 'start', 2)).toBe('/stats/verses?event=e1&dim=start&level=2');
+	});
+
+	// The unrated remainder is a query like any other, so it travels as a level
+	// rather than as a second route with its own loader.
+	it('names the unrated remainder as a level of its own', () => {
+		expect(statsVersesHref('e1', 'full', null)).toBe('/stats/verses?event=e1&dim=full&level=none');
+	});
+
+	it('escapes an event id that would otherwise break the query', () => {
+		expect(statsVersesHref('a b&c', 'start', 1)).toContain('event=a+b%26c');
 	});
 });

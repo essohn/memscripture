@@ -148,7 +148,7 @@
 					{/each}
 				</div>
 				<div class="px-1">
-					<EventStats stats={ev.stats} />
+					<EventStats stats={ev.stats} eventId={ev.eventId} />
 				</div>
 			</div>
 			{#if exporting?.eventId === ev.eventId}

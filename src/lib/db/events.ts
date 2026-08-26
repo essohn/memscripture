@@ -3,6 +3,7 @@ import type { VerseRating } from './local';
 import { db } from './local';
 import { loadPackageData, filterVerses, isPackageInstalled } from './verses';
 import { listPerfectVerseNos } from './checkHistory';
+import type { DifficultyLevel } from './verseRatings';
 import { getJoinedGroups } from './groups';
 import { visibleTo } from '$lib/groups/visibility';
 
@@ -153,6 +154,97 @@ function tally(into: number[], level: number | null | undefined): void {
 	into[level - 1]++;
 }
 
+/** One verse of one package. What a link out of the chart has to name, since
+ *  an event's verses can live in more than one package. */
+export interface EventVerseRef {
+	packageId: string;
+	verseNo: number;
+}
+
+export type StatsDimension = 'start' | 'full';
+
+/**
+ * Verse numbers per package, de-duplicated.
+ *
+ * One event can name two ranges of the same package that overlap, and the
+ * reader memorized such a verse once, not twice. Shared by the tally and the
+ * listing below so the number on a bar and the length of the list it opens
+ * cannot come from different arithmetic.
+ */
+function groupVerseNos(ranges: RangeCardVM[]): Map<string, Set<number>> {
+	const out = new Map<string, Set<number>>();
+	for (const r of ranges) {
+		let set = out.get(r.packageId);
+		if (!set) out.set(r.packageId, (set = new Set<number>()));
+		for (const no of r.verseNos) set.add(no);
+	}
+	return out;
+}
+
+/** The level a rating names, or null for both "not rated" and "rated outside
+ *  the scale" — the same normalization `tally` applies, so a row the histogram
+ *  refused to count lands in the 미평가 list rather than vanishing.
+ *
+ *  Exported because the verse list needs it too: VerseRating types its levels
+ *  as plain numbers (a synced row can carry anything), and the alternative is
+ *  an unchecked cast that lets the list disagree with the chart it came from. */
+export function ratedLevel(
+	rating: VerseRating | undefined | null,
+	dim: StatsDimension
+): DifficultyLevel | null {
+	const raw = dim === 'start' ? rating?.startDifficulty : rating?.fullDifficulty;
+	if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 1 || raw > LEVEL_SLOTS) {
+		return null;
+	}
+	return raw as DifficultyLevel;
+}
+
+/**
+ * Link from a bar in the event chart to the verses behind it.
+ *
+ * The link carries the question, not the answer: an event id, a dimension and
+ * a level, which the target page resolves for itself. Spelling out the verse
+ * numbers would bloat every home render with a list nobody has asked to see
+ * yet, and would rot the moment a rating changed under a shared or bookmarked
+ * URL.
+ */
+export function statsVersesHref(
+	eventId: string,
+	dim: StatsDimension,
+	level: DifficultyLevel | null
+): string {
+	const params = new URLSearchParams();
+	params.set('event', eventId);
+	params.set('dim', dim);
+	params.set('level', level === null ? 'none' : String(level));
+	return `/stats/verses?${params.toString()}`;
+}
+
+/**
+ * The event's verses sitting at one level of one dimension.
+ *
+ * `level` of null asks for the unrated ones — the remainder the five bars do
+ * not account for. Ordered by range order then verse number, so the list reads
+ * in the same order as the packages appear on the card.
+ */
+export async function versesAtLevel(
+	ranges: RangeCardVM[],
+	dim: StatsDimension,
+	level: DifficultyLevel | null
+): Promise<EventVerseRef[]> {
+	const out: EventVerseRef[] = [];
+
+	for (const [packageId, verseNos] of groupVerseNos(ranges)) {
+		const rows = await db.verseRatings.where('packageId').equals(packageId).toArray();
+		const byVerseNo = new Map(rows.map((r) => [r.verseNo, r]));
+		for (const verseNo of [...verseNos].sort((a, b) => a - b)) {
+			if (ratedLevel(byVerseNo.get(verseNo), dim) === level) out.push({ packageId, verseNo });
+		}
+	}
+
+	return out;
+}
+
 /**
  * Tallies the ratings and flawless checks of the verses an event covers.
  *
@@ -166,12 +258,7 @@ function tally(into: number[], level: number | null | undefined): void {
  * the honest thing for the chart to show.
  */
 export async function eventStats(ranges: RangeCardVM[]): Promise<EventStats> {
-	const versesByPackage = new Map<string, Set<number>>();
-	for (const r of ranges) {
-		let set = versesByPackage.get(r.packageId);
-		if (!set) versesByPackage.set(r.packageId, (set = new Set<number>()));
-		for (const no of r.verseNos) set.add(no);
-	}
+	const versesByPackage = groupVerseNos(ranges);
 
 	const start = new Array<number>(LEVEL_SLOTS).fill(0);
 	const full = new Array<number>(LEVEL_SLOTS).fill(0);
