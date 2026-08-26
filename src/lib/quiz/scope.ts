@@ -24,7 +24,15 @@ export async function listTargets(today: string): Promise<Target[]> {
 		ranges: c.ranges.map((r) => ({ packageId: r.packageId, verseNos: r.verseNos }))
 	}));
 	const packages = await listPackages().catch(() => []);
-	return [...events, ...packages.map((p) => ({ kind: 'package' as const, id: p.id, label: p.name }))];
+	// Installed means "has verses", which is what isPackageInstalled asks and
+	// what resolveTarget will require anyway. listPackages returns the
+	// registry, so without this the picker offers 대상 that resolve to nothing
+	// — and preselects one.
+	const installed: Target[] = [];
+	for (const p of packages) {
+		if (await isPackageInstalled(p.id)) installed.push({ kind: 'package', id: p.id, label: p.name });
+	}
+	return [...events, ...installed];
 }
 
 function toItem(v: { package_id: string; no: number; title: string; cite: string; w: string }): QuizItem {

@@ -1,14 +1,17 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../src/lib/db/local';
-import { resolveTarget, type Target } from '../../src/lib/quiz/scope';
+import { listTargets, resolveTarget, type Target } from '../../src/lib/quiz/scope';
 
 beforeEach(async () => {
 	await db.delete();
 	await db.open();
 	await db.packages.bulkPut([
 		{ id: 'a_krv', name: 'A구절' },
-		{ id: 'b_krv', name: 'B구절' }
+		{ id: 'b_krv', name: 'B구절' },
+		// Registered but never installed: listPackages returns it, but no
+		// verse row exists for it. listTargets must not offer it.
+		{ id: 'c_krv', name: 'C구절' }
 	] as never);
 	await db.verses.bulkPut([
 		{ package_id: 'a_krv', no: 1, i: 1, title: 'A1', cite: '창세기 1 : 1', w: 'a one' },
@@ -84,5 +87,33 @@ describe('resolveTarget', () => {
 		const { items, ratings } = await resolveTarget(event([]));
 		expect(items).toEqual([]);
 		expect(ratings.size).toBe(0);
+	});
+});
+
+// buildEventCards fetches /data/events.json, which has no server to answer it
+// in this environment — the relative URL fails to parse and the rejection is
+// swallowed by listTargets' own `.catch(() => [])`, the same fallback a real
+// network failure would hit. That keeps these assertions to the package half;
+// the event half is proven separately in events.test.ts.
+describe('listTargets', () => {
+	it('offers an installed package', async () => {
+		const targets = await listTargets('2026-08-27');
+		const ids = targets.filter((t) => t.kind === 'package').map((t) => t.id);
+		expect(ids).toContain('a_krv');
+	});
+
+	// listPackages returns the registry, not the installed set — a registered
+	// package with no verse rows must not be offered, or the picker preselects
+	// a scope that resolves to nothing.
+	it('does not offer a registered package with no verses', async () => {
+		const targets = await listTargets('2026-08-27');
+		const ids = targets.filter((t) => t.kind === 'package').map((t) => t.id);
+		expect(ids).not.toContain('c_krv');
+	});
+
+	it('carries kind and the package name as label', async () => {
+		const targets = await listTargets('2026-08-27');
+		const a = targets.find((t) => t.kind === 'package' && t.id === 'a_krv');
+		expect(a).toMatchObject({ kind: 'package', label: 'A구절' });
 	});
 });
