@@ -332,9 +332,10 @@ blocked one.
 
 Component coverage
 
-- `VerseCard.memorize.test.ts`: pressing 밑줄 loads the history and dots the
-  repeatedly-missed words; a dotted word is not dotted once really marked;
-  read mode and the un-pressed curtain show no dots
+- `VerseCard.suggest.test.ts` (new file — it needs `fake-indexeddb`, which
+  `VerseCard.memorize.test.ts` deliberately does without): pressing 밑줄 loads
+  the history and dots the repeatedly-missed words; a dotted word is not
+  dotted once really marked; read mode and the un-pressed curtain show no dots
 - `MemorizeCheckPanel.test.ts`: a graded submit reports the missed indices,
   and a flawless one reports `[]`
 
