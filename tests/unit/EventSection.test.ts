@@ -17,7 +17,10 @@ const card: EventCardVM = {
 			packageId: '60_krv',
 			verseNos: [1, 2]
 		}
-	]
+	],
+	// All zero, so the stats block stays hidden and the cases below keep
+	// measuring what they were written to measure.
+	stats: { total: 5, perfect: 0, start: [0, 0, 0, 0, 0], full: [0, 0, 0, 0, 0] }
 };
 
 describe('EventSection', () => {
@@ -32,6 +35,16 @@ describe('EventSection', () => {
 		expect(screen.getByText('D-12')).toBeInTheDocument();
 		expect(screen.getByText('시편 23편')).toBeInTheDocument();
 		expect(screen.getByText('3/5 암송')).toBeInTheDocument();
+	});
+
+	it('shows the event stats beneath the range cards', () => {
+		render(EventSection, {
+			props: {
+				events: [{ ...card, stats: { total: 5, perfect: 4, start: [1, 0, 0, 0, 0], full: [0, 0, 0, 0, 0] } }]
+			}
+		});
+		expect(screen.getByTestId('perfect-count')).toHaveTextContent('4');
+		expect(screen.getByTestId('bar-start-1')).toBeInTheDocument();
 	});
 
 	it('links each range card to its library href', () => {

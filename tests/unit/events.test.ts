@@ -2,8 +2,10 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
 	dDay, activeEvents, isMemorized, rangeHref, serializeEventRange,
-	loadEvents, resolveRangeVerseNos, rangeProgress, buildEventCards, _resetEventsCache
+	loadEvents, resolveRangeVerseNos, rangeProgress, buildEventCards, _resetEventsCache,
+	eventStats, type RangeCardVM
 } from '../../src/lib/db/events';
+import { recordCheck } from '../../src/lib/db/checkHistory';
 import { db } from '../../src/lib/db/local';
 import { listPackages, installPackage, isPackageInstalled } from '../../src/lib/db/verses';
 import { upsertProgress } from '../../src/lib/db/progress';
@@ -201,5 +203,151 @@ describe('events data layer', () => {
 			packageId: '5_krv',
 			verseNos: [1, 2]
 		});
+	});
+
+	// The stats are read from the same tables the progress count already
+	// touches, so the card carries them rather than making the home page go
+	// back to Dexie once it has rendered.
+	it('carries the event stats on the card', async () => {
+		mockFetch({
+			'data/events.json': sampleEvents,
+			'data/packages.json': samplePackages,
+			'data/5_krv.json': sampleVerses,
+			'data/packages_index.json': sampleGroups
+		});
+		await listPackages();
+		await installPackage('5_krv');
+		await setStartDifficulty('5_krv', 1, 2);
+		await setFullDifficulty('5_krv', 1, 4);
+		await recordCheck('5_krv', 2, { start: 5, full: 5, accuracy: 1, elapsedMs: 10 }, 1000);
+
+		const cards = await buildEventCards('2099-12-30');
+		expect(cards[0].stats).toEqual({
+			total: 2,
+			perfect: 1,
+			start: [0, 1, 0, 0, 0],
+			full: [0, 0, 0, 1, 0]
+		});
+	});
+});
+
+describe('eventStats', () => {
+	beforeEach(async () => {
+		await db.delete();
+		await db.open();
+		vi.restoreAllMocks();
+		_resetEventsCache();
+	});
+
+	const range = (verseNos: number[], packageId = '5_krv'): RangeCardVM => ({
+		label: 'r',
+		done: 0,
+		total: verseNos.length,
+		href: '',
+		packageId,
+		verseNos
+	});
+
+	it('tallies the ratings of the verses the event covers', async () => {
+		await setStartDifficulty('5_krv', 1, 1);
+		await setStartDifficulty('5_krv', 2, 1);
+		await setStartDifficulty('5_krv', 3, 4);
+		await setFullDifficulty('5_krv', 1, 5);
+
+		const stats = await eventStats([range([1, 2, 3])]);
+		expect(stats.start).toEqual([2, 0, 0, 1, 0]);
+		expect(stats.full).toEqual([0, 0, 0, 0, 1]);
+	});
+
+	// A verse outside the event is somebody else's business, however it is rated.
+	it('ignores ratings on verses the event does not cover', async () => {
+		await setStartDifficulty('5_krv', 1, 3);
+		await setStartDifficulty('5_krv', 9, 3);
+
+		expect((await eventStats([range([1])])).start).toEqual([0, 0, 1, 0, 0]);
+	});
+
+	// Two ranges of one package may overlap; the reader memorized the verse
+	// once, so it may only be counted once.
+	it('counts a verse once when two ranges both cover it', async () => {
+		await setStartDifficulty('5_krv', 1, 2);
+
+		expect((await eventStats([range([1, 2]), range([1, 3])])).start).toEqual([0, 1, 0, 0, 0]);
+	});
+
+	it('sums across ranges from different packages', async () => {
+		await setStartDifficulty('5_krv', 1, 2);
+		await setStartDifficulty('8_krv', 1, 2);
+
+		expect((await eventStats([range([1]), range([1], '8_krv')])).start).toEqual([0, 2, 0, 0, 0]);
+	});
+
+	// Half-rated verses are the normal mid-week state; the two histograms are
+	// independent, and neither invents a bar for a level nobody chose.
+	it('leaves an unrated dimension out of its histogram', async () => {
+		await setStartDifficulty('5_krv', 1, 3);
+
+		const stats = await eventStats([range([1, 2])]);
+		expect(stats.start).toEqual([0, 0, 1, 0, 0]);
+		expect(stats.full).toEqual([0, 0, 0, 0, 0]);
+	});
+
+	it('counts a verse as perfect when its last check was flawless', async () => {
+		await recordCheck('5_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 1000 }, 1000);
+
+		expect((await eventStats([range([1])])).perfect).toBe(1);
+	});
+
+	// The badge says "this verse is solid right now" — a flawless run in May
+	// that was fumbled this morning is not one.
+	it('drops a perfect verse once a later check missed', async () => {
+		await recordCheck('5_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 1000 }, 1000);
+		await recordCheck('5_krv', 1, { start: 3, full: 3, accuracy: 0.8, elapsedMs: 1000 }, 2000);
+
+		expect((await eventStats([range([1])])).perfect).toBe(0);
+	});
+
+	it('counts no perfect verse outside the event ranges', async () => {
+		await recordCheck('5_krv', 9, { start: 5, full: 5, accuracy: 1, elapsedMs: 1000 }, 1000);
+
+		expect((await eventStats([range([1])])).perfect).toBe(0);
+	});
+
+	// A row can arrive from a synced device without passing through the
+	// setters' guard, and an out-of-range level would index off the end of the
+	// histogram and turn the whole bar chart into NaN.
+	it('ignores a rating outside the 1-5 scale', async () => {
+		await db.verseRatings.put({
+			id: '5_krv:1',
+			packageId: '5_krv',
+			verseNo: 1,
+			startDifficulty: 7,
+			fullDifficulty: 0,
+			updatedAt: 1
+		});
+
+		const stats = await eventStats([range([1])]);
+		expect(stats.start).toEqual([0, 0, 0, 0, 0]);
+		expect(stats.full).toEqual([0, 0, 0, 0, 0]);
+	});
+
+	it('reports zeroes for an event nobody has touched', async () => {
+		const stats = await eventStats([range([1, 2])]);
+		expect(stats).toEqual({ total: 2, perfect: 0, start: [0, 0, 0, 0, 0], full: [0, 0, 0, 0, 0] });
+	});
+
+	// The counts only mean something against how many verses there are: five
+	// at xHard is a hard week in a set of six and a rounding error in a set of
+	// two hundred.
+	it('reports how many verses the event covers', async () => {
+		expect((await eventStats([range([1, 2, 3])])).total).toBe(3);
+	});
+
+	it('counts overlapping ranges once in the total', async () => {
+		expect((await eventStats([range([1, 2]), range([2, 3])])).total).toBe(3);
+	});
+
+	it('adds up the totals of ranges from different packages', async () => {
+		expect((await eventStats([range([1, 2]), range([1], '8_krv')])).total).toBe(3);
 	});
 });

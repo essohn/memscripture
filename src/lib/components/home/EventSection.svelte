@@ -2,6 +2,7 @@
 	import { CalendarCheck, Download } from 'lucide-svelte';
 	import type { EventCardVM } from '$lib/db/events';
 	import EventExportSheet, { type SheetNotice } from './EventExportSheet.svelte';
+	import EventStats from './EventStats.svelte';
 	import { exportEventXlsx } from '$lib/export/eventExport';
 	import { exportEventToSheets } from '$lib/export/eventSheetExport';
 	import type { ExportOptions } from '$lib/export/eventWorkbook';
@@ -145,6 +146,9 @@
 							</p>
 						</a>
 					{/each}
+				</div>
+				<div class="px-1">
+					<EventStats stats={ev.stats} />
 				</div>
 			</div>
 			{#if exporting?.eventId === ev.eventId}

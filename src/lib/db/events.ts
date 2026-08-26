@@ -2,6 +2,7 @@ import type { EventRange, MemEvent } from '$lib/types';
 import type { VerseRating } from './local';
 import { db } from './local';
 import { loadPackageData, filterVerses, isPackageInstalled } from './verses';
+import { listPerfectVerseNos } from './checkHistory';
 import { getJoinedGroups } from './groups';
 import { visibleTo } from '$lib/groups/visibility';
 
@@ -126,6 +127,74 @@ export interface RangeCardVM {
 	verseNos: number[];
 }
 
+/** The event's verses, counted. Levels are held as five-slot arrays with
+ *  index 0 standing for level 1, so a bar chart can map straight over them. */
+export interface EventStats {
+	/** Verses the event covers, counted once each. The denominator every other
+	 *  number here is read against — and what makes the unrated remainder
+	 *  visible, since a level histogram alone cannot say who is missing. */
+	total: number;
+	/** Verses whose most recent check was flawless — the same rule the card's
+	 *  popper badge follows, so the two can never disagree. */
+	perfect: number;
+	start: number[];
+	full: number[];
+}
+
+const LEVEL_SLOTS = 5;
+
+/** Adds one to the slot a level names, and nothing at all to a level outside
+ *  the scale. Rows arriving from a synced device never passed through the
+ *  setters' guard, and an out-of-range value would index off the end and turn
+ *  the whole histogram into NaN. */
+function tally(into: number[], level: number | null | undefined): void {
+	if (typeof level !== 'number') return;
+	if (!Number.isInteger(level) || level < 1 || level > LEVEL_SLOTS) return;
+	into[level - 1]++;
+}
+
+/**
+ * Tallies the ratings and flawless checks of the verses an event covers.
+ *
+ * Verses are gathered into a set per package before anything is counted: one
+ * event can name two ranges of the same package that overlap, and the reader
+ * memorized such a verse once, not twice. The set also turns the reads into
+ * one pair per package rather than one pair per range.
+ *
+ * A verse the reader has not rated appears in no slot, so the five counts sum
+ * to fewer than the event's verses — that gap is the work still to do, and is
+ * the honest thing for the chart to show.
+ */
+export async function eventStats(ranges: RangeCardVM[]): Promise<EventStats> {
+	const versesByPackage = new Map<string, Set<number>>();
+	for (const r of ranges) {
+		let set = versesByPackage.get(r.packageId);
+		if (!set) versesByPackage.set(r.packageId, (set = new Set<number>()));
+		for (const no of r.verseNos) set.add(no);
+	}
+
+	const start = new Array<number>(LEVEL_SLOTS).fill(0);
+	const full = new Array<number>(LEVEL_SLOTS).fill(0);
+	let perfect = 0;
+	let total = 0;
+	for (const verseNos of versesByPackage.values()) total += verseNos.size;
+
+	for (const [packageId, verseNos] of versesByPackage) {
+		const [ratings, perfectNos] = await Promise.all([
+			db.verseRatings.where('packageId').equals(packageId).toArray(),
+			listPerfectVerseNos(packageId).catch(() => new Set<number>())
+		]);
+		for (const r of ratings) {
+			if (!verseNos.has(r.verseNo)) continue;
+			tally(start, r.startDifficulty);
+			tally(full, r.fullDifficulty);
+		}
+		for (const no of perfectNos) if (verseNos.has(no)) perfect++;
+	}
+
+	return { total, perfect, start, full };
+}
+
 export interface EventCardVM {
 	eventId: string;
 	eventTitle: string;
@@ -135,6 +204,9 @@ export interface EventCardVM {
 	dueAt: string;
 	dDay: number;
 	ranges: RangeCardVM[];
+	/** Tallied across every range, de-duplicated. Built here because the tables
+	 *  it reads are the ones rangeProgress already visits. */
+	stats: EventStats;
 }
 
 /** label이 비면 front 구절 title로 파생. */
@@ -174,7 +246,8 @@ export async function buildEventCards(today: string): Promise<EventCardVM[]> {
 				eventTitle: e.title,
 				dueAt: e.dueAt,
 				dDay: dDay(e.dueAt, today),
-				ranges
+				ranges,
+				stats: await eventStats(ranges)
 			});
 		}
 	}
