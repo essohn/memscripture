@@ -65,6 +65,15 @@ describe('checkHistory', () => {
 		expect((await listChecks('900_krv', 1))[0].missed).toEqual([2, 5]);
 	});
 
+	// The quiz's round holds its verdict in $state, so `missed` can arrive as a
+	// reactive Proxy. IndexedDB cannot structured-clone one, and the write
+	// rejects — silently, because the caller is mid-quiz and swallows it.
+	it('stores a missed list that arrives as a proxy', async () => {
+		const proxied = new Proxy([2, 5], {});
+		await recordCheck('900_krv', 7, entry({ accuracy: 0.9, missed: proxied }), 1000);
+		expect((await listChecks('900_krv', 7))[0].missed).toEqual([2, 5]);
+	});
+
 	// [] is evidence, not the absence of it — a clean check is what pushes an
 	// older miss out of the suggestion window. Absent means the check predates
 	// the feature and measured nothing at all, so the two must not collapse.

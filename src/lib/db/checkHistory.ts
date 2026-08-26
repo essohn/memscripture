@@ -42,7 +42,14 @@ export async function recordCheck(
 		packageId,
 		verseNo,
 		checkedAt,
-		...entry
+		...entry,
+		// Copied, not passed through. A caller may hand us a reactive array —
+		// the quiz's round holds its verdict in $state — and IndexedDB's
+		// structured clone cannot clone a Proxy, so the write rejects and the
+		// round is lost silently. Spreading undefined must stay undefined:
+		// absent means the record predates this field, which is not the same
+		// as missing nothing.
+		...(entry.missed ? { missed: [...entry.missed] } : {})
 	});
 	await prune(key);
 	await touchDataModified();
