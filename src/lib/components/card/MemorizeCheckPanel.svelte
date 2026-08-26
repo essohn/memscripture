@@ -45,6 +45,7 @@
 			accuracy: number;
 			elapsedMs: number;
 			hints: number;
+			missed: number[];
 		}) => void;
 		/** 닫기: leave memorize mode and return to the ordinary card. */
 		onClose: () => void;
@@ -306,6 +307,13 @@
 		return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 	}
 
+	/** Where this attempt went wrong, as positions in the verse. Read off the
+	 *  same marking the panel already paints, so the stored history and the
+	 *  screen can never disagree about one attempt. */
+	function missedIndices(): number[] {
+		return mismatches.flatMap((m, i) => (m.ok ? [] : [i]));
+	}
+
 	/**
 	 * Enter submits. Shift+Enter keeps the newline, and a composing Enter is
 	 * ignored: Korean input uses Enter to commit a syllable, so submitting on
@@ -336,7 +344,7 @@
 			commit(result);
 			celebrate = true;
 			saved = result;
-			onGraded({ ...result, accuracy, elapsedMs, hints: hintsUsed });
+			onGraded({ ...result, accuracy, elapsedMs, hints: hintsUsed, missed: missedIndices() });
 			return;
 		}
 		// Anything short of perfect goes through the reader — the app may
@@ -369,7 +377,8 @@
 				...proposed,
 				accuracy: accuracyOf(verse, typed),
 				elapsedMs,
-				hints: hintsUsed
+				hints: hintsUsed,
+				missed: missedIndices()
 			});
 		}
 		confirming = false;

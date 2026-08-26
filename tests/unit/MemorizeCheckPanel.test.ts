@@ -44,6 +44,25 @@ describe('MemorizeCheckPanel', () => {
 		expect(screen.queryByRole('button', { name: '저장' })).toBeNull();
 	});
 
+	// The panel already works out which words went wrong in order to paint
+	// them; this is that same answer, kept instead of discarded.
+	it('reports the missed word positions', async () => {
+		const { onGraded } = setup();
+		await type(VERSE.replace('법도를', '법을'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
+		expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ missed: [2] }));
+	});
+
+	// A flawless attempt skips the dialog, and its empty list is evidence: it
+	// is what pushes an older miss out of the suggestion window.
+	it('reports an empty list for a flawless attempt', async () => {
+		const { onGraded } = setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ missed: [] }));
+	});
+
 	// The original bug: a perfect attempt saved silently and left the panel
 	// exactly as it was, so the reader who recited it best got no reply at all.
 	// Asserting the callback fired is not enough — nothing proved the screen
@@ -372,6 +391,20 @@ describe('포기', () => {
 	it('is available before anything is typed', () => {
 		setup();
 		expect(screen.getByRole('button', { name: '포기' })).toBeEnabled();
+	});
+
+	// save() is the shared confirmation path, and 포기 lands on it too. Unlike
+	// a mid-verse typo, markMismatchedWords has nothing to search for past
+	// where the attempt stopped, so a half-typed verse reports its whole tail
+	// as missed rather than just the next word.
+	it('reports its missed positions', async () => {
+		const { onGraded } = setup();
+		await type('그들에게 율례와');
+		await fireEvent.click(screen.getByRole('button', { name: '포기' }));
+		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
+		expect(onGraded).toHaveBeenCalledWith(
+			expect.objectContaining({ missed: [2, 3, 4, 5, 6, 7, 8, 9, 10] })
+		);
 	});
 });
 
