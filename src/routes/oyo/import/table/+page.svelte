@@ -148,6 +148,10 @@
 	}
 
 	async function runFill() {
+		// Cleared before the early return: a run with nothing left to fetch has
+		// not failed, and a previous run's banner would report a failure that did
+		// not happen this time.
+		networkDown = false;
 		const pending = drafts.filter((d) => d.w.length === 0).length;
 		if (pending === 0) return;
 		fillRun?.abort();
@@ -155,7 +159,6 @@
 		fillRun = run;
 		fillTotal = pending;
 		fillDone = 0;
-		networkDown = false;
 		filling = true;
 		try {
 			const summary = await fillMissingBodies(
