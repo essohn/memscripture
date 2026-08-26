@@ -190,8 +190,9 @@ git commit -m "refactor: column letters are not the xlsx writer's private busine
 - Create: `src/lib/oyo/cite.ts`
 - Create: `tests/unit/cite.test.ts`
 - Modify: `src/lib/oyo/importLink.ts`
-- Modify: `src/routes/oyo/import/+page.svelte` (import path only)
 - Modify: `tests/unit/importLink.test.ts` (drop the moved describes)
+
+`src/routes/oyo/import/+page.svelte` is deliberately **not** touched here: step 6's re-export keeps `import { duplicateIndexes } from '$lib/oyo/importLink'` resolving, so the page needs no edit. Task 8 is the one that changes it.
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks.
@@ -430,6 +431,18 @@ function utf8(s: string): Uint8Array {
 	return new TextEncoder().encode(s);
 }
 
+/** Reads the kind off whatever was thrown. Asserting through
+ *  `toThrowError(expect.objectContaining(...))` is not reliably supported, and
+ *  a helper says what went wrong when the throw is the wrong shape. */
+function kindOf(run: () => unknown): string {
+	try {
+		run();
+	} catch (err) {
+		return err instanceof TableFileError ? err.kind : `not a TableFileError: ${String(err)}`;
+	}
+	return 'did not throw';
+}
+
 describe('decodeTableFile', () => {
 	it('reads UTF-8 as UTF-8', () => {
 		const out = decodeTableFile(utf8('장절,제목\n요 3:16,영생'));
@@ -450,28 +463,20 @@ describe('decodeTableFile', () => {
 
 	it('refuses a zip, which is almost always a picked .xlsx', () => {
 		const zip = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x00, 0x00]);
-		expect(() => decodeTableFile(zip)).toThrowError(
-			expect.objectContaining({ kind: 'xlsx' })
-		);
+		expect(kindOf(() => decodeTableFile(zip))).toBe('xlsx');
 	});
 
 	it('refuses a file over the size cap', () => {
 		const big = new Uint8Array(MAX_TABLE_FILE_BYTES + 1);
-		expect(() => decodeTableFile(big)).toThrowError(
-			expect.objectContaining({ kind: 'too-large' })
-		);
+		expect(kindOf(() => decodeTableFile(big))).toBe('too-large');
 	});
 
 	it('refuses zero bytes', () => {
-		expect(() => decodeTableFile(new Uint8Array(0))).toThrowError(
-			expect.objectContaining({ kind: 'empty' })
-		);
+		expect(kindOf(() => decodeTableFile(new Uint8Array(0)))).toBe('empty');
 	});
 
 	it('refuses a file that decodes to nothing but whitespace', () => {
-		expect(() => decodeTableFile(utf8('   \n\n\t '))).toThrowError(
-			expect.objectContaining({ kind: 'empty' })
-		);
+		expect(kindOf(() => decodeTableFile(utf8('   \n\n\t ')))).toBe('empty');
 	});
 
 	it('throws a TableFileError, so callers can branch on kind', () => {
@@ -801,7 +806,7 @@ export function parseDelimited(text: string): string[][] {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `pnpm vitest run tests/unit/tableParse.test.ts`
-Expected: PASS, 13 tests.
+Expected: PASS, 12 tests.
 
 - [ ] **Step 5: Run the full suite**
 
@@ -1347,7 +1352,7 @@ export function detectColumns(grid: string[][]): DetectedColumns {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `pnpm vitest run tests/unit/tableColumns.test.ts`
-Expected: PASS, 26 tests (10 from Task 5 plus 16 here).
+Expected: PASS, 27 tests (10 from Task 5 plus 17 here).
 
 - [ ] **Step 5: Run the full suite**
 
@@ -1723,7 +1728,7 @@ export async function fillMissingBodies(
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `pnpm vitest run tests/unit/autofill.test.ts`
-Expected: PASS, 11 tests.
+Expected: PASS, 10 tests.
 
 - [ ] **Step 5: Run the full suite**
 
@@ -2260,6 +2265,9 @@ git commit -m "feat(import): three selects and the checkbox that saves a verse"
 Create `tests/unit/tableImportPage.test.ts`:
 
 ```ts
+// First line, per the repo's convention: the page mounts Header, which reaches
+// db/viewOptions and opens Dexie.
+import 'fake-indexeddb/auto';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import TableImportPage from '../../src/routes/oyo/import/table/+page.svelte';
@@ -2817,6 +2825,9 @@ There are now two unrelated things called 가져오기, and one button cannot me
 Create `tests/unit/oyoImportMenu.test.ts`:
 
 ```ts
+// First line, per the repo's convention: this page reaches db/oyoBackup and
+// db/local, which open Dexie.
+import 'fake-indexeddb/auto';
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import { describe, it, expect, vi } from 'vitest';
 import OyoPage from '../../src/routes/library/oyo/+page.svelte';
