@@ -12,7 +12,7 @@ under test — the words most worth underlining are the ones the reader is
 least likely to recall having missed.
 
 Meanwhile the app already knows. Every 점검 computes
-`markMismatchedWords(verse, typed)` (`MemorizeCheckPanel.svelte:200`), which
+`markMismatchedWords(verse, typed)` in `MemorizeCheckPanel.svelte`, which
 returns per-word `{word, ok}` for the whole verse. That answer is rendered
 once, then discarded: `recordCheck()` stores `accuracy`, `elapsedMs` and
 `hints`, and nothing about *where* the attempt went wrong.
@@ -52,8 +52,8 @@ The mode's hint line changes only when there is something to say:
 
 | Condition | Hint line |
 |---|---|
-| Suggestions present | 자주 틀린 곳을 점선으로 표시했습니다 · 눌러서 밑줄 |
-| None | 자주 틀리는 단어를 눌러 밑줄 *(unchanged)* |
+| A suggestion is dotted and not yet taken | 자주 틀린 곳을 점선으로 표시했습니다 · 눌러서 밑줄 |
+| None, or every one has been taken | 자주 틀리는 단어를 눌러 밑줄 *(unchanged)* |
 
 Suggestions do not appear in read mode, in the curtain before 밑줄 is
 pressed, or in the 점검 panel. Marking mode is where underlines are decided,
@@ -256,16 +256,17 @@ which is the only reason a give-up produces a `missed` record at all — and
 
 The card computes its own suggestions. No new prop, and no route changes.
 
-`checkHistory` (`:283`) is already `$state` on this card, and `enterCheck()`
-(`:316`) already loads it lazily with the reason stated in the comment above
-it: *loaded when the panel opens rather than on every card render — a 900-row
-list would otherwise issue 900 queries for history nobody is looking at.*
-Marking mode gets the same treatment. The load is extracted so both entry
-points share it:
+`checkHistory` is already `$state` on this card, and `enterCheck()` already
+loads it lazily rather than on every card render — a 900-row list must not
+issue 900 queries for history nobody opened. Marking mode gets the same
+treatment, so the load is extracted into one function all three callers share:
 
 ```ts
-/** Loads this verse's checks. Lazy for the reason enterCheck states: a
- *  900-row list must not issue 900 queries for history nobody opened. */
+/** Loads this verse's checks. Lazy for the reason 점검 has always been: a
+ *  900-row list must not issue 900 queries for history nobody opened. Both
+ *  점검 and 밑줄 come through here and share the one piece of state, so a
+ *  reader who checks a verse and then opens 밑줄 sees the check they just
+ *  finished. */
 function loadCheckHistory() {
   if (!packageId) return;
   listChecks(packageId, verse.no)
@@ -274,10 +275,11 @@ function loadCheckHistory() {
 }
 ```
 
-`enterCheck()` calls it in place of its inline query, and `toggleMarking()`
-calls it when turning marking on. Reusing one `$state` means a reader who
-checks a verse and then opens 밑줄 sees suggestions that include the check
-they just finished.
+Three callers, not two: `enterCheck()` in place of its inline query,
+`toggleMarking()` when turning marking on, and the `onGraded` handler that
+refreshes the history after a check is recorded. That third one was a
+duplicate of the same query, which is exactly what the extraction exists to
+prevent.
 
 ```ts
 /** Words this reader keeps missing. Derived, never stored — see the spec's
@@ -297,7 +299,16 @@ to the solid `underlined`. No new tap handling — marking mode already binds
 `onToggleMark(i, word)` to every word, so a suggestion becomes a real mark
 through the existing path.
 
-The hint line at `:821` gains the branch in the table above.
+The hint line gains the branch in the table above. It speaks off a second
+derivation rather than off `suggested` itself:
+
+```ts
+const hasOpenSuggestion = $derived([...suggested].some((i) => !marked.has(i)));
+```
+
+Once the reader has underlined every word that was dotted, nothing on screen
+is dotted any more, and a line still telling them to press the dots would be
+describing a screen that is gone.
 
 **Why the card and not the route.** The marks the card renders arrive as a
 prop because the route bulk-loads them for the whole list — but that is a
