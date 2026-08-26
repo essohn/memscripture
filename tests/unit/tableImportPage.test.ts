@@ -73,7 +73,7 @@ describe('table import screen', () => {
 		// Say it is not the body, and both rows now need one.
 		await fireEvent.change(screen.getByLabelText('본문 열'), { target: { value: '' } });
 		expect(
-			await screen.findByText('구절 2개· 본문 없는 2개는 성경에서 가져옵니다')
+			await screen.findByText('구절 2개 · 본문 없는 2개는 성경에서 가져옵니다')
 		).toBeInTheDocument();
 	});
 
@@ -132,5 +132,13 @@ describe('table import screen', () => {
 		expect(created).toEqual([
 			{ cite: '요한복음 3 : 16', title: '영생', w: '하나님이 세상을 이처럼 사랑하사 독생자를' }
 		]);
+	});
+
+	it('says when it kept only the first 200 rows', async () => {
+		stubFetch();
+		render(TableImportPage);
+		const rows = Array.from({ length: 205 }, (_, i) => `요 3:${(i % 30) + 1}\t본문 ${i}`);
+		await paste(`장절\t본문\n${rows.join('\n')}`);
+		expect(await screen.findByText(/앞 200개만 가져옵니다/)).toBeInTheDocument();
 	});
 });

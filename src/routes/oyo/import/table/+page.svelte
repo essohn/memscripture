@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import Header from '$lib/components/nav/Header.svelte';
 	import ColumnMapper from '$lib/components/oyo/ColumnMapper.svelte';
@@ -50,6 +51,10 @@
 	let pasteText = $state('');
 	let fillRun: AbortController | null = null;
 
+	// The 뒤로 button is not the only way out of this screen. Leaving any other
+	// way should stop the fetching too — nobody is waiting for it any more.
+	onDestroy(() => fillRun?.abort());
+
 	const FILE_ERRORS: Record<string, string> = {
 		'too-large': '파일이 너무 큽니다 (2MB까지).',
 		xlsx: '엑셀 파일은 아직 직접 읽지 못합니다. 엑셀에서 셀을 복사해 아래에 붙여넣거나, CSV로 저장해주세요.',
@@ -72,6 +77,11 @@
 		const out = applyMapping(grid, hasHeader, mapping);
 		drafts = out.drafts;
 		truncated = out.truncated;
+		// Seeded here rather than at the gate: these are different rows now, so
+		// a title typed against the old ones no longer belongs to anything. A
+		// trip back to the mapper that changes nothing must not cost the reader
+		// the titles they typed.
+		titles = drafts.map((d) => d.title);
 	}
 
 	function readGrid(text: string) {
@@ -123,7 +133,6 @@
 			drafts,
 			existing.map((v) => v.cite)
 		);
-		titles = drafts.map((d) => d.title);
 		// Everything the reader does not already have starts checked: they
 		// built this table on purpose, so the screen should not make them
 		// choose again — only reconsider the ones already on file.
@@ -187,6 +196,10 @@
 		saving = true;
 		saveError = null;
 		try {
+			// Snapshotted before the first await: nothing stops the reader
+			// toggling a row while the package row is being seeded, and the
+			// count on the button has to be the count that gets saved.
+			const order = [...chosen].filter((i) => statuses[i] !== 'no-body').sort((a, b) => a - b);
 			// Seeded first: a reader who has never opened 나의 구절 has no OYO
 			// package row, and the verses would land in a package the library
 			// cannot render.
@@ -194,7 +207,6 @@
 			// Sequential, not Promise.all: createOyoVerse reads max(no) + 1 to
 			// pick the next number, so parallel writes would all read the same
 			// max and collide on the primary key.
-			const order = [...chosen].filter((i) => statuses[i] !== 'no-body').sort((a, b) => a - b);
 			for (const i of order) {
 				await createOyoVerse({ cite: drafts[i].cite, w: drafts[i].w, title: titles[i].trim() });
 			}
@@ -284,9 +296,11 @@
 			{#if drafts.length === 0}
 				이 설정으로는 가져올 구절이 없습니다
 			{:else}
-				구절 {drafts.length}개{#if missingBodies > 0}
-					· 본문 없는 {missingBodies}개는 성경에서 가져옵니다{/if}{#if truncated}
-					· 앞 200개만 가져옵니다{/if}
+				<!-- The spaces are expressions on purpose. Svelte strips a
+				     whitespace-only text node at a block's edge, so a literal
+				     space here — newline or not — never reaches the screen, and
+				     the interpunct ends up glued to 개. -->
+				구절 {drafts.length}개{#if missingBodies > 0}{' '}· 본문 없는 {missingBodies}개는 성경에서 가져옵니다{/if}{#if truncated}{' '}· 앞 200개만 가져옵니다{/if}
 			{/if}
 		</p>
 
