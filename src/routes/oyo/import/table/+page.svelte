@@ -195,22 +195,20 @@
 		if (saving || saveCount === 0) return;
 		saving = true;
 		saveError = null;
+		const order = [...chosen].filter((i) => statuses[i] !== 'no-body').sort((a, b) => a - b);
+		let landed = 0;
 		try {
-			// Snapshotted before the first await: nothing stops the reader
-			// toggling a row while the package row is being seeded, and the
-			// count on the button has to be the count that gets saved.
-			const order = [...chosen].filter((i) => statuses[i] !== 'no-body').sort((a, b) => a - b);
-			// Seeded first: a reader who has never opened 나의 구절 has no OYO
-			// package row, and the verses would land in a package the library
-			// cannot render.
 			await seedOyoPackageIfMissing();
-			// Sequential, not Promise.all: createOyoVerse reads max(no) + 1 to
-			// pick the next number, so parallel writes would all read the same
-			// max and collide on the primary key.
 			for (const i of order) {
 				await createOyoVerse({ cite: drafts[i].cite, w: drafts[i].w, title: titles[i].trim() });
+				landed++;
+				// Dropped as it lands rather than all at the end. The error copy
+				// below invites a retry, and a retry that re-walked the whole list
+				// would write every verse that already made it a second time —
+				// createOyoVerse only ever inserts, so those would be real twins.
+				chosen = new Set([...chosen].filter((c) => c !== i));
 			}
-			screen = { kind: 'saved', count: order.length };
+			screen = { kind: 'saved', count: landed };
 		} catch {
 			saveError = '구절을 저장하지 못했습니다. 다시 시도해주세요.';
 		} finally {

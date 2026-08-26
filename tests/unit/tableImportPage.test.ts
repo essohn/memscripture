@@ -7,12 +7,14 @@ import TableImportPage from '../../src/routes/oyo/import/table/+page.svelte';
 import { __clearChapterCacheForTest } from '../../src/lib/bible/fetch';
 
 const created: { cite: string; title: string; w: string }[] = [];
+let failAfter = Infinity;
 
 vi.mock('../../src/lib/db/oyo', () => ({
 	OYO_PACKAGE_ID: 'oyo',
 	seedOyoPackageIfMissing: vi.fn(async () => {}),
 	listOyoVerses: vi.fn(async () => []),
 	createOyoVerse: vi.fn(async (input: { cite: string; title: string; w: string }) => {
+		if (created.length >= failAfter) throw new Error('write failed');
 		created.push(input);
 		return { package_id: 'oyo', no: created.length, i: created.length, ...input };
 	})
@@ -35,6 +37,7 @@ async function paste(text: string) {
 
 beforeEach(() => {
 	created.length = 0;
+	failAfter = Infinity;
 	__clearChapterCacheForTest();
 });
 
@@ -140,5 +143,29 @@ describe('table import screen', () => {
 		const rows = Array.from({ length: 205 }, (_, i) => `요 3:${(i % 30) + 1}\t본문 ${i}`);
 		await paste(`장절\t본문\n${rows.join('\n')}`);
 		expect(await screen.findByText(/앞 200개만 가져옵니다/)).toBeInTheDocument();
+	});
+
+	it('does not rewrite verses that already landed when a save is retried', async () => {
+		stubFetch();
+		render(TableImportPage);
+		await paste('장절\t제목\t본문\n요 3:16\t영생\t본문 하나\n창 12:1\t부르심\t본문 둘\n시 23:1\t목자\t본문 셋');
+		await screen.findByText('이렇게 읽었습니다. 맞나요?');
+		await fireEvent.click(screen.getByRole('button', { name: '맞아요, 계속' }));
+		// The third write fails; the first two are already in the database.
+		failAfter = 2;
+		await fireEvent.click(await screen.findByRole('button', { name: /나의 구절에 담기/ }));
+		await screen.findByText('구절을 저장하지 못했습니다. 다시 시도해주세요.');
+		expect(created).toHaveLength(2);
+		// The reader does what the message says. Only the row that never landed
+		// may be written.
+		failAfter = Infinity;
+		await fireEvent.click(screen.getByRole('button', { name: /나의 구절에 담기/ }));
+		await screen.findByText('1개 구절을 나의 구절에 담았습니다');
+		expect(created).toHaveLength(3);
+		expect(created.map((c) => c.cite)).toEqual([
+			'요한복음 3 : 16',
+			'창세기 12 : 1',
+			'시편 23 : 1'
+		]);
 	});
 });
