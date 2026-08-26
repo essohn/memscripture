@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { joinTeam } from './helpers';
 
 test('home renders the dashboard at / and Pretendard is the active body font', async ({ page }) => {
@@ -52,7 +53,39 @@ const FAKE_SYNTH = `
 	});
 `;
 
+/**
+ * Same local-date rule as todayLocalKey() in src/lib/db/activity.ts, not
+ * toISOString() — that's UTC and would disagree with the app near midnight
+ * in KST, skipping (or not) on a different clock than the one deciding what
+ * the home screen shows.
+ */
+function todayLocalKey(): string {
+	const d = new Date();
+	const y = d.getFullYear();
+	const m = String(d.getMonth() + 1).padStart(2, '0');
+	const day = String(d.getDate()).padStart(2, '0');
+	return `${y}-${m}-${day}`;
+}
+
+/**
+ * Same rule as activeEvents() in src/lib/db/events.ts, read from the shipped
+ * fixture rather than a copied date — a hardcoded date rots the same way the
+ * fixture's own dueAt eventually will. When this is false there is genuinely
+ * no 암송 DAY on screen to listen to, and the spec has nothing to assert.
+ */
+function hasActiveEvent(): boolean {
+	const raw = readFileSync(new URL('../../static/data/events.json', import.meta.url), 'utf-8');
+	const events = JSON.parse(raw) as Array<{ startAt?: string; dueAt: string }>;
+	const today = todayLocalKey();
+	return events.some((e) => (e.startAt ? e.startAt <= today : true) && today <= e.dueAt);
+}
+
 test('home offers 전체 듣기 for the 암송 DAY and the bar can be dismissed', async ({ page }) => {
+	test.skip(
+		!hasActiveEvent(),
+		'No active 암송 DAY in static/data/events.json — add one with a live dueAt to exercise this spec.'
+	);
+
 	await page.addInitScript(FAKE_SYNTH);
 	await joinTeam(page);
 
@@ -83,8 +116,8 @@ test('home offers 전체 듣기 for the 암송 DAY and the bar can be dismissed'
 	// actually hears first, not a placeholder any label would satisfy.
 	const close = page.getByRole('button', { name: '재생 닫기' });
 	await expect(close).toBeVisible();
-	await expect(page.getByText('고린도후서 13 : 5')).toBeVisible();
-	await expect(page.getByText('1/149')).toBeVisible();
+	await expect(page.getByText('고린도후서 13 : 5', { exact: true })).toBeVisible();
+	await expect(page.getByText('1/149', { exact: true })).toBeVisible();
 	await expect(page.getByRole('button', { name: '목록 반복' })).toHaveAttribute(
 		'aria-pressed',
 		'true'
