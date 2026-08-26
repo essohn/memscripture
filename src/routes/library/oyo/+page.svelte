@@ -242,18 +242,21 @@
 						The backdrop takes the outside click, so the menu itself carries
 						no handler — which is what keeps role="menu" free of an
 						interactive-element warning, and what lets the effect above stay
-						a single keydown listener. Same idiom as BookmarkControl.
+						a single keydown listener. Same idiom as BookmarkControl, and
+						the same z-index reasoning: it has to sit above TabBar (z-50)
+						and Header (z-40), or a click on either strip lands on the
+						chrome and the menu never closes.
 					-->
 					<div
 						role="presentation"
 						aria-hidden="true"
 						onclick={() => (importMenuOpen = false)}
-						class="fixed inset-0 z-20"
+						class="fixed inset-0 z-[55]"
 					></div>
 					<div
 						role="menu"
 						aria-label="가져오기 방법"
-						class="absolute right-0 top-full z-30 mt-1 w-52 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-lg"
+						class="absolute right-0 top-full z-[60] mt-1 w-52 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-lg"
 					>
 						<a
 							role="menuitem"

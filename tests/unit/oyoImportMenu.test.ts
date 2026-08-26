@@ -43,4 +43,14 @@ describe('나의 구절 — 가져오기 menu', () => {
 		await fireEvent.keyDown(window, { key: 'Escape' });
 		expect(screen.queryByRole('menu', { name: '가져오기 방법' })).toBeNull();
 	});
+
+	it('closes the menu on an outside click', async () => {
+		render(OyoPage);
+		await fireEvent.click(screen.getByRole('button', { name: '가져오기' }));
+		expect(screen.getByRole('menu', { name: '가져오기 방법' })).toBeInTheDocument();
+		const backdrop = document.querySelector('[role="presentation"]');
+		expect(backdrop).not.toBeNull();
+		await fireEvent.click(backdrop!);
+		expect(screen.queryByRole('menu', { name: '가져오기 방법' })).toBeNull();
+	});
 });
