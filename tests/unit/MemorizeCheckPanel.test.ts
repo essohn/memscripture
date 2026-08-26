@@ -392,6 +392,20 @@ describe('포기', () => {
 		setup();
 		expect(screen.getByRole('button', { name: '포기' })).toBeEnabled();
 	});
+
+	// save() is the shared confirmation path, and 포기 lands on it too. Unlike
+	// a mid-verse typo, markMismatchedWords has nothing to search for past
+	// where the attempt stopped, so a half-typed verse reports its whole tail
+	// as missed rather than just the next word.
+	it('reports its missed positions', async () => {
+		const { onGraded } = setup();
+		await type('그들에게 율례와');
+		await fireEvent.click(screen.getByRole('button', { name: '포기' }));
+		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
+		expect(onGraded).toHaveBeenCalledWith(
+			expect.objectContaining({ missed: [2, 3, 4, 5, 6, 7, 8, 9, 10] })
+		);
+	});
 });
 
 describe('the input comes first', () => {

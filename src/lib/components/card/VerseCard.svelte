@@ -281,8 +281,6 @@
 	}
 	const allRevealed = $derived(revealedCount >= totalWords);
 
-	// Loaded when the panel opens rather than on every card render — a 900-row
-	// list would otherwise issue 900 queries for history nobody is looking at.
 	let checkHistory = $state<CheckRecord[]>([]);
 
 	/** Loads this verse's checks. Lazy for the reason 점검 has always been: a
@@ -798,10 +796,7 @@
 					// Assigned, not just raised: a flawed attempt takes the popper back.
 					lastCheckPerfect = outcome.accuracy >= 1;
 					if (!packageId) return;
-					recordCheck(packageId, verse.no, outcome)
-						.then(() => listChecks(packageId, verse.no))
-						.then((rows) => (checkHistory = rows))
-						.catch(() => {});
+					recordCheck(packageId, verse.no, outcome).then(loadCheckHistory).catch(() => {});
 				}}
 				onClose={exitMode}
 				onRestart={() => (revealedCount = 0)}
