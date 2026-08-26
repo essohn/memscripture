@@ -19,6 +19,11 @@ const verse = {
 const check = (missed: number[]) =>
 	({ start: 3, full: 3, accuracy: 0.9, elapsedMs: 20_000, missed }) as never;
 
+/** A quiz round's record: same shape as a 점검, but `source: 'quiz'` — which
+ *  is what the 점검 list must filter out and the 밑줄 suggestions must not. */
+const quizCheck = (missed: number[]) =>
+	({ start: null, full: null, accuracy: 0.9, elapsedMs: 20_000, missed, source: 'quiz' }) as never;
+
 beforeEach(async () => {
 	await db.delete();
 	await db.open();
@@ -120,5 +125,34 @@ describe('밑줄: suggestions read off the check history', () => {
 
 		expect(container.querySelector('.suggested')).toBeNull();
 		expect(screen.getByText('자주 틀리는 단어를 눌러 밑줄')).toBeInTheDocument();
+	});
+});
+
+// The spec calls this the one case that actually proves the two consumers
+// diverge: `history={checkHistory.filter((r) => !r.source)}` in VerseCard.
+// Either half of this test can pass on its own with the filter wired to the
+// wrong side (or removed entirely) — only asserting both from one seed
+// catches that.
+describe('한 이력, 두 소비자: 점검 목록과 밑줄 제안이 갈라진다', () => {
+	it('점검 counts only the 점검 record while 밑줄 dots a word missed twice by quiz rounds', async () => {
+		// Two quiz rounds miss the same word (index 2); a separate 점검 record
+		// misses a different one (index 5) and is the only one 점검's list
+		// should ever mention.
+		await recordCheck('900_krv', 127, quizCheck([2]), 1000);
+		await recordCheck('900_krv', 127, quizCheck([2]), 2000);
+		await recordCheck('900_krv', 127, check([5]), 3000);
+		const { container } = setup();
+
+		// 점검: its 지난 점검 line counts one record, not three.
+		await fireEvent.click(screen.getByRole('button', { name: '점검' }));
+		await waitFor(() => expect(screen.getByText(/지난 점검 1회/)).toBeInTheDocument());
+		expect(screen.queryByText(/지난 점검 3회/)).toBeNull();
+		await fireEvent.click(screen.getByRole('button', { name: '점검 종료' }));
+
+		// 밑줄: the word the two quiz rounds both missed is dotted, even though
+		// neither of them shows up in the 점검 list above.
+		await openMarking();
+		await waitFor(() => expect(wordAt(container, 2)).toHaveClass('suggested'));
+		expect(wordAt(container, 5)).not.toHaveClass('suggested');
 	});
 });

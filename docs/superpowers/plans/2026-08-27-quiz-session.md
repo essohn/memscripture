@@ -1502,9 +1502,10 @@ In `src/routes/+page.svelte`, add an entry card. Put it after the event section 
 - [ ] **Step 3: Run the whole suite**
 
 Run: `pnpm test`
-Expected: PASS — 1060 existing + 40 new = **1100** across 84 files, 0 failures.
-The 40: 3 checkHistory, 4 typing, 9 session, 6 quizScope, 8 round, 6 picker,
-4 summary.
+Expected: PASS — 1061 existing + 47 new = **1108** across 84 files, 0 failures.
+The 47: 4 checkHistory, 4 typing, 9 session, 9 quizScope, 9 round, 6 picker,
+6 summary. (The final fix wave added 3 to quizScope, 2 to summary, and one
+more to VerseCard.suggest.test.ts — an existing file, folded into the 1061.)
 
 Run: `pnpm check`
 Expected: 0 errors.

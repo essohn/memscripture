@@ -88,8 +88,8 @@ export async function listChecks(
  *
  * Read from the history rather than stored as a flag on the verse: the record
  * of a perfect check already exists, and a second copy could disagree with it.
- * Once earned it stays — a later slip does not take it back, because the badge
- * says "I have done this", not "I could do this today".
+ * The most recent check decides, so a later slip does take the badge back —
+ * it says "this verse is solid right now", not "I have ever done this".
  *
  * One range scan on the verseKey index, which is prefixed by the package id,
  * rather than a query per verse.
