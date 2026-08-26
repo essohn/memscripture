@@ -63,17 +63,39 @@ A file pick parses immediately — choosing a file is already an explicit confir
 
 Errors here render inline, under whichever control produced them, and the screen stays put. That differs from the deeplink screen's terminal `failed` state on purpose: a bad link cannot be fixed where it is displayed, but a bad file can be — the next file is one tap away.
 
+### The table screen — confirming the columns
+
+Detection decides everything it can — which column holds 장절, which holds 제목, which holds 본문, and whether the first row is a header — and then shows its work and asks.
+
+```
+이렇게 읽었습니다. 맞나요?
+
+  장절   [ A · 장절         ▾ ]
+  제목   [ C · 제목         ▾ ]
+  본문   [ D · 내용         ▾ ]
+  ☑ 첫 행은 제목 줄
+
+미리보기
+  요한복음 3 : 16  · 사랑 · 하나님이 세상을 이처럼 사랑하사…
+  로마서 8 : 28   · 소망 · (성경에서 가져옵니다)
+  시편 23 : 1     · —    · (성경에서 가져옵니다)
+
+구절 24개 · 본문 없는 12개는 성경에서 가져옵니다
+
+              [ 맞아요, 계속 ]
+```
+
+**This screen makes no network requests.** Every control on it is pure computation over the grid already in memory: changing a `<select>` or the checkbox re-derives the drafts and repaints the preview instantly. The body fill — the only expensive thing this feature does — starts when 맞아요, 계속 is tapped, and so it never runs against columns the reader has not agreed to.
+
+- Each `<select>` lists every column as `A · <헤더 또는 첫 행 값>`. 제목 and 본문 also offer 없음. 장절 does not: without it there is nothing to import, and detection always names one.
+- 첫 행은 제목 줄 reflects what detection decided and can be overturned. Unchecking it turns a row the app took for a header back into a verse.
+- The preview shows the first three derived rows, each as `장절 · 제목 · 본문`. A row whose body is empty reads (성경에서 가져옵니다) — a promise about step two, not a value. A missing title reads —.
+- The summary line counts what will be imported and how many bodies will be fetched. It also carries 앞 200개만 가져옵니다 when the table was truncated.
+- 맞아요, 계속 is disabled when the current mapping yields no rows, and the summary reads 이 설정으로는 가져올 구절이 없습니다. The reader fixes it here rather than being sent back to the file picker.
+
 ### The table screen — review
 
 ```
-┌──────────────────────────────────────┐
-│ 열 연결                      [접기 ▴] │
-│   장절   [ A · 장절           ▾ ]     │
-│   제목   [ C · 제목           ▾ ]     │
-│   본문   [ D · 내용           ▾ ]     │
-│   ☑ 첫 행은 제목 줄                   │
-└──────────────────────────────────────┘
-
 구절 24개                    본문 불러오는 중 7/12
                                     [전체 해제]
 
@@ -96,10 +118,8 @@ Errors here render inline, under whichever control produced them, and the screen
         [ 나의 구절에 담기 (22) ]
 ```
 
-- The 열 연결 panel is collapsed when a 장절 column was found, and expanded when it was not — in which case the heading reads 장절 열을 골라주세요 and the row list is empty until it is.
-- Each `<select>` lists every column as `A · <헤더 또는 첫 행 값>`. 제목 and 본문 also offer 없음. 장절 has no 없음: without it there is nothing to import.
-- 첫 행은 제목 줄 reflects what detection decided and can be overturned. Unchecking it turns a row the app took for a header back into a verse.
 - The row list, the 전체 선택/해제 control, the per-row 제목 input, the 이미 있음 badge and the save button behave exactly as on the deeplink screen — they are the same component.
+- Back from here returns to the confirm screen rather than leaving, so a mapping mistake spotted while reading the bodies is one tap from being fixed. Going back aborts any fill in flight; re-confirming re-runs it, and the chapter cache makes everything already fetched free the second time.
 - 본문 불러오는 중 n/m appears only while a fill is running. The save button is disabled for its duration.
 - A row that ends with no body is dimmed, its checkbox disabled, and it is removed from the selection. The 다시 시도 button appears whenever at least one row is in that state and no fill is running; it re-runs the fill over the whole list, which touches only the rows still missing a body.
 
@@ -118,8 +138,11 @@ Identical to the deeplink screen: a check, `{n}개 구절을 나의 구절에 �
 parseDelimited(text)  ─────────────────▶  string[][]
       ▼
 detectColumns(grid)  ──────────────────▶  { hasHeader, labels, mapping }
-      ▼                                    ▲ ColumnMapper가 덮어씀
-applyMapping(grid, hasHeader, mapping) ─▶  TableDraft[]
+      ▼                                    ▲
+applyMapping(grid, hasHeader, mapping) ─▶  { drafts, truncated }
+      ▼                                    │ ColumnMapper가 덮어쓰면
+   〈확인 화면 · 네트워크 0회〉  ────────────┘ 여기까지 즉시 다시 계산
+      │  [맞아요, 계속]
       ▼
 duplicateIndexes(drafts, 기존 cite)  ───▶  "이미 있음"
       ▼
@@ -127,6 +150,8 @@ fillMissingBodies(drafts, onProgress) ─▶  행별 RowStatus
       ▼
 VerseReviewList  ──────────────────────▶  createOyoVerse 순차 저장
 ```
+
+The confirm gate is load-bearing, not decorative. Everything above it is pure and instant, so the mapper can be edited freely; everything below it costs network and time, so it runs once, against columns a person has agreed to.
 
 ### `src/lib/oyo/cite.ts` — new
 
@@ -187,8 +212,10 @@ export interface DetectedColumns {
 	/** Header cells when hasHeader, else the first row's values — either way,
 	 *  what the mapper shows next to each column letter. */
 	labels: string[];
-	/** null when no column could plausibly hold a citation. */
-	mapping: ColumnMapping | null;
+	/** Always present. Rule 4 below guarantees a citation column even when
+	 *  every stronger signal is silent, and the confirm screen is where a
+	 *  wrong guess gets corrected. */
+	mapping: ColumnMapping;
 }
 
 export interface TableDraft {
@@ -224,7 +251,7 @@ export function applyMapping(
 3. **Length probe (`w` and `title`).** Among the columns still free, `w` takes the one with the greatest mean cell length if that mean is at least 20 characters; `title` then takes the first remaining column whose mean is under 20. Bodies are long and titles are short, and this is the only thing that reliably separates them without a header.
 4. **Positional fallback.** `cite` takes column 0. `title` and `w` take nothing — an unassigned `w` is not a loss, because the fill supplies it.
 
-> **Refinement to flag at review.** Brainstorming settled on "two columns → 1=장절, 2=본문". Rule 3 supersedes it in one direction: a short second column becomes 제목 and its body is fetched, rather than becoming a body of two words that blocks the fetch. A long second column still becomes 본문, as agreed.
+> **On the two-column case.** Brainstorming settled on "two columns → 1=장절, 2=본문". Rule 3 refines it in one direction: a short second column becomes 제목 and its body is fetched, rather than becoming a body of two words that blocks the fetch. A long second column still becomes 본문. The confirm screen keeps the stakes low either way — every one of these rules is a *guess shown to a person* before anything is fetched or saved, which is why the heuristics can afford to be opinionated.
 
 **`applyMapping`** reads each data row, normalises the citation through `normalizeCite`, and drops any row whose citation is empty. That is the deeplink rule, for the deeplink reason: a verse with no reference cannot be found again. A row missing only its body is kept — the fill exists for exactly that row. The result is truncated to `MAX_IMPORT_VERSES` and the screen says so when it truncates.
 
@@ -293,7 +320,7 @@ Extraction rather than duplication is the point: this markup carries a hard-won 
 
 ### `src/lib/components/oyo/ColumnMapper.svelte` — new
 
-Three labelled `<select>`s, a `첫 행은 제목 줄` checkbox, and a collapse toggle. Emits a whole `ColumnMapping` (and `hasHeader`) on change; owns no parsing.
+Three labelled `<select>`s and a `첫 행은 제목 줄` checkbox. Emits a whole `ColumnMapping` and `hasHeader` on change; owns no parsing and no preview — the confirm screen derives those from what it emits, so the component stays a control rather than a screen.
 
 The checkbox closes a one-sided hole. Mistaking a header for data is self-healing — the literal word 장절 does not parse as a passage reference, so that row is dropped as citation-less and nothing is lost. Mistaking the *first verse* for a header loses a verse in silence, and silence is the part that erodes trust. The checkbox lets the reader put it back.
 
@@ -304,21 +331,28 @@ Column letters come from `columnName`, which moves from `export/xlsx.ts` to `src
 ```ts
 type Screen =
 	| { kind: 'pick'; error: string | null }
+	| { kind: 'confirm' }
 	| { kind: 'review' }
 	| { kind: 'saved'; count: number };
 ```
 
-Review state lives beside it: `grid`, `hasHeader`, `labels`, `mapping`, `drafts`, `titles`, `chosen`, `duplicates`, `statuses`, `filling`, `truncated`.
+Table state spans `confirm` and `review` and lives beside the union: `grid`, `hasHeader`, `labels`, `mapping`, `drafts`, `truncated`, and — populated on confirm — `titles`, `chosen`, `duplicates`, `statuses`, `filling`.
 
-**When the screen advances to `review`**: as soon as parsing yields a grid, if `mapping` is null (no citation column could be chosen) *or* at least one draft came out. The null-mapping case advances deliberately — the mapper is the only place the reader can fix it, so the screen has to show it. A found mapping that yields zero drafts stays on `pick` with an inline message instead, because there is nothing there to review.
+**Back stack**: `pick → confirm → review → saved`, with the Header's back arrow walking it in reverse — `review` back to `confirm`, `confirm` back to `pick`, `pick` out to `/library/oyo`.
 
-Save is sequential over the chosen indexes in ascending order, after `seedOyoPackageIfMissing()` — the same reasoning as the deeplink screen, since `createOyoVerse` reads `max(no) + 1` and parallel writes would collide on the primary key. A save failure returns to `pick` with an inline message rather than losing the reviewed table.
+**When the screen advances to `confirm`**: as soon as parsing yields a grid with at least one data row. Nothing about the mapping gates it — even a mapping that currently yields zero rows lands here, because this is the only screen where it can be fixed. Bouncing the reader back to the file picker to solve a column problem would be sending them to the wrong room.
+
+Save is sequential over the chosen indexes in ascending order, after `seedOyoPackageIfMissing()` — the same reasoning as the deeplink screen, since `createOyoVerse` reads `max(no) + 1` and parallel writes would collide on the primary key. A save failure keeps the reader on `review` with an inline message rather than discarding the fetched bodies.
+
+`mapping` is never null and needs no unset state. `detectColumns` always names a citation column — its last rule falls back to column 0 — so the confirm screen always has something concrete to show, and a bad guess is corrected the same way any other one is. That removes a nullable path from every consumer downstream.
 
 ## Data Flow
 
-**Re-mapping.** Changing any `<select>` re-derives `drafts` from the in-memory `grid`, recomputes `duplicates`, resets `titles` and `chosen` to their defaults, and schedules a fill 400 ms later (debounced, so dragging through a dropdown does not fire three times). Per-row title edits are lost when the mapping changes; that is honest, because the rows themselves are different rows, and in practice the mapper is settled before anyone starts typing titles.
+**Re-mapping.** Changing a `<select>` or the header checkbox re-derives `drafts` from the in-memory `grid` synchronously and repaints the preview. That is the whole operation — no debounce, no request, no cancellation of anything in flight.
 
-The chapter cache absorbs the cost of re-mapping: a column swap inside one session re-fetches only chapters not already seen.
+An earlier draft of this design put the mapper on the review screen and re-ran the fill 400 ms after every change. The confirm gate deletes that machinery outright: there is no in-flight fill to race, and no titles or selections to preserve, because neither exists until the reader has agreed to the columns. Moving one decision earlier removed a debounce, a re-entrancy hazard and a rule about discarding the reader's typing.
+
+**Entering review.** Confirming computes `duplicates` once, seeds `titles` from the mapped 제목 column, checks everything that is not a duplicate, and starts the fill. Coming back from review and confirming again repeats all of it from the drafts — the chapter cache means only chapters not already seen cost a request.
 
 **Where a fetched body lands.** A successful fill writes back into `drafts[i].w`, so `drafts` is always the live row data and `statuses[i]` only says how it got there. That is what makes 다시 시도 a single rule instead of two: `fillMissingBodies` skips any row that already has a body, so re-running it over the whole list retries exactly the failures and keeps every index aligned with `titles`, `chosen` and `statuses`. Handing it a filtered sub-list would misalign all four.
 
@@ -334,13 +368,13 @@ The chapter cache absorbs the cost of re-mapping: a column swap inside one sessi
 | `.xlsx` picked | Inline: 엑셀 파일은 아직 직접 읽지 못합니다. 엑셀에서 셀을 복사해 아래에 붙여넣거나, CSV로 저장해주세요. |
 | File decodes to nothing | Inline: 표를 읽지 못했습니다. 파일을 확인해주세요. |
 | Grid parses but yields no data rows | Inline: 가져올 구절이 없습니다. |
-| No 장절 column found | Review screen with the mapper expanded and an empty list; heading reads 장절 열을 골라주세요. |
-| Every row lacks a citation | Inline: 장절이 있는 행이 없습니다. |
+| Detection guessed the 장절 column wrong | The preview shows it — citations that are not citations, or none at all. The reader re-picks on the confirm screen; nothing has been fetched or saved. |
+| Mapping yields zero rows | Confirm screen; summary reads 이 설정으로는 가져올 구절이 없습니다 and 맞아요, 계속 stays disabled. |
 | More than 200 rows | First 200 imported; a note reads 앞 200개만 가져옵니다. |
 | One chapter fetch fails or times out | That group's rows become `no-body`; the rest continue. |
 | Three chapter groups fail in a row | Remaining rows become `no-body`; a note reads 본문을 가져오지 못했습니다. 네트워크를 확인해주세요. |
 | Reader leaves mid-fill | `AbortSignal` fires from the effect's cleanup; no state is written after unmount. |
-| Save throws | Back to `pick` with 구절을 저장하지 못했습니다. 다시 시도해주세요; the table is not lost. |
+| Save throws | Stays on `review` with an inline 구절을 저장하지 못했습니다. 다시 시도해주세요. Leaving the screen would discard every body the fill just fetched. |
 | A citation this app cannot parse (e.g. 토비트 3 : 1) | Kept verbatim, as `normalizeCite` already does. It cannot be filled, so it lands in `no-body` and is skipped. |
 | Duplicate rows *within* the pasted table | Both shown. Only the existing-verse check flags a row; a within-table twin is the reader's to uncheck. Detecting it would need a second rule, and a table that repeats a verse usually means it on purpose. |
 
@@ -357,11 +391,12 @@ Unit tests under `tests/unit/`, written test-first.
 | `cite.test.ts` | `normalizeCite` and `duplicateIndexes` cases moved from `importLink.test.ts`, plus the widened `{ cite: string }` signature |
 | `VerseReviewList.test.ts` | toggle, select-all, title binding, 이미 있음 badge, `loading` body, `no-body` disabled and unselectable |
 | `ColumnMapper.test.ts` | labels render as `A · 장절`; changing a select emits the whole mapping; 장절 offers no 없음; toggling 첫 행은 제목 줄 emits `hasHeader` |
+| `tableImportPage.test.ts` | the confirm gate: the preview repaints on a mapping change with **zero** `fetch` calls; 맞아요, 계속 is disabled when the mapping yields zero rows; confirming starts the fill; back from review returns to confirm and aborts it |
 | `importLink.test.ts` | unchanged assertions still pass after the move |
 | `xlsx.test.ts` / `eventWorkbook.test.ts` | existing `columnName` coverage still passes from its new home |
 
-An E2E case in `tests/e2e/` pastes a three-row table, waits for the fill, saves, and asserts the verses appear in 나의 구절. It intercepts `bolls.life/get-text/**` with a fixture via `page.route`, so the run neither depends on that host being up nor pays for its latency.
+An E2E case in `tests/e2e/` pastes a three-row table, confirms the columns, waits for the fill, saves, and asserts the verses appear in 나의 구절. It intercepts `bolls.life/get-text/**` with a fixture via `page.route`, so the run neither depends on that host being up nor pays for its latency.
 
 ## Open Questions
 
-None. The two-column refinement noted under **Choosing columns** is the one deviation from brainstorming and is called out for confirmation at review.
+None.
