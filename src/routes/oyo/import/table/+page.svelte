@@ -5,7 +5,7 @@
 	import ColumnMapper from '$lib/components/oyo/ColumnMapper.svelte';
 	import VerseReviewList from '$lib/components/oyo/VerseReviewList.svelte';
 	import { BookPlus, Check, RotateCw } from 'lucide-svelte';
-	import { decodeTableFile, TableFileError } from '$lib/oyo/tableText';
+	import { decodeTableFile, MAX_TABLE_FILE_BYTES, TableFileError } from '$lib/oyo/tableText';
 	import { parseDelimited } from '$lib/oyo/tableParse';
 	import {
 		applyMapping,
@@ -104,6 +104,11 @@
 		const file = el.files?.[0];
 		if (!file) return;
 		try {
+			// Checked before reading: arrayBuffer materialises the whole file, and
+			// this limit exists for the mis-picked video that would otherwise be in
+			// memory before the decoder ever sees it. `accept` is only advisory on
+			// mobile pickers.
+			if (file.size > MAX_TABLE_FILE_BYTES) throw new TableFileError('too-large');
 			const bytes = new Uint8Array(await file.arrayBuffer());
 			readGrid(decodeTableFile(bytes).text);
 		} catch (err) {
