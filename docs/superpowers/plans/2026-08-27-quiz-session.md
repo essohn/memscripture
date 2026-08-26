@@ -502,7 +502,7 @@ export function summarize(results: RoundResult[]): {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test tests/unit/session.test.ts`
-Expected: PASS, 10 tests.
+Expected: PASS, 9 tests.
 
 Run: `pnpm check`
 Expected: 0 errors.
@@ -1503,7 +1503,7 @@ In `src/routes/+page.svelte`, add an entry card. Put it after the event section 
 
 Run: `pnpm test`
 Expected: PASS — 1060 existing + 40 new = **1100** across 84 files, 0 failures.
-The 40: 3 checkHistory, 4 typing, 10 session, 6 quizScope, 7 round, 6 picker,
+The 40: 3 checkHistory, 4 typing, 9 session, 6 quizScope, 8 round, 6 picker,
 4 summary.
 
 Run: `pnpm check`
