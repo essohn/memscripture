@@ -86,12 +86,17 @@ export async function fillMissingBodies(
 	const resolved = new Set<number>();
 
 	function emit(index: number, status: RowStatus, w?: string): void {
+		// The row's fate is recorded whether or not anyone is still listening.
+		// It has to be: the counters are bumped by emit's callers, so a row
+		// settled during an abort that never reached `resolved` would be counted
+		// once at its own site and a second time by the sweep.
+		if (status !== 'loading') resolved.add(index);
 		// Once the caller has aborted it has stopped listening — a page that
 		// asked to be left alone should not be written to by a group that was
 		// already in flight. Silence is the honest answer to an abort; the
-		// summary below is where the caller learns what was left undone.
+		// summary is where the caller learns what was left undone. It is the
+		// callback that goes quiet here, never the bookkeeping.
 		if (signal?.aborted) return;
-		if (status !== 'loading') resolved.add(index);
 		onProgress(w === undefined ? { index, status } : { index, status, w });
 	}
 

@@ -193,4 +193,26 @@ describe('fillMissingBodies', () => {
 		const terminal = seen.filter((p) => p.status !== 'loading').map((p) => p.index);
 		expect([...terminal].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
 	});
+
+	it('counts a row once when an abort and the breaker land together', async () => {
+		const controller = new AbortController();
+		let calls = 0;
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => {
+				calls++;
+				// The third failure trips the breaker and gives up on the run in the
+				// same moment — the window where a row used to be counted twice.
+				if (calls === 3) controller.abort();
+				return { ok: false, status: 500 } as unknown as Response;
+			})
+		);
+		const drafts = [draft('요 1:1'), draft('요 2:1'), draft('요 3:1'), draft('요 4:1')];
+		const out = await fillMissingBodies(drafts, () => {}, {
+			concurrency: 1,
+			maxConsecutiveFailures: 3,
+			signal: controller.signal
+		});
+		expect(out.filled + out.failed).toBe(drafts.length);
+	});
 });
