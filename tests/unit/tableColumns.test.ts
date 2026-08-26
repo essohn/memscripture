@@ -254,4 +254,17 @@ describe('detectColumns — the header must not be allowed to vote', () => {
 		];
 		expect(detectColumns(grid).mapping.title).toBeNull();
 	});
+
+	it('still reads row 0 when it is data and the rows below it are not', () => {
+		// A genuine headerless two-row list. Column 1 is the citation column and
+		// row 0 is the only row that proves it — dropping row 0 outright would
+		// demote it and import the titles as citations instead.
+		const grid = [
+			['영생', '요 3:16'],
+			['부르심', '이상한값']
+		];
+		const out = detectColumns(grid);
+		expect(out.hasHeader).toBe(false);
+		expect(out.mapping.cite).toBe(1);
+	});
 });

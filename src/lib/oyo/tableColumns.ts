@@ -210,21 +210,25 @@ export function detectColumns(grid: string[][]): DetectedColumns {
 	const taken = new Set<number>(Object.values(byHeader));
 
 	// The citation column is settled first, because header rule 2 needs to know
-	// which cell of the first row to look at. That is a chicken and egg — so the
-	// probe samples from row 1 onward whenever there is more than one row. Row 0
-	// may be a header nobody recognised, and a single label row in the sample can
-	// pull a column's share below the threshold and cost it the match. Skipping
-	// it costs nothing when it really was data: this sample only chooses a
-	// column, it never consumes a row.
-	const probeRows = grid.length > 1 ? grid.slice(1) : grid;
-	let cite = byHeader.cite ?? probeCite(probeRows, width, taken);
+	// which cell of the first row to look at — a chicken and egg. It is broken by
+	// asking twice.
+	//
+	// The header-free sample goes first: row 0 may be a label row nobody
+	// recognised, and one such row among a handful can pull a column's share
+	// below the threshold and cost it the match. But it does not get the only
+	// vote. On a two-row paste whose second reference will not parse, row 0 is
+	// the only evidence there is, and dropping it would demote a real citation
+	// column and import the titles in its place.
+	const headerless = grid.length > 1 ? grid.slice(1) : grid;
+	let cite =
+		byHeader.cite ?? probeCite(headerless, width, taken) ?? probeCite(grid, width, taken);
 	if (cite === undefined) {
-		// Nothing unclaimed reads as a reference. Before falling back on position,
-		// ask the same question of the columns a header word already claimed:
-		// content is stronger evidence than vocabulary, so a column headed 본문
-		// whose cells are all references is the citation column, and the header's
-		// claim on it yields.
-		cite = probeCite(probeRows, width, new Set());
+		// Nothing unclaimed reads as a reference anywhere. Before falling back on
+		// position, ask the same question of the columns a header word already
+		// claimed: content is stronger evidence than vocabulary, so a column
+		// headed 본문 whose cells are all references is the citation column, and
+		// the header's claim on it yields.
+		cite = probeCite(headerless, width, new Set()) ?? probeCite(grid, width, new Set());
 	}
 	if (cite === undefined) {
 		cite = 0;
