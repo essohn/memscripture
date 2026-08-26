@@ -31,4 +31,29 @@ describe('QuizSummary', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '다시 하기' }));
 		expect(onAgain).toHaveBeenCalledTimes(1);
 	});
+
+	// Silence is how a total storage failure once hid for a whole session.
+	it('reports rounds that could not be stored', () => {
+		render(QuizSummary, {
+			passed: 2,
+			total: 3,
+			failed: [],
+			unsaved: 2,
+			onAgain: vi.fn(),
+			onClose: vi.fn()
+		});
+		expect(screen.getByText('2개 라운드는 기록하지 못했습니다')).toBeInTheDocument();
+	});
+
+	it('says nothing about storage when nothing was lost', () => {
+		render(QuizSummary, {
+			passed: 3,
+			total: 3,
+			failed: [],
+			unsaved: 0,
+			onAgain: vi.fn(),
+			onClose: vi.fn()
+		});
+		expect(screen.queryByText(/기록하지 못했습니다/)).toBeNull();
+	});
 });

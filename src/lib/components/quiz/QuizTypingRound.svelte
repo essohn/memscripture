@@ -51,7 +51,11 @@
 	function next() {
 		if (!verdict || reported) return;
 		reported = true;
-		onDone(verdict);
+		// Handed out as plain data, not reactive state. IndexedDB cannot
+		// structured-clone a Proxy, and a caller that persists this would fail
+		// silently — which is exactly what happened before recordCheck started
+		// copying `missed`.
+		onDone($state.snapshot(verdict));
 	}
 </script>
 

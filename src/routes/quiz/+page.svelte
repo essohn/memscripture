@@ -17,6 +17,11 @@
 	let index = $state(0);
 	let results = $state<RoundResult[]>([]);
 
+	/** Rounds whose result could not be stored. The run continues either way —
+	 *  the reader is mid-quiz — but a silent total failure is how this feature
+	 *  once looked perfect while saving nothing. */
+	let unsaved = $state(0);
+
 	const done = $derived(queue !== null && index >= queue.length);
 	const summary = $derived(summarize(results));
 	const failedItems = $derived(
@@ -69,6 +74,7 @@
 		queue = picked;
 		index = 0;
 		results = [];
+		unsaved = 0;
 	}
 
 	function finishRound(result: RoundResult) {
@@ -84,7 +90,9 @@
 				elapsedMs: result.elapsedMs,
 				missed: result.missed,
 				source: 'quiz'
-			}).catch(() => {});
+			}).catch(() => {
+				unsaved += 1;
+			});
 		}
 		index += 1;
 	}
@@ -110,11 +118,12 @@
 			passed={summary.passed}
 			total={summary.total}
 			failed={failedItems}
+			{unsaved}
 			onAgain={again}
 			onClose={close}
 		/>
 	{:else}
-		{#key queue[index].id}
+		{#key `${index}:${queue[index].id}`}
 			<QuizTypingRound
 				item={queue[index]}
 				{index}
