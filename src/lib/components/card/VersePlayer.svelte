@@ -50,7 +50,7 @@
 	<ScrubTrack {fraction} {totalMs} {onSeek} />
 
 	<span class="shrink-0 text-[11px] tabular-nums text-[var(--color-text-secondary)]">
-		{mmss(fraction * totalMs)} / {mmss(totalMs)}
+		{mmss(elapsedMs)} / {mmss(totalMs)}
 	</span>
 
 	<button
