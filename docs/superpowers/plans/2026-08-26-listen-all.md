@@ -803,9 +803,8 @@ On by default: reaching for 전체 듣기 is usually about soaking in a set."
 Create `tests/unit/ScrubTrack.test.ts`:
 
 ```ts
-import { render, screen } from '@testing-library/svelte';
+import { render, screen, fireEvent } from '@testing-library/svelte';
 import { describe, it, expect, vi } from 'vitest';
-import { fireEvent } from '@testing-library/dom';
 import ScrubTrack from '../../src/lib/components/player/ScrubTrack.svelte';
 
 const props = { fraction: 0.25, totalMs: 60_000, onSeek: () => {} };
@@ -991,9 +990,8 @@ Pointer capture is the fiddly part and there should be one of it."
 Create `tests/unit/PlaylistBar.test.ts`:
 
 ```ts
-import { render, screen } from '@testing-library/svelte';
+import { render, screen, fireEvent } from '@testing-library/svelte';
 import { describe, it, expect, vi } from 'vitest';
-import { fireEvent } from '@testing-library/dom';
 import PlaylistBar from '../../src/lib/components/player/PlaylistBar.svelte';
 
 const props = {
@@ -1851,7 +1849,7 @@ describe('EventSection — 전체 듣기', () => {
 });
 ```
 
-Add `vi`, `beforeEach`, `afterEach` to the file's `vitest` import and `fireEvent` from `@testing-library/dom`.
+Add `vi`, `beforeEach`, `afterEach` to the file's `vitest` import, and add `fireEvent` to its existing `@testing-library/svelte` import. (`@testing-library/dom` is not a direct dependency of this repo and pnpm's strict node_modules will not resolve it; every existing component test imports `fireEvent` from `@testing-library/svelte`.)
 
 - [ ] **Step 2: Run test to verify it fails**
 
