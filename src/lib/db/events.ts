@@ -1,5 +1,6 @@
 import type { EventRange, MemEvent } from '$lib/types';
 import type { VerseRating } from './local';
+import type { PlaylistVerse } from '$lib/memorize/playlist';
 import { db } from './local';
 import { loadPackageData, filterVerses, isPackageInstalled } from './verses';
 import { getJoinedGroups } from './groups';
@@ -135,6 +136,13 @@ export interface EventCardVM {
 	dueAt: string;
 	dDay: number;
 	ranges: RangeCardVM[];
+	/** Every included range's verses, in range order, for 전체 듣기.
+	 *
+	 *  Resolved during the build rather than on tap: iOS honours synthesis
+	 *  only when it is reached synchronously from the gesture, so an
+	 *  IndexedDB read at tap time is silence on a phone. loadPackageData is
+	 *  memoized and already called above, so this costs no extra read. */
+	verses: PlaylistVerse[];
 }
 
 /** label이 비면 front 구절 title로 파생. */
@@ -155,6 +163,7 @@ export async function buildEventCards(today: string): Promise<EventCardVM[]> {
 	const cards: EventCardVM[] = [];
 	for (const e of events) {
 		const ranges: RangeCardVM[] = [];
+		const verses: PlaylistVerse[] = [];
 		for (const r of e.ranges) {
 			const verseNos = await resolveRangeVerseNos(r).catch(() => []);
 			if (verseNos.length === 0) continue; // 미설치/해석 실패 범위는 건너뜀
@@ -167,6 +176,15 @@ export async function buildEventCards(today: string): Promise<EventCardVM[]> {
 				packageId: r.packageId,
 				verseNos
 			});
+			// Same order as the range card, so what is heard matches what is read.
+			const data = await loadPackageData(r.packageId).catch(() => null);
+			if (data) {
+				const byNo = new Map(data.verses.map((v) => [v.no, v]));
+				for (const no of verseNos) {
+					const v = byNo.get(no);
+					if (v) verses.push({ title: v.title, cite: v.cite, w: v.w });
+				}
+			}
 		}
 		if (ranges.length > 0) {
 			cards.push({
@@ -174,7 +192,8 @@ export async function buildEventCards(today: string): Promise<EventCardVM[]> {
 				eventTitle: e.title,
 				dueAt: e.dueAt,
 				dDay: dDay(e.dueAt, today),
-				ranges
+				ranges,
+				verses
 			});
 		}
 	}

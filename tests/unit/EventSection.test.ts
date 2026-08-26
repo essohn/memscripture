@@ -17,7 +17,8 @@ const card: EventCardVM = {
 			packageId: '60_krv',
 			verseNos: [1, 2]
 		}
-	]
+	],
+	verses: []
 };
 
 describe('EventSection', () => {

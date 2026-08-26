@@ -202,4 +202,48 @@ describe('events data layer', () => {
 			verseNos: [1, 2]
 		});
 	});
+
+	// The home button has to speak straight from the tap, so the text is
+	// resolved during the build rather than read from IndexedDB at tap time.
+	it("carries each range's verse text for 전체 듣기", async () => {
+		mockFetch({
+			'data/events.json': sampleEvents,
+			'data/packages.json': samplePackages,
+			'data/5_krv.json': sampleVerses,
+			'data/packages_index.json': sampleGroups
+		});
+		await listPackages();
+		await installPackage('5_krv');
+		const [card] = await buildEventCards('2099-12-30');
+		expect(card.verses).toEqual([
+			{ title: 't1', cite: 'c1', w: 'w1' },
+			{ title: 't2', cite: 'c2', w: 'w2' }
+		]);
+	});
+
+	// Heard in the order they are read: range by range, verse by verse within
+	// each. The second range is listed first here precisely so a sort would
+	// show up as a failure.
+	it('keeps verses in range order, not verse-number order', async () => {
+		mockFetch({
+			'data/events.json': [
+				{
+					id: 'e3',
+					title: '두 범위',
+					dueAt: '2099-12-31',
+					ranges: [
+						{ packageId: '5_krv', verseNos: [3], label: 'B' },
+						{ packageId: '5_krv', verseNos: [1, 2], label: 'A' }
+					]
+				}
+			],
+			'data/packages.json': samplePackages,
+			'data/5_krv.json': sampleVerses,
+			'data/packages_index.json': sampleGroups
+		});
+		await listPackages();
+		await installPackage('5_krv');
+		const [card] = await buildEventCards('2099-12-30');
+		expect(card.verses.map((v) => v.cite)).toEqual(['c3', 'c1', 'c2']);
+	});
 });
