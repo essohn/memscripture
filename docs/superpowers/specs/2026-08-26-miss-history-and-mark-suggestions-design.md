@@ -106,12 +106,24 @@ Two cases are counted as they are, with no special handling:
   the window but contribute no misses** — silent, not clean. Counting an
   unmeasured check as a success would let old records suppress suggestions the
   new ones earn.
-- **Assisted checks** (힌트 pressed, or the verse heard aloud) under-report:
-  a word revealed by a hint and then typed correctly reads as produced. The
-  effect is conservative — a hinted check can only lower a word's miss count,
-  never invent one — so it delays a suggestion rather than fabricating it.
-  `fullDifficultyFrom` already penalizes assistance in the rating; penalizing
-  it a second time here would double-count the same moment.
+- **Assisted checks** (힌트 pressed, or the verse heard aloud) under-report: a
+  word revealed by a hint and then typed correctly reads as produced. This is
+  not merely a delayed suggestion, as an earlier draft of this spec claimed. A
+  clean assisted check writes `missed: []`, indistinguishable from unaided
+  perfection, and it occupies a slot in the five-check window — so it can push
+  a real miss out and *retract* a suggestion the reader earned, from the reader
+  least able to do without it. That is the failure `ASSISTED_CEILING` in
+  `grade.ts` exists to prevent elsewhere: a verse recited with the words in
+  front of you is a verse you have not recited.
+
+  It is counted as it is regardless, for now. Excluding assisted checks from
+  the tally would change nothing — a clean assisted record already contributes
+  no misses — so the fix would have to exclude them from the *window*, and that
+  freezes the window for a reader who always reaches for a hint: their old
+  misses would never decay and the suggestion would never leave. Which cost is
+  worse is a question for use rather than for this document. Note also that
+  `heardAloud` is never persisted, so half of the assistance cannot be
+  recovered after the fact. **Open.**
 
 ## Data
 
@@ -155,8 +167,11 @@ Suggestions carry an index without the word text, so they cannot be validated
 the same way. They do not need to be:
 
 - Out-of-range indices are dropped (`i < wordCount`).
-- An in-range index that has drifted onto the wrong word produces one dotted
-  word that the reader does not tap, and it is gone at the next check.
+- An in-range index that has drifted onto the wrong word produces a dotted word
+  the reader does not tap. A word inserted at the front shifts every index, so
+  the drift can be all three suggestions at once rather than one. They clear as
+  the checks that placed them leave the window — with `SUGGEST_MIN_MISSES = 2`
+  in a five-check window that is four clean checks, not one.
 - Nothing is written, so nothing wrong persists.
 
 Storing `{i, w}` pairs instead would make validation possible at a real cost —
@@ -168,7 +183,10 @@ snapshot — to prevent a transient cosmetic slip on hand-edited verses only.
 There is no way to dismiss a suggestion, and none is needed. A dotted mark is
 quiet, it appears only inside a mode the reader opened on purpose, and
 ignoring it has no consequence. If the reader disagrees with it, they stop
-missing the word and it leaves on its own.
+missing the word and it leaves on its own — not on the next check, but over
+the same four clean checks "Why suggestions are not stored" describes for a
+drifted index, since it is the identical window arithmetic doing the clearing
+either way.
 
 Storing rejections would mean a new table, a decision about whether a
 rejection expires, and a second reason a suggestion might be absent — making
@@ -212,16 +230,25 @@ check history for its own verse and already loads it lazily; see below.
 
 ### `src/lib/components/card/MemorizeCheckPanel.svelte`
 
-`mismatches` is already derived at `:200`. The submit path adds the missed
-indices to what it reports:
+`mismatches` is already derived at `:201`. A `missedIndices()` helper turns it
+into the positions to report, off the same marking the panel already paints,
+so the stored history and the screen can never disagree about one attempt:
 
 ```ts
-const missed = mismatches.flatMap((m, i) => (m.ok ? [] : [i]));
-onGraded({ ...result, accuracy, elapsedMs, hints: hintsUsed, missed });
+function missedIndices(): number[] {
+  return mismatches.flatMap((m, i) => (m.ok ? [] : [i]));
+}
 ```
 
-A flawless attempt reports `[]`, which is meaningful and must be stored: it is
-the evidence that pushes an older miss out of the window.
+It has two call sites, because there are two ways a check ends. `submit()`
+calls it directly when the attempt is flawless, the one path that skips the
+confirmation dialog — and its `[]` is meaningful, not incidental: it is the
+evidence that pushes an older miss out of the window. Anything short of
+flawless instead sets `proposed` and waits on the reader; `save()`, behind
+that confirmation dialog, is where `missedIndices()` is called for those
+attempts. 포기 (`giveUp()`) also lands on `save()` rather than bypassing it,
+which is the only reason a give-up produces a `missed` record at all — and
+"Why there is a cap" above depends on that record existing.
 
 `onGraded`'s prop type gains `missed: number[]`.
 
@@ -339,7 +366,7 @@ Component coverage
 - `MemorizeCheckPanel.test.ts`: a graded submit reports the missed indices,
   and a flawless one reports `[]`
 
-The existing suite (1103 tests) must stay green.
+The existing suite must stay green: 1040 tests across 76 files on this branch.
 
 ## Delivery
 

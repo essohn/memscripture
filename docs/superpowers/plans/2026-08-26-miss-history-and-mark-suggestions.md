@@ -19,7 +19,7 @@
 - **No new table and no new route.** Suggestions are derived on read, never stored.
 - Absent `missed` and `missed: []` mean different things and must stay distinguishable everywhere: absent = the check predates this feature and measured nothing; `[]` = the check was clean.
 - Korean UI copy, exact strings: `자주 틀린 곳을 점선으로 표시했습니다 · 눌러서 밑줄` (suggestions present) and the existing `자주 틀리는 단어를 눌러 밑줄` (none). The separator is `·` (U+00B7) surrounded by single spaces.
-- Test command is `pnpm test` (vitest, `tests/unit/**/*.test.ts`). A single file: `pnpm test <path>`. The suite stands at 1103 passing tests and must stay green.
+- Test command is `pnpm test` (vitest, `tests/unit/**/*.test.ts`). A single file: `pnpm test <path>`. The suite on this branch stands at 1040 passing tests across 76 files and must stay green. (1103 was measured on feat/listen-all, a different branch — it does not apply here.)
 - Repo commit style: lowercase `type(scope): subject`, subject is a sentence describing the behavior rather than the diff. Include the `Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>` trailer.
 
 ---
@@ -659,7 +659,7 @@ Run: `pnpm test tests/unit/VerseCard.suggest.test.ts`
 Expected: PASS, 5 tests.
 
 Run: `pnpm test`
-Expected: PASS — 1103 existing + 18 new (9 missStats, 2 checkHistory, 2 panel, 5 card) = 1121 tests, 0 failures.
+Expected: PASS — 1040 existing + 18 new (9 missStats, 2 checkHistory, 2 panel, 5 card) = 1058 tests, 0 failures.
 
 Run: `pnpm check`
 Expected: no new errors.
