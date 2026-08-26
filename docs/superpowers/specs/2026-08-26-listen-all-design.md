@@ -150,14 +150,20 @@ let activeStop: (() => void) | null = null;
 - A handle clears `activeStop` when it stops, but only if it is still the registered owner — a stale handle must not unregister its successor.
 - Because the old owner is stopped through its own `stop()`, it sets `stopped` first and reports `onEnd`, so the UI that owned it leaves the "playing" state cleanly.
 
+`createPlayer.playFrom` has the same fault turned inward: it cancels the synth to seek, which fires the *outgoing* utterance's `onend`, which with `repeat` armed jumps the reader back to offset 0 instead of to where they scrubbed. Detaching the outgoing utterance's handlers before the cancel fixes it at the source:
+
+```ts
+if (current) { current.onend = null; current.onboundary = null; current.onerror = null; }
+```
+
 The existing `if (synth.speaking || synth.pending) synth.cancel()` guard stays as-is — it still covers a queue left busy by something outside this module. The owner call is added ahead of it, so the previous player is relieved through its own `stop()` before the cancel lands.
 
 ### New module: `src/lib/state/playlistPlayer.svelte.ts`
 
-A factory, not a singleton — home and bookmarks each own one and each tears its own down. (`fontScale.svelte.ts` is a singleton because a font scale is one global preference; a playback session is not.)
+A class, instantiated per page — home and bookmarks each own one and each tears its own down. (`fontScale.svelte.ts` is a class exported as a singleton because a font scale is one global preference; a playback session is not, so this one is exported as the class and each page does `new PlaylistPlayer()`.)
 
 ```ts
-export function createPlaylistPlayer(): {
+export class PlaylistPlayer {
   readonly playing: boolean;
   readonly progress: PlayerProgress;
   readonly listRepeat: boolean;
@@ -177,7 +183,14 @@ export function createPlaylistPlayer(): {
   close(): void;
   /** Page teardown. */
   destroy(): void;
-};
+
+  /** Reads stored speak options into memory. Called from the page's
+   *  $effect, never from start() — see below. */
+  load(): Promise<void>;
+
+  /** Whether the platform speaks at all; decided once. */
+  readonly supported: boolean;
+}
 ```
 
 **`start()` must not be `async`.** iOS Safari honours `speechSynthesis.speak()` only when it is reached synchronously from the tap that triggered it; an `await` in that path ends the gesture and the phone stays silent with no error. So the controller preloads `getSpeakOptions()` in an effect and holds it in memory, exactly as `VerseCard` does and for exactly the same reason. It re-reads options after the gesture is spent, so a settings change lands on the next play.
@@ -262,14 +275,14 @@ One more toggle in the 읽어주기 section, directly under the existing 무한 
 
 ### Modified: `src/lib/components/home/EventSection.svelte`
 
-- One `createPlaylistPlayer()` for the section.
+- One `new PlaylistPlayer()` for the section.
 - Play button in each event header; `onclick` calls `player.start('event:' + ev.eventId, ev.verses)` — synchronously.
 - `PlaylistBar` rendered **once, outside the `{#each}`**, driven by `player.openId`. Multiple events on screen still yield one bar.
 - The bar is `position: fixed`; no ancestor of it carries a `transform` (the hover lift is on `.event-card`, a sibling subtree), so it escapes the section correctly.
 
 ### Modified: `src/routes/bookmarks/+page.svelte`
 
-- One `createPlaylistPlayer()`.
+- One `new PlaylistPlayer()`.
 - 전체 듣기 button in the count row; `onclick` calls `player.start('bookmark:' + selected, visibleRows.map(r => r.verse))`.
 - `PlaylistBar` rendered once at page level.
 - An effect on `selected` calls `player.close()` when the color changes while a list is open.
