@@ -150,22 +150,17 @@
 		fileInputEl?.click();
 	}
 
-	// Escape and an outside click both close the menu, because a popover that
-	// only closes by choosing something traps a reader who opened it by mistake.
+	// Escape closes the menu, because a popover that only closes by choosing
+	// something traps a reader who opened it by mistake. An outside click is
+	// handled by the backdrop in the markup rather than a window listener —
+	// which is also why there is no deferred-listener dance here any more.
 	$effect(() => {
 		if (!importMenuOpen) return;
 		const onKey = (e: KeyboardEvent) => {
 			if (e.key === 'Escape') importMenuOpen = false;
 		};
-		const onDown = () => (importMenuOpen = false);
 		window.addEventListener('keydown', onKey);
-		// Deferred a tick: the click that opened the menu is still propagating.
-		const timer = setTimeout(() => window.addEventListener('pointerdown', onDown), 0);
-		return () => {
-			clearTimeout(timer);
-			window.removeEventListener('keydown', onKey);
-			window.removeEventListener('pointerdown', onDown);
-		};
+		return () => window.removeEventListener('keydown', onKey);
 	});
 
 	async function onFileChosen(e: Event) {
@@ -243,11 +238,21 @@
 					</span>
 				{/if}
 				{#if importMenuOpen}
-					<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+					<!--
+						The backdrop takes the outside click, so the menu itself carries
+						no handler — which is what keeps role="menu" free of an
+						interactive-element warning, and what lets the effect above stay
+						a single keydown listener. Same idiom as BookmarkControl.
+					-->
+					<div
+						role="presentation"
+						aria-hidden="true"
+						onclick={() => (importMenuOpen = false)}
+						class="fixed inset-0 z-20"
+					></div>
 					<div
 						role="menu"
 						aria-label="가져오기 방법"
-						onpointerdown={(e) => e.stopPropagation()}
 						class="absolute right-0 top-full z-30 mt-1 w-52 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-lg"
 					>
 						<a
