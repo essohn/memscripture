@@ -221,6 +221,54 @@ describe('events data layer', () => {
 		]);
 	});
 
+	// The invariant the placement exists for: a range that resolved to nothing
+	// is dropped from the card, so its verses must not be heard either —
+	// otherwise the reader hears verses that are not on their screen.
+	it('omits verses from a range that was skipped', async () => {
+		mockFetch({
+			'data/events.json': [
+				{
+					id: 'e4',
+					title: '한 범위는 해석 실패',
+					dueAt: '2099-12-31',
+					ranges: [
+						{ packageId: '5_krv', verseNos: [1], label: 'A' },
+						// No verseNos and an uninstalled package: resolves to [] and is
+						// dropped from `ranges`.
+						{ packageId: 'missing_krv', seriesIndex: 0, label: 'B' }
+					]
+				}
+			],
+			'data/packages.json': samplePackages,
+			'data/5_krv.json': sampleVerses,
+			'data/packages_index.json': sampleGroups
+		});
+		await listPackages();
+		await installPackage('5_krv');
+		const [card] = await buildEventCards('2099-12-30');
+		expect(card.ranges).toHaveLength(1);
+		expect(card.verses.map((v) => v.cite)).toEqual(['c1']);
+	});
+
+	// loadPackageData installs on a miss — a network fetch and an IndexedDB
+	// write. Rendering the home screen must not do that for a package the
+	// reader has never opened. Same rule resolveRangeVerseNos already follows.
+	it('does not install a package just to resolve its verse text', async () => {
+		mockFetch({
+			'data/events.json': sampleEvents,
+			'data/packages.json': samplePackages,
+			'data/5_krv.json': sampleVerses,
+			'data/packages_index.json': sampleGroups
+		});
+		await listPackages(); // metadata only — verses not installed
+		const [card] = await buildEventCards('2099-12-30');
+		expect(await isPackageInstalled('5_krv')).toBe(false);
+		// The range still shows (its verseNos are explicit), but with nothing to
+		// read aloud the event offers no audio at all rather than partial audio.
+		expect(card.ranges).toHaveLength(1);
+		expect(card.verses).toEqual([]);
+	});
+
 	// Heard in the order they are read: range by range, verse by verse within
 	// each. The second range is listed first here precisely so a sort would
 	// show up as a failure.
