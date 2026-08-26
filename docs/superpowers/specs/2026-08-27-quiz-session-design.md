@@ -243,12 +243,19 @@ when only one of them is fixed. `MemorizeCheckPanel` is changed to call it.
 
 ### `src/lib/db/checkHistory.ts`
 
-`recordCheck`'s entry accepts `source?: 'quiz'`.
+`recordCheck`'s entry accepts `source?: 'quiz'`. That is the only change here.
 
-`listChecks` gains a way to return 점검 records only, for the card's history
-list. The default stays "everything", so `suggestedMarks` and
-`listPerfectVerseNos` keep their current call sites unchanged and count quiz
-records as the table above requires.
+**`listChecks` is not given a filter.** `VerseCard` holds one `checkHistory`
+state that feeds two consumers with different needs — the panel's 지난 점검
+list (점검 only) and `suggestedMarks` (everything). A filter at the query
+would force a second read to serve the other. The card filters where the two
+diverge instead:
+
+```svelte
+history={checkHistory.filter((r) => !r.source)}
+```
+
+One read, one state, and the divergence stated at the point where it exists.
 
 ### Components under `src/lib/components/quiz/`
 
@@ -261,10 +268,36 @@ records as the table above requires.
   `markMismatchedWords` — which is the part that must not diverge.
 - `QuizSummary.svelte` — passed/total and the verses that did not.
 
+### `src/lib/quiz/scope.ts` (new)
+
+The I/O half, kept out of `session.ts` so the rule stays testable without a
+database.
+
+```ts
+export type Target =
+  | { kind: 'event'; id: string; label: string; ranges: { packageId: string; verseNos: number[] }[] }
+  | { kind: 'package'; id: string; label: string };
+
+/** The 대상 the picker offers: active 암송 DAYs first, then installed packages. */
+export function listTargets(today: string): Promise<Target[]>;
+
+/** A 대상's verses and their ratings, both keyed by `${packageId}:${verseNo}`. */
+export function resolveTarget(target: Target): Promise<{
+  items: QuizItem[];
+  ratings: Map<string, { start: DifficultyLevel | null; full: DifficultyLevel | null }>;
+}>;
+```
+
+`resolveTarget` reads verses with `listVerses()`, **not** `loadPackageData()`.
+The latter calls `installPackage()` on a miss, and installing a package as a
+side effect of listing quiz scopes is the exact fault a previous commit fixed
+on the home screen. Ranges whose package is not installed are skipped, the way
+`buildEventCards` already skips them.
+
 ### `src/routes/quiz/+page.svelte` (new)
 
-Holds the three states and the session's live values. Loads ratings for the
-chosen 대상 once, when a scope is picked, not per round.
+Holds the three states and the session's live values. Calls `resolveTarget`
+once when a scope is picked, not per round.
 
 ### `src/routes/+page.svelte`
 
@@ -327,20 +360,51 @@ If the scope's data fails to load, the picker shows nothing selectable and
 
 `tests/unit/checkHistory.test.ts` (extend)
 - `source: 'quiz'` round-trips; a 점검 record reads back without the field
-- 점검-only listing excludes quiz records and keeps ordering
 - `suggestedMarks` counts a quiz record's misses
+
+`tests/unit/quizScope.test.ts`
+- An event spanning two packages yields items from both, in range order
+- A range whose package is not installed is skipped, not thrown on
+- Ratings come back keyed by `${packageId}:${verseNo}`, and two packages'
+  verse 1 do not collide
+- Listing targets does not install anything: a package absent from the db is
+  still absent afterwards
 
 `tests/unit/QuizTypingRound.test.ts`
 - An exact attempt passes; a one-word slip fails and marks that word
 - Submitting reports the missed indices and the elapsed time
 
-`tests/unit/quiz-page.test.ts`
-- Zero resolved verses disables 시작
-- A full pass through a two-verse scope reaches the summary with the right
-  counts
+`tests/unit/QuizScopePicker.test.ts`
+- Zero resolved verses disables 시작 and says why
+- The resolved count is shown, and moves when a difficulty chip is toggled
+
+**No route-level test.** This repo has no precedent for rendering a
+`+page.svelte` in vitest — every test is a lib module or a component — and
+inventing one for this feature would test the harness as much as the page. The
+route stays thin enough that everything worth asserting lives in the three
+components and the two pure modules; the run through it is covered by the
+manual verification below.
 
 `MemorizeCheckPanel` keeps its existing tests green through the `typing.ts`
 extraction — the extraction is a refactor, not a behavior change.
+
+## Manual verification
+
+The route's own wiring has no unit test, so it is walked once in a browser:
+
+1. Home shows the quiz entry; it opens `/quiz`.
+2. The picker lists the active 암송 DAY and the installed packages, with a
+   verse count that changes as difficulty chips are toggled.
+3. Start a scope of two or three verses. Type one exactly → pass. Type one
+   with a single word wrong → that word is marked, and the round advances.
+4. The summary reports the right counts and names the failed verse.
+5. `checkHistory` in IndexedDB holds one new row per round, each with
+   `source: 'quiz'`, `start: null`, `full: null`, and a `missed` array.
+6. The verse card's 지난 점검 list does **not** show those rounds, while the
+   같은 verse's 밑줄 mode does dot a word missed twice across them.
+
+Step 6 is the one that proves the two consumers really diverge; the rest can
+pass with the filter wired to the wrong side.
 
 ## Delivery
 
