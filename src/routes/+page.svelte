@@ -197,6 +197,14 @@
 		onError={() => (toast = { message: '내보내기 실패: 다시 시도해주세요' })}
 	/>
 
+	<a
+		href="/quiz"
+		class="flex items-center justify-between rounded-2xl bg-[var(--color-card)] px-4 py-3 shadow-[var(--shadow-card)]"
+	>
+		<span class="text-[15px] font-medium text-[var(--color-text)]">퀴즈</span>
+		<span class="text-[12px] text-[var(--color-text-tertiary)]">범위를 골라 한 바퀴</span>
+	</a>
+
 	<section class="flex items-center justify-between gap-3 px-1">
 		<div
 			class="inline-flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]"
