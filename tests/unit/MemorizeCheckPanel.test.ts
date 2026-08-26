@@ -44,6 +44,25 @@ describe('MemorizeCheckPanel', () => {
 		expect(screen.queryByRole('button', { name: '저장' })).toBeNull();
 	});
 
+	// The panel already works out which words went wrong in order to paint
+	// them; this is that same answer, kept instead of discarded.
+	it('reports the missed word positions', async () => {
+		const { onGraded } = setup();
+		await type(VERSE.replace('법도를', '법을'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
+		expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ missed: [2] }));
+	});
+
+	// A flawless attempt skips the dialog, and its empty list is evidence: it
+	// is what pushes an older miss out of the suggestion window.
+	it('reports an empty list for a flawless attempt', async () => {
+		const { onGraded } = setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ missed: [] }));
+	});
+
 	// The original bug: a perfect attempt saved silently and left the panel
 	// exactly as it was, so the reader who recited it best got no reply at all.
 	// Asserting the callback fired is not enough — nothing proved the screen
