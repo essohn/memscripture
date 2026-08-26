@@ -37,7 +37,7 @@ describe('fillMissingBodies', () => {
 		const out = await fillMissingBodies([draft('요 3:16', '이미 있는 본문')], (p) => seen.push(p));
 		expect(spy).not.toHaveBeenCalled();
 		expect(seen).toEqual([]);
-		expect(out).toEqual({ filled: 0, failed: 0, abortedEarly: false });
+		expect(out).toEqual({ filled: 0, failed: 0, abortedEarly: false, aborted: false });
 	});
 
 	it('fetches one chapter however many rows point into it', async () => {
@@ -132,5 +132,65 @@ describe('fillMissingBodies', () => {
 		const drafts = [draft('요 1:1'), draft('요 2:1'), draft('요 3:1')];
 		await fillMissingBodies(drafts, () => {}, { concurrency: 1, signal: controller.signal });
 		expect(spy).toHaveBeenCalledTimes(1);
+	});
+
+	it('says so in the summary when the caller aborted it', async () => {
+		const controller = new AbortController();
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => {
+				controller.abort();
+				const verses = [{ verse: 1, text: '절 1' }];
+				return { ok: true, json: async () => verses } as unknown as Response;
+			})
+		);
+		const drafts = [draft('요 1:1'), draft('요 2:1'), draft('요 3:1')];
+		const out = await fillMissingBodies(drafts, () => {}, {
+			concurrency: 1,
+			signal: controller.signal
+		});
+		expect(out.aborted).toBe(true);
+		expect(out.abortedEarly).toBe(false);
+	});
+
+	it('stops calling back once the caller has aborted', async () => {
+		const controller = new AbortController();
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => {
+				controller.abort();
+				const verses = [{ verse: 1, text: '절 1' }];
+				return { ok: true, json: async () => verses } as unknown as Response;
+			})
+		);
+		const seen: FillProgress[] = [];
+		const drafts = [draft('요 1:1'), draft('요 2:1')];
+		await fillMissingBodies(drafts, (p) => seen.push(p), {
+			concurrency: 1,
+			signal: controller.signal
+		});
+		// The first group emitted 'loading' before the fetch that aborts; nothing
+		// may follow it, because by then the caller had stopped listening.
+		expect(seen.every((p) => p.status === 'loading')).toBe(true);
+	});
+
+	it('trips the breaker at the default concurrency too, not only at one', async () => {
+		vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 500 }) as unknown as Response));
+		const drafts = [
+			draft('요 1:1'),
+			draft('요 2:1'),
+			draft('요 3:1'),
+			draft('요 4:1'),
+			draft('요 5:1'),
+			draft('요 6:1'),
+			draft('요 7:1'),
+			draft('요 8:1')
+		];
+		const seen: FillProgress[] = [];
+		const out = await fillMissingBodies(drafts, (p) => seen.push(p));
+		expect(out.abortedEarly).toBe(true);
+		expect(out.failed).toBe(drafts.length);
+		const terminal = seen.filter((p) => p.status !== 'loading').map((p) => p.index);
+		expect([...terminal].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
 	});
 });

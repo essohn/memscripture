@@ -37,6 +37,10 @@ export interface FillSummary {
 	failed: number;
 	/** True when the consecutive-failure breaker tripped. */
 	abortedEarly: boolean;
+	/** True when the caller's signal aborted the run. Rows may then be
+	 *  unresolved and `filled + failed` may fall short of the rows that
+	 *  needed a body — this is the field that says so out loud. */
+	aborted: boolean;
 }
 
 /**
@@ -82,6 +86,11 @@ export async function fillMissingBodies(
 	const resolved = new Set<number>();
 
 	function emit(index: number, status: RowStatus, w?: string): void {
+		// Once the caller has aborted it has stopped listening — a page that
+		// asked to be left alone should not be written to by a group that was
+		// already in flight. Silence is the honest answer to an abort; the
+		// summary below is where the caller learns what was left undone.
+		if (signal?.aborted) return;
 		if (status !== 'loading') resolved.add(index);
 		onProgress(w === undefined ? { index, status } : { index, status, w });
 	}
@@ -183,5 +192,5 @@ export async function fillMissingBodies(
 		}
 	}
 
-	return { filled, failed, abortedEarly };
+	return { filled, failed, abortedEarly, aborted: signal?.aborted ?? false };
 }
