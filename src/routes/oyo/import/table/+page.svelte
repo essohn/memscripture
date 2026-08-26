@@ -44,6 +44,7 @@
 	let fillDone = $state(0);
 	let networkDown = $state(false);
 	let saving = $state(false);
+	let confirming = $state(false);
 	// Kept out of the Screen union: a failed save must not cost the reader the
 	// bodies the fill just fetched, so it stays on `review` and says so here.
 	let saveError = $state<string | null>(null);
@@ -132,19 +133,28 @@
 	}
 
 	async function confirm() {
-		if (drafts.length === 0) return;
-		const existing = await listOyoVerses().catch(() => []);
-		duplicates = duplicateIndexes(
-			drafts,
-			existing.map((v) => v.cite)
-		);
-		// Everything the reader does not already have starts checked: they
-		// built this table on purpose, so the screen should not make them
-		// choose again — only reconsider the ones already on file.
-		chosen = new Set(drafts.map((_, i) => i).filter((i) => !duplicates.has(i)));
-		statuses = drafts.map((d) => (d.w.length > 0 ? 'ready' : 'loading'));
-		screen = { kind: 'review' };
-		await runFill();
+		if (confirming || drafts.length === 0) return;
+		confirming = true;
+		try {
+			const existing = await listOyoVerses().catch(() => []);
+			// The reader may have tapped 뒤로 while the existing verses were being
+			// read. Landing them on review now would drag them off the screen they
+			// just chose.
+			if (screen.kind !== 'confirm') return;
+			duplicates = duplicateIndexes(
+				drafts,
+				existing.map((v) => v.cite)
+			);
+			// Everything the reader does not already have starts checked: they
+			// built this table on purpose, so the screen should not make them
+			// choose again — only reconsider the ones already on file.
+			chosen = new Set(drafts.map((_, i) => i).filter((i) => !duplicates.has(i)));
+			statuses = drafts.map((d) => (d.w.length > 0 ? 'ready' : 'loading'));
+			screen = { kind: 'review' };
+			await runFill();
+		} finally {
+			confirming = false;
+		}
 	}
 
 	async function runFill() {
