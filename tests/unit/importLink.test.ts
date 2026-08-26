@@ -1,12 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
 	buildImportLink,
-	duplicateIndexes,
 	MAX_IMPORT_VERSES,
-	normalizeCite,
 	parseImportFragment,
-	readFragmentParam,
-	type ImportVerse
+	readFragmentParam
 } from '../../src/lib/oyo/importLink';
 
 /** Exactly the one liner the sending app is documented to use — btoa over a

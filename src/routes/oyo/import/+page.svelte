@@ -4,11 +4,8 @@
 	import Header from '$lib/components/nav/Header.svelte';
 	import VerseReviewList from '$lib/components/oyo/VerseReviewList.svelte';
 	import { BookPlus, Check } from 'lucide-svelte';
-	import {
-		duplicateIndexes,
-		parseImportFragment,
-		type ImportVerse
-	} from '$lib/oyo/importLink';
+	import { parseImportFragment, type ImportVerse } from '$lib/oyo/importLink';
+	import { duplicateIndexes } from '$lib/oyo/cite';
 	import { createOyoVerse, listOyoVerses, seedOyoPackageIfMissing } from '$lib/db/oyo';
 
 	type Screen =

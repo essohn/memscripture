@@ -1,5 +1,5 @@
 import { cleanText } from '$lib/utils/cleanText';
-import { duplicateIndexes, MAX_IMPORT_VERSES, normalizeCite } from './cite';
+import { MAX_IMPORT_VERSES, normalizeCite } from './cite';
 
 /**
  * The hand-off contract for verses arriving from another app — today the
@@ -166,4 +166,4 @@ export function buildImportLink(origin: string, payload: ImportPayload): string 
 
 // Re-exported because the deeplink protocol is still where readers of this
 // file expect to find the import's size bound.
-export { MAX_IMPORT_VERSES, normalizeCite, duplicateIndexes };
+export { MAX_IMPORT_VERSES };
