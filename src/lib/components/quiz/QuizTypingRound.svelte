@@ -42,8 +42,16 @@
 		submit();
 	}
 
+	/** A round reports itself once. The verdict screen stays up until the
+	 *  parent swaps this component out, so 다음 is tappable more than once —
+	 *  and the route advances its index off this call, so a second report
+	 *  would skip the next verse entirely. */
+	let reported = $state(false);
+
 	function next() {
-		if (verdict) onDone(verdict);
+		if (!verdict || reported) return;
+		reported = true;
+		onDone(verdict);
 	}
 </script>
 

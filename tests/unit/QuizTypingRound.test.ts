@@ -94,4 +94,16 @@ describe('QuizTypingRound', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
 		expect(onDone).toHaveBeenCalledTimes(1);
 	});
+
+	// The route advances its index off onDone, so a second report would skip
+	// the next verse outright — and nothing downstream would notice.
+	it('reports once even if 다음 is tapped twice', async () => {
+		const { onDone } = setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		const next = screen.getByRole('button', { name: '다음' });
+		await fireEvent.click(next);
+		await fireEvent.click(next);
+		expect(onDone).toHaveBeenCalledTimes(1);
+	});
 });
