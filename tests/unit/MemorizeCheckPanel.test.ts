@@ -180,6 +180,43 @@ describe('MemorizeCheckPanel', () => {
 		expect(wrong[0].textContent).toBe('가르쳐서');
 	});
 
+	// The verse leads now: it is the thing being learned, and burying it under
+	// the reader's own wording invited them to read the mistake as the text.
+	it('shows the verse above the attempt', async () => {
+		setup();
+		await type(VERSE.replace('가르쳐서', '가르치고'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		const original = screen.getByTestId('mismatched-words');
+		const attempt = screen.getByTestId('attempt-words');
+		expect(original.compareDocumentPosition(attempt)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+	});
+
+	// Size and weight alone still read as one continuous block of text; the
+	// verse needs a surface of its own so it cannot be mistaken for the
+	// reader's words sitting right below it.
+	it('sets the verse on its own surface', async () => {
+		setup();
+		await type(VERSE.replace('가르쳐서', '가르치고'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(screen.getByTestId('original-block')).toHaveClass('bg-[var(--color-card)]');
+	});
+
+	it('renders the verse in the large bold size', async () => {
+		setup();
+		await type(VERSE.replace('가르쳐서', '가르치고'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		const original = screen.getByTestId('mismatched-words');
+		expect(original).toHaveClass('font-bold');
+		expect(original).toHaveClass('text-[calc(19px*var(--vfs))]');
+	});
+
+	it('renders the attempt in italic', async () => {
+		setup();
+		await type(VERSE.replace('가르쳐서', '가르치고'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(screen.getByTestId('attempt-words')).toHaveClass('italic');
+	});
+
 	it('keeps the attempt readable when whole words were invented', async () => {
 		setup();
 		await type('완전히 다른 문장을 적었습니다');

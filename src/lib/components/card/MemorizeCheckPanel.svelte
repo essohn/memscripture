@@ -716,16 +716,43 @@
 				: '틀린 곳이 있었습니다. 직접 느낀 난이도를 저장해주세요.'}
 		</p>
 
-		<!-- The attempt first: "how did I go wrong" is answered by the reader's
-		     own words, and the verse below is what to compare them against.
-		     Showing only the verse told them what it says and nothing about
-		     what they wrote. Skipped when 포기 came before a single word — an
-		     empty block would only claim they wrote nothing worth showing. -->
+		<!-- The verse leads. It is what the reader came to learn, and the attempt
+		     below is what to hold against it — showing their own wording first
+		     put it where the eye reads the text itself. Size and weight alone
+		     still ran the two together, so the verse also gets a surface of its
+		     own: raised off the panel, it cannot be misread as what they wrote. -->
+		<p class="mt-3 text-[10.5px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
+			원문
+		</p>
+		<div
+			data-testid="original-block"
+			class="mt-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2.5"
+		>
+			<p
+				data-testid="mismatched-words"
+				class="text-[calc(19px*var(--vfs))] font-bold leading-[1.7] break-keep"
+			>
+				{#each mismatches as m, i (i)}<span
+						data-ok={m.ok}
+						class={m.ok
+							? 'text-[var(--color-text)]'
+							: 'rounded bg-[var(--color-ribbon-green)]/25 px-0.5 text-[var(--color-text)]'}
+						>{m.word}</span
+					>{' '}{/each}
+			</p>
+		</div>
+
+		<!-- Skipped when 포기 came before a single word — an empty block would
+		     only claim they wrote nothing worth showing. Italic and left on the
+		     bare panel: the reader's own hand, not the text. -->
 		{#if typed.trim().length > 0}
 			<p class="mt-3 text-[10.5px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
 				입력한 내용
 			</p>
-			<p data-testid="attempt-words" class="mt-1 text-[calc(14px*var(--vfs))] leading-[1.7]">
+			<p
+				data-testid="attempt-words"
+				class="mt-1 text-[calc(14px*var(--vfs))] leading-[1.7] italic"
+			>
 				{#each attemptMarks as m, i (i)}<span
 						data-ok={m.ok}
 						class={m.ok
@@ -735,19 +762,6 @@
 					>{' '}{/each}
 			</p>
 		{/if}
-
-		<p class="mt-3 text-[10.5px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
-			원문
-		</p>
-		<p data-testid="mismatched-words" class="mt-1 text-[calc(14px*var(--vfs))] leading-[1.7]">
-			{#each mismatches as m, i (i)}<span
-					data-ok={m.ok}
-					class={m.ok
-						? 'text-[var(--color-text)]'
-						: 'rounded bg-[var(--color-ribbon-green)]/25 px-0.5 font-medium text-[var(--color-text)]'}
-					>{m.word}</span
-				>{' '}{/each}
-		</p>
 		<div class="mt-3 flex items-center gap-3">
 			<DifficultyBadge
 				value={proposed?.start ?? null}
