@@ -14,6 +14,8 @@
 	} from '$lib/db/verseRatings';
 		import { BOOKMARK_COLORS, type BookmarkColor } from '$lib/types';
 	import type { BookmarksLoadData, BookmarkedRow } from './+page';
+	import PlaylistBar from '$lib/components/player/PlaylistBar.svelte';
+	import { PlaylistPlayer } from '$lib/state/playlistPlayer.svelte';
 
 	let { data }: { data: BookmarksLoadData } = $props();
 
@@ -28,6 +30,20 @@
 	let toast = $state<{ message: string; actionLabel?: string; onAction?: () => void } | null>(
 		null
 	);
+
+	const player = new PlaylistPlayer();
+	$effect(() => {
+		void player.load();
+		return () => player.destroy();
+	});
+
+	// What is heard has to match what is on screen. Switching ribbons is a
+	// change of subject, so the reading stops rather than carrying on over a
+	// list the reader is no longer looking at.
+	$effect(() => {
+		const open = player.openId;
+		if (open && open !== `bookmark:${selected}`) player.close();
+	});
 
 	function ratingKey(packageId: string, verseNo: number): string {
 		return `${packageId}:${verseNo}`;
@@ -194,6 +210,28 @@
 				총 <span class="font-semibold text-[var(--color-text)]">{visibleRows.length}개</span>
 			</p>
 			<div class="flex items-center gap-3">
+				{#if player.supported}
+					{@const open = player.openId === `bookmark:${selected}`}
+					<button
+						type="button"
+						onclick={() =>
+							open
+								? player.close()
+								: player.start(
+										`bookmark:${selected}`,
+										visibleRows.map((r) => ({
+											title: r.verse.title,
+											cite: r.verse.cite,
+											w: r.verse.w
+										}))
+									)}
+						class="text-[12px] font-medium underline-offset-4 hover:underline {open
+							? 'text-[var(--color-accent)]'
+							: 'text-[var(--color-text-secondary)]'}"
+					>
+						{open ? '듣기 정지' : '전체 듣기'}
+					</button>
+				{/if}
 				<button
 					type="button"
 					onclick={clearAllSelected}
@@ -228,6 +266,23 @@
 				/>
 			{/each}
 		</div>
+	{/if}
+
+	{#if player.openId}
+		<PlaylistBar
+			playing={player.playing}
+			label={player.nowPlaying?.cite ?? ''}
+			index={player.index}
+			count={player.count}
+			fraction={player.progress.fraction}
+			elapsedMs={player.progress.elapsedMs}
+			totalMs={player.progress.totalMs}
+			repeat={player.listRepeat}
+			onToggle={() => player.toggle()}
+			onSeek={(f) => player.seek(f)}
+			onToggleRepeat={() => player.toggleRepeat()}
+			onClose={() => player.close()}
+		/>
 	{/if}
 </main>
 
