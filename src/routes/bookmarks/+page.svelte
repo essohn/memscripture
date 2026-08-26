@@ -135,6 +135,11 @@
 		const removed = rows.filter((r) => r.bookmark.color === color);
 		if (removed.length === 0) return;
 
+		// The list this bar is reading is about to stop existing, and the empty
+		// state that replaces it carries no 전체 듣기 button — so the voice would
+		// outlive both the verses and the control for stopping it.
+		if (player.openId === `bookmark:${color}`) player.close();
+
 		// Optimistic: remove from UI + DB immediately, then offer undo via toast.
 		// Closing the tab before tapping 실행 취소 finalizes the delete (DB already
 		// matches the UI), which is the right tradeoff for a single-device PWA.
