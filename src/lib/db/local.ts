@@ -2,7 +2,11 @@ import Dexie, { type Table } from 'dexie';
 import type { Bookmark, PackageMeta, Verse, VerseProgress, DailyActivity } from '$lib/types';
 
 export type StoredVerse = Verse & { package_id: string; no: number };
-export type StoredPackage = PackageMeta;
+/** A package row, plus the content version actually written to `verses`.
+ *  Distinct from PackageMeta.version, which is what the catalog currently
+ *  offers — the gap between the two is what triggers a re-download.
+ *  Absent on every row written before versioning existed. */
+export type StoredPackage = PackageMeta & { installedVersion?: number };
 export type StoredSetting = { key: string; value: unknown };
 
 /** Tracks the verses the user has recently opened so the dashboard can
