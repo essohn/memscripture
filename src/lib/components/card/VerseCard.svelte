@@ -302,6 +302,11 @@
 	const suggested = $derived(
 		marking ? suggestedMarks(checkHistory, totalWords) : new Set<number>()
 	);
+	/** A proposal still waiting to be taken. The hint line speaks off this
+	 *  rather than off `suggested` itself: once the reader has underlined every
+	 *  word that was dotted, nothing on screen is dotted any more, and a line
+	 *  still telling them to press the dots describes a screen that is gone. */
+	const hasOpenSuggestion = $derived([...suggested].some((i) => !marked.has(i)));
 	/** Set by a perfect check in this session, so the badge appears with the
 	 *  confetti rather than only after the page is next loaded. */
 	/**
@@ -832,7 +837,7 @@
 			><span class="word-text">{word}</span></span>{' '}{/each}</p>
 		<div class="mt-3 flex items-center justify-between gap-3 text-[11px]">
 			<span class="text-[var(--color-text-tertiary)]">
-				{#if marking && suggested.size > 0}자주 틀린 곳을 점선으로 표시했습니다 · 눌러서 밑줄{:else if marking}자주 틀리는 단어를 눌러 밑줄{:else if allRevealed}모두 열렸습니다{:else}← 좌→우로 드래그해서 단어 열기{/if}
+				{#if marking && hasOpenSuggestion}자주 틀린 곳을 점선으로 표시했습니다 · 눌러서 밑줄{:else if marking}자주 틀리는 단어를 눌러 밑줄{:else if allRevealed}모두 열렸습니다{:else}← 좌→우로 드래그해서 단어 열기{/if}
 			</span>
 			<div class="flex items-center gap-3">
 				{#if markingEnabled}

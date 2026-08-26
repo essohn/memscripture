@@ -25,18 +25,19 @@ beforeEach(async () => {
 });
 
 function setup(over: Record<string, unknown> = {}) {
-	const { container } = render(VerseCard, {
+	const props = {
 		verse,
 		packageName: '900구절',
 		packageId: '900_krv',
 		tags: [],
-		marks: [],
+		marks: [] as { i: number; w: string }[],
 		onToggleMark: vi.fn(),
 		onPickStartDifficulty: vi.fn(),
 		onPickFullDifficulty: vi.fn(),
 		...over
-	});
-	return { container };
+	};
+	const { container, rerender } = render(VerseCard, props);
+	return { container, rerender, props };
 }
 
 /** The curtain's words. Read mode renders bare spans with no `.word` class,
@@ -99,6 +100,25 @@ describe('밑줄: suggestions read off the check history', () => {
 	it('keeps the original hint line when it has nothing to propose', async () => {
 		setup();
 		await openMarking();
+		expect(screen.getByText('자주 틀리는 단어를 눌러 밑줄')).toBeInTheDocument();
+	});
+
+	// Taking the last proposal leaves nothing dotted, so the line pointing at
+	// dots has to stop pointing. The package list rewrites `marks` after a tap,
+	// which is what the rerender stands in for. The waitFor before it is what
+	// proves the history had loaded — without it the assertions below would
+	// hold on an empty suggestion set and prove nothing.
+	it('drops the suggestion hint once every proposal has been taken', async () => {
+		await recordCheck('900_krv', 127, check([2]), 1000);
+		await recordCheck('900_krv', 127, check([2]), 2000);
+		const { container, rerender, props } = setup();
+		await openMarking();
+		await waitFor(() => expect(wordAt(container, 2)).toHaveClass('suggested'));
+
+		await fireEvent.click(wordAt(container, 2));
+		await rerender({ ...props, marks: [{ i: 2, w: '법도를' }] });
+
+		expect(container.querySelector('.suggested')).toBeNull();
 		expect(screen.getByText('자주 틀리는 단어를 눌러 밑줄')).toBeInTheDocument();
 	});
 });
