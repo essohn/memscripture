@@ -444,3 +444,54 @@ describe('global queue ownership', () => {
 		holder.third?.stop();
 	});
 });
+
+// ─── Keepalive ──────────────────────────────────────────────────────────────
+
+// Real utterances never end naturally under the fakes above (no timers drive
+// them), so this is the one place that can honestly exercise the nudge: fake
+// timers stand in for the 10-second cadence, and the assertion is on
+// synth.resume() being called, not on an utterance's onend firing.
+describe('createPlayer keepalive', () => {
+	beforeEach(() => {
+		installFakeSynth();
+		vi.useFakeTimers();
+	});
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+	});
+
+	it('resumes the synth every 10 seconds so Chrome does not drop a long utterance', () => {
+		const synth = window.speechSynthesis as unknown as {
+			speaking: boolean;
+			paused: boolean;
+			resume: () => void;
+		};
+		synth.resume = vi.fn();
+		const player = createPlayer(['가나다라마바사'], {});
+		expect(player).not.toBeNull();
+		// speak() on the fake sets `speaking = true` synchronously, matching a
+		// real synth mid-utterance.
+		expect(synth.speaking).toBe(true);
+
+		vi.advanceTimersByTime(10_000);
+		expect(synth.resume).toHaveBeenCalledTimes(1);
+
+		vi.advanceTimersByTime(10_000);
+		expect(synth.resume).toHaveBeenCalledTimes(2);
+
+		player?.stop();
+	});
+
+	it('stops nudging once stopped, so it never reaches a synth a successor now owns', () => {
+		const synth = window.speechSynthesis as unknown as {
+			resume: () => void;
+		};
+		synth.resume = vi.fn();
+		const player = createPlayer(['가나다라마바사'], {});
+		player?.stop();
+
+		vi.advanceTimersByTime(30_000);
+		expect(synth.resume).not.toHaveBeenCalled();
+	});
+});

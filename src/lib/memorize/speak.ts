@@ -430,6 +430,7 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 	let stopped = false;
 	let paused = false;
 	let ticker: ReturnType<typeof setInterval> | null = null;
+	let keepalive: ReturnType<typeof setInterval> | null = null;
 	let current: SpeechSynthesisUtterance | null = null;
 
 	function elapsed(): number {
@@ -508,6 +509,7 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		if (stopped) return;
 		stopped = true;
 		if (ticker !== null) clearInterval(ticker);
+		if (keepalive !== null) clearInterval(keepalive);
 		releaseSynth(stop);
 		opts.onProgress?.({ fraction: 1, elapsedMs: totalMs, totalMs });
 		opts.onEnd?.();
@@ -519,6 +521,7 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		if (stopped) return;
 		stopped = true;
 		if (ticker !== null) clearInterval(ticker);
+		if (keepalive !== null) clearInterval(keepalive);
 		releaseSynth(stop);
 		detachCurrent();
 		synth.cancel();
@@ -529,6 +532,27 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 	ticker = setInterval(() => {
 		if (!stopped && !paused) report();
 	}, 200);
+
+	// Same platform fact speak()'s keepalive above is for — Chrome drops
+	// synthesis after roughly 15 seconds unless resume() is called — but the
+	// odds of hitting it are two orders of magnitude higher here. speak() only
+	// ever reads one verse; this engine now also carries 전체 듣기's whole
+	// script as a single utterance (playFrom joins the entire remainder), and
+	// the shipped fixture alone runs to 149 verses, ~15,000 characters, tens of
+	// minutes of audio — all of it past the 15-second cliff. Worse, because
+	// speakListRepeat defaults on, the death does not go quiet: playFrom's
+	// onend reads it as "the script finished" and restarts from offset 0, so
+	// what a reader hears is the first verse looping forever while the bar's
+	// clock keeps climbing toward a runtime it will never reach. resume() on a
+	// synth that is not paused is a no-op, so this is inert if the platform
+	// ever stops needing it. A second interval rather than folding into the
+	// 200ms ticker above: the nudge cadence is a platform constant, not a UI
+	// refresh rate, and tying the two together would make a future change to
+	// report()'s frequency silently change this too.
+	keepalive = setInterval(() => {
+		if (stopped || paused) return;
+		if (synth.speaking && !synth.paused) synth.resume();
+	}, KEEPALIVE_MS);
 
 	claimSynth(stop);
 	startedAt = Date.now();
