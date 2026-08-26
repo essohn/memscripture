@@ -53,6 +53,11 @@ export interface CheckRecord {
 	/** 힌트 presses spent during the check. Optional: rows written before hints
 	 *  existed have none, and absent is not the same as zero. */
 	hints?: number;
+	/** Word positions the attempt got wrong, as markMismatchedWords saw them.
+	 *  Optional for the same reason `hints` is: records written before this
+	 *  existed have none, and absent is not the same as an empty array — one
+	 *  means nothing was measured, the other means nothing was missed. */
+	missed?: number[];
 }
 
 /** Words the reader underlined on one verse — the places they keep tripping
