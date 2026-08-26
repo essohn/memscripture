@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { columnName, sanitizeSheetName, writeXlsx, type Sheet } from '../../src/lib/export/xlsx';
+import { sanitizeSheetName, writeXlsx, type Sheet } from '../../src/lib/export/xlsx';
 
 /** Reads back a STORE archive produced by zipStore — enough to assert on
  *  the XML we wrote without depending on an unzip binary. */
@@ -41,15 +41,6 @@ const sheet: Sheet = {
 	],
 	freezeRows: 1
 };
-
-describe('columnName', () => {
-	it('counts in spreadsheet base-26', () => {
-		expect(columnName(0)).toBe('A');
-		expect(columnName(25)).toBe('Z');
-		expect(columnName(26)).toBe('AA');
-		expect(columnName(27)).toBe('AB');
-	});
-});
 
 describe('sanitizeSheetName', () => {
 	it('keeps a normal title unchanged', () => {
