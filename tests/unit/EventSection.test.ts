@@ -90,6 +90,18 @@ const withVerses: EventCardVM = {
 	]
 };
 
+// A second, distinctly-titled event with its own verses — for proving the
+// section raises exactly one bar, not one per event.
+const withVersesB: EventCardVM = {
+	...card,
+	eventId: 'e2',
+	eventTitle: '12월 암송 데이',
+	verses: [
+		{ title: '소망', cite: '로마서 8 : 28', w: '우리가 알거니와 하나님을 사랑하는 자 곧' },
+		{ title: '믿음', cite: '히브리서 11 : 1', w: '믿음은 바라는 것들의 실상이요' }
+	]
+};
+
 describe('EventSection — 전체 듣기', () => {
 	beforeEach(() => {
 		spoken.length = 0;
@@ -122,6 +134,13 @@ describe('EventSection — 전체 듣기', () => {
 		expect(spoken).toHaveLength(1);
 		expect(screen.getByRole('button', { name: '재생 닫기' })).toBeInTheDocument();
 		expect(screen.getByText('창세기 28 : 14')).toBeInTheDocument();
+		// `index` arrives 1-based, not 0-based, for the two-verse fixture.
+		expect(screen.getByText('1/2')).toBeInTheDocument();
+		// listRepeat defaults on — proves `repeat` is wired to player.listRepeat.
+		expect(screen.getByRole('button', { name: '목록 반복' })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
 	});
 
 	it('the header button becomes a stop while its own list is open', async () => {
@@ -137,5 +156,25 @@ describe('EventSection — 전체 듣기', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '11월 암송 데이 전체 듣기' }));
 		await fireEvent.click(screen.getByRole('button', { name: '11월 암송 데이 듣기 정지' }));
 		expect(screen.queryByRole('button', { name: '재생 닫기' })).toBeNull();
+	});
+
+	it('starting a second event hands the one bar off — not one per event', async () => {
+		render(EventSection, { props: { events: [withVerses, withVersesB] } });
+		await fireEvent.click(screen.getByRole('button', { name: '11월 암송 데이 전체 듣기' }));
+		expect(screen.getByText('창세기 28 : 14')).toBeInTheDocument();
+
+		await fireEvent.click(screen.getByRole('button', { name: '12월 암송 데이 전체 듣기' }));
+
+		// The plural query is the point: there must be exactly one bar, hence
+		// exactly one close button, even with a second event now playing.
+		expect(screen.getAllByRole('button', { name: '재생 닫기' })).toHaveLength(1);
+		expect(
+			screen.getByRole('button', { name: '11월 암송 데이 전체 듣기' })
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: '12월 암송 데이 듣기 정지' })
+		).toBeInTheDocument();
+		expect(screen.getByText('로마서 8 : 28')).toBeInTheDocument();
+		expect(screen.queryByText('창세기 28 : 14')).toBeNull();
 	});
 });
