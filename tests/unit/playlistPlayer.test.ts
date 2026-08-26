@@ -102,12 +102,37 @@ describe('PlaylistPlayer', () => {
 		expect(player.playing).toBe(true);
 	});
 
+	it('scrubs the running handle while playing', () => {
+		player.start('event:e1', VERSES);
+		player.seek(0.5);
+		expect(player.progress.fraction).toBeCloseTo(0.5, 1);
+	});
+
+	// The ownership registry hands the queue to a verse card's own play button,
+	// leaving the bar open but relieved — #handle null, #list still set. A
+	// scrub there must not be a dead control: it is a request to hear that
+	// part, so it starts playing again rather than moving a thumb that
+	// nothing is following.
+	it('restarts playback from the scrubbed position when relieved', () => {
+		player.start('event:e1', VERSES);
+		const other = createPlayer(['다른 문장을 읽습니다'], {});
+		other?.stop();
+		expect(player.playing).toBe(false);
+		const before = spoken.length;
+		player.seek(0.5);
+		expect(player.playing).toBe(true);
+		expect(spoken.length).toBeGreaterThan(before);
+	});
+
 	it('close stops playback and dismisses the bar', () => {
 		player.start('event:e1', VERSES);
 		player.close();
 		expect(player.openId).toBeNull();
 		expect(player.playing).toBe(false);
 		expect(player.progress.fraction).toBe(0);
+		// Synthesis is global and outlives the component. close() must actually
+		// silence it, not just clear the bar's own state around it.
+		expect(window.speechSynthesis.speaking).toBe(false);
 	});
 
 	// The reader's stored preference is what the list loops by, and it is on
@@ -148,12 +173,18 @@ describe('PlaylistPlayer', () => {
 
 	it('resumes from where it was after losing the queue', () => {
 		player.start('event:e1', VERSES);
+		const fullText = spoken[0].text;
+		// Drives progress to roughly the midpoint before the queue is lost, so
+		// the restart below has somewhere other than 0 to prove it returned to.
+		player.seek(0.5);
 		const other = createPlayer(['다른 문장을 읽습니다'], {});
 		other?.stop();
-		const before = spoken.length;
 		player.toggle();
 		expect(player.playing).toBe(true);
-		expect(spoken.length).toBe(before + 1);
+		// A restart from the top would re-speak the whole script; resuming from
+		// where it was speaks only the tail from the scrubbed position.
+		const resumed = spoken[spoken.length - 1];
+		expect(resumed.text.length).toBeLessThan(fullText.length);
 	});
 
 	// start() kicks off an unawaited options read on its way out. A toggle made

@@ -11,20 +11,22 @@ import {
 	type PlayerHandle,
 	type PlayerProgress
 } from '$lib/memorize/speak';
-import { getSpeakOptions, setSpeakOption, type SpeakOptionsStored } from '$lib/db/viewOptions';
+import {
+	getSpeakOptions,
+	setSpeakOption,
+	SPEAK_DEFAULTS,
+	type SpeakOptionsStored
+} from '$lib/db/viewOptions';
 
-const IDLE: PlayerProgress = { fraction: 0, elapsedMs: 0, totalMs: 0 };
+// Frozen: $state skips proxying a frozen object rather than wrapping it, and
+// freezing turns an accidental `player.progress.fraction = x` from silent
+// corruption of every future instance's idle state into a thrown error.
+const IDLE: PlayerProgress = Object.freeze({ fraction: 0, elapsedMs: 0, totalMs: 0 });
 
-/** Mirrors SPEAK_DEFAULTS. Held here so start() has something to speak with
- *  before load() resolves — see the note on start(). */
-const OPTION_DEFAULTS: SpeakOptionsStored = {
-	speakTitle: false,
-	speakRate: 0.9,
-	speakRepeat: false,
-	speakVoice: '',
-	speakGender: 'auto',
-	speakListRepeat: true
-};
+/** A synchronous copy of SPEAK_DEFAULTS — spread rather than hand-copied so
+ *  the two cannot drift apart. Held here so start() has something to speak
+ *  with before load() resolves — see the note on start(). */
+const OPTION_DEFAULTS: SpeakOptionsStored = { ...SPEAK_DEFAULTS };
 
 /**
  * One reading of one list.
@@ -150,7 +152,14 @@ export class PlaylistPlayer {
 	}
 
 	seek(fraction: number): void {
-		this.#handle?.seek(fraction);
+		if (this.#handle) {
+			this.#handle.seek(fraction);
+			return;
+		}
+		// Relieved or finished, but the bar is still open. A scrub is a request
+		// to hear that part, so it starts playing again from there rather than
+		// moving a thumb that nothing is following.
+		if (this.#list) this.#play(this.#list, fraction);
 	}
 
 	/**

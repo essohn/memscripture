@@ -91,7 +91,7 @@ export interface SpeakOptionsStored {
 	speakGender: 'male' | 'female' | 'auto';
 }
 
-const SPEAK_DEFAULTS: SpeakOptionsStored = {
+export const SPEAK_DEFAULTS: SpeakOptionsStored = {
 	speakTitle: false,
 	speakRate: 0.9,
 	speakRepeat: false,
