@@ -1218,7 +1218,7 @@ button."
 - Consumes: `buildPlaylist`, `trackAt`, `PlaylistVerse`, `Playlist`, `PlaylistTrack` (Task 1); `createPlayer`, `isTtsSupported`, `PlayerHandle`, `PlayerProgress` from `speak.ts`; `getSpeakOptions`, `setSpeakOption`, `SpeakOptionsStored` (Task 3).
 - Produces: `export class PlaylistPlayer` with
   `supported: boolean`, getters `playing`, `progress`, `listRepeat`, `openId`, `nowPlaying`, `index`, `count`,
-  and methods `load(): Promise<void>`, `start(id: string, verses: PlaylistVerse[]): void`, `toggle(): void`, `seek(f: number): void`, `toggleRepeat(): void`, `close(): void`, `destroy(): void`.
+  and methods `load(): Promise<void>`, `start(id: string, verses: PlaylistVerse[]): void`, `toggle(): void`, `seek(f: number): void`, `toggleRepeat(): Promise<void>`, `close(): void`, `destroy(): void`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1349,7 +1349,11 @@ describe('PlaylistPlayer', () => {
 		await player.load();
 		player.start('event:e1', VERSES);
 		expect(player.listRepeat).toBe(true);
-		player.toggleRepeat();
+		// Awaited because getSpeakOptions() does not await the write queue: the
+		// `fresh.load()` below would otherwise read the old value out from under
+		// a write still in flight. toggleRepeat returns the write for exactly
+		// this, the way fontScale.pick() does.
+		await player.toggleRepeat();
 		expect(player.listRepeat).toBe(false);
 		expect(player.playing).toBe(true);
 		const fresh = new PlaylistPlayer();
@@ -1377,6 +1381,21 @@ describe('PlaylistPlayer', () => {
 		player.toggle();
 		expect(player.playing).toBe(true);
 		expect(spoken.length).toBe(before + 1);
+	});
+
+	// start() kicks off an unawaited options read on its way out. A toggle made
+	// before that read lands must not be reverted by it — otherwise a reader who
+	// taps 전체 듣기 and then the repeat button watches their choice flip back.
+	it('a toggle during an in-flight load wins over the load', async () => {
+		await player.load();
+		player.start('event:e1', VERSES);
+		// No await between start() and the toggle: start()'s load() is still in
+		// flight here, which is exactly the window under test.
+		const written = player.toggleRepeat();
+		expect(player.listRepeat).toBe(false);
+		await written;
+		await Promise.resolve();
+		expect(player.listRepeat).toBe(false);
 	});
 
 	it('starting a second list replaces the first', () => {
@@ -1485,11 +1504,28 @@ export class PlaylistPlayer {
 		return at ? at.index + 1 : 0;
 	}
 
+	/**
+	 * Bumped by toggleRepeat().
+	 *
+	 * load() is a single IndexedDB read that can still be in flight when the
+	 * reader changes a setting — start() kicks one off on its way out, and the
+	 * bar's repeat toggle is one tap away from the button that just called
+	 * start(). Without this, that read completing after the choice would
+	 * overwrite it with the stale stored value and the toggle would visibly
+	 * flip back. A reader's action must win over a load that was already
+	 * running when it landed. Same guard, same reason, as fontScale.
+	 */
+	#version = 0;
+
 	/** Reads stored options into memory. Called from the page's $effect, and
 	 *  again after each start() — never from inside one. */
 	async load(): Promise<void> {
+		const versionBeforeLoad = this.#version;
 		try {
-			this.#opts = await getSpeakOptions();
+			const stored = await getSpeakOptions();
+			// else: a toggle landed while this read was in flight. Its value is
+			// newer than what we just read — keep it.
+			if (this.#version === versionBeforeLoad) this.#opts = stored;
 		} catch {
 			// Leave the defaults. A failed preference read must not mute the app.
 		}
@@ -1536,17 +1572,30 @@ export class PlaylistPlayer {
 		this.#handle?.seek(fraction);
 	}
 
-	toggleRepeat(): void {
+	/**
+	 * Applies immediately, then persists.
+	 *
+	 * The returned promise is the write, not the change: the bar ignores it so
+	 * the tap never waits on storage, while a caller that needs to know the
+	 * choice landed can await it. Same contract as fontScale.pick(), and for
+	 * the same reason — getSpeakOptions() reads without awaiting the module's
+	 * write queue, so an unawaited write can lose a race to a read issued
+	 * right behind it.
+	 */
+	toggleRepeat(): Promise<void> {
+		this.#version++;
 		const next = !this.#opts.speakListRepeat;
 		this.#opts = { ...this.#opts, speakListRepeat: next };
-		setSpeakOption('speakListRepeat', next).catch(() => {});
+		const written = setSpeakOption('speakListRepeat', next).catch(() => {});
 		// The running utterance was created with the old setting, so restart to
 		// apply it rather than having the toggle take effect a lap later.
-		if (!this.#playing || !this.#list) return;
-		const at = this.#progress.fraction;
-		this.#handle?.stop();
-		this.#handle = null;
-		this.#play(this.#list, at);
+		if (this.#playing && this.#list) {
+			const at = this.#progress.fraction;
+			this.#handle?.stop();
+			this.#handle = null;
+			this.#play(this.#list, at);
+		}
+		return written;
 	}
 
 	close(): void {
