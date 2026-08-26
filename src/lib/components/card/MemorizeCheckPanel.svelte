@@ -12,6 +12,7 @@
 		normalizeForGrading,
 		type Hint
 	} from '$lib/memorize/grade';
+	import { submitsOnEnter } from '$lib/memorize/typing';
 	import { hasTypedOpening, startDifficultyFor } from '$lib/memorize/timing';
 	import { isSpeechSupported, joinSpoken, startSpeech, type SpeechSession } from '$lib/memorize/speech';
 	import { Mic, Square } from 'lucide-svelte';
@@ -314,13 +315,10 @@
 		return mismatches.flatMap((m, i) => (m.ok ? [] : [i]));
 	}
 
-	/**
-	 * Enter submits. Shift+Enter keeps the newline, and a composing Enter is
-	 * ignored: Korean input uses Enter to commit a syllable, so submitting on
-	 * that keystroke would fire while the reader was mid-word.
-	 */
+	/** Enter submits, unless it is committing a Korean syllable or carrying a
+	 *  Shift — see submitsOnEnter, which the quiz's round shares. */
 	function onKeydown(e: KeyboardEvent) {
-		if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+		if (!submitsOnEnter(e)) return;
 		e.preventDefault();
 		if (typed.trim().length > 0) submit();
 	}
