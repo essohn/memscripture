@@ -1660,7 +1660,11 @@ from tap to speak() has no await in it — iOS goes silent otherwise."
 
 ### Task 7: Carry each event's verse text
 
-The home screen's `EventCardVM` holds verse *numbers*. Resolving bodies at tap time would put an IndexedDB read between the gesture and `speak()`, which is silence on a phone. `loadPackageData` is memoized module-level (`packageDataCache` in `src/lib/db/verses.ts:307`), and `buildEventCards` already calls it, so resolving them during the build costs no extra I/O.
+The home screen's `EventCardVM` holds verse *numbers*. Resolving bodies at tap time would put an IndexedDB read between the gesture and `speak()`, which is silence on a phone. **`loadPackageData` must be called only for packages the reader has already installed.** It installs on a miss — a network fetch plus an IndexedDB write — and `events.ts` documents the invariant that would break: *"Honor the static/offline model: never auto-install a package on home render."*
+
+The tempting assumption is that this is free because `rangeLabel` and `resolveRangeVerseNos` already call `loadPackageData` and it is memoized. That is false for the shape production ships: both ranges in `static/data/events.json` carry **both** an explicit `label` and explicit `verseNos`, and both of those functions return early in that case. The new call would be the first one, on every home render, for a package the reader never opened.
+
+So the lookup is guarded by `isPackageInstalled` (already imported in this file), and the event's audio is **all-or-nothing**: if any included range cannot contribute its verses, `verses` is empty. Partial audio means the reader hears less than the card shows with nothing saying so; an absent button is honest, and it heals itself the moment they open the ranges.
 
 **Files:**
 - Modify: `src/lib/db/events.ts` (`EventCardVM`, `buildEventCards`)
@@ -1691,6 +1695,54 @@ Append to `tests/unit/events.test.ts`, inside the existing `describe('events dat
 			{ title: 't1', cite: 'c1', w: 'w1' },
 			{ title: 't2', cite: 'c2', w: 'w2' }
 		]);
+	});
+
+	// The invariant the placement exists for: a range that resolved to nothing
+	// is dropped from the card, so its verses must not be heard either —
+	// otherwise the reader hears verses that are not on their screen.
+	it('omits verses from a range that was skipped', async () => {
+		mockFetch({
+			'data/events.json': [
+				{
+					id: 'e4',
+					title: '한 범위는 해석 실패',
+					dueAt: '2099-12-31',
+					ranges: [
+						{ packageId: '5_krv', verseNos: [1], label: 'A' },
+						// No verseNos and an uninstalled package: resolves to [] and is
+						// dropped from `ranges`.
+						{ packageId: 'missing_krv', seriesIndex: 0, label: 'B' }
+					]
+				}
+			],
+			'data/packages.json': samplePackages,
+			'data/5_krv.json': sampleVerses,
+			'data/packages_index.json': sampleGroups
+		});
+		await listPackages();
+		await installPackage('5_krv');
+		const [card] = await buildEventCards('2099-12-30');
+		expect(card.ranges).toHaveLength(1);
+		expect(card.verses.map((v) => v.cite)).toEqual(['c1']);
+	});
+
+	// loadPackageData installs on a miss — a network fetch and an IndexedDB
+	// write. Rendering the home screen must not do that for a package the
+	// reader has never opened. Same rule resolveRangeVerseNos already follows.
+	it('does not install a package just to resolve its verse text', async () => {
+		mockFetch({
+			'data/events.json': sampleEvents,
+			'data/packages.json': samplePackages,
+			'data/5_krv.json': sampleVerses,
+			'data/packages_index.json': sampleGroups
+		});
+		await listPackages(); // metadata only — verses not installed
+		const [card] = await buildEventCards('2099-12-30');
+		expect(await isPackageInstalled('5_krv')).toBe(false);
+		// The range still shows (its verseNos are explicit), but with nothing to
+		// read aloud the event offers no audio at all rather than partial audio.
+		expect(card.ranges).toHaveLength(1);
+		expect(card.verses).toEqual([]);
 	});
 
 	// Heard in the order they are read: range by range, verse by verse within
@@ -1743,7 +1795,10 @@ Add to `EventCardVM`, after `ranges`:
 	 *  Resolved during the build rather than on tap: iOS honours synthesis
 	 *  only when it is reached synchronously from the gesture, so an
 	 *  IndexedDB read at tap time is silence on a phone. loadPackageData is
-	 *  memoized and already called above, so this costs no extra read. */
+	 *  resolved only for packages already installed — loadPackageData installs
+	 *  on a miss, and the home screen must not fetch a package the reader has
+	 *  never opened. Empty when any included range could not contribute its
+	 *  verses: hearing less than the card shows would be worse than no button. */
 	verses: PlaylistVerse[];
 ```
 
@@ -1752,23 +1807,35 @@ In `buildEventCards`, inside the `for (const r of e.ranges)` loop, after the `ra
 ```ts
 		const ranges: RangeCardVM[] = [];
 		const verses: PlaylistVerse[] = [];
+		/** Cleared when any included range cannot contribute its verses. The
+		 *  event's audio is all-or-nothing: hearing less than the card shows,
+		 *  with nothing saying so, is worse than no button at all. */
+		let versesComplete = true;
 ```
 
 and after `ranges.push({...})`:
 
 ```ts
 			// Same order as the range card, so what is heard matches what is read.
-			const data = await loadPackageData(r.packageId).catch(() => null);
-			if (data) {
-				const byNo = new Map(data.verses.map((v) => [v.no, v]));
-				for (const no of verseNos) {
-					const v = byNo.get(no);
-					if (v) verses.push({ title: v.title, cite: v.cite, w: v.w });
-				}
+			// Guarded: loadPackageData installs on a miss, and the home screen
+			// must never fetch a package the reader has not opened — the same
+			// rule resolveRangeVerseNos follows above.
+			const data = (await isPackageInstalled(r.packageId))
+				? await loadPackageData(r.packageId).catch(() => null)
+				: null;
+			if (!data) {
+				versesComplete = false;
+				continue;
+			}
+			const byNo = new Map(data.verses.map((v) => [v.no, v]));
+			for (const no of verseNos) {
+				const v = byNo.get(no);
+				if (v) verses.push({ title: v.title, cite: v.cite, w: v.w });
+				else versesComplete = false;
 			}
 ```
 
-and add `verses` to the `cards.push({...})` object.
+and add `verses: versesComplete ? verses : []` to the `cards.push({...})` object.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -1786,7 +1853,8 @@ git commit -m "feat(events): carry each event's verse text to the home card
 
 Resolved during the build, not on tap. iOS honours synthesis only when
 it is reached straight from the gesture, and loadPackageData is already
-called here and memoized, so this costs no extra read."
+guarded by isPackageInstalled, because loadPackageData installs on a
+miss and the home screen must not fetch what the reader never opened."
 ```
 
 ---
