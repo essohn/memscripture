@@ -139,9 +139,34 @@
 		};
 	}
 
+	let importMenuOpen = $state(false);
+
 	function handleImport() {
+		importMenuOpen = !importMenuOpen;
+	}
+
+	function chooseBackupRestore() {
+		importMenuOpen = false;
 		fileInputEl?.click();
 	}
+
+	// Escape and an outside click both close the menu, because a popover that
+	// only closes by choosing something traps a reader who opened it by mistake.
+	$effect(() => {
+		if (!importMenuOpen) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') importMenuOpen = false;
+		};
+		const onDown = () => (importMenuOpen = false);
+		window.addEventListener('keydown', onKey);
+		// Deferred a tick: the click that opened the menu is still propagating.
+		const timer = setTimeout(() => window.addEventListener('pointerdown', onDown), 0);
+		return () => {
+			clearTimeout(timer);
+			window.removeEventListener('keydown', onKey);
+			window.removeEventListener('pointerdown', onDown);
+		};
+	});
 
 	async function onFileChosen(e: Event) {
 		const el = e.target as HTMLInputElement;
@@ -203,16 +228,53 @@
 					type="button"
 					onclick={handleImport}
 					aria-label="가져오기"
+					aria-haspopup="menu"
+					aria-expanded={importMenuOpen}
 					class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
 				>
 					<FolderInput size={16} strokeWidth={1.75} />
 				</button>
-				<span
-					role="tooltip"
-					class="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-[var(--color-text)] px-2 py-1 text-[11px] font-medium text-[var(--color-card)] opacity-0 transition-opacity group-hover:opacity-100"
-				>
-					가져오기
-				</span>
+				{#if !importMenuOpen}
+					<span
+						role="tooltip"
+						class="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-[var(--color-text)] px-2 py-1 text-[11px] font-medium text-[var(--color-card)] opacity-0 transition-opacity group-hover:opacity-100"
+					>
+						가져오기
+					</span>
+				{/if}
+				{#if importMenuOpen}
+					<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+					<div
+						role="menu"
+						aria-label="가져오기 방법"
+						onpointerdown={(e) => e.stopPropagation()}
+						class="absolute right-0 top-full z-30 mt-1 w-52 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-lg"
+					>
+						<a
+							role="menuitem"
+							href="/oyo/import/table"
+							class="block px-3 py-2.5 text-left transition-colors hover:bg-[var(--color-elevated)]"
+						>
+							<span class="block text-[13px] font-medium text-[var(--color-text)]">
+								표에서 가져오기
+							</span>
+							<span class="block text-[11px] text-[var(--color-text-tertiary)]">
+								CSV · 엑셀 붙여넣기
+							</span>
+						</a>
+						<button
+							type="button"
+							role="menuitem"
+							onclick={chooseBackupRestore}
+							class="block w-full border-t border-[var(--color-border)] px-3 py-2.5 text-left transition-colors hover:bg-[var(--color-elevated)]"
+						>
+							<span class="block text-[13px] font-medium text-[var(--color-text)]">
+								백업에서 복원
+							</span>
+							<span class="block text-[11px] text-[var(--color-text-tertiary)]">JSON</span>
+						</button>
+					</div>
+				{/if}
 			</div>
 			<div class="group relative">
 				<button
