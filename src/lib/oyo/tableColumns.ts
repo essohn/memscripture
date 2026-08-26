@@ -92,6 +92,10 @@ const PROBE_ROWS = 10;
  *  that column is called the citation column. */
 const CITE_SHARE = 0.5;
 
+/** Shortest mean cell length that can be a title. A column averaging one
+ *  character is a marker column — O/X, ✓ — not a name for a verse. */
+const MIN_TITLE_LENGTH = 2;
+
 /** Mean cell length that separates a body from a title. Korean verses run
  *  well past this; titles are two or three words. */
 const BODY_MEAN_LENGTH = 20;
@@ -151,14 +155,18 @@ function probeBody(rows: string[][], width: number, taken: Set<number>): number 
 }
 
 /** The first remaining column short enough to be a title — and not empty,
- *  because an empty column would give every verse a blank title it never
- *  asked for. */
+ *  not a column of row numbers, and not a column of one-character marks.
+ *  An empty column would give every verse a blank title it never asked for;
+ *  a 순번 column would give it a number; a 확인 column would give it "O". */
 function probeTitle(rows: string[][], width: number, taken: Set<number>): number | undefined {
 	const sample = rows.slice(0, PROBE_ROWS);
 	for (let i = 0; i < width; i++) {
 		if (taken.has(i)) continue;
+		const cells = sample.map((r) => r[i] ?? '').filter((c) => c.length > 0);
+		if (cells.length === 0) continue;
+		if (cells.every((c) => /^\d+$/.test(c))) continue;
 		const mean = meanLength(sample, i);
-		if (mean > 0 && mean < BODY_MEAN_LENGTH) return i;
+		if (mean >= MIN_TITLE_LENGTH && mean < BODY_MEAN_LENGTH) return i;
 	}
 	return undefined;
 }
@@ -201,10 +209,23 @@ export function detectColumns(grid: string[][]): DetectedColumns {
 	}
 	const taken = new Set<number>(Object.values(byHeader));
 
-	// The citation column is settled first, because header rule 2 needs to
-	// know which cell of the first row to look at.
-	const certainlyData = synonymHeader ? grid.slice(1) : grid;
-	let cite = byHeader.cite ?? probeCite(certainlyData, width, taken);
+	// The citation column is settled first, because header rule 2 needs to know
+	// which cell of the first row to look at. That is a chicken and egg — so the
+	// probe samples from row 1 onward whenever there is more than one row. Row 0
+	// may be a header nobody recognised, and a single label row in the sample can
+	// pull a column's share below the threshold and cost it the match. Skipping
+	// it costs nothing when it really was data: this sample only chooses a
+	// column, it never consumes a row.
+	const probeRows = grid.length > 1 ? grid.slice(1) : grid;
+	let cite = byHeader.cite ?? probeCite(probeRows, width, taken);
+	if (cite === undefined) {
+		// Nothing unclaimed reads as a reference. Before falling back on position,
+		// ask the same question of the columns a header word already claimed:
+		// content is stronger evidence than vocabulary, so a column headed 본문
+		// whose cells are all references is the citation column, and the header's
+		// claim on it yields.
+		cite = probeCite(probeRows, width, new Set());
+	}
 	if (cite === undefined) {
 		cite = 0;
 		for (let i = 0; i < width; i++) {
@@ -214,6 +235,11 @@ export function detectColumns(grid: string[][]): DetectedColumns {
 			}
 		}
 	}
+	// The citation column outranks whatever a header word claimed. Without this,
+	// a table whose every column is claimed for 제목 and 본문 leaves cite aliased
+	// onto one of them and a single column fills two roles.
+	if (byHeader.title === cite) delete byHeader.title;
+	if (byHeader.w === cite) delete byHeader.w;
 	taken.add(cite);
 
 	const labelRow =

@@ -203,3 +203,55 @@ describe('detectColumns — labels', () => {
 		expect(detectColumns(grid).labels).toHaveLength(3);
 	});
 });
+
+describe('detectColumns — the header must not be allowed to vote', () => {
+	it('ignores an unrecognised header row when probing for the citation column', () => {
+		const grid = [
+			['일련번호', '암송 구절'],
+			['1', '요 3:16'],
+			['2', '모름']
+		];
+		const out = detectColumns(grid);
+		expect(out.mapping.cite).toBe(1);
+		expect(out.hasHeader).toBe(true);
+	});
+
+	it('does not import an unrecognised header row as a verse', () => {
+		const grid = [
+			['일련번호', '암송 구절'],
+			['1', '요 3:16'],
+			['2', '모름']
+		];
+		const detected = detectColumns(grid);
+		const { drafts } = applyMapping(grid, detected.hasHeader, detected.mapping);
+		expect(drafts.map((d) => d.cite)).not.toContain('암송 구절');
+		expect(drafts.map((d) => d.cite)).not.toContain('일련번호');
+	});
+
+	it('lets content outrank a header word when no column is headed 장절', () => {
+		const grid = [
+			['제목', '본문'],
+			['영생', '요 3:16']
+		];
+		expect(detectColumns(grid).mapping).toEqual({ cite: 1, title: 0, w: null });
+	});
+
+	it('never assigns one column to two roles', () => {
+		const grid = [
+			['제목', '본문'],
+			['영생', '요 3:16']
+		];
+		const { cite, title, w } = detectColumns(grid).mapping;
+		const claimed = [cite, title, w].filter((c) => c !== null);
+		expect(new Set(claimed).size).toBe(claimed.length);
+	});
+
+	it('does not make a row-number column the title', () => {
+		const grid = [
+			['순번', '암송구절', '확인'],
+			['1', '요 3:16', 'O'],
+			['2', '창 12:1', 'O']
+		];
+		expect(detectColumns(grid).mapping.title).toBeNull();
+	});
+});
