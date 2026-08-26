@@ -10,6 +10,7 @@
 	import type { DifficultyLevel } from '$lib/db/verseRatings';
 	import { normalizeForGrading } from '$lib/memorize/grade';
 	import { activeMarks, tokenizeVerse, type StoredMark } from '$lib/memorize/marks';
+	import { suggestedMarks } from '$lib/memorize/missStats';
 	import { BookOpen, Highlighter, PartyPopper, Square, Volume2 } from 'lucide-svelte';
 	import { readerHref } from '$lib/bible/reference';
 	import { createPlayer, isTtsSupported, speechSegments, type PlayerHandle } from '$lib/memorize/speak';
@@ -274,13 +275,35 @@
 
 	function toggleMarking() {
 		marking = !marking;
-		if (marking) revealAll();
+		if (!marking) return;
+		revealAll();
+		loadCheckHistory();
 	}
 	const allRevealed = $derived(revealedCount >= totalWords);
 
 	// Loaded when the panel opens rather than on every card render — a 900-row
 	// list would otherwise issue 900 queries for history nobody is looking at.
 	let checkHistory = $state<CheckRecord[]>([]);
+
+	/** Loads this verse's checks. Lazy for the reason 점검 has always been: a
+	 *  900-row list must not issue 900 queries for history nobody opened. Both
+	 *  점검 and 밑줄 come through here and share the one piece of state, so a
+	 *  reader who checks a verse and then opens 밑줄 sees the check they just
+	 *  finished. */
+	function loadCheckHistory() {
+		if (!packageId) return;
+		listChecks(packageId, verse.no)
+			.then((rows) => (checkHistory = rows))
+			.catch(() => {});
+	}
+
+	/** Words this reader keeps missing, proposed as underlines. Derived rather
+	 *  than stored: a saved suggestion would outlive the history it came from
+	 *  and point at a place already fixed. Empty outside marking mode, where a
+	 *  dot would be a remark with nothing to tap. */
+	const suggested = $derived(
+		marking ? suggestedMarks(checkHistory, totalWords) : new Set<number>()
+	);
 	/** Set by a perfect check in this session, so the badge appears with the
 	 *  confetti rather than only after the page is next loaded. */
 	/**
@@ -312,11 +335,7 @@
 		// answer to a different question.
 		lift();
 		mode = 'check';
-		if (packageId) {
-			listChecks(packageId, verse.no)
-				.then((rows) => (checkHistory = rows))
-				.catch(() => {});
-		}
+		loadCheckHistory();
 		// The body stays hidden until the check produces a result.
 		revealedCount = 0;
 	}
@@ -803,6 +822,7 @@
 				class:covered={i >= revealedCount}
 				class:markable={marking}
 				class:underlined={marked.has(i)}
+				class:suggested={suggested.has(i) && !marked.has(i)}
 				role={marking ? 'button' : undefined}
 				tabindex={marking ? 0 : undefined}
 				onclick={marking ? () => onToggleMark?.(i, word) : undefined}
@@ -817,7 +837,7 @@
 			><span class="word-text">{word}</span></span>{' '}{/each}</p>
 		<div class="mt-3 flex items-center justify-between gap-3 text-[11px]">
 			<span class="text-[var(--color-text-tertiary)]">
-				{#if marking}자주 틀리는 단어를 눌러 밑줄{:else if allRevealed}모두 열렸습니다{:else}← 좌→우로 드래그해서 단어 열기{/if}
+				{#if marking && suggested.size > 0}자주 틀린 곳을 점선으로 표시했습니다 · 눌러서 밑줄{:else if marking}자주 틀리는 단어를 눌러 밑줄{:else if allRevealed}모두 열렸습니다{:else}← 좌→우로 드래그해서 단어 열기{/if}
 			</span>
 			<div class="flex items-center gap-3">
 				{#if markingEnabled}
@@ -942,6 +962,17 @@
 	.underlined {
 		text-decoration: underline;
 		text-decoration-color: var(--color-accent);
+		text-decoration-thickness: 2px;
+		text-underline-offset: 5px;
+	}
+
+	/* Proposed from the check history rather than placed by the reader — so it
+	   is dotted and tertiary, plainly a suggestion beside the solid accent of a
+	   real underline. Tapping it makes it real through the handler marking mode
+	   already binds to every word. */
+	.suggested {
+		text-decoration: underline dotted;
+		text-decoration-color: var(--color-text-tertiary);
 		text-decoration-thickness: 2px;
 		text-underline-offset: 5px;
 	}
