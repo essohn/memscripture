@@ -236,7 +236,14 @@ export function applyMapping(
 
 `truncated` is returned rather than inferred, because the screen cannot tell the two reasons a row went missing apart: `applyMapping` drops citation-less rows *and* cuts the list at `MAX_IMPORT_VERSES`, so comparing input and output lengths would report a truncation that never happened.
 
-**Header detection.** The first row is a header when at least one of its cells matches a synonym:
+**Header detection**, two rules, either sufficient:
+
+1. **A synonym in the first row** — at least one cell matches the table below.
+2. **A label row under the citation column** — once the citation column is chosen, the first row is a header if *its* cell there fails `parsePassageRef` while at least one of the next ten rows succeeds.
+
+Rule 2 exists because rule 1 only knows the words listed below, and a sheet's author is free to invent others. A header reading 순번 / 암송구절 / 확인 matches no synonym, and without rule 2 it would survive as a verse: `normalizeCite` deliberately keeps text it cannot parse (that is what carries 토비트 3 : 1 through), so the literal word 암송구절 would become a citation rather than being dropped. Rule 2 is the one that notices the first row does not look like the rows beneath it.
+
+The synonym table for rule 1:
 
 | role | synonyms (case-insensitive, whitespace-stripped) |
 |---|---|
@@ -322,7 +329,7 @@ Extraction rather than duplication is the point: this markup carries a hard-won 
 
 Three labelled `<select>`s and a `첫 행은 제목 줄` checkbox. Emits a whole `ColumnMapping` and `hasHeader` on change; owns no parsing and no preview — the confirm screen derives those from what it emits, so the component stays a control rather than a screen.
 
-The checkbox closes a one-sided hole. Mistaking a header for data is self-healing — the literal word 장절 does not parse as a passage reference, so that row is dropped as citation-less and nothing is lost. Mistaking the *first verse* for a header loses a verse in silence, and silence is the part that erodes trust. The checkbox lets the reader put it back.
+The checkbox is the escape hatch for both directions detection can be wrong, and the two are not equally forgiving. Taking the first verse for a header loses a verse in silence, and silence is what erodes trust. Taking a header for a verse is louder — a junk row appears in the preview — but it is not self-correcting either, because `normalizeCite` keeps text it cannot parse. Header rule 2 catches most of both; the checkbox catches the rest.
 
 Column letters come from `columnName`, which moves from `export/xlsx.ts` to `src/lib/utils/columnName.ts` so both callers can have it. It is eight pure lines implementing bijective base-26 — the same A/B/AA the reader sees in Excel — and `export/xlsx.ts` imports it from its new home. Importing it out of the xlsx writer instead would drag a zip encoder into the dependency graph of a dropdown label.
 
@@ -386,7 +393,7 @@ Unit tests under `tests/unit/`, written test-first.
 |---|---|
 | `tableText.test.ts` | UTF-8 passthrough, EUC-KR fallback from CP949 bytes, BOM strip, `too-large`, `xlsx` magic bytes, `empty` |
 | `tableParse.test.ts` | quoted commas, quoted newlines, `""` escapes, CRLF/CR/LF, tab vs comma detection, empty-row drop, whitespace squeeze |
-| `tableColumns.test.ts` | header synonyms per role; content probe beating an unknown header; length probe splitting 제목 from 본문; two-column short/long cases; positional fallback; citation-less rows dropped; `MAX_IMPORT_VERSES` truncation; `applyMapping` under a user-supplied mapping |
+| `tableColumns.test.ts` | header synonyms per role; header rule 2 catching a 순번/암송구절/확인 label row; content probe beating an unknown header; length probe splitting 제목 from 본문; two-column short/long cases; positional fallback; citation-less rows dropped; `MAX_IMPORT_VERSES` truncation; `applyMapping` under a user-supplied mapping |
 | `autofill.test.ts` | one request per chapter for many rows (via `__setChapterCacheForTest`); unparseable citation resolves without a request; timeout yields `no-body`; breaker trips after three consecutive failures and reports `abortedEarly`; `AbortSignal` stops between groups |
 | `cite.test.ts` | `normalizeCite` and `duplicateIndexes` cases moved from `importLink.test.ts`, plus the widened `{ cite: string }` signature |
 | `VerseReviewList.test.ts` | toggle, select-all, title binding, 이미 있음 badge, `loading` body, `no-body` disabled and unselectable |
