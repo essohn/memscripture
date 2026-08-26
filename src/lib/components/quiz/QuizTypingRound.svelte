@@ -27,23 +27,23 @@
 	function submit() {
 		if (typed.trim().length === 0 || verdict) return;
 		const accuracy = accuracyOf(item.w, typed);
-		const result: RoundResult = {
+		verdict = {
 			id: item.id,
 			passed: accuracy >= 1,
 			accuracy,
 			missed: markMismatchedWords(item.w, typed).flatMap((m, i) => (m.ok ? [] : [i])),
 			elapsedMs: Date.now() - startedAt
 		};
-		// Set the verdict before reporting it: onDone must never fire on a
-		// result the component itself has not already committed to showing.
-		verdict = result;
-		onDone(result);
 	}
 
 	function onKeydown(e: KeyboardEvent) {
 		if (!submitsOnEnter(e)) return;
 		e.preventDefault();
 		submit();
+	}
+
+	function next() {
+		if (verdict) onDone(verdict);
 	}
 </script>
 
@@ -79,6 +79,13 @@
 		<p class="mt-3 text-[calc(13px*var(--vfs))] font-medium">
 			{verdict.passed ? '통과' : '다시 볼 구절'}
 		</p>
+		<button
+			type="button"
+			onclick={next}
+			class="mt-2 w-full rounded-xl bg-[var(--color-elevated)] py-2.5 font-medium text-[var(--color-text)]"
+		>
+			다음
+		</button>
 	{/if}
 </div>
 

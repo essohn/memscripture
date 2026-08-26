@@ -39,6 +39,7 @@ describe('QuizTypingRound', () => {
 		const { onDone } = setup();
 		await type(VERSE);
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
 		expect(onDone).toHaveBeenCalledWith(
 			expect.objectContaining({ id: '900_krv:127', passed: true, missed: [] })
 		);
@@ -50,6 +51,7 @@ describe('QuizTypingRound', () => {
 		const { onDone } = setup();
 		await type(VERSE.replace(/ /g, ''));
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
 		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: true }));
 	});
 
@@ -57,6 +59,7 @@ describe('QuizTypingRound', () => {
 		const { onDone } = setup();
 		await type(VERSE.replace('법도를', '법을'));
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
 		expect(onDone).toHaveBeenCalledWith(
 			expect.objectContaining({ passed: false, missed: [2] })
 		);
@@ -78,5 +81,17 @@ describe('QuizTypingRound', () => {
 	it('says which round this is', () => {
 		setup();
 		expect(screen.getByText('1 / 3')).toBeInTheDocument();
+	});
+
+	// 제출 shows the verdict; 다음 leaves the round. Collapsing the two would
+	// unmount the round the instant it is graded, and the reader would never
+	// see which word they missed.
+	it('does not report the result until 다음 is pressed', async () => {
+		const { onDone } = setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(onDone).not.toHaveBeenCalled();
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		expect(onDone).toHaveBeenCalledTimes(1);
 	});
 });
