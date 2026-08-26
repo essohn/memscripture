@@ -295,6 +295,10 @@ export interface FillSummary {
 	failed: number;
 	/** True when the consecutive-failure breaker tripped. */
 	abortedEarly: boolean;
+	/** True when the caller's signal stopped the run. Rows may then be left
+	 *  unresolved and `filled + failed` may fall short of the rows that needed
+	 *  a body — this is the field that says so out loud. */
+	aborted: boolean;
 }
 
 export async function fillMissingBodies(
@@ -313,7 +317,9 @@ Two guards keep the screen from hanging on a bad network:
 - **Per-chapter timeout.** `Promise.race` against a 10-second timer. `fetchPassageText` takes no `AbortSignal`, and plumbing one through would mean editing the bible module for a caller it does not otherwise know about; racing stops the *waiting* without touching it. The request keeps running, and if it lands late it still populates the chapter cache — which makes 다시 시도 fast rather than wasted.
 - **Consecutive-failure breaker.** After three chapter groups fail in a row, the remaining groups are abandoned and reported `no-body` without requests, and `abortedEarly` is true. Without it, 200 rows across 200 dead chapters would take eleven minutes to admit the network is down.
 
-`opts.signal` is checked between groups so leaving the page stops the work.
+`opts.signal` is checked between groups so leaving the page stops the work, and again inside the progress callback so a group already in flight cannot write to a caller that has stopped listening. What an abort silences is the callback, never the module's own bookkeeping: a row's fate is recorded whether or not anyone hears it, because the counters are kept by the callback's callers and a row left unrecorded would be counted once there and again by the sweep.
+
+The sweep stays gated on the breaker alone. On a breaker trip the reader is still watching and every row must reach a terminal status; on an abort the reader has gone, so the honest answer is silence plus an `aborted` flag saying what was left undone.
 
 ### `src/lib/components/oyo/VerseReviewList.svelte` — new
 
