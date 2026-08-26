@@ -28,6 +28,7 @@ export async function recordCheck(
 		elapsedMs: number;
 		hints?: number;
 		missed?: number[];
+		source?: 'quiz';
 	},
 	checkedAt: number = Date.now()
 ): Promise<void> {

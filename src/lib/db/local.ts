@@ -58,6 +58,10 @@ export interface CheckRecord {
 	 *  existed have none, and absent is not the same as an empty array — one
 	 *  means nothing was measured, the other means nothing was missed. */
 	missed?: number[];
+	/** What produced this record. Absent means 점검 — every record written
+	 *  before this field existed was one, and it is the app's primary act, so
+	 *  the default already says the true thing about old rows. */
+	source?: 'quiz';
 }
 
 /** Words the reader underlined on one verse — the places they keep tripping

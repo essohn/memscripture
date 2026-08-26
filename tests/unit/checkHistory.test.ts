@@ -7,6 +7,7 @@ import {
 	listPerfectVerseNos,
 	recordCheck
 } from '../../src/lib/db/checkHistory';
+import { suggestedMarks } from '../../src/lib/memorize/missStats';
 
 beforeEach(async () => {
 	await db.delete();
@@ -72,6 +73,27 @@ describe('checkHistory', () => {
 		await recordCheck('900_krv', 2, entry(), 1000);
 		expect((await listChecks('900_krv', 1))[0].missed).toEqual([]);
 		expect((await listChecks('900_krv', 2))[0].missed).toBeUndefined();
+	});
+
+	it('remembers that a round came from the quiz', async () => {
+		await recordCheck('900_krv', 1, entry({ source: 'quiz' }), 1000);
+		expect((await listChecks('900_krv', 1))[0].source).toBe('quiz');
+	});
+
+	// Absent is the app's primary act, not a missing value. Every record
+	// written before this field existed was a 점검, so defaulting it would
+	// have meant rewriting all of them to say what they already said.
+	it('leaves a 점검 record with no source at all', async () => {
+		await recordCheck('900_krv', 2, entry(), 1000);
+		expect((await listChecks('900_krv', 2))[0].source).toBeUndefined();
+	});
+
+	// The underline suggestions treat a quiz round as evidence like any other:
+	// it is a 점검 without the rating, so the words it got wrong count.
+	it('counts a quiz round toward the underline suggestions', async () => {
+		await recordCheck('900_krv', 3, entry({ accuracy: 0.9, missed: [2], source: 'quiz' }), 1000);
+		await recordCheck('900_krv', 3, entry({ accuracy: 0.9, missed: [2], source: 'quiz' }), 2000);
+		expect(suggestedMarks(await listChecks('900_krv', 3), 11)).toEqual(new Set([2]));
 	});
 });
 
