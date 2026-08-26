@@ -172,7 +172,7 @@
 
 <Header title="북마크" onBack={goBack} />
 
-<main class="mx-auto max-w-2xl px-5 pb-8 pt-4">
+<main class="mx-auto max-w-2xl px-5 pt-4 {player.openId ? 'pb-28' : 'pb-8'}">
 	<div role="tablist" aria-label="리본 색상" class="mb-5 flex flex-wrap gap-2">
 		{#each BOOKMARK_COLORS as c (c)}
 			{@const active = selected === c}

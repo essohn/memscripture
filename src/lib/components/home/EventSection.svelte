@@ -26,8 +26,24 @@
 		clientId?: string | null;
 		onEmpty?: () => void;
 		onError?: () => void;
+		/**
+		 * Fires whenever the playlist bar opens or closes.
+		 *
+		 * The bar is `position: fixed` and the page's document height does not
+		 * change when it appears, so nothing else tells `<main>` to leave room
+		 * beneath the last section — without this, the bar sits on top of it
+		 * and the reader cannot scroll the covered part into view. A callback
+		 * rather than lifting the player up to the page: this section already
+		 * owns the playback session (one synthesizer, one bar, several events),
+		 * and the page only needs the one bit derived from it.
+		 */
+		onPlayerOpenChange?: (open: boolean) => void;
 	}
-	let { events, clientId = null, onEmpty, onError }: Props = $props();
+	let { events, clientId = null, onEmpty, onError, onPlayerOpenChange }: Props = $props();
+
+	$effect(() => {
+		onPlayerOpenChange?.(player.openId !== null);
+	});
 
 	let exporting = $state<EventCardVM | null>(null);
 	let busy = $state(false);

@@ -35,6 +35,10 @@
 	let editMode = $state(false);
 	let toast = $state<{ message: string; actionLabel?: string; onAction?: () => void } | null>(null);
 	let eventCards = $state<EventCardVM[]>([]);
+	// Mirrors EventSection's playlist bar so <main> can reserve room for it —
+	// the bar is fixed and does not grow the document, so without this the
+	// last section's bottom ~50px sits behind the bar, unreachable by scroll.
+	let playerOpen = $state(false);
 
 	/**
 	 * Null until read, so the hint below never flashes on screen for a reader
@@ -189,12 +193,13 @@
 
 <Header title="Home" showVerseToggle={false} />
 
-<main class="mx-auto max-w-2xl px-5 pb-8 pt-6">
+<main class="mx-auto max-w-2xl px-5 pt-6 {playerOpen ? 'pb-28' : 'pb-8'}">
 	<EventSection
 		events={eventCards}
 		clientId={getGoogleOauthClientId()}
 		onEmpty={() => (toast = { message: '내보낼 구절이 없습니다' })}
 		onError={() => (toast = { message: '내보내기 실패: 다시 시도해주세요' })}
+		onPlayerOpenChange={(open) => (playerOpen = open)}
 	/>
 
 	<section class="flex items-center justify-between gap-3 px-1">
