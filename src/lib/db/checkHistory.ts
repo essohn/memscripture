@@ -132,6 +132,45 @@ export async function listChecks(
 }
 
 /**
+ * Recent records for a whole set of packages at once, keyed by verseKey and
+ * newest first.
+ *
+ * One range scan per package rather than a query per verse, the same shape
+ * listLastCheckedAt and listPerfectVerseNos use: a 900-verse package would
+ * otherwise issue 900 round-trips to rank a queue of ten.
+ *
+ * Capped per verse at HISTORY_LIMIT, matching listChecks — prune already
+ * bounds what is stored, so this cap is a promise about the return type
+ * rather than a filter that usually does anything.
+ *
+ * No judgement here beyond recency: which records count as evidence is the
+ * priority rule's business, and mixing the two would put the definition of a
+ * failure inside a database read.
+ */
+export async function listRecentChecks(
+	packageIds: string[]
+): Promise<Map<string, CheckRecord[]>> {
+	const out = new Map<string, CheckRecord[]>();
+
+	for (const packageId of new Set(packageIds)) {
+		const rows = await db.checkHistory.where('verseKey').startsWith(`${packageId}:`).toArray();
+		for (const r of rows) {
+			const list = out.get(r.verseKey);
+			if (list) list.push(r);
+			else out.set(r.verseKey, [r]);
+		}
+	}
+
+	for (const list of out.values()) {
+		// Rows arrive in index order, not chronological order.
+		list.sort((a, b) => b.checkedAt - a.checkedAt);
+		if (list.length > HISTORY_LIMIT) list.length = HISTORY_LIMIT;
+	}
+
+	return out;
+}
+
+/**
  * Does this record say something about recall?
  *
  * 점검 and the quiz's full typing round do: the reader produced the verse

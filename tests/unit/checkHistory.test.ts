@@ -7,6 +7,7 @@ import {
 	listChecks,
 	listLastCheckedAt,
 	listPerfectVerseNos,
+	listRecentChecks,
 	recordCheck,
 	TYPED_LIMIT
 } from '../../src/lib/db/checkHistory';
@@ -346,5 +347,67 @@ describe('listLastCheckedAt', () => {
 
 	it('is empty when nothing has been checked', async () => {
 		expect((await listLastCheckedAt('900_krv')).size).toBe(0);
+	});
+});
+
+describe('listRecentChecks', () => {
+	async function add(packageId: string, verseNo: number, checkedAt: number, accuracy = 1) {
+		await db.checkHistory.add({
+			id: `${packageId}:${verseNo}:${checkedAt}`,
+			verseKey: `${packageId}:${verseNo}`,
+			packageId,
+			verseNo,
+			checkedAt,
+			start: null,
+			full: null,
+			accuracy,
+			elapsedMs: 1000
+		});
+	}
+
+	it('returns nothing for a package with no history', async () => {
+		expect(await listRecentChecks(['a_krv'])).toEqual(new Map());
+	});
+
+	it('groups records under their verseKey', async () => {
+		await add('a_krv', 1, 100);
+		await add('a_krv', 2, 100);
+		const out = await listRecentChecks(['a_krv']);
+		expect([...out.keys()].sort()).toEqual(['a_krv:1', 'a_krv:2']);
+	});
+
+	it('orders each verse newest first', async () => {
+		await add('a_krv', 1, 100);
+		await add('a_krv', 1, 300);
+		await add('a_krv', 1, 200);
+		const rows = (await listRecentChecks(['a_krv'])).get('a_krv:1');
+		expect(rows?.map((r) => r.checkedAt)).toEqual([300, 200, 100]);
+	});
+
+	it('caps a verse at HISTORY_LIMIT, keeping the newest', async () => {
+		for (let i = 0; i < HISTORY_LIMIT + 4; i++) await add('a_krv', 1, 100 + i);
+		const rows = (await listRecentChecks(['a_krv'])).get('a_krv:1');
+		expect(rows).toHaveLength(HISTORY_LIMIT);
+		expect(rows?.[0]?.checkedAt).toBe(100 + HISTORY_LIMIT + 3);
+	});
+
+	it('keeps two packages\' verse 1 apart', async () => {
+		await add('a_krv', 1, 100);
+		await add('b_krv', 1, 200);
+		const out = await listRecentChecks(['a_krv', 'b_krv']);
+		expect(out.get('a_krv:1')?.[0]?.checkedAt).toBe(100);
+		expect(out.get('b_krv:1')?.[0]?.checkedAt).toBe(200);
+	});
+
+	it('does not read a package it was not asked for', async () => {
+		await add('a_krv', 1, 100);
+		await add('b_krv', 1, 200);
+		expect([...(await listRecentChecks(['a_krv'])).keys()]).toEqual(['a_krv:1']);
+	});
+
+	it('reads a repeated package id once', async () => {
+		await add('a_krv', 1, 100);
+		const rows = (await listRecentChecks(['a_krv', 'a_krv'])).get('a_krv:1');
+		expect(rows).toHaveLength(1);
 	});
 });
