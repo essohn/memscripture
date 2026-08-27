@@ -125,7 +125,7 @@ describe('MemorizeCheckPanel', () => {
 		const { onPickStart, onPickFull, onClose, onGraded } = setup();
 		await type('전혀 다른 문장');
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
 		expect(onPickFull).not.toHaveBeenCalled();
 	});
 
@@ -134,16 +134,16 @@ describe('MemorizeCheckPanel', () => {
 	// another go, not an edit of the try they just rejected. Keeping the clock
 	// was worse — a resubmit after reading the marked answer would have been
 	// timed from the original open.
-	it('clears the attempt on 취소 so a fresh check can start', async () => {
+	it('clears the attempt on 다시 so a fresh check can start', async () => {
 		setup();
 		await type(VERSE.replace('가르쳐서', '가르치고'));
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
 		expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('');
 		expect(screen.getByRole('button', { name: '제출' })).toBeDisabled();
 	});
 
-	it('re-arms the timer on 취소', async () => {
+	it('re-arms the timer on 다시', async () => {
 		setup();
 		await type(VERSE);
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
@@ -151,7 +151,7 @@ describe('MemorizeCheckPanel', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
 		await type(VERSE.replace('가르쳐서', '가르치고'));
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
 		// The opening readout only appears once the opening has been typed; a
 		// cleared attempt has not, so it must be gone.
 		expect(screen.queryByText(/도입부/)).toBeNull();
@@ -166,7 +166,9 @@ describe('MemorizeCheckPanel', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		const attempt = screen.getByTestId('attempt-words');
 		expect(attempt.textContent).toContain('가르치고');
-		const wrong = attempt.querySelectorAll('[data-ok="false"]');
+		// Typed-and-wrong, not the ghost of the word that belonged there —
+		// both are "not ok", and only one of them is something they wrote.
+		const wrong = attempt.querySelectorAll('[data-ok="false"][data-missing="false"]');
 		expect(wrong).toHaveLength(1);
 		expect(wrong[0].textContent).toBe('가르치고');
 	});
@@ -215,6 +217,47 @@ describe('MemorizeCheckPanel', () => {
 		await type(VERSE.replace('가르쳐서', '가르치고'));
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		expect(screen.getByTestId('attempt-words')).toHaveClass('italic');
+	});
+
+	// Dropping a word is the ordinary way to miss a verse, and it used to leave
+	// the attempt looking unmarked: there was no word there to paint.
+	it('shows a skipped word as a ghost inside the attempt', async () => {
+		setup();
+		await type(VERSE.replace('마땅히 ', ''));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		const ghosts = screen
+			.getByTestId('attempt-words')
+			.querySelectorAll('[data-missing="true"]');
+		expect(ghosts).toHaveLength(1);
+		expect(ghosts[0].textContent).toBe('마땅히');
+	});
+
+	it('marks the tail the reader never reached', async () => {
+		setup();
+		await type('그들에게 율례와 법도를 가르쳐서');
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		const ghosts = screen
+			.getByTestId('attempt-words')
+			.querySelectorAll('[data-missing="true"]');
+		expect(ghosts.length).toBeGreaterThan(1);
+	});
+
+	// A flawed attempt is discarded and the panel re-armed — cancel() has
+	// always called restart(). The button said 취소 while doing 다시.
+	it('offers 다시 rather than 취소 on a flawed attempt', async () => {
+		setup();
+		await type(VERSE.replace('가르쳐서', '가르치고'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(screen.getByRole('button', { name: '다시' })).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: '취소' })).toBeNull();
+	});
+
+	it('clears the box for a fresh attempt when 다시 is pressed', async () => {
+		setup();
+		await type(VERSE.replace('가르쳐서', '가르치고'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
+		expect(screen.getByRole('textbox')).toHaveValue('');
 	});
 
 	it('keeps the attempt readable when whole words were invented', async () => {
@@ -459,11 +502,11 @@ describe('the input comes first', () => {
 		expect(box.compareDocumentPosition(clock) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 	});
 
-	it('refocuses after 취소 hands back a fresh attempt', async () => {
+	it('refocuses after 다시 hands back a fresh attempt', async () => {
 		setup();
 		await type('그들에게 율례와');
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
 		expect(document.activeElement).toBe(screen.getByRole('textbox'));
 	});
 });

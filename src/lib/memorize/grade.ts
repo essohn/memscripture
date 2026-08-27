@@ -225,6 +225,116 @@ export function markMismatchedWords(
 	});
 }
 
+export interface AttemptToken {
+	word: string;
+	/** `typed` is a word the reader wrote. `missing` is a verse word that
+	 *  belonged at this point and never arrived. */
+	kind: 'typed' | 'missing';
+	/** Whether a typed word belongs to the verse. Always false for `missing`. */
+	ok: boolean;
+}
+
+/**
+ * The reader's attempt with the words they skipped put back in place.
+ *
+ * markMismatchedWords can only paint words that exist, so it says nothing
+ * about an omission — and dropping a word or stopping early is the ordinary
+ * way to miss a verse, which left the attempt looking unmarked exactly when
+ * the reader most wanted to know what went wrong.
+ *
+ * Placement rides on the same forward scan the marking uses, so the two can
+ * never disagree about which words were produced. normalizeForGrading only
+ * ever deletes characters, so the normalized typed words concatenate to
+ * exactly the string that scan searches — which is what makes a matched
+ * character offset resolvable back to the typed word it landed in.
+ *
+ * A run of skipped words is placed before the typed word where the verse
+ * picks up again; a run with nothing after it goes at the end.
+ */
+export function alignAttempt(expected: string, actual: string): AttemptToken[] {
+	const typedWords = actual.trim().split(/\s+/).filter(Boolean);
+	const attempt = normalizeForGrading(actual);
+
+	// Character span of each typed word inside `attempt`.
+	const starts: number[] = [];
+	const ends: number[] = [];
+	let span = 0;
+	for (const word of typedWords) {
+		starts.push(span);
+		span += normalizeForGrading(word).length;
+		ends.push(span);
+	}
+	/** The typed word a matched character offset fell inside. */
+	const typedIndexAt = (at: number): number => {
+		const i = ends.findIndex((end) => at < end);
+		return i === -1 ? typedWords.length : i;
+	};
+
+	// The same walk markMismatchedWords does, keeping where each word landed.
+	let cursor = 0;
+	const placed: { word: string; at: number | null }[] = [];
+	for (const word of expected.trim().split(/\s+/).filter(Boolean)) {
+		const needle = normalizeForGrading(word);
+		// A '*' verse-boundary marker is nothing to recite, so it can neither be
+		// got wrong nor be missing.
+		if (needle.length === 0) continue;
+		const at = attempt.indexOf(needle, cursor);
+		if (at === -1 || at - cursor > MAX_DRIFT_CHARS) {
+			placed.push({ word, at: null });
+			continue;
+		}
+		cursor = at + needle.length;
+		placed.push({ word, at });
+	}
+
+	// A typed word counts as produced when verse words account for every one of
+	// its characters. Partial cover is not enough: writing 마땅히요 for 마땅히
+	// produces the verse word and a syllable that is not in the verse, and
+	// overlap alone would call the whole thing right.
+	//
+	// Taken from this one scan rather than from a second pass over the typed
+	// words. That pass searched each typed word forward under the same drift
+	// allowance, so an attempt that skipped the opening put its first real word
+	// further in than the allowance permits, failed, never advanced its cursor,
+	// and painted every remaining word wrong.
+	const coveredChars = typedWords.map(() => 0);
+	for (const { word, at } of placed) {
+		if (at === null) continue;
+		const end = at + normalizeForGrading(word).length;
+		for (let i = 0; i < typedWords.length; i++) {
+			const overlap = Math.min(end, ends[i]) - Math.max(at, starts[i]);
+			if (overlap > 0) coveredChars[i] += overlap;
+		}
+	}
+
+	const skippedBefore = new Map<number, string[]>();
+	for (let i = 0; i < placed.length; i++) {
+		if (placed[i].at !== null) continue;
+		let next = i + 1;
+		while (next < placed.length && placed[next].at === null) next++;
+		const index =
+			next < placed.length ? typedIndexAt(placed[next].at as number) : typedWords.length;
+		const run = skippedBefore.get(index) ?? [];
+		run.push(placed[i].word);
+		skippedBefore.set(index, run);
+	}
+
+	const out: AttemptToken[] = [];
+	for (let i = 0; i <= typedWords.length; i++) {
+		for (const word of skippedBefore.get(i) ?? []) {
+			out.push({ word, kind: 'missing', ok: false });
+		}
+		if (i < typedWords.length) {
+			// A token that normalizes away entirely has nothing to produce, so
+			// it can never be got wrong.
+			const length = ends[i] - starts[i];
+			const ok = length === 0 || coveredChars[i] >= length;
+			out.push({ word: typedWords[i], kind: 'typed', ok });
+		}
+	}
+	return out;
+}
+
 export interface Hint {
 	/** Position of this word in the verse. The panel resets its press count
 	 *  when this moves, so a newly stuck word opens from one character again

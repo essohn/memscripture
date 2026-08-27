@@ -5,6 +5,7 @@
 	import { DIFFICULTY_LABELS, type DifficultyLevel } from '$lib/db/verseRatings';
 	import {
 		accuracyOf,
+		alignAttempt,
 		fullDifficultyFrom,
 		markMismatchedWords,
 		nextHint,
@@ -203,7 +204,10 @@
 	/** The attempt, marking the reader's own wrong words. Same function with
 	 *  the arguments swapped: walking the attempt and checking each word
 	 *  against the verse is exactly the mirror of walking the verse. */
-	const attemptMarks = $derived(markMismatchedWords(typed, verse));
+	/** The attempt with skipped words put back where they belonged. Replaces a
+	 *  plain marking pass, which could only paint words that were there and so
+	 *  said nothing about the commonest miss of all. */
+	const attemptMarks = $derived(alignAttempt(verse, typed));
 
 	// ─── 힌트: the next word, one character at a time ────────────────────────
 	/** Where the attempt stopped matching. -1 once the verse is complete. */
@@ -421,9 +425,11 @@
 		if ('full' in patch) onPickFull(patch.full ?? null);
 	}
 
-	/** Fresh attempt from the success screen. Unlike 취소 this DOES reset the
-	 *  text and both clocks: the previous attempt is finished and recorded, so
-	 *  carrying its elapsed time into the next one would misreport it. */
+	/** Clears the box and both clocks for a fresh attempt. Reached from 다시 on
+	 *  either screen — after a save, or after rejecting a flawed grade. Carrying
+	 *  the previous elapsed time into the next attempt would misreport it, and
+	 *  a resubmit made after reading the marked answer would flatter itself
+	 *  against an honest single try. */
 	function restart() {
 		onRestart?.();
 		celebrate = false;
@@ -753,9 +759,12 @@
 			>
 				{#each attemptMarks as m, i (i)}<span
 						data-ok={m.ok}
-						class={m.ok
-							? 'text-[var(--color-text)]'
-							: 'rounded bg-[var(--color-ribbon-red)]/20 px-0.5 text-[var(--color-danger)]'}
+						data-missing={m.kind === 'missing'}
+						class={m.kind === 'missing'
+							? 'rounded border border-dashed border-[var(--color-border)] px-0.5 text-[var(--color-text-tertiary)]'
+							: m.ok
+								? 'text-[var(--color-text)]'
+								: 'rounded bg-[var(--color-ribbon-red)]/20 px-0.5 text-[var(--color-danger)]'}
 						>{m.word}</span
 					>{' '}{/each}
 			</p>
@@ -777,7 +786,7 @@
 					onclick={cancel}
 					class="rounded-full px-3 py-1.5 text-[calc(12px*var(--vfs))] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-card)]"
 				>
-					취소
+					다시
 				</button>
 				<!-- 전체 난이도 is what this screen exists to capture, so saving
 				     without one would write an empty check. After 제출 it is always
