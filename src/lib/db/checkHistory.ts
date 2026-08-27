@@ -1,6 +1,7 @@
 import { db, type CheckRecord } from './local';
 import type { DifficultyLevel } from './verseRatings';
 import { touchDataModified } from './touchData';
+import { isRecallableAttempt } from '$lib/quiz/games';
 
 /** Entries kept per verse. Older ones are pruned as new checks land — this is
  *  a "how has it been going" glance, not an audit trail, and 900 verses times
@@ -28,7 +29,8 @@ export async function recordCheck(
 		elapsedMs: number;
 		hints?: number;
 		missed?: number[];
-		source?: 'quiz';
+		source?: 'quiz' | 'quiz-opening' | 'quiz-spot';
+		typed?: string;
 	},
 	checkedAt: number = Date.now()
 ): Promise<void> {
@@ -49,7 +51,16 @@ export async function recordCheck(
 		// round is lost silently. Spreading undefined must stay undefined:
 		// absent means the record predates this field, which is not the same
 		// as missing nothing.
-		...(entry.missed ? { missed: [...entry.missed] } : {})
+		...(entry.missed ? { missed: [...entry.missed] } : {}),
+		// Kept only for a near miss. Deciding here rather than at each call
+		// site means the card's 점검 and the quiz's typing round cannot
+		// disagree about which sentences are worth handing back later.
+		// entry.typed already rode in on the ...entry spread above, so a
+		// collapsed or perfect attempt needs an explicit undefined to push it
+		// back out — an empty spread here would leave it in place.
+		...(entry.typed !== undefined
+			? { typed: isRecallableAttempt(entry.accuracy) ? entry.typed : undefined }
+			: {})
 	});
 	await prune(key);
 	await touchDataModified();
@@ -84,6 +95,19 @@ export async function listChecks(
 }
 
 /**
+ * Does this record say something about recall?
+ *
+ * 점검 and the quiz's full typing round do: the reader produced the verse
+ * from memory. The opening game proves only that they can start it, and the
+ * spot game proves they can recognise a mistake — neither is evidence that
+ * the verse was recited, so neither may move the underline suggestions or the
+ * 만점 badge.
+ */
+export function countsAsRecall(r: Pick<CheckRecord, 'source'>): boolean {
+	return r.source === undefined || r.source === 'quiz';
+}
+
+/**
  * Verse numbers in a package that have ever been recited flawlessly.
  *
  * Read from the history rather than stored as a flag on the verse: the record
@@ -103,6 +127,7 @@ export async function listPerfectVerseNos(packageId: string): Promise<Set<number
 	// the card telling the reader something they just disproved.
 	const latest = new Map<number, { checkedAt: number; accuracy: number }>();
 	for (const r of rows) {
+		if (!countsAsRecall(r)) continue;
 		const seen = latest.get(r.verseNo);
 		if (!seen || r.checkedAt > seen.checkedAt) latest.set(r.verseNo, r);
 	}
