@@ -134,11 +134,16 @@
 				</button>
 			{/each}
 		</div>
-		{#if game === 'spot' && attemptCount !== null}
-			<p class="mt-2 text-[12px] text-[var(--color-text-tertiary)]">
-				{queue.length}구절 중 {attemptCount}개에 내 오답 기록이 있습니다
-			</p>
-		{/if}
+		<!-- Always rendered for the same reason as the region below: this count
+		     changes as the read resolves and as the tier chips move, and a live
+		     region that appears alongside its own new text announces nothing. -->
+		<div aria-live="polite">
+			{#if game === 'spot' && attemptCount !== null}
+				<p class="mt-2 text-[12px] text-[var(--color-text-tertiary)]">
+					{queue.length}구절 중 {attemptCount}개에 내 오답 기록이 있습니다
+				</p>
+			{/if}
+		</div>
 	</div>
 
 	<div class="flex items-center justify-between gap-3">

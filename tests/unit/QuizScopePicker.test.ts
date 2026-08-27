@@ -220,11 +220,24 @@ describe('QuizScopePicker — announced structure', () => {
 
 	// A live region has to exist before the text inside it changes, or the
 	// change is never announced. These lines appear and disappear with the
-	// scope, so the region has to outlive them.
+	// scope, so the region has to outlive them — including while it is empty,
+	// which is the state a conditionally-rendered region would not survive.
 	it('keeps a live region in place even when it has nothing to say', () => {
-		setup({ items: [] });
-		const live = document.querySelector('[aria-live="polite"]');
-		expect(live).not.toBeNull();
+		setup();
+		const empty = [...document.querySelectorAll('[aria-live="polite"]')].filter(
+			(el) => el.textContent?.trim() === ''
+		);
+		expect(empty.length).toBeGreaterThan(0);
+	});
+
+	// The count is the line that actually changes on its own — as the read
+	// resolves, and as the tier chips move the total under it. It was the one
+	// named in the finding, and the one first fixed everywhere but here.
+	it('announces the attempts count', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
+		const line = await screen.findByText(/내 오답 기록이 있습니다/);
+		expect(line.closest('[aria-live="polite"]')).not.toBeNull();
 	});
 
 	it('tells a disabled 시작 why it is disabled', async () => {
