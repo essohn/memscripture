@@ -18,7 +18,7 @@
 	import { createPlayer, isTtsSupported, speechSegments, type PlayerHandle } from '$lib/memorize/speak';
 	import VersePlayer from './VersePlayer.svelte';
 	import { getSpeakOptions, setSpeakOption, type SpeakOptionsStored } from '$lib/db/viewOptions';
-	import { countsAsRecall, listChecks, recordCheck } from '$lib/db/checkHistory';
+	import { countsAsRecall, deleteCheck, listChecks, recordCheck, restoreCheck } from '$lib/db/checkHistory';
 	import type { CheckRecord } from '$lib/db/local';
 	import { tick } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -312,6 +312,35 @@
 	 *  has nothing to show for one. */
 	const checkOnlyHistory = $derived(checkHistory.filter((r) => !r.source));
 
+	/**
+	 * Drops one check at the reader's request, and puts it back on undo.
+	 *
+	 * The local array is updated alongside the write rather than by re-reading:
+	 * everything this card says about its own history — the last-checked line,
+	 * the underline suggestions, the 만점 popper — is derived from it, and a
+	 * round-trip to Dexie would leave all of them a frame behind the row the
+	 * reader just watched disappear.
+	 *
+	 * Failures are swallowed the same way recordCheck's are. A history that
+	 * would not save is not worth an error screen over the verse itself, and
+	 * the next load reads whatever actually landed.
+	 */
+	async function removeCheck(record: CheckRecord) {
+		const left = checkHistory.filter((r) => r.id !== record.id);
+		checkHistory = left;
+		// Read off `left` rather than the derived list: a $derived settles after
+		// this function returns, and the line has to be right before the reader
+		// closes the sheet on top of it.
+		noChecksLeft = left.every((r) => r.source);
+		await deleteCheck(record.id).catch(() => {});
+	}
+
+	async function putCheckBack(record: CheckRecord) {
+		checkHistory = [...checkHistory, record].sort((a, b) => b.checkedAt - a.checkedAt);
+		noChecksLeft = false;
+		await restoreCheck(record).catch(() => {});
+	}
+
 	let historyOpen = $state(false);
 
 	/**
@@ -335,7 +364,19 @@
 	 * would still say 3일 전 about the check before it.
 	 */
 	let lastCheckedLocal = $state<number | null>(null);
-	const shownLastCheckedAt = $derived(lastCheckedLocal ?? lastCheckedAt);
+
+	/**
+	 * The reader deleted this verse's last 점검 while the card was open.
+	 *
+	 * Its own flag rather than a null in `lastCheckedLocal`, because null there
+	 * already means "nothing happened this session, use the prop" — the two
+	 * absences are opposites and one variable cannot hold both. Without it the
+	 * line would keep announcing a check that no longer exists, and openHistory
+	 * declines to open on an empty history, so tapping it would do nothing at
+	 * all.
+	 */
+	let noChecksLeft = $state(false);
+	const shownLastCheckedAt = $derived(noChecksLeft ? null : (lastCheckedLocal ?? lastCheckedAt));
 
 	/** Words this reader keeps missing, proposed as underlines. Derived rather
 	 *  than stored: a saved suggestion would outlive the history it came from
@@ -1027,6 +1068,8 @@
 	<CheckHistorySheet
 		heading={verse.cite}
 		records={checkOnlyHistory}
+		onDelete={removeCheck}
+		onRestore={putCheckBack}
 		onClose={() => (historyOpen = false)}
 	/>
 {/if}

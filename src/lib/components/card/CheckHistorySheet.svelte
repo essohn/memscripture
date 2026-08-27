@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { X } from 'lucide-svelte';
+	import { Trash2, X } from 'lucide-svelte';
 	import type { CheckRecord } from '$lib/db/local';
 	import { DIFFICULTY_COLORS, type DifficultyLevel } from '$lib/db/verseRatings';
 	import { relativeTimeKo, shortDateKo } from '$lib/utils/relativeTime';
@@ -13,9 +13,47 @@
 		/** Injectable so the relative times can be asserted against a fixed
 		 *  clock rather than against whenever the suite happens to run. */
 		now?: number;
+		/** Given, each row offers to delete itself. Omitted, the sheet is a
+		 *  read-only report — the button is not drawn at all rather than drawn
+		 *  and made to do nothing. */
+		onDelete?: (record: CheckRecord) => void;
+		/** Required in practice wherever onDelete is given: the undo is offered
+		 *  in the row itself, and it has to reach the store that took the
+		 *  deletion. */
+		onRestore?: (record: CheckRecord) => void;
 		onClose: () => void;
 	}
-	let { heading, records, now = Date.now(), onClose }: Props = $props();
+	let { heading, records, now = Date.now(), onDelete, onRestore, onClose }: Props = $props();
+
+	/**
+	 * Rows removed in this sitting, by id.
+	 *
+	 * The deletion is already written by the time this fills — the caller does
+	 * that — so this is only about what the list looks like while the sheet is
+	 * open. The row keeps its place and turns into its own undo, rather than
+	 * vanishing and reflowing the list under the finger that just tapped it.
+	 *
+	 * Read off a snapshot of the records taken once, not off the live prop: the
+	 * caller drops the deleted record from its own state, which would take the
+	 * row — and the undo with it — off the screen before it could be used. The
+	 * sheet is modal and no check can land while it is open, so nothing else
+	 * moves the list in the meantime.
+	 */
+	// svelte-ignore state_referenced_locally
+	const rows = records;
+	let removed = $state(new Set<string>());
+
+	function remove(record: CheckRecord) {
+		removed = new Set(removed).add(record.id);
+		onDelete?.(record);
+	}
+
+	function undo(record: CheckRecord) {
+		const next = new Set(removed);
+		next.delete(record.id);
+		removed = next;
+		onRestore?.(record);
+	}
 
 	function onKey(e: KeyboardEvent) {
 		if (e.key === 'Escape') onClose();
@@ -58,11 +96,27 @@
 	<!-- Ten rows of verse-length text do not fit a phone, so the list scrolls
 	     inside the sheet rather than growing it past the screen. -->
 	<ul class="-mx-1 min-h-0 flex-1 space-y-3 overflow-y-auto px-1 pb-2">
-		{#each records as h (h.id)}
+		{#each rows as h (h.id)}
 			<li
 				data-testid="check-history-row"
 				class="rounded-xl border border-[var(--color-border)] bg-[var(--color-canvas)] p-3"
 			>
+			{#if removed.has(h.id)}
+				<!-- The row it replaces, at the height it had, so the list does not
+				     jump while the reader decides whether they meant it. -->
+				<div class="flex items-center justify-between gap-3">
+					<span class="text-[12px] text-[var(--color-text-tertiary)]">
+						{shortDateKo(h.checkedAt)} 점검 기록을 지웠습니다
+					</span>
+					<button
+						type="button"
+						onclick={() => undo(h)}
+						class="shrink-0 rounded-full px-3 py-1.5 text-[13px] font-semibold text-[var(--color-accent)] transition-colors hover:bg-[var(--color-elevated)]"
+					>
+						실행 취소
+					</button>
+				</div>
+			{:else}
 				<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
 					<span class="text-[12px] tabular-nums text-[var(--color-text-secondary)]"
 						>{shortDateKo(h.checkedAt)}</span
@@ -104,6 +158,24 @@
 						입력 본문이 기록되기 전의 점검입니다
 					</p>
 				{/if}
+
+				{#if onDelete}
+					<!-- Named by date, not "삭제": ten identical labels is a list a
+					     screen reader cannot tell apart, and this one is destructive.
+					     No confirmation, because the undo is the confirmation — and it
+					     costs one tap instead of two on every deliberate delete. -->
+					<div class="mt-2 flex justify-end">
+						<button
+							type="button"
+							onclick={() => remove(h)}
+							aria-label="{shortDateKo(h.checkedAt)} 점검 기록 삭제"
+							class="inline-flex h-11 w-11 items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-danger)]"
+						>
+							<Trash2 size={16} strokeWidth={1.75} />
+						</button>
+					</div>
+				{/if}
+			{/if}
 			</li>
 		{/each}
 	</ul>

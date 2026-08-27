@@ -8,11 +8,12 @@ beforeEach(async () => {
 });
 
 describe('local db schema v8', () => {
-	it('exposes all 11 tables', () => {
+	it('exposes all 12 tables', () => {
 		const names = db.tables.map((t) => t.name).sort();
 		expect(names).toEqual([
 			'activity',
 			'bookmarks',
+			'checkDeletions',
 			'checkHistory',
 			'packages',
 			'progress',

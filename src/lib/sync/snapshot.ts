@@ -3,6 +3,7 @@ import { OYO_PACKAGE_ID } from '$lib/db/oyo';
 import { getDataLastModified } from '$lib/db/touchData';
 import type { Bookmark, DailyActivity, PackageMeta, VerseProgress } from '$lib/types';
 import type {
+	CheckDeletion,
 	CheckRecord,
 	StoredSetting,
 	StoredVerse,
@@ -44,6 +45,10 @@ export interface SyncSnapshot {
 	checkHistory?: CheckRecord[];
 	/** Optional so a snapshot written before v8 still imports. */
 	verseMarks?: VerseMark[];
+	/** Checks the reader deleted on purpose. Optional so a snapshot written
+	 *  before v9 still imports — such a snapshot simply has no deletions to
+	 *  report, which is the truth about a device that could not make one. */
+	checkDeletions?: CheckDeletion[];
 }
 
 /** Returns the device id stored in settings, creating one on first call.
@@ -72,7 +77,8 @@ export async function buildSyncSnapshot(): Promise<SyncSnapshot> {
 		settings,
 		verseRatings,
 		checkHistory,
-		verseMarks
+		verseMarks,
+		checkDeletions
 	] =
 		await Promise.all([
 			db.packages.get(OYO_PACKAGE_ID),
@@ -83,7 +89,8 @@ export async function buildSyncSnapshot(): Promise<SyncSnapshot> {
 			db.settings.toArray(),
 			db.verseRatings.toArray(),
 			db.checkHistory.toArray(),
-			db.verseMarks.toArray()
+			db.verseMarks.toArray(),
+			db.checkDeletions.toArray()
 		]);
 
 	const localKeySet = new Set<string>(DEVICE_LOCAL_KEYS);
@@ -103,7 +110,8 @@ export async function buildSyncSnapshot(): Promise<SyncSnapshot> {
 		settings: settings.filter((row) => !localKeySet.has(row.key)),
 		verseRatings,
 		checkHistory,
-		verseMarks
+		verseMarks,
+		checkDeletions
 	};
 }
 
@@ -132,7 +140,8 @@ export async function applySyncSnapshot(input: unknown): Promise<void> {
 			db.settings,
 			db.verseRatings,
 			db.checkHistory,
-			db.verseMarks
+			db.verseMarks,
+			db.checkDeletions
 		],
 		async () => {
 			// Preserve device-local settings (auth, device id, pre-sync backup)
@@ -153,6 +162,7 @@ export async function applySyncSnapshot(input: unknown): Promise<void> {
 			await db.verseRatings.clear();
 			await db.checkHistory.clear();
 			await db.verseMarks.clear();
+			await db.checkDeletions.clear();
 
 			// Restore. Order matters only for read paths that join — none here.
 			if (snap.oyo.package) await db.packages.put(snap.oyo.package);
@@ -165,6 +175,11 @@ export async function applySyncSnapshot(input: unknown): Promise<void> {
 			// Absent on snapshots written before the table existed — the ?. keeps
 			// those importable.
 			if (snap.checkHistory?.length) await db.checkHistory.bulkPut(snap.checkHistory);
+			// Restored alongside the history rather than applied to it: the
+			// snapshot's checkHistory has already had its deletions subtracted by
+			// mergeSnapshots, and this device needs the tombstones themselves so
+			// it can subtract them again for a device that syncs later.
+			if (snap.checkDeletions?.length) await db.checkDeletions.bulkPut(snap.checkDeletions);
 			if (snap.verseMarks?.length) await db.verseMarks.bulkPut(snap.verseMarks);
 
 			// Re-put device-local rows last so they override any same-key entries

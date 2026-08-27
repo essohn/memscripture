@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import CheckHistorySheet from '../../src/lib/components/card/CheckHistorySheet.svelte';
 import type { CheckRecord } from '../../src/lib/db/local';
+import { shortDateKo } from '../../src/lib/utils/relativeTime';
 
 const NOW = Date.UTC(2026, 7, 27, 12, 0, 0);
 const DAY = 86_400_000;
@@ -23,6 +24,15 @@ const mount = (records: CheckRecord[], onClose = () => {}) =>
 	render(CheckHistorySheet, {
 		props: { heading: '히브리서 4:12', records, now: NOW, onClose }
 	});
+
+const mountDeletable = (records: CheckRecord[]) => {
+	const onDelete = vi.fn();
+	const onRestore = vi.fn();
+	render(CheckHistorySheet, {
+		props: { heading: '히브리서 4:12', records, now: NOW, onClose: () => {}, onDelete, onRestore }
+	});
+	return { onDelete, onRestore };
+};
 
 describe('CheckHistorySheet', () => {
 	it('names the verse it is reporting on', () => {
@@ -102,5 +112,63 @@ describe('CheckHistorySheet', () => {
 		mount([record()], onClose);
 		await fireEvent.click(screen.getByRole('button', { name: '닫기' }));
 		expect(onClose).toHaveBeenCalled();
+	});
+});
+
+describe('deleting a record', () => {
+	// The button only exists where a caller can actually carry the deletion
+	// out. A sheet opened read-only shows the same rows without them.
+	it('offers no delete when the caller cannot handle one', () => {
+		mount([record()]);
+		expect(screen.queryByRole('button', { name: /점검 기록 삭제/ })).toBeNull();
+	});
+
+	// Named by date rather than "삭제": ten rows of identical buttons is a list
+	// a screen reader cannot tell apart, and this one is destructive. Built from
+	// the same formatter the row prints, so the label and the row it names
+	// cannot drift apart.
+	it('names the row each delete belongs to', () => {
+		const at = NOW - DAY;
+		mountDeletable([record({ checkedAt: at })]);
+		expect(
+			screen.getByRole('button', { name: `${shortDateKo(at)} 점검 기록 삭제` })
+		).toBeInTheDocument();
+	});
+
+	it('hands the record to the caller', async () => {
+		const { onDelete } = mountDeletable([record({ id: 'a' })]);
+		await fireEvent.click(screen.getByRole('button', { name: /점검 기록 삭제/ }));
+		expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({ id: 'a' }));
+	});
+
+	// The row holds its place rather than vanishing. A list that reflows under
+	// the finger is how the next tap lands on the wrong record, and the undo
+	// has to be somewhere the reader is already looking.
+	it('leaves an undo where the row was', async () => {
+		mountDeletable([record({ id: 'a' }), record({ id: 'b', checkedAt: NOW - 2 * DAY })]);
+		await fireEvent.click(screen.getAllByRole('button', { name: /점검 기록 삭제/ })[0]);
+
+		expect(screen.getAllByTestId('check-history-row')).toHaveLength(2);
+		expect(screen.getByRole('button', { name: '실행 취소' })).toBeInTheDocument();
+	});
+
+	it('restores the record through the caller', async () => {
+		const { onRestore } = mountDeletable([record({ id: 'a' })]);
+		await fireEvent.click(screen.getByRole('button', { name: /점검 기록 삭제/ }));
+		await fireEvent.click(screen.getByRole('button', { name: '실행 취소' }));
+
+		expect(onRestore).toHaveBeenCalledWith(expect.objectContaining({ id: 'a' }));
+		expect(screen.getByRole('button', { name: /점검 기록 삭제/ })).toBeInTheDocument();
+	});
+
+	// Undoing one deletion must not bring the others back with it.
+	it('undoes only the row that was undone', async () => {
+		mountDeletable([record({ id: 'a' }), record({ id: 'b', checkedAt: NOW - 2 * DAY })]);
+		const buttons = screen.getAllByRole('button', { name: /점검 기록 삭제/ });
+		await fireEvent.click(buttons[0]);
+		await fireEvent.click(buttons[1]);
+		await fireEvent.click(screen.getAllByRole('button', { name: '실행 취소' })[0]);
+
+		expect(screen.getAllByRole('button', { name: '실행 취소' })).toHaveLength(1);
 	});
 });

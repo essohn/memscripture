@@ -16,9 +16,15 @@ import type { SyncSnapshot } from './snapshot';
  *
  * The cost, stated plainly: this cannot distinguish "deleted here" from "never
  * seen here", so a bookmark cleared on one device reappears from the other
- * until the same clear syncs back. Recording deletions would need tombstones
- * in every table. A returning bookmark is a smaller harm than a lost year, and
- * that is the trade being made.
+ * until the same clear syncs back. A returning bookmark is a smaller harm than
+ * a lost year, and that is the trade being made.
+ *
+ * checkHistory is the one exception, because there the harm runs the other
+ * way: a reader who deletes a check has said something deliberate, and a union
+ * that quietly undoes it would make the delete button a lie. That table alone
+ * carries tombstones. The others still do not — the trade above is still the
+ * right one wherever a returning row is merely untidy rather than a reversed
+ * decision.
  */
 
 /** Keeps whichever copy of each id has the greater version, unioning the rest. */
@@ -55,6 +61,12 @@ export function mergeSnapshots(local: SyncSnapshot, remote: SyncSnapshot): SyncS
 	// per-record version of their own.
 	const newer = (local.lastModifiedAt ?? '') >= (remote.lastModifiedAt ?? '') ? local : remote;
 	const older = newer === local ? remote : local;
+
+	// Computed before the snapshot rather than inside it: the merged history
+	// has to be filtered by the merged tombstones, and reading a half-built
+	// object literal to do that would be a puzzle for the next reader.
+	const deletions = unionById(local.checkDeletions, remote.checkDeletions, (d) => d.id);
+	const deleted = new Set(deletions.map((d) => d.id));
 
 	return {
 		version: 1,
@@ -99,8 +111,18 @@ export function mergeSnapshots(local: SyncSnapshot, remote: SyncSnapshot): SyncS
 		),
 
 		// An append-only log with an id unique per check. Nothing to resolve:
-		// two devices simply hold different entries, and both count.
-		checkHistory: unionById(local.checkHistory, remote.checkHistory, (c) => c.id),
+		// two devices simply hold different entries, and both count — except
+		// where the reader has said otherwise, which is what the tombstones are.
+		checkHistory: unionById(local.checkHistory, remote.checkHistory, (c) => c.id).filter(
+			(c) => !deleted.has(c.id)
+		),
+
+		// The one table that carries deletions, so the union above can be told
+		// about them. Unioned rather than resolved: a tombstone is a fact that
+		// happened, and two devices deleting different checks both happened.
+		// They travel so that a device syncing later learns about a deletion it
+		// never saw, instead of re-offering the row forever.
+		checkDeletions: deletions,
 
 		verseMarks: mergeById(
 			local.verseMarks,

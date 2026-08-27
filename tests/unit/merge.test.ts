@@ -140,3 +140,61 @@ describe('the envelope', () => {
 		expect(mergeSnapshots(legacy, current).checkHistory).toEqual([]);
 	});
 });
+
+describe('a deleted check stays deleted', () => {
+	const check = (id: string, checkedAt: number) =>
+		({ id, verseKey: 'x:1', packageId: 'x', verseNo: 1, checkedAt, start: 5, full: 5, accuracy: 1, elapsedMs: 1 }) as never;
+
+	// The union that keeps both devices' checks is exactly what hands a deleted
+	// one back, so the tombstone is the only thing standing between "I removed
+	// that" and it returning on the next open.
+	it('subtracts a tombstone from the other device copy', () => {
+		const deleted = snap({ checkDeletions: [{ id: 'x:1:100:0', deletedAt: 500 }] as never });
+		const stillHasIt = snap({ checkHistory: [check('x:1:100:0', 100)] as never });
+
+		expect(mergeSnapshots(deleted, stillHasIt).checkHistory).toEqual([]);
+	});
+
+	it('subtracts it whichever side the tombstone arrives from', () => {
+		const deleted = snap({ checkDeletions: [{ id: 'x:1:100:0', deletedAt: 500 }] as never });
+		const stillHasIt = snap({ checkHistory: [check('x:1:100:0', 100)] as never });
+
+		expect(mergeSnapshots(stillHasIt, deleted).checkHistory).toEqual([]);
+	});
+
+	// One deletion must not take the verse's other checks with it.
+	it('leaves every check it does not name alone', () => {
+		const deleted = snap({
+			checkHistory: [check('x:1:200:0', 200)] as never,
+			checkDeletions: [{ id: 'x:1:100:0', deletedAt: 500 }] as never
+		});
+		const stillHasIt = snap({
+			checkHistory: [check('x:1:100:0', 100), check('x:1:200:0', 200)] as never
+		});
+
+		expect(mergeSnapshots(deleted, stillHasIt).checkHistory?.map((c) => c.id)).toEqual([
+			'x:1:200:0'
+		]);
+	});
+
+	// The other device has to learn about the deletion, or it would keep
+	// re-offering the row every time it syncs.
+	it('carries the tombstones through to the merged snapshot', () => {
+		const a = snap({ checkDeletions: [{ id: 'x:1:100:0', deletedAt: 500 }] as never });
+		const b = snap({ checkDeletions: [{ id: 'x:1:200:0', deletedAt: 600 }] as never });
+
+		expect(mergeSnapshots(a, b).checkDeletions?.map((d) => d.id).sort()).toEqual([
+			'x:1:100:0',
+			'x:1:200:0'
+		]);
+	});
+
+	// A snapshot written before v9 has no tombstones at all and must merge
+	// exactly as it did before.
+	it('merges a snapshot that predates tombstones', () => {
+		const old = snap({ checkHistory: [check('x:1:100:0', 100)] as never });
+		delete (old as { checkDeletions?: unknown }).checkDeletions;
+
+		expect(mergeSnapshots(old, snap({})).checkHistory?.map((c) => c.id)).toEqual(['x:1:100:0']);
+	});
+});

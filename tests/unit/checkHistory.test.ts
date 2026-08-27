@@ -9,6 +9,9 @@ import {
 	listPerfectVerseNos,
 	listRecentChecks,
 	recordCheck,
+	deleteCheck,
+	restoreCheck,
+	listCheckDeletions,
 	TYPED_LIMIT
 } from '../../src/lib/db/checkHistory';
 import { suggestedMarks } from '../../src/lib/memorize/missStats';
@@ -409,5 +412,62 @@ describe('listRecentChecks', () => {
 		await add('a_krv', 1, 100);
 		const rows = (await listRecentChecks(['a_krv', 'a_krv'])).get('a_krv:1');
 		expect(rows).toHaveLength(1);
+	});
+});
+
+describe('deleting a check', () => {
+	// A check the reader did not mean to keep — a test run, a tap that opened
+	// the panel — is theirs to remove. Nothing else about the verse moves: the
+	// difficulty badges are rows they own separately.
+	it('removes the record from the verse history', async () => {
+		await recordCheck('900_krv', 1, entry(), 1000);
+		await recordCheck('900_krv', 1, entry(), 2000);
+		const [newest] = await listChecks('900_krv', 1);
+
+		await deleteCheck(newest.id);
+
+		expect((await listChecks('900_krv', 1)).map((r) => r.checkedAt)).toEqual([1000]);
+	});
+
+	// The tombstone is the whole point: checkHistory merges by union, so a
+	// device that still holds the row would hand it straight back on the next
+	// Drive sync. See mergeSnapshots.
+	it('leaves a tombstone behind', async () => {
+		await recordCheck('900_krv', 1, entry(), 1000);
+		const [row] = await listChecks('900_krv', 1);
+
+		await deleteCheck(row.id);
+
+		expect((await listCheckDeletions()).map((d) => d.id)).toEqual([row.id]);
+	});
+
+	it('is indifferent to an id that is already gone', async () => {
+		await expect(deleteCheck('900_krv:1:9999:0')).resolves.toBeUndefined();
+	});
+
+	// Undo has to lift the tombstone too, or the next sync would delete the
+	// row the reader just brought back.
+	it('restores the record and lifts its tombstone', async () => {
+		await recordCheck('900_krv', 1, entry(), 1000);
+		const [row] = await listChecks('900_krv', 1);
+		await deleteCheck(row.id);
+
+		await restoreCheck(row);
+
+		expect((await listChecks('900_krv', 1)).map((r) => r.checkedAt)).toEqual([1000]);
+		expect(await listCheckDeletions()).toEqual([]);
+	});
+
+	// The badge reads the newest check, so removing it has to hand the verse
+	// back to whatever the check before it said.
+	it('hands the 만점 badge back to the check before it', async () => {
+		await recordCheck('900_krv', 1, entry({ accuracy: 1 }), 1000);
+		await recordCheck('900_krv', 1, entry({ accuracy: 0.5 }), 2000);
+		expect(await listPerfectVerseNos('900_krv')).toEqual(new Set());
+
+		const [newest] = await listChecks('900_krv', 1);
+		await deleteCheck(newest.id);
+
+		expect(await listPerfectVerseNos('900_krv')).toEqual(new Set([1]));
 	});
 });

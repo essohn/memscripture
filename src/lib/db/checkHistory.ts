@@ -1,4 +1,4 @@
-import { db, type CheckRecord } from './local';
+import { db, type CheckDeletion, type CheckRecord } from './local';
 import type { DifficultyLevel } from './verseRatings';
 import { touchDataModified } from './touchData';
 
@@ -117,6 +117,55 @@ async function prune(key: string): Promise<void> {
 
 	const doomed = rows.filter((r) => !kept.has(r.id)).map((r) => r.id);
 	await db.checkHistory.bulkDelete(doomed);
+}
+
+/**
+ * Removes one check at the reader's request.
+ *
+ * A record they did not mean to keep — a stray tap that opened the panel, a
+ * run made to try something out — is theirs to drop, and nothing else about
+ * the verse moves with it: the difficulty badges are rows they own separately.
+ * What does move is everything derived from the history, which is the point —
+ * the 만점 badge and 최근 점검 go back to saying what the remaining checks say.
+ *
+ * The tombstone is not bookkeeping. checkHistory merges by union, so a device
+ * that still holds this row would hand it back on the next Drive sync; the
+ * tombstone is what mergeSnapshots subtracts to stop that.
+ *
+ * Silent about an id that is already gone: undo, a second tap, and a sync that
+ * removed it first all arrive here, and none of them is an error.
+ */
+export async function deleteCheck(id: string, deletedAt: number = Date.now()): Promise<void> {
+	await db.checkHistory.delete(id);
+	await db.checkDeletions.put({ id, deletedAt });
+	await touchDataModified();
+}
+
+/**
+ * Puts a deleted check back, tombstone and all.
+ *
+ * Lifting the tombstone is the half that is easy to forget: leaving it behind
+ * would let the next sync delete the row the reader just restored, which is
+ * the same bug the tombstone exists to fix, pointed the other way.
+ */
+export async function restoreCheck(record: CheckRecord): Promise<void> {
+	// Copied, not passed through, for the reason recordCheck copies `missed`:
+	// the undo hands back a row the card is holding in $state, and IndexedDB's
+	// structured clone cannot clone a Proxy — the write rejects, the caller
+	// swallows it the way every history write is swallowed, and the record the
+	// reader asked for is quietly gone for good. The nested array needs its own
+	// copy; spreading the row only unwraps the top level.
+	await db.checkHistory.put({
+		...record,
+		...(record.missed ? { missed: [...record.missed] } : {})
+	});
+	await db.checkDeletions.delete(record.id);
+	await touchDataModified();
+}
+
+/** Every tombstone, for the sync snapshot to carry. */
+export async function listCheckDeletions(): Promise<CheckDeletion[]> {
+	return db.checkDeletions.toArray();
 }
 
 /** Most recent first, capped at HISTORY_LIMIT. */

@@ -101,6 +101,24 @@ export interface VerseRating {
 	updatedAt: number;
 }
 
+/**
+ * A check the reader deleted on purpose.
+ *
+ * checkHistory merges by union — two devices simply hold different checks, and
+ * both count — so a delete has nothing to say for itself unless it is written
+ * down. Without this row the next Drive sync hands the record straight back
+ * from whichever device still has it.
+ *
+ * Only reader-initiated deletes are recorded. `prune()` drops rows too, but it
+ * is a deterministic rule every device applies to its own copy, and tombstoning
+ * its output would let one device's pruning delete another's evidence.
+ */
+export interface CheckDeletion {
+	/** The id of the CheckRecord that was deleted. */
+	id: string;
+	deletedAt: number;
+}
+
 class LocalDB extends Dexie {
 	packages!: Table<StoredPackage, string>;
 	verses!: Table<StoredVerse, [string, number]>;
@@ -112,6 +130,7 @@ class LocalDB extends Dexie {
 	recentBundles!: Table<RecentBundle, string>;
 	verseRatings!: Table<VerseRating, string>;
 	checkHistory!: Table<CheckRecord, string>;
+	checkDeletions!: Table<CheckDeletion, string>;
 	verseMarks!: Table<VerseMark, string>;
 
 	constructor() {
@@ -193,6 +212,21 @@ class LocalDB extends Dexie {
 			verseRatings: '&id, packageId',
 			checkHistory: '&id, verseKey, checkedAt',
 			verseMarks: '&id, packageId'
+		});
+		// v9 adds checkDeletions. Additive again, so no data callback.
+		this.version(9).stores({
+			packages: '&id, name',
+			verses: '[package_id+no], package_id',
+			settings: '&key',
+			progress: '&id, packageId, bucket',
+			activity: '&dateKey',
+			bookmarks: '&id, packageId, color',
+			recentVerses: '&id, viewedAt',
+			recentBundles: '&id, createdAt',
+			verseRatings: '&id, packageId',
+			checkHistory: '&id, verseKey, checkedAt',
+			verseMarks: '&id, packageId',
+			checkDeletions: '&id, deletedAt'
 		});
 	}
 }

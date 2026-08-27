@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import VerseCard from '../../src/lib/components/card/VerseCard.svelte';
 import { db } from '../../src/lib/db/local';
-import { listChecks, recordCheck } from '../../src/lib/db/checkHistory';
+import { listCheckDeletions, listChecks, recordCheck } from '../../src/lib/db/checkHistory';
 import { tick } from 'svelte';
 
 const verse = {
@@ -124,5 +124,47 @@ describe('VerseCard last-checked line', () => {
 
 		await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
 		expect(screen.queryByPlaceholderText('외운 구절을 입력하세요')).not.toBeInTheDocument();
+	});
+});
+
+describe('deleting a check from the sheet', () => {
+	async function openSheet() {
+		setup({ lastCheckedAt: daysAgo(3) });
+		await fireEvent.click(trigger()!);
+		await waitFor(() => expect(screen.getByRole('dialog', { name: /점검 기록/ })).toBeInTheDocument());
+	}
+
+	it('removes the record from the database', async () => {
+		await recordCheck('900_krv', 127, { start: 4, full: 5, accuracy: 1, elapsedMs: 1 }, daysAgo(3));
+		await openSheet();
+
+		await fireEvent.click(screen.getByRole('button', { name: /점검 기록 삭제/ }));
+
+		await waitFor(async () => expect(await listChecks('900_krv', 127)).toEqual([]));
+		expect(await listCheckDeletions()).toHaveLength(1);
+	});
+
+	it('puts it back when the undo is taken', async () => {
+		await recordCheck('900_krv', 127, { start: 4, full: 5, accuracy: 1, elapsedMs: 1 }, daysAgo(3));
+		await openSheet();
+		await fireEvent.click(screen.getByRole('button', { name: /점검 기록 삭제/ }));
+		await waitFor(async () => expect(await listChecks('900_krv', 127)).toEqual([]));
+
+		await fireEvent.click(screen.getByRole('button', { name: '실행 취소' }));
+
+		await waitFor(async () => expect(await listChecks('900_krv', 127)).toHaveLength(1));
+		expect(await listCheckDeletions()).toEqual([]);
+	});
+
+	// The line under the title reads the history, so removing the only check
+	// has to take the line with it rather than leave it pointing at nothing.
+	it('drops the last-checked line when the only check goes', async () => {
+		await recordCheck('900_krv', 127, { start: 4, full: 5, accuracy: 1, elapsedMs: 1 }, daysAgo(3));
+		await openSheet();
+
+		await fireEvent.click(screen.getByRole('button', { name: /점검 기록 삭제/ }));
+		await fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+
+		await waitFor(() => expect(trigger()).toBeNull());
 	});
 });
