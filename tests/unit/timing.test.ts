@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasTypedOpening, startDifficultyFor } from '../../src/lib/memorize/timing';
+import { hasTypedOpening, openingOf, startDifficultyFor } from '../../src/lib/memorize/timing';
 
 const VERSE = '그들에게 율례와 법도를 가르쳐서 마땅히 갈 길과 할 일을 그들에게 보이고';
 
@@ -55,5 +55,20 @@ describe('hasTypedOpening', () => {
 	it('is false for an empty attempt', () => {
 		expect(hasTypedOpening(VERSE, '')).toBe(false);
 		expect(hasTypedOpening('', '')).toBe(false);
+	});
+});
+
+describe('openingOf', () => {
+	it('is the first two words', () => {
+		expect(openingOf('그들에게 율례와 법도를 가르쳐서')).toBe('그들에게 율례와');
+	});
+
+	// A one-word verse still has an opening, so its clock can stop.
+	it('falls back to what a short verse has', () => {
+		expect(openingOf('여호와여')).toBe('여호와여');
+	});
+
+	it('is empty for an empty verse', () => {
+		expect(openingOf('   ')).toBe('');
 	});
 });

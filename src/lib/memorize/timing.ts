@@ -25,6 +25,18 @@ export function startDifficultyFor(elapsedMs: number): DifficultyLevel {
 const OPENING_WORDS = 2;
 
 /**
+ * The words that count as having started this verse.
+ *
+ * Exported because 첫 단어 has to *show* the opening when the reader gives up,
+ * and slicing it again at the call site would put OPENING_WORDS in two places
+ * — two definitions of the same thing, drifting apart the first time either
+ * moves.
+ */
+export function openingOf(verse: string): string {
+	return verse.trim().split(/\s+/).filter(Boolean).slice(0, OPENING_WORDS).join(' ');
+}
+
+/**
  * Has the reader produced the verse's opening yet?
  *
  * Two words, deliberately — this no longer borrows extractFirstClause, which
@@ -39,8 +51,7 @@ const OPENING_WORDS = 2;
  * Compared under the grading normalization, so spacing never holds it open.
  */
 export function hasTypedOpening(verse: string, typed: string): boolean {
-	const words = verse.trim().split(/\s+/).filter(Boolean).slice(0, OPENING_WORDS);
-	const opening = normalizeForGrading(words.join(''));
+	const opening = normalizeForGrading(openingOf(verse));
 	if (opening.length === 0) return false;
 	return normalizeForGrading(typed).startsWith(opening);
 }
