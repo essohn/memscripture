@@ -119,6 +119,23 @@ export function paceScale(verseLength: number): PaceScale {
  *  have not recited, and a 5 there would quietly retire it from review. */
 const ASSISTED_CEILING: DifficultyLevel = 2;
 
+/**
+ * One step below where the verse already stood.
+ *
+ * The bands bottom out at FLAWED_CEILING, so a verse already rated Hard was
+ * proposed Hard again after a check that went wrong — the rating stood still
+ * exactly when the check had just proved it should move, and the reader had to
+ * drag it down by hand every time.
+ *
+ * It stops at xHard. 0 Impossible is the reader's own word for a verse, not
+ * something a wrong answer can say on their behalf; a verse already there is
+ * left there rather than lifted out of it, since this is a ceiling and never a
+ * floor.
+ */
+function loweredFrom(previous: DifficultyLevel): DifficultyLevel {
+	return (previous <= 1 ? previous : previous - 1) as DifficultyLevel;
+}
+
 export interface GradeContext {
 	/** The verse's current 전체 rating, or null when never rated. */
 	previous?: DifficultyLevel | null;
@@ -141,9 +158,11 @@ export interface GradeContext {
  *
  * Anything short of flawless is capped at FLAWED_CEILING however small the
  * slip, and both how much went wrong and how slowly it came can lower it
- * further.
+ * further. A verse that already had a rating is also held one step under it,
+ * so a wrong check always moves the verse rather than proposing back the level
+ * it just failed to earn.
  *
- * Two ceilings then override whatever that produced. Assistance: reading the
+ * Two more ceilings then override whatever that produced. Assistance: reading the
  * verse off a hint, or hearing it a moment earlier, tests recognition rather
  * than recall, and scoring that as easy is how a verse stops coming back for
  * review while still being unknown. A miss in the session: the climb must not
@@ -160,7 +179,11 @@ export function fullDifficultyFrom(
 	elapsedMs: number,
 	context: GradeContext = {}
 ): DifficultyLevel {
-	const ceilings = [ungradedAssistance(accuracy, verseLength, elapsedMs, context.previous ?? null)];
+	const previous = context.previous ?? null;
+	const ceilings = [ungradedAssistance(accuracy, verseLength, elapsedMs, previous)];
+	// The attempt in hand, not the session: a retry that finally comes out
+	// flawless is a step forward, and missedInSession already caps it.
+	if (accuracy < 1 && previous !== null) ceilings.push(loweredFrom(previous));
 	if (context.assisted) ceilings.push(ASSISTED_CEILING);
 	if (context.missedInSession) ceilings.push(FLAWED_CEILING);
 	return Math.min(...ceilings) as DifficultyLevel;

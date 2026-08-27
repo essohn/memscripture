@@ -144,7 +144,18 @@ half a verse lost are not the same miss.
 | 80–99%   | below 1.2                    | 1 xHard |
 | < 80%    | any                          | 1 xHard |
 
-Two ceilings then override whatever that produced, both landing on 2 (Hard).
+A flawed attempt on a verse that already had a rating is also held **one step
+under it**. Those bands bottom out at the ceiling, so a verse sitting at 2 was
+proposed 2 again — a check that went wrong left the rating exactly where it
+was, and the reader had to drag it down by hand every time. The drop stops at
+1 xHard: 0 Impossible is the reader's own word for a verse, not something a
+wrong answer says on their behalf, and a verse already at 0 is left there
+rather than lifted out of it. Like every other rule here it is a ceiling, so
+it never softens what the bands said — a 5 verse that fell apart still lands
+on 1, not 4 — and it follows the attempt in hand rather than the session, so
+a retry that finally comes out flawless is not read as another one wrong.
+
+Two more ceilings then override whatever that produced, both landing on 2 (Hard).
 **Assistance** — a hint revealed, or the verse played aloud before the attempt
 — because that tests recognition rather than recall, and rating it easy is how
 a verse stops coming back for review while still being unknown. **A miss

@@ -470,3 +470,48 @@ describe('assistance caps the rating', () => {
 		expect(fullDifficultyFrom(1, CHARS, secs(20), { assisted: false })).toBe(5);
 	});
 });
+
+describe('a miss lowers the rating the verse already had', () => {
+	const CHARS = 61;
+	const secs = (n: number) => n * 1000;
+	/** One syllable wrong, typed at an ordinary pace — the smallest real miss.
+	 *  On the bands alone this lands at the flawed ceiling whatever the verse
+	 *  was rated before. */
+	const nearMiss = (previous: DifficultyLevel | null) =>
+		fullDifficultyFrom(0.99, CHARS, secs(20), { previous });
+
+	// The bands bottom out at the flawed ceiling, so a verse sitting at Hard
+	// was proposed Hard again — a check that went wrong left the rating exactly
+	// where it was, and the reader had to move it by hand every time.
+	it('drops a Hard verse to xHard', () => {
+		expect(nearMiss(2)).toBe(1);
+	});
+
+	it('holds an xHard verse at xHard rather than proposing Impossible', () => {
+		expect(nearMiss(1)).toBe(1);
+	});
+
+	// Impossible is the reader's own word for a verse, never the grader's. A
+	// verse already there is left where it is rather than lifted out of it.
+	it('leaves an Impossible verse where it is', () => {
+		expect(nearMiss(0)).toBe(0);
+	});
+
+	// The drop is a ceiling among the others, not a replacement for them: a
+	// verse rated xEasy that fell apart is not merely one step harder.
+	it('never softens what the bands already said', () => {
+		expect(nearMiss(5)).toBe(2);
+		expect(fullDifficultyFrom(0.5, CHARS, secs(200), { previous: 5 })).toBe(1);
+	});
+
+	it('leaves a verse with no rating to the bands', () => {
+		expect(nearMiss(null)).toBe(2);
+	});
+
+	// The drop follows the attempt in hand, not the session. A retry that comes
+	// out flawless is still capped for the earlier miss, but it is a step
+	// forward and must not be read as another one wrong.
+	it('does not drop a flawless retry after an earlier miss', () => {
+		expect(fullDifficultyFrom(1, CHARS, secs(20), { previous: 1, missedInSession: true })).toBe(2);
+	});
+});
