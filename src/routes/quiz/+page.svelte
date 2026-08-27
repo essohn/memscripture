@@ -5,7 +5,8 @@
 	import QuizOpeningRound from '$lib/components/quiz/QuizOpeningRound.svelte';
 	import QuizSpotRound from '$lib/components/quiz/QuizSpotRound.svelte';
 	import QuizSummary from '$lib/components/quiz/QuizSummary.svelte';
-	import { listTargets, loadAttempts, resolveTarget, type Target } from '$lib/quiz/scope';
+	import { listTargets, resolveTarget, type Target } from '$lib/quiz/scope';
+	import type { VerseSignal } from '$lib/quiz/priority';
 	import { GAME_SOURCE, type Game } from '$lib/quiz/games';
 	import { summarize, type ItemRating, type QuizItem, type RoundResult } from '$lib/quiz/session';
 	import { recordCheck } from '$lib/db/checkHistory';
@@ -15,6 +16,17 @@
 	let selected = $state<Target | null>(null);
 	let items = $state<QuizItem[]>([]);
 	let ratings = $state<Map<string, ItemRating>>(new Map());
+	let signals = $state<Map<string, VerseSignal>>(new Map());
+
+	/**
+	 * Stamped when a 대상 resolves, not when 시작 is pressed.
+	 *
+	 * The picker ranks the queue to show its count and hands that same queue
+	 * to start(). Reading the clock again here would rank twice against two
+	 * instants and could hand back a different ten than the number the reader
+	 * just read.
+	 */
+	let now = $state(Date.now());
 
 	let queue = $state<QuizItem[] | null>(null);
 	let game = $state<Game>('typing');
@@ -45,20 +57,6 @@
 	 */
 	let pickVersion = 0;
 
-	/**
-	 * A spot-attempts read that resolves after a later run started must not
-	 * win.
-	 *
-	 * Same shape as pickVersion, and not by coincidence: comparing the loaded
-	 * array against `queue` doesn't work, because assigning a plain array into
-	 * `$state` hands back a reactive proxy — the reference captured before the
-	 * read is never `===` the one `queue` returns afterwards, so an
-	 * identity-based guard fires on every run and the read's result is
-	 * silently dropped. A counter sidesteps that: it doesn't care what the
-	 * reactivity layer did to the array.
-	 */
-	let runVersion = 0;
-
 	/** Loaded once. The effect's body reads nothing reactive, but saying so
 	 *  with a flag beats relying on what the tracker happens not to see: an
 	 *  edit that moves a read into the body would otherwise turn this into a
@@ -84,57 +82,25 @@
 				if (version !== pickVersion) return;
 				items = r.items;
 				ratings = r.ratings;
+				signals = r.signals;
+				attempts = r.attempts;
+				now = Date.now();
 			})
 			.catch(() => {
 				if (version !== pickVersion) return;
 				items = [];
 				ratings = new Map();
+				signals = new Map();
+				attempts = new Map();
 			});
 	}
 
 	function start(picked: QuizItem[], chosen: Game) {
 		game = chosen;
-		const version = ++runVersion;
-
-		// The other two games never read attempts, so nothing to wait for —
-		// they start immediately, same as before.
-		if (chosen !== 'spot') {
-			queue = picked;
-			index = 0;
-			results = [];
-			unsaved = 0;
-			attempts = new Map();
-			return;
-		}
-
-		// Rounds must not mount before this settles: `shown` is a prop, read
-		// once at mount, not re-derived per round. Setting `queue` early and
-		// letting `attempts` arrive later — the previous shape — let a round
-		// mount against the intact verse and then have its text swapped out
-		// from under an answer already in progress once the read resolved.
-		loadAttempts(picked)
-			.then((m) => {
-				if (version !== runVersion) return;
-				attempts = m;
-				queue = picked;
-				index = 0;
-				results = [];
-				unsaved = 0;
-			})
-			.catch(() => {
-				if (version !== runVersion) return;
-				// The read failed, so nothing here is known to be a real
-				// question — every round would show the intact verse and every
-				// 이상 없음 would pass. The run still happens (the picker
-				// already promised a scope of this size), but the reader is
-				// told the same way a storage failure is told: on the summary,
-				// via the same counter finishRound uses below.
-				attempts = new Map();
-				queue = picked;
-				index = 0;
-				results = [];
-				unsaved = picked.length;
-			});
+		queue = picked;
+		index = 0;
+		results = [];
+		unsaved = 0;
 	}
 
 	function finishRound(result: RoundResult) {
@@ -173,7 +139,7 @@
 
 <main class="mx-auto w-full max-w-2xl px-4 py-4">
 	{#if queue === null}
-		<QuizScopePicker {targets} {selected} {items} {ratings} onPick={pick} onStart={start} />
+		<QuizScopePicker {targets} {selected} {items} {ratings} {signals} {attempts} {now} onPick={pick} onStart={start} />
 	{:else if done}
 		<QuizSummary
 			passed={summary.passed}
