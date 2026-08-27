@@ -18,12 +18,22 @@ const DEFAULTS: ViewOptions = {
 	verseFontScale: 1.0
 };
 
+/** Options this row used to hold and no longer does. Stripped on the next
+ *  write rather than by a migration of its own — nothing reads them meanwhile,
+ *  and this row travels in the sync envelope, so left alone they would follow
+ *  the reader between devices for good.
+ *
+ *  eventStatsOpen: the per-event 통계 보기 fold, retired when the stats became
+ *  permanently visible. */
+const RETIRED_KEYS = ['eventStatsOpen'] as const;
+
 async function readRaw(): Promise<Record<string, unknown>> {
 	const entry = await db.settings.get(KEY);
 	const value = entry?.value;
-	return value && typeof value === 'object' && !Array.isArray(value)
-		? (value as Record<string, unknown>)
-		: {};
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+	const raw = { ...(value as Record<string, unknown>) };
+	for (const key of RETIRED_KEYS) delete raw[key];
+	return raw;
 }
 
 export async function getShowVerseTextInList(): Promise<boolean> {

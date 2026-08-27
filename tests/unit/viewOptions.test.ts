@@ -5,7 +5,8 @@ import {
 	getShowVerseTextInList,
 	getSpeakOptions,
 	setShowVerseTextInList,
-	setSpeakOption
+	setSpeakOption,
+	getVerseFontScale
 } from '../../src/lib/db/viewOptions';
 
 beforeEach(async () => {
@@ -99,3 +100,33 @@ describe('읽어주기 options', () => {
 });
 
 
+
+describe('retired keys', () => {
+	// The 통계 보기 toggle is gone, but installs that used it still carry its
+	// map inside this row — and the row is part of the sync envelope, so it
+	// would travel between devices forever. Dropped on the next write rather
+	// than by a migration pass of its own: nothing reads it in the meantime.
+	it('drops eventStatsOpen the next time the row is written', async () => {
+		await db.settings.put({
+			key: 'view_options',
+			value: { showVerseTextInList: true, eventStatsOpen: { e1: true } }
+		});
+
+		await setShowVerseTextInList(false);
+
+		const row = await db.settings.get('view_options');
+		expect(row?.value).not.toHaveProperty('eventStatsOpen');
+	});
+
+	it('keeps the options that are still in use', async () => {
+		await db.settings.put({
+			key: 'view_options',
+			value: { verseFontScale: 1.3, eventStatsOpen: { e1: true } }
+		});
+
+		await setShowVerseTextInList(false);
+
+		expect(await getVerseFontScale()).toBe(1.3);
+		expect(await getShowVerseTextInList()).toBe(false);
+	});
+});

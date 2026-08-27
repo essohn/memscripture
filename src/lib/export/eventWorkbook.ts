@@ -71,9 +71,13 @@ interface ColumnDef {
 	align?: 'center';
 }
 
+// Named for what they measure, like the app's chart — 시작 alone never said
+// the start of what. Not the app's full 암송 시작 난이도 either: these cells
+// hold one digit, and widening two columns to fit the phrase would add 16% to
+// a 117-unit sheet to repeat what a 1-5 scale already says.
 const DIFFICULTY_COLUMNS: ColumnDef[] = [
-	{ header: '시작', width: 4.5, align: 'center' },
-	{ header: '전체', width: 4.5, align: 'center' }
+	{ header: '암송 시작', width: 7, align: 'center' },
+	{ header: '전체 일치', width: 7, align: 'center' }
 ];
 
 const BASE_COLUMNS: ColumnDef[] = [

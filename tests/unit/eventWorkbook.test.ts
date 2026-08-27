@@ -28,15 +28,18 @@ describe('buildEventSheet columns', () => {
 	it('leads with the two difficulty columns when they are on', () => {
 		const s = buildEventSheet(EVENT, [verse()], DIFF_ON);
 		expect(s.rows[1].map((c) => c.v)).toEqual([
-			'시작',
-			'전체',
+			'암송 시작',
+			'전체 일치',
 			'구분',
 			'번호',
 			'제목',
 			'장절',
 			'본문'
 		]);
-		expect(s.cols.map((c) => c.width)).toEqual([4.5, 4.5, 10, 6, 14, 18, 60]);
+		// Wide enough for the four-character headers and no wider — the values
+		// under them are a single digit, and the full 난이도 phrasing the app
+		// uses would add 16% to a 117-unit sheet to say what 1-5 already says.
+		expect(s.cols.map((c) => c.width)).toEqual([7, 7, 10, 6, 14, 18, 60]);
 	});
 
 	it('omits them entirely when they are off', () => {
