@@ -122,7 +122,11 @@ test('home offers 전체 듣기 for the 암송 DAY and the bar can be dismissed'
 	await page.goto('/library/242_krv');
 	await expect(page.getByTestId('verse-row').first()).toBeVisible();
 	await page.goto('/library/900_krv');
-	await expect(page.getByTestId('verse-row').first()).toBeVisible();
+	// 20s for the same reason deep-link-scroll.spec.ts spells out: this is the
+	// 900-verse package, and the first row waits on installing and rendering all
+	// 900 of them. The default 5s clears it on a laptop and did not on the CI
+	// runner, which is where this spec first went red.
+	await expect(page.getByTestId('verse-row').first()).toBeVisible({ timeout: 20_000 });
 
 	// A fresh load, not a client-side return: the event card is built by a
 	// $effect racing the layout's own join effect, and right after joinTeam
