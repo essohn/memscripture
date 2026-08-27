@@ -812,3 +812,107 @@ describe('a miss earlier in the same session', () => {
 		expect(onPickFull).toHaveBeenLastCalledWith(4);
 	});
 });
+
+// Entering a rating with the mouse is two pointer trips through a popover.
+// On a PC the reader's hands are already on the keyboard from typing the verse.
+describe('난이도 단축키', () => {
+	async function confirming() {
+		const handles = setup();
+		await type('그들에게 율례와');
+		await fireEvent.click(screen.getByRole('button', { name: '포기' }));
+		return handles;
+	}
+
+	// By role, not by label alone: an open menu carries a label of its own that
+	// starts with the same words.
+	const startBadge = () => screen.getByRole('button', { name: /^첫 시작 난이도/ });
+	const fullBadge = () => screen.getByRole('button', { name: /^전체 암송 난이도/ });
+
+	it('fills 첫 시작 then 전체 from two digits', async () => {
+		await confirming();
+		await fireEvent.keyDown(window, { key: '0' });
+		expect(startBadge()).toHaveAccessibleName('첫 시작 난이도 0 Impossible (변경)');
+		expect(fullBadge()).toHaveAccessibleName('전체 암송 난이도 (설정 안 됨)');
+
+		await fireEvent.keyDown(window, { key: '3' });
+		expect(fullBadge()).toHaveAccessibleName('전체 암송 난이도 3 Normal (변경)');
+	});
+
+	it('saves on Enter', async () => {
+		const { onPickStart, onPickFull, onGraded } = await confirming();
+		await fireEvent.keyDown(window, { key: '0' });
+		await fireEvent.keyDown(window, { key: '3' });
+		await fireEvent.keyDown(window, { key: 'Enter' });
+		expect(onPickStart).toHaveBeenCalledWith(0);
+		expect(onPickFull).toHaveBeenCalledWith(3);
+		expect(onGraded).toHaveBeenCalledTimes(1);
+	});
+
+	// 저장 is dead until 전체 is set, and the key must not do what the button
+	// refuses to.
+	it('does nothing on Enter while 전체 is still empty', async () => {
+		const { onGraded } = await confirming();
+		await fireEvent.keyDown(window, { key: '0' });
+		await fireEvent.keyDown(window, { key: 'Enter' });
+		expect(onGraded).not.toHaveBeenCalled();
+	});
+
+	it('walks back on Backspace', async () => {
+		await confirming();
+		await fireEvent.keyDown(window, { key: '0' });
+		await fireEvent.keyDown(window, { key: '3' });
+		await fireEvent.keyDown(window, { key: 'Backspace' });
+		expect(fullBadge()).toHaveAccessibleName('전체 암송 난이도 (설정 안 됨)');
+		expect(startBadge()).toHaveAccessibleName('첫 시작 난이도 0 Impossible (변경)');
+
+		await fireEvent.keyDown(window, { key: 'Backspace' });
+		expect(startBadge()).toHaveAccessibleName('첫 시작 난이도 (설정 안 됨)');
+	});
+
+	// The badge's own menu is open and handling keys. A digit that changed the
+	// value behind it would leave the reader looking at a menu standing on a
+	// level the verse no longer carries.
+	it('keeps out of the way while a badge menu is open', async () => {
+		await confirming();
+		await fireEvent.click(startBadge());
+		await fireEvent.keyDown(window, { key: '3' });
+		expect(startBadge()).toHaveAccessibleName('첫 시작 난이도 (설정 안 됨)');
+	});
+
+	// Cmd+0 resets the browser's zoom. Taking that away from a reader who has
+	// just scaled the text up is a poor trade for one keystroke.
+	it('leaves the browser its own shortcuts', async () => {
+		await confirming();
+		await fireEvent.keyDown(window, { key: '0', metaKey: true });
+		await fireEvent.keyDown(window, { key: '1', ctrlKey: true });
+		expect(startBadge()).toHaveAccessibleName('첫 시작 난이도 (설정 안 됨)');
+	});
+
+	// The panel is one card in a scrolling page. A digit typed into a search
+	// box elsewhere is not a rating.
+	it('leaves keystrokes aimed at another field alone', async () => {
+		await confirming();
+		const elsewhere = document.createElement('input');
+		document.body.appendChild(elsewhere);
+		elsewhere.focus();
+		await fireEvent.keyDown(elsewhere, { key: '0' });
+		expect(startBadge()).toHaveAccessibleName('첫 시작 난이도 (설정 안 됨)');
+		elsewhere.remove();
+	});
+
+	// Digits pressed while the verse is being typed belong to the verse. They
+	// must not have quietly moved the cursor for the screen that comes after.
+	it('does not listen before the confirmation appears', async () => {
+		setup();
+		await type('그들에게 율례와');
+		await fireEvent.keyDown(window, { key: '5' });
+		await fireEvent.click(screen.getByRole('button', { name: '포기' }));
+		await fireEvent.keyDown(window, { key: '3' });
+		expect(startBadge()).toHaveAccessibleName('첫 시작 난이도 3 Normal (변경)');
+	});
+
+	it('says the keys are there', async () => {
+		await confirming();
+		expect(screen.getByText(/숫자 키로 난이도/)).toBeInTheDocument();
+	});
+});
