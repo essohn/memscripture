@@ -3,7 +3,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
 	dDay, activeEvents, isMemorized, rangeHref, serializeEventRange,
 	loadEvents, resolveRangeVerseNos, rangeProgress, buildEventCards, _resetEventsCache,
-	eventStats, versesAtLevel, statsVersesHref, hasEventStats, type RangeCardVM
+	eventStats, versesAtLevel, versesByPerfection, statsVersesHref, statsPerfectHref,
+	hasEventStats, type RangeCardVM
 } from '../../src/lib/db/events';
 import { recordCheck } from '../../src/lib/db/checkHistory';
 import { db } from '../../src/lib/db/local';
@@ -483,5 +484,95 @@ describe('hasEventStats', () => {
 	// A total on its own is just the size of the event, not progress in it.
 	it('is false for an untouched event however many verses it has', () => {
 		expect(hasEventStats({ ...empty, total: 900 })).toBe(false);
+	});
+});
+
+describe('versesByPerfection', () => {
+	beforeEach(async () => {
+		await db.delete();
+		await db.open();
+		vi.restoreAllMocks();
+		_resetEventsCache();
+	});
+
+	const range = (verseNos: number[], packageId = '5_krv'): RangeCardVM => ({
+		label: 'r',
+		done: 0,
+		total: verseNos.length,
+		href: '',
+		packageId,
+		verseNos
+	});
+
+	it('returns the verses whose last check was flawless', async () => {
+		await recordCheck('5_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 10 }, 1000);
+		await recordCheck('5_krv', 2, { start: 3, full: 3, accuracy: 0.8, elapsedMs: 10 }, 1000);
+
+		expect(await versesByPerfection([range([1, 2])], true)).toEqual([
+			{ packageId: '5_krv', verseNo: 1 }
+		]);
+	});
+
+	// The remainder is everything else — the verse checked and missed and the
+	// verse never opened both belong to it.
+	it('returns everything else as the remainder', async () => {
+		await recordCheck('5_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 10 }, 1000);
+		await recordCheck('5_krv', 2, { start: 3, full: 3, accuracy: 0.8, elapsedMs: 10 }, 1000);
+
+		expect(await versesByPerfection([range([1, 2, 3])], false)).toEqual([
+			{ packageId: '5_krv', verseNo: 2 },
+			{ packageId: '5_krv', verseNo: 3 }
+		]);
+	});
+
+	it('follows the most recent check, not the best one', async () => {
+		await recordCheck('5_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 10 }, 1000);
+		await recordCheck('5_krv', 1, { start: 3, full: 3, accuracy: 0.6, elapsedMs: 10 }, 2000);
+
+		expect(await versesByPerfection([range([1])], true)).toEqual([]);
+		expect(await versesByPerfection([range([1])], false)).toEqual([
+			{ packageId: '5_krv', verseNo: 1 }
+		]);
+	});
+
+	it('spans the packages the event covers', async () => {
+		await recordCheck('5_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 10 }, 1000);
+		await recordCheck('8_krv', 4, { start: 5, full: 5, accuracy: 1, elapsedMs: 10 }, 1000);
+
+		expect(await versesByPerfection([range([1]), range([4], '8_krv')], true)).toEqual([
+			{ packageId: '5_krv', verseNo: 1 },
+			{ packageId: '8_krv', verseNo: 4 }
+		]);
+	});
+
+	it('returns a verse once when two ranges both cover it', async () => {
+		await recordCheck('5_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 10 }, 1000);
+
+		expect(await versesByPerfection([range([1, 2]), range([1, 3])], true)).toEqual([
+			{ packageId: '5_krv', verseNo: 1 }
+		]);
+	});
+
+	// The line prints a number and the link opens a list; nothing but a test
+	// keeps two separate reads agreeing about it.
+	it('returns exactly as many verses as the headline counted', async () => {
+		await recordCheck('5_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 10 }, 1000);
+		await recordCheck('5_krv', 2, { start: 3, full: 3, accuracy: 0.8, elapsedMs: 10 }, 1000);
+		await recordCheck('8_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 10 }, 1000);
+		const ranges = [range([1, 2, 3, 4]), range([1, 2], '8_krv')];
+
+		const stats = await eventStats(ranges);
+		expect((await versesByPerfection(ranges, true)).length).toBe(stats.perfect);
+		expect((await versesByPerfection(ranges, false)).length).toBe(stats.total - stats.perfect);
+	});
+});
+
+describe('statsPerfectHref', () => {
+	it('names the flawless verses', () => {
+		expect(statsPerfectHref('e1', true)).toBe('/stats/verses?event=e1&dim=perfect&level=yes');
+	});
+
+	it('names the remainder', () => {
+		expect(statsPerfectHref('e1', false)).toBe('/stats/verses?event=e1&dim=perfect&level=no');
 	});
 });

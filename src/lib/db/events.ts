@@ -233,6 +233,46 @@ export function statsVersesHref(
 }
 
 /**
+ * Link to the flawless verses of an event, or to everything else.
+ *
+ * Separate from statsVersesHref rather than a third `dim` on it: the level
+ * there is a difficulty, and threading a yes/no through the same parameter
+ * would give one function two incompatible meanings for one argument. The URL
+ * shape stays the same — a dimension and a bucket within it.
+ */
+export function statsPerfectHref(eventId: string, perfect: boolean): string {
+	const params = new URLSearchParams();
+	params.set('event', eventId);
+	params.set('dim', 'perfect');
+	params.set('level', perfect ? 'yes' : 'no');
+	return `/stats/verses?${params.toString()}`;
+}
+
+/**
+ * The event's verses split by whether their last check was flawless.
+ *
+ * `perfect: false` is the remainder, and it is deliberately everything else:
+ * a verse checked and missed and a verse never opened both belong to it. That
+ * is the same rule the 미평가 counts follow — total minus the ones that
+ * qualify — so every number in the panel can be read the same way.
+ */
+export async function versesByPerfection(
+	ranges: RangeCardVM[],
+	perfect: boolean
+): Promise<EventVerseRef[]> {
+	const out: EventVerseRef[] = [];
+
+	for (const [packageId, verseNos] of groupVerseNos(ranges)) {
+		const perfectNos = await listPerfectVerseNos(packageId).catch(() => new Set<number>());
+		for (const verseNo of [...verseNos].sort((a, b) => a - b)) {
+			if (perfectNos.has(verseNo) === perfect) out.push({ packageId, verseNo });
+		}
+	}
+
+	return out;
+}
+
+/**
  * The event's verses sitting at one level of one dimension.
  *
  * `level` of null asks for the unrated ones — the remainder the five bars do

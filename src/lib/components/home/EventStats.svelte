@@ -6,7 +6,12 @@
 		DIFFICULTY_LEVELS,
 		type DifficultyLevel
 	} from '$lib/db/verseRatings';
-	import { hasEventStats, statsVersesHref, type EventStats } from '$lib/db/events';
+	import {
+		hasEventStats,
+		statsPerfectHref,
+		statsVersesHref,
+		type EventStats
+	} from '$lib/db/events';
 
 	interface Props {
 		stats: EventStats;
@@ -57,6 +62,11 @@
 	/** Verses the five bars do not account for: rated on neither end of this
 	 *  dimension. Clamped because the total and the histogram are separate
 	 *  reads, and a negative remainder is not a thing to print at anyone. */
+	/** Verses whose last check was not flawless — including the ones never
+	 *  checked at all. Same shape as `unrated` below: total minus the ones that
+	 *  qualify, so the panel's five numbers all mean the same kind of thing. */
+	const imperfect = $derived(Math.max(0, stats.total - stats.perfect));
+
 	function unrated(key: 'start' | 'full'): number {
 		const rated = countsOf(key).reduce((a, b) => a + b, 0);
 		return Math.max(0, stats.total - rated);
@@ -68,18 +78,45 @@
 		<!-- One headline figure, not a one-bar chart: a single magnitude reads
 		     faster as a number, and it needs the total beside it to mean
 		     anything at all. -->
-		<div class="flex items-baseline gap-1.5">
-			<PartyPopper size={14} class="translate-y-[2px] text-[var(--color-accent)]" />
-			<span class="text-[11px] font-medium text-[var(--color-text-secondary)]">폭죽</span>
-			<span
-				data-testid="perfect-count"
-				class="ml-0.5 text-[19px] font-bold tabular-nums text-[var(--color-text)]"
+		<!-- Both anchors carry their own label and a 44px minimum. Wrapping just
+		     the digit measured 12x31 and 47x17 in the browser — under WCAG AA's
+		     24px floor, and nothing anyone can aim a thumb at. -->
+		<div class="flex items-center gap-1.5">
+			<PartyPopper size={14} class="text-[var(--color-accent)]" />
+			<svelte:element
+				this={stats.perfect > 0 ? 'a' : 'span'}
+				href={stats.perfect > 0 ? statsPerfectHref(eventId, true) : undefined}
+				class="flex min-h-[44px] items-center gap-1.5 rounded-md {stats.perfect > 0
+					? 'transition-colors hover:bg-[var(--color-elevated)]'
+					: ''}"
 			>
-				{stats.perfect}
-			</span>
-			<span class="text-[11px] text-[var(--color-text-tertiary)]">
-				/ <span data-testid="perfect-total" class="tabular-nums">{stats.total}</span> 구절
-			</span>
+				<span class="flex items-baseline gap-1.5">
+					<span class="text-[11px] font-medium text-[var(--color-text-secondary)]">완벽</span>
+					<span
+						data-testid="perfect-count"
+						class="text-[19px] font-bold tabular-nums text-[var(--color-text)]"
+					>
+						{stats.perfect}
+					</span>
+					<span class="text-[11px] text-[var(--color-text-tertiary)]">
+						/ <span data-testid="perfect-total" class="tabular-nums">{stats.total}</span> 구절
+					</span>
+				</span>
+			</svelte:element>
+			<!-- Pushed right, the way the D-day badge sits in the event header. -->
+			<svelte:element
+				this={imperfect > 0 ? 'a' : 'span'}
+				href={imperfect > 0 ? statsPerfectHref(eventId, false) : undefined}
+				class="ml-auto flex min-h-[44px] items-center rounded-md px-1.5 text-[10px] text-[var(--color-text-tertiary)] {imperfect >
+				0
+					? 'transition-colors hover:bg-[var(--color-elevated)]'
+					: ''}"
+			>
+				미완벽
+				<span data-testid="imperfect-count" class="ml-1 font-semibold tabular-nums">
+					{imperfect}
+				</span>
+			</svelte:element>
 		</div>
 
 		<!-- Two single-series charts in one row rather than two series in one
