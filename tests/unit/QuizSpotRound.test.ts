@@ -83,4 +83,15 @@ describe('QuizSpotRound', () => {
 		setup(FLAWED);
 		expect(screen.getByText('2 / 4')).toBeInTheDocument();
 	});
+
+	// 답을 고르면 채점만 되고, 라운드를 떠나는 것은 다음이다. 두 단계를 하나로
+	// 합치면 라우트가 즉시 다음 구절로 넘어가 버려서, 어디가 틀렸는지 볼 틈이
+	// 없어진다.
+	it('does not report the result until 다음 is pressed', async () => {
+		const { onDone, container } = setup(FLAWED);
+		await fireEvent.click(wordAt(container, 2));
+		expect(onDone).not.toHaveBeenCalled();
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		expect(onDone).toHaveBeenCalledTimes(1);
+	});
 });

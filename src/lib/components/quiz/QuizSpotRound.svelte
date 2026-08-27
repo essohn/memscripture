@@ -67,17 +67,17 @@
 			class:tappable={!answered}
 			class:wrong={answered && wrong.includes(i)}
 			class:picked={answer === i}
-			role={answered ? undefined : 'button'}
-			tabindex={answered ? undefined : 0}
-			onclick={answered ? undefined : () => choose(i)}
-			onkeydown={answered
-				? undefined
-				: (e) => {
+			role={!answered ? 'button' : undefined}
+			tabindex={!answered ? 0 : undefined}
+			onclick={!answered ? () => choose(i) : undefined}
+			onkeydown={!answered
+				? (e) => {
 						if (e.key === 'Enter' || e.key === ' ') {
 							e.preventDefault();
 							choose(i);
 						}
-					}}>{word}</span
+					}
+				: undefined}>{word}</span
 		>{' '}{/each}
 	</p>
 
