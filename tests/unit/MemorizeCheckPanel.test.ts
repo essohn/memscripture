@@ -615,3 +615,61 @@ describe('keep or apply', () => {
 		expect(screen.queryByRole('button', { name: /유지/ })).toBeNull();
 	});
 });
+
+describe('a miss earlier in the same session', () => {
+	// The reader who missed, read the marked answer, and typed it back has not
+	// recited the verse from memory. Letting the flawless-attempt climb run on
+	// that retry would rate a verse they just failed as easier than before.
+	it('holds a flawless retry to Hard', async () => {
+		const { onPickFull, onPickStart } = setup({ currentFull: 4, currentStart: 4 });
+		await type(VERSE.replace('가르쳐서', '가르치고'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(onPickFull).toHaveBeenLastCalledWith(2);
+		expect(onPickStart).toHaveBeenLastCalledWith(2);
+	});
+
+	// The attempt in hand is judged by the same rule as every attempt after it:
+	// recalling the opening in three seconds and then losing the middle of the
+	// verse is not evidence of an easy opening.
+	it('holds the flawed attempt own 첫 시작 to Hard', async () => {
+		const { onPickStart } = setup({ currentStart: 4 });
+		await type(VERSE.replace('가르쳐서', '가르치고'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
+		expect(onPickStart).toHaveBeenLastCalledWith(2);
+	});
+
+	// Giving up is at least as much of a miss as getting a word wrong.
+	it('counts 포기 for the rest of the session', async () => {
+		const { onPickFull } = setup({ currentFull: 4 });
+		await fireEvent.click(screen.getByRole('button', { name: '포기' }));
+		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(onPickFull).toHaveBeenLastCalledWith(2);
+	});
+
+	// Only a miss carries. A first-try recitation climbs as it always did.
+	it('leaves a session that never went wrong alone', async () => {
+		const { onPickFull } = setup({ currentFull: 4 });
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(onPickFull).toHaveBeenLastCalledWith(5);
+	});
+
+	// The rating dropped, so the way back to the old level is on screen — this
+	// ceiling is a proposal, not a verdict.
+	it('still offers the previous level back', async () => {
+		const { onPickFull } = setup({ currentFull: 4 });
+		await type(VERSE.replace('가르쳐서', '가르치고'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: /유지/ }));
+		expect(onPickFull).toHaveBeenLastCalledWith(4);
+	});
+});

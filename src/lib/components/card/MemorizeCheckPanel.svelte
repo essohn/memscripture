@@ -79,6 +79,19 @@
 	 *  follows whatever the reader has since chosen. */
 	let gradedFull = $state<DifficultyLevel | null>(null);
 
+	/**
+	 * Something in this session went wrong: an attempt was submitted flawed, or
+	 * 포기 was pressed. Once true it stays true until the panel is closed.
+	 *
+	 * The only state restart() deliberately leaves alone. Everything else is
+	 * cleared so the next attempt is timed and scored on its own, but a retry
+	 * made after reading the marked answer is not an independent attempt — the
+	 * reader has just been shown the verse. Without this the flawless-attempt
+	 * climb would run on it and rate a verse they had failed a moment earlier
+	 * as easier than before.
+	 */
+	let missedInSession = $state(false);
+
 	let typed = $state('');
 	let inputEl = $state<HTMLTextAreaElement | undefined>();
 
@@ -328,15 +341,22 @@
 	function submit() {
 		session?.stop();
 		const accuracy = accuracyOf(verse, typed);
+		// Set before grading, so the attempt in hand is judged by the same rule as
+		// every attempt after it.
+		if (accuracy < 1) missedInSession = true;
 		const result = {
-			start: openingAtMs === null ? null : startDifficultyFor(openingAtMs),
+			start:
+				openingAtMs === null
+					? null
+					: startDifficultyFor(openingAtMs, { previous: priorStart, missedInSession }),
 			// Pace is measured against the verse's own length, so a long verse is
 			// not marked down for taking longer to type.
 			full: fullDifficultyFrom(accuracy, normalizeForGrading(verse).length, elapsedMs, {
 				previous: priorFull,
 				// A hint read off the screen, or the verse heard a moment before,
 				// makes this a test of recognition rather than recall.
-				assisted: hintsUsed > 0 || heardAloud
+				assisted: hintsUsed > 0 || heardAloud,
+				missedInSession
 			})
 		};
 		gradedFull = result.full;
@@ -364,6 +384,10 @@
 	 */
 	function giveUp() {
 		session?.stop();
+		// No rating of our own, but the session still knows it went wrong: a
+		// verse abandoned and then retried off the revealed answer is not one
+		// the reader produced from memory.
+		missedInSession = true;
 		proposed = { start: null, full: null };
 		gaveUp = true;
 		confirming = true;
@@ -403,6 +427,9 @@
 	 * edit of the try they just rejected. Keeping the clock was worse still: a
 	 * resubmit made after reading the marked answer would have been timed from
 	 * the original open, flattering it against an honest single attempt.
+	 *
+	 * `missedInSession` survives on purpose, and for that same reason — see its
+	 * declaration.
 	 */
 	function cancel() {
 		confirming = false;

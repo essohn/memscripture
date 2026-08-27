@@ -124,17 +124,35 @@ Dividing by the longer of the two keeps a rambling over-long answer from
 scoring above a terse one. At 224 characters worst case the matrix is
 trivial to compute.
 
-A flawless attempt scores 5 however long it took — accuracy is what this
-rating is about, and a careful correct recitation is not worse than a hurried
-one. **Anything less is capped at 3**, however small the slip, and typing pace
-lowers it from there.
+A flawless attempt is judged on accuracy alone, however long it took — a
+careful correct recitation is not worse than a hurried one. It does not jump
+to 5, though: a verse the reader has been rating 1 does not become effortless
+because it went well once, so a perfect run **climbs one step** and reaches 5
+across several checks. A verse with no rating yet has nothing to climb from
+and takes the 5.
+
+**Anything less is capped at 2 (Hard)**, however small the slip. Within that
+ceiling both how much went wrong and how slowly it came can lower it further,
+so the two remaining levels still mean something: one dropped syllable and
+half a verse lost are not the same miss.
 
 | accuracy | pace (normalized chars/sec) | rating |
 |----------|------------------------------|--------|
-| 100%     | any                          | 5 xEasy |
-| < 100%   | ≥ 1.5                        | 3 Normal |
-| < 100%   | ≥ 0.8                        | 2 Hard |
-| < 100%   | below                        | 1 xHard |
+| 100%, unrated verse | any               | 5 xEasy |
+| 100%, rated *n*     | any               | min(*n* + 1, 5) |
+| 80–99%   | ≥ 1.2                        | 2 Hard |
+| 80–99%   | below 1.2                    | 1 xHard |
+| < 80%    | any                          | 1 xHard |
+
+Two ceilings then override whatever that produced, both landing on 2 (Hard).
+**Assistance** — a hint revealed, or the verse played aloud before the attempt
+— because that tests recognition rather than recall, and rating it easy is how
+a verse stops coming back for review while still being unknown. **A miss
+anywhere in the same check session**, which is the one piece of state 취소 and
+다시 deliberately do not clear: a retry made after reading the marked answer is
+not an independent attempt, and the climb must not run on a verse this very
+check already showed was shaky. 포기 counts as a miss too, even though it
+proposes no rating of its own.
 
 Pace, not elapsed seconds: the corpus runs from short verses to 224
 characters, and a long verse must not be marked down for taking longer to
@@ -167,6 +185,12 @@ seconds rather than a rate.
 | ≤ 20s   | 3 Normal |
 | ≤ 40s   | 2 Hard |
 | beyond  | 1 xHard |
+
+The band is where this rating starts, not where it ends. It climbs one step
+per check the same way 전체 does, and the session's miss caps it at 2 the same
+way — a verse whose opening came in three seconds and whose middle was lost is
+not an easy verse. Only the climb is limited: a verse that has gone cold is
+allowed to fall to its band in a single check.
 
 If the opening is never typed correctly, no start rating is proposed and
 that badge is left for the reader to set.
