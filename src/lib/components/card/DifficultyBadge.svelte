@@ -90,7 +90,9 @@
 		: `${label} ${value} ${DIFFICULTY_LABELS[value]} (변경)`}
 	style={value === null
 		? 'border: 1.5px dashed var(--color-border); color: var(--color-text-tertiary);'
-		: `background-color: ${DIFFICULTY_COLORS[value]}; color: white;`}
+		: `background-color: ${DIFFICULTY_COLORS[value]}; color: white;${
+				value === 0 ? ' box-shadow: inset 0 0 0 1px var(--color-text-tertiary);' : ''
+			}`}
 	class="inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-[12px] font-semibold tabular-nums transition-opacity hover:opacity-85"
 >
 	{value ?? ''}
@@ -128,7 +130,9 @@
 					: ''}"
 			>
 				<span
-					style={`background-color: ${DIFFICULTY_COLORS[level]}; color: white;`}
+					style={`background-color: ${DIFFICULTY_COLORS[level]}; color: white;${
+						level === 0 ? ' box-shadow: inset 0 0 0 1px var(--color-text-tertiary);' : ''
+					}`}
 					class="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold tabular-nums"
 				>
 					{level}

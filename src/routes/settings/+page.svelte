@@ -244,9 +244,23 @@
 			toast = { message: '되돌리기 실패: 다시 시도해주세요' };
 		}
 	}
+
+	/**
+	 * Back to wherever the reader came from.
+	 *
+	 * Settings is reached from the gear in the shared Header, which sits on
+	 * nearly every screen — so there is no single parent to return to. Sending
+	 * them Home dropped them out of whatever list they were working through,
+	 * a difficulty group or a search result, with no way back to it. Home is
+	 * only the fallback for a cold load with no history to pop.
+	 */
+	function goBack() {
+		if (typeof history !== 'undefined' && history.length > 1) history.back();
+		else goto('/');
+	}
 </script>
 
-<Header title="Settings" onBack={() => goto('/')} showSettings={false} showVerseToggle={false} />
+<Header title="Settings" onBack={goBack} showSettings={false} showVerseToggle={false} />
 
 <main class="mx-auto max-w-2xl px-5 pt-6">
 	<section

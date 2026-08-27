@@ -36,7 +36,7 @@ export async function recordCheck(
 		elapsedMs: number;
 		hints?: number;
 		missed?: number[];
-		source?: 'quiz';
+		source?: 'quiz' | 'quiz-opening' | 'quiz-spot';
 		typed?: string;
 	},
 	checkedAt: number = Date.now()
@@ -59,6 +59,15 @@ export async function recordCheck(
 		// absent means the record predates this field, which is not the same
 		// as missing nothing.
 		...(entry.missed ? { missed: [...entry.missed] } : {}),
+		// Every attempt is kept, and the question of which ones are useful is
+		// asked where they are read. This used to drop anything outside
+		// isRecallableAttempt's near-miss band, which was right while 틀린 곳
+		// 찾기 was the only consumer — but the history sheet shows the reader
+		// any attempt back, and the two attempts it most wants are exactly the
+		// two that rule discards: the flawless recital, and the one they gave
+		// up on. A row dropped at write time is gone for both. loadAttempts
+		// applies the game's rule when it picks questions.
+		//
 		// Tested for undefined rather than for truth: '' is a reader who saved
 		// having typed nothing, which the sheet reports differently from a check
 		// that predates this field. A truthiness guard would erase that.
@@ -77,13 +86,36 @@ async function nextSuffix(key: string, checkedAt: number): Promise<number> {
 	return clash;
 }
 
+/**
+ * Keeps the table bounded without letting a non-recall row evict evidence
+ * nothing can replace.
+ *
+ * Before quiz-opening and quiz-spot existed, every row in the budget counted
+ * for something, so "keep the newest HISTORY_LIMIT" was the whole rule. Now
+ * an opening or spot round can be replayed ten times over on a one-verse
+ * scope (다시 하기 replays the same queue), and by recency alone those rounds
+ * would push out the 점검 or quiz row that holds the 만점 배지, the `missed`
+ * positions the underline suggestions read, and the `typed` sentence 틀린 곳
+ * 찾기 exists to hand back — none of which a non-recall row can replace.
+ *
+ * So recall-bearing rows are kept first, up to the limit, and non-recall rows
+ * fill only what is left over. A non-recall row can therefore never evict a
+ * recall-bearing one; two recall rows can still evict each other by age, same
+ * as before.
+ */
 async function prune(key: string): Promise<void> {
 	const rows = await db.checkHistory.where('verseKey').equals(key).toArray();
 	if (rows.length <= HISTORY_LIMIT) return;
-	const doomed = rows
-		.sort((a, b) => b.checkedAt - a.checkedAt)
-		.slice(HISTORY_LIMIT)
-		.map((r) => r.id);
+
+	const byRecency = (a: CheckRecord, b: CheckRecord) => b.checkedAt - a.checkedAt;
+	const recall = rows.filter(countsAsRecall).sort(byRecency);
+	const nonRecall = rows.filter((r) => !countsAsRecall(r)).sort(byRecency);
+
+	const keptRecall = recall.slice(0, HISTORY_LIMIT);
+	const keptNonRecall = nonRecall.slice(0, HISTORY_LIMIT - keptRecall.length);
+	const kept = new Set([...keptRecall, ...keptNonRecall].map((r) => r.id));
+
+	const doomed = rows.filter((r) => !kept.has(r.id)).map((r) => r.id);
 	await db.checkHistory.bulkDelete(doomed);
 }
 
@@ -100,6 +132,19 @@ export async function listChecks(
 }
 
 /**
+ * Does this record say something about recall?
+ *
+ * 점검 and the quiz's full typing round do: the reader produced the verse
+ * from memory. The opening game proves only that they can start it, and the
+ * spot game proves they can recognise a mistake — neither is evidence that
+ * the verse was recited, so neither may move the underline suggestions or the
+ * 만점 badge.
+ */
+export function countsAsRecall(r: Pick<CheckRecord, 'source'>): boolean {
+	return r.source === undefined || r.source === 'quiz';
+}
+
+/**
  * When each verse was last 점검'd, keyed by verseKey.
  *
  * One scan for a whole list rather than a query per card: a 900-verse package
@@ -107,9 +152,11 @@ export async function listChecks(
  * show. The same reason 점검 history itself loads lazily, and the same shape
  * listPerfectVerseNos uses.
  *
- * Quiz rounds are left out. The line this feeds says 최근 점검 and opens a
- * sheet of 점검 records — a quiz round carries no difficulty of its own, so
- * counting one would date the line by a session the sheet cannot show.
+ * Stricter than countsAsRecall, deliberately: that asks whether a row is
+ * evidence of recall, and a full quiz round is. This asks what the card's line
+ * may report, and the line says 최근 점검 and opens a sheet built around a
+ * difficulty no quiz round carries — so any `source` at all disqualifies a row
+ * here, including 'quiz'.
  *
  * `packageId` is optional because 북마크 and 통계 list verses from several
  * packages at once. Given one, the scan rides the verseKey index, which is
@@ -151,6 +198,7 @@ export async function listPerfectVerseNos(packageId: string): Promise<Set<number
 	// the card telling the reader something they just disproved.
 	const latest = new Map<number, { checkedAt: number; accuracy: number }>();
 	for (const r of rows) {
+		if (!countsAsRecall(r)) continue;
 		const seen = latest.get(r.verseNo);
 		if (!seen || r.checkedAt > seen.checkedAt) latest.set(r.verseNo, r);
 	}

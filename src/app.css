@@ -99,6 +99,10 @@
 	 */
 	--color-on-accent: #3a2e25;
 
+	/** The 0 Impossible swatch. Shared across themes like the rest of the
+	 * ribbon palette; what makes it legible on the dark card is the ring the
+	 * mark carries, not the fill. */
+	--color-ribbon-black: #14100c;
 	--color-ribbon-red: #b5654e;
 	--color-ribbon-amber: #d4a55a;
 	--color-ribbon-green: #6b8e5a;

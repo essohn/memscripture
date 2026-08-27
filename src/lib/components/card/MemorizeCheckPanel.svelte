@@ -6,6 +6,7 @@
 	import {
 		accuracyOf,
 		fullDifficultyFrom,
+		markAttemptWords,
 		markMismatchedWords,
 		nextHint,
 		paceScale,
@@ -82,6 +83,19 @@
 	/** What this check graded the 전체 rating as — kept apart from `saved`, which
 	 *  follows whatever the reader has since chosen. */
 	let gradedFull = $state<DifficultyLevel | null>(null);
+
+	/**
+	 * Something in this session went wrong: an attempt was submitted flawed, or
+	 * 포기 was pressed. Once true it stays true until the panel is closed.
+	 *
+	 * The only state restart() deliberately leaves alone. Everything else is
+	 * cleared so the next attempt is timed and scored on its own, but a retry
+	 * made after reading the marked answer is not an independent attempt — the
+	 * reader has just been shown the verse. Without this the flawless-attempt
+	 * climb would run on it and rate a verse they had failed a moment earlier
+	 * as easier than before.
+	 */
+	let missedInSession = $state(false);
 
 	let typed = $state('');
 	let inputEl = $state<HTMLTextAreaElement | undefined>();
@@ -203,10 +217,9 @@
 
 	/** The verse, marking the words the attempt did not produce. */
 	const mismatches = $derived(markMismatchedWords(verse, typed));
-	/** The attempt, marking the reader's own wrong words. Same function with
-	 *  the arguments swapped: walking the attempt and checking each word
-	 *  against the verse is exactly the mirror of walking the verse. */
-	const attemptMarks = $derived(markMismatchedWords(typed, verse));
+	/** The attempt, marking the reader's own wrong words — and only their own.
+	 *  A word they skipped is the 원문 block's to mark, right above this one. */
+	const attemptMarks = $derived(markAttemptWords(verse, typed));
 
 	// ─── 힌트: the next word, one character at a time ────────────────────────
 	/** Where the attempt stopped matching. -1 once the verse is complete. */
@@ -329,15 +342,22 @@
 	function submit() {
 		session?.stop();
 		const accuracy = accuracyOf(verse, typed);
+		// Set before grading, so the attempt in hand is judged by the same rule as
+		// every attempt after it.
+		if (accuracy < 1) missedInSession = true;
 		const result = {
-			start: openingAtMs === null ? null : startDifficultyFor(openingAtMs),
+			start:
+				openingAtMs === null
+					? null
+					: startDifficultyFor(openingAtMs, { previous: priorStart, missedInSession }),
 			// Pace is measured against the verse's own length, so a long verse is
 			// not marked down for taking longer to type.
 			full: fullDifficultyFrom(accuracy, normalizeForGrading(verse).length, elapsedMs, {
 				previous: priorFull,
 				// A hint read off the screen, or the verse heard a moment before,
 				// makes this a test of recognition rather than recall.
-				assisted: hintsUsed > 0 || heardAloud
+				assisted: hintsUsed > 0 || heardAloud,
+				missedInSession
 			})
 		};
 		gradedFull = result.full;
@@ -365,6 +385,10 @@
 	 */
 	function giveUp() {
 		session?.stop();
+		// No rating of our own, but the session still knows it went wrong: a
+		// verse abandoned and then retried off the revealed answer is not one
+		// the reader produced from memory.
+		missedInSession = true;
 		proposed = { start: null, full: null };
 		gaveUp = true;
 		confirming = true;
@@ -405,6 +429,9 @@
 	 * edit of the try they just rejected. Keeping the clock was worse still: a
 	 * resubmit made after reading the marked answer would have been timed from
 	 * the original open, flattering it against an honest single attempt.
+	 *
+	 * `missedInSession` survives on purpose, and for that same reason — see its
+	 * declaration.
 	 */
 	function cancel() {
 		confirming = false;
@@ -425,9 +452,11 @@
 		if ('full' in patch) onPickFull(patch.full ?? null);
 	}
 
-	/** Fresh attempt from the success screen. Unlike 취소 this DOES reset the
-	 *  text and both clocks: the previous attempt is finished and recorded, so
-	 *  carrying its elapsed time into the next one would misreport it. */
+	/** Clears the box and both clocks for a fresh attempt. Reached from 다시 on
+	 *  either screen — after a save, or after rejecting a flawed grade. Carrying
+	 *  the previous elapsed time into the next attempt would misreport it, and
+	 *  a resubmit made after reading the marked answer would flatter itself
+	 *  against an honest single try. */
 	function restart() {
 		onRestart?.();
 		celebrate = false;
@@ -781,7 +810,7 @@
 					onclick={cancel}
 					class="rounded-full px-3 py-1.5 text-[calc(12px*var(--vfs))] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-card)]"
 				>
-					취소
+					다시
 				</button>
 				<!-- 전체 난이도 is what this screen exists to capture, so saving
 				     without one would write an empty check. After 제출 it is always

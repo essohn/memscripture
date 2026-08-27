@@ -43,11 +43,18 @@ describe('verseRatings', () => {
 		expect(row?.fullDifficulty).toBe(4);
 	});
 
+	// 0 joined the scale as Impossible, so the values outside it are now 6 and
+	// up, and anything below zero.
 	it('rejects out-of-range levels silently (no row written)', async () => {
 		await setStartDifficulty('5_krv', 1, 7 as 1);
 		expect(await getVerseRating('5_krv', 1)).toBeNull();
-		await setStartDifficulty('5_krv', 1, 0 as 1);
+		await setStartDifficulty('5_krv', 1, -1 as 1);
 		expect(await getVerseRating('5_krv', 1)).toBeNull();
+	});
+
+	it('accepts 0 as the hardest level', async () => {
+		await setStartDifficulty('5_krv', 1, 0);
+		expect((await getVerseRating('5_krv', 1))?.startDifficulty).toBe(0);
 	});
 
 	it('mutations bump data_last_modified_at', async () => {

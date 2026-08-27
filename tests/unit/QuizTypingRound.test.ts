@@ -106,4 +106,15 @@ describe('QuizTypingRound', () => {
 		await fireEvent.click(next);
 		expect(onDone).toHaveBeenCalledTimes(1);
 	});
+
+	// The quiz's typing round is a 점검 without the rating, so its near
+	// misses become 틀린 곳 찾기 questions the same way.
+	it('reports the sentence it graded', async () => {
+		const { onDone } = setup();
+		const attempt = VERSE.replace('법도를', '법을');
+		await type(attempt);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ typed: attempt }));
+	});
 });

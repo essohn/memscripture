@@ -105,8 +105,9 @@ describe('점검: the typing panel', () => {
 	});
 
 	// Same hazard by the other route: 포기 puts the verse on screen inside the
-	// panel, and 취소 hands back a blank box for another try.
-	it('hides the verse again when 취소 hands back a fresh check', async () => {
+	// panel, and 다시 hands back a blank box for another try. Both screens now
+	// spell that button the same way, because both do the same thing.
+	it('hides the verse again when 다시 hands back a fresh check', async () => {
 		setup();
 		await fireEvent.click(screen.getByRole('button', { name: '점검' }));
 		await fireEvent.input(screen.getByLabelText('암송 구절 입력'), {
@@ -118,7 +119,7 @@ describe('점검: the typing panel', () => {
 			target: { value: '전혀 다른 문장' }
 		});
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
 		expect(screen.queryByTestId('verse-body')).toBeNull();
 	});
 

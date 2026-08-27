@@ -10,7 +10,7 @@ import {
 import { writeXlsx } from './xlsx';
 
 function isLevel(v: unknown): v is DifficultyLevel {
-	return typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 5;
+	return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 5;
 }
 
 /**

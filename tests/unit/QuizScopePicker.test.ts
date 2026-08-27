@@ -1,8 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import QuizScopePicker from '../../src/lib/components/quiz/QuizScopePicker.svelte';
-import type { Target } from '../../src/lib/quiz/scope';
+import { loadAttempts, type Target } from '../../src/lib/quiz/scope';
 import type { ItemRating, QuizItem } from '../../src/lib/quiz/session';
+
+vi.mock('../../src/lib/quiz/scope', async (importOriginal) => ({
+	...(await importOriginal<typeof import('../../src/lib/quiz/scope')>()),
+	loadAttempts: vi.fn(async () => new Map([['a_krv:1', '거의 맞은 문장']]))
+}));
 
 const targets: Target[] = [
 	{ kind: 'event', id: 'e1', label: '11월 암송 데이', ranges: [] },
@@ -75,5 +80,127 @@ describe('QuizScopePicker', () => {
 		const { onPick } = setup();
 		await fireEvent.click(screen.getByRole('button', { name: '11월 암송 데이' }));
 		expect(onPick).toHaveBeenCalledWith(targets[0]);
+	});
+});
+
+describe('QuizScopePicker — games', () => {
+	it('offers the three games and starts on 전체 타이핑', () => {
+		setup();
+		expect(screen.getByRole('button', { name: '전체 타이핑' })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+		expect(screen.getByRole('button', { name: '첫 단어' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: '틀린 곳 찾기' })).toBeInTheDocument();
+	});
+
+	it('tells onStart which game was chosen', async () => {
+		const { onStart } = setup();
+		await fireEvent.click(screen.getByRole('button', { name: '첫 단어' }));
+		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+		expect(onStart.mock.calls[0][1]).toBe('opening');
+	});
+
+	// Early on most verses have no recorded attempt, and without this line the
+	// winning strategy is to press 이상 없음 every round.
+	it('says how many real questions 틀린 곳 찾기 has', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
+		await waitFor(() =>
+			expect(screen.getByText('2구절 중 1개에 내 오답 기록이 있습니다')).toBeInTheDocument()
+		);
+	});
+
+	it('says nothing about attempts for the other games', () => {
+		setup();
+		expect(screen.queryByText(/내 오답 기록이 있습니다/)).toBeNull();
+	});
+
+	// The heading names what the chips do — they pick a group of verses by
+	// difficulty, they do not set one.
+	it('heads the difficulty chips 난이도 그룹 선택', () => {
+		setup();
+		expect(screen.getByText('난이도 그룹 선택')).toBeInTheDocument();
+		expect(screen.queryByText('난이도')).toBeNull();
+	});
+
+	// The total (queue.length, template-read) updates the instant a chip
+	// moves, but the attempt count is read async. Left un-reset, the count
+	// from the larger, pre-toggle scope would sit next to the new, smaller
+	// total — "1구절 중 2개" is an impossible ratio. The mock's second call
+	// is held pending so the in-flight state is directly observable rather
+	// than raced against real timing.
+	it('drops the count while a chip change is being re-read, rather than pairing it with a smaller total', async () => {
+		const mocked = vi.mocked(loadAttempts);
+		mocked.mockImplementationOnce(
+			async () =>
+				new Map([
+					['a_krv:1', '거의 맞은 문장'],
+					['a_krv:2', '다른 문장']
+				])
+		);
+		let resolveSecond: ((m: Map<string, string>) => void) | undefined;
+		mocked.mockImplementationOnce(
+			() =>
+				new Promise<Map<string, string>>((resolve) => {
+					resolveSecond = resolve;
+				})
+		);
+
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
+		await waitFor(() =>
+			expect(screen.getByText('2구절 중 2개에 내 오답 기록이 있습니다')).toBeInTheDocument()
+		);
+
+		await fireEvent.click(screen.getByRole('button', { name: 'xEasy' }));
+		// The re-read for the smaller scope is still in flight. Nothing —
+		// not the stale "2개", not any other figure — may be shown against
+		// the new "1구절" total until the new answer lands.
+		expect(screen.queryByText(/내 오답 기록이 있습니다/)).toBeNull();
+
+		resolveSecond?.(new Map([['a_krv:1', '거의 맞은 문장']]));
+		await waitFor(() =>
+			expect(screen.getByText('1구절 중 1개에 내 오답 기록이 있습니다')).toBeInTheDocument()
+		);
+	});
+
+	// A regression that swapped the filtered queue for the raw items would
+	// still read as "some count of some total" — only checking what
+	// loadAttempts was actually called with catches it.
+	it('reads attempts for the tier-filtered queue, not the raw items', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'xEasy' }));
+		await waitFor(() => {
+			const calls = vi.mocked(loadAttempts).mock.calls;
+			const last = calls.at(-1)?.[0] as QuizItem[] | undefined;
+			expect(last?.map((i) => i.id)).toEqual(['a_krv:1']);
+		});
+	});
+
+	// A 틀린 곳 찾기 session over a scope with nothing to ask is a row of
+	// rubber stamps — every round shows the intact verse and 이상 없음 is
+	// always right — that then writes accuracy-1 quiz-spot rows competing for
+	// the per-verse history budget for no reason.
+	it('disables 시작 when 틀린 곳 찾기 has nothing to ask, and says why', async () => {
+		vi.mocked(loadAttempts).mockResolvedValueOnce(new Map());
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
+		await waitFor(() => expect(screen.getByRole('button', { name: '시작' })).toBeDisabled());
+		expect(
+			screen.getByText('아직 내 오답 기록이 없어 출제할 문제가 없습니다')
+		).toBeInTheDocument();
+	});
+
+	// While the count is still loading it is null, not zero — disabling 시작
+	// on that would block a scope that turns out to have real questions the
+	// instant the read resolves.
+	it('does not disable 시작 while the attempt count is still loading', async () => {
+		vi.mocked(loadAttempts).mockImplementationOnce(() => new Promise(() => {}));
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
+		expect(screen.getByRole('button', { name: '시작' })).not.toBeDisabled();
+		expect(screen.queryByText('아직 내 오답 기록이 없어 출제할 문제가 없습니다')).toBeNull();
 	});
 });

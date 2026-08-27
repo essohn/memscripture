@@ -20,6 +20,11 @@ function setup(extra: Record<string, unknown> = {}) {
 	return { onPickStart, onPickFull, onClose, onGraded };
 }
 
+/** What the 입력한 내용 block reads as, with the inter-word spacing collapsed. */
+function attemptText() {
+	return (screen.getByTestId('attempt-words').textContent ?? '').replace(/\s+/g, ' ').trim();
+}
+
 async function type(text: string) {
 	const box = screen.getByRole('textbox');
 	await fireEvent.input(box, { target: { value: text } });
@@ -125,7 +130,7 @@ describe('MemorizeCheckPanel', () => {
 		const { onPickStart, onPickFull, onClose, onGraded } = setup();
 		await type('전혀 다른 문장');
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
 		expect(onPickFull).not.toHaveBeenCalled();
 	});
 
@@ -134,16 +139,16 @@ describe('MemorizeCheckPanel', () => {
 	// another go, not an edit of the try they just rejected. Keeping the clock
 	// was worse — a resubmit after reading the marked answer would have been
 	// timed from the original open.
-	it('clears the attempt on 취소 so a fresh check can start', async () => {
+	it('clears the attempt on 다시 so a fresh check can start', async () => {
 		setup();
 		await type(VERSE.replace('가르쳐서', '가르치고'));
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
 		expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('');
 		expect(screen.getByRole('button', { name: '제출' })).toBeDisabled();
 	});
 
-	it('re-arms the timer on 취소', async () => {
+	it('re-arms the timer on 다시', async () => {
 		setup();
 		await type(VERSE);
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
@@ -151,7 +156,7 @@ describe('MemorizeCheckPanel', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
 		await type(VERSE.replace('가르쳐서', '가르치고'));
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
 		// The opening readout only appears once the opening has been typed; a
 		// cleared attempt has not, so it must be gone.
 		expect(screen.queryByText(/도입부/)).toBeNull();
@@ -217,6 +222,42 @@ describe('MemorizeCheckPanel', () => {
 		expect(screen.getByTestId('attempt-words')).toHaveClass('italic');
 	});
 
+	// 입력한 내용 is the reader's own hand and nothing else. Restoring the words
+	// they skipped filled the block with verse they never wrote — on a bad
+	// check, most of what they were reading back was not theirs.
+	it('leaves a skipped word out of the attempt entirely', async () => {
+		setup();
+		const typed = VERSE.replace('마땅히 ', '');
+		await type(typed);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(attemptText()).toBe(typed);
+	});
+
+	it('shows an attempt that stopped early as exactly what was written', async () => {
+		setup();
+		await type('그들에게 율례와 법도를 가르쳐서');
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(attemptText()).toBe('그들에게 율례와 법도를 가르쳐서');
+	});
+
+	// A flawed attempt is discarded and the panel re-armed — cancel() has
+	// always called restart(). The button said 취소 while doing 다시.
+	it('offers 다시 rather than 취소 on a flawed attempt', async () => {
+		setup();
+		await type(VERSE.replace('가르쳐서', '가르치고'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(screen.getByRole('button', { name: '다시' })).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: '취소' })).toBeNull();
+	});
+
+	it('clears the box for a fresh attempt when 다시 is pressed', async () => {
+		setup();
+		await type(VERSE.replace('가르쳐서', '가르치고'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
+		expect(screen.getByRole('textbox')).toHaveValue('');
+	});
+
 	it('keeps the attempt readable when whole words were invented', async () => {
 		setup();
 		await type('완전히 다른 문장을 적었습니다');
@@ -231,6 +272,24 @@ describe('MemorizeCheckPanel', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
 		expect(onPickStart).not.toHaveBeenCalled();
+	});
+
+	// recordCheck decides whether to keep it, so the panel reports the
+	// sentence on every save and stays out of the threshold's business.
+	it('reports the sentence it graded', async () => {
+		const { onGraded } = setup();
+		const attempt = VERSE.replace('법도를', '법을');
+		await type(attempt);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
+		expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ typed: attempt }));
+	});
+
+	it('reports the sentence on a flawless attempt too', async () => {
+		const { onGraded } = setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ typed: VERSE }));
 	});
 });
 
@@ -502,11 +561,11 @@ describe('the input comes first', () => {
 		expect(box.compareDocumentPosition(clock) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 	});
 
-	it('refocuses after 취소 hands back a fresh attempt', async () => {
+	it('refocuses after 다시 hands back a fresh attempt', async () => {
 		setup();
 		await type('그들에게 율례와');
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		await fireEvent.click(screen.getByRole('button', { name: '취소' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
 		expect(document.activeElement).toBe(screen.getByRole('textbox'));
 	});
 });
@@ -693,5 +752,63 @@ describe('keep or apply', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		void handles;
 		expect(screen.queryByRole('button', { name: /유지/ })).toBeNull();
+	});
+});
+
+describe('a miss earlier in the same session', () => {
+	// The reader who missed, read the marked answer, and typed it back has not
+	// recited the verse from memory. Letting the flawless-attempt climb run on
+	// that retry would rate a verse they just failed as easier than before.
+	it('holds a flawless retry to Hard', async () => {
+		const { onPickFull, onPickStart } = setup({ currentFull: 4, currentStart: 4 });
+		await type(VERSE.replace('가르쳐서', '가르치고'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(onPickFull).toHaveBeenLastCalledWith(2);
+		expect(onPickStart).toHaveBeenLastCalledWith(2);
+	});
+
+	// The attempt in hand is judged by the same rule as every attempt after it:
+	// recalling the opening in three seconds and then losing the middle of the
+	// verse is not evidence of an easy opening.
+	it('holds the flawed attempt own 첫 시작 to Hard', async () => {
+		const { onPickStart } = setup({ currentStart: 4 });
+		await type(VERSE.replace('가르쳐서', '가르치고'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
+		expect(onPickStart).toHaveBeenLastCalledWith(2);
+	});
+
+	// Giving up is at least as much of a miss as getting a word wrong.
+	it('counts 포기 for the rest of the session', async () => {
+		const { onPickFull } = setup({ currentFull: 4 });
+		await fireEvent.click(screen.getByRole('button', { name: '포기' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(onPickFull).toHaveBeenLastCalledWith(2);
+	});
+
+	// Only a miss carries. A first-try recitation climbs as it always did.
+	it('leaves a session that never went wrong alone', async () => {
+		const { onPickFull } = setup({ currentFull: 4 });
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(onPickFull).toHaveBeenLastCalledWith(5);
+	});
+
+	// The rating dropped, so the way back to the old level is on screen — this
+	// ceiling is a proposal, not a verdict.
+	it('still offers the previous level back', async () => {
+		const { onPickFull } = setup({ currentFull: 4 });
+		await type(VERSE.replace('가르쳐서', '가르치고'));
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: /유지/ }));
+		expect(onPickFull).toHaveBeenLastCalledWith(4);
 	});
 });

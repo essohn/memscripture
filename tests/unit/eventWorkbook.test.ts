@@ -28,15 +28,18 @@ describe('buildEventSheet columns', () => {
 	it('leads with the two difficulty columns when they are on', () => {
 		const s = buildEventSheet(EVENT, [verse()], DIFF_ON);
 		expect(s.rows[1].map((c) => c.v)).toEqual([
-			'시작',
-			'전체',
+			'암송 시작',
+			'전체 일치',
 			'구분',
 			'번호',
 			'제목',
 			'장절',
 			'본문'
 		]);
-		expect(s.cols.map((c) => c.width)).toEqual([4.5, 4.5, 10, 6, 14, 18, 60]);
+		// Wide enough for the four-character headers and no wider — the values
+		// under them are a single digit, and the full 난이도 phrasing the app
+		// uses would add 16% to a 117-unit sheet to say what 1-5 already says.
+		expect(s.cols.map((c) => c.width)).toEqual([7, 7, 10, 6, 14, 18, 60]);
 	});
 
 	it('omits them entirely when they are off', () => {
@@ -86,6 +89,7 @@ describe('difficulty cells', () => {
 		// Row 1 is the caption and row 2 the header, so the body is rows 3..5.
 		expect(s.conditionalFills![0].range).toBe('A3:B5');
 		expect(s.conditionalFills![0].byValue).toEqual([
+			{ value: 0, fill: DIFFICULTY_FILLS[0] },
 			{ value: 1, fill: DIFFICULTY_FILLS[1] },
 			{ value: 2, fill: DIFFICULTY_FILLS[2] },
 			{ value: 3, fill: DIFFICULTY_FILLS[3] },
@@ -107,8 +111,9 @@ describe('difficulty cells', () => {
 		expect(s.rows[2][0].fill).toBeUndefined();
 	});
 
-	it('runs red at 1 through green at 5', () => {
+	it('runs black at 0, then red at 1 through green at 5', () => {
 		expect(DIFFICULTY_FILLS).toEqual({
+			0: '14100C',
 			1: 'F4573F',
 			2: 'F79A3E',
 			3: 'F5D14E',

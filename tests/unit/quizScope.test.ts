@@ -1,7 +1,8 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../src/lib/db/local';
-import { listTargets, resolveTarget, type Target } from '../../src/lib/quiz/scope';
+import { listTargets, loadAttempts, resolveTarget, type Target } from '../../src/lib/quiz/scope';
+import { recordCheck } from '../../src/lib/db/checkHistory';
 
 beforeEach(async () => {
 	await db.delete();
@@ -115,5 +116,70 @@ describe('listTargets', () => {
 		const targets = await listTargets('2026-08-27');
 		const a = targets.find((t) => t.kind === 'package' && t.id === 'a_krv');
 		expect(a).toMatchObject({ kind: 'package', label: 'A구절' });
+	});
+});
+
+describe('loadAttempts', () => {
+	const item = (packageId: string, verseNo: number) => ({
+		id: `${packageId}:${verseNo}`,
+		packageId,
+		verseNo,
+		title: 't',
+		cite: 'c',
+		w: 'w'
+	});
+
+	it('returns nothing when no attempt was ever kept', async () => {
+		expect((await loadAttempts([item('a_krv', 1)])).size).toBe(0);
+	});
+
+	it('returns the stored attempt for a verse that has one', async () => {
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: '거의 맞은 문장' } as never, 1000);
+		expect((await loadAttempts([item('a_krv', 1)])).get('a_krv:1')).toBe('거의 맞은 문장');
+	});
+
+	// The most recent record with an attempt — not the most recent record,
+	// which may well be a later clean check that kept nothing.
+	it('is not erased by a later clean check', async () => {
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: '거의 맞은 문장' } as never, 1000);
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 1, elapsedMs: 1 } as never, 2000);
+		expect((await loadAttempts([item('a_krv', 1)])).get('a_krv:1')).toBe('거의 맞은 문장');
+	});
+
+	it('prefers the newer of two stored attempts', async () => {
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: '먼저' } as never, 1000);
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: '나중' } as never, 2000);
+		expect((await loadAttempts([item('a_krv', 1)])).get('a_krv:1')).toBe('나중');
+	});
+
+	// recordCheck keeps every attempt now, so the near-miss rule this game runs
+	// on lives here instead. 틀린 곳 찾기 hands the sentence back and asks what
+	// is wrong with it: a perfect attempt has nothing wrong in it to find, and
+	// a verse abandoned after two words is not a spot-the-difference question.
+	it('does not offer a perfect attempt as a question', async () => {
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 1, elapsedMs: 1, typed: '완벽한 문장' } as never, 1000);
+		expect((await loadAttempts([item('a_krv', 1)])).size).toBe(0);
+	});
+
+	it('does not offer a collapsed attempt as a question', async () => {
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.3, elapsedMs: 1, typed: '두 단어' } as never, 1000);
+		expect((await loadAttempts([item('a_krv', 1)])).size).toBe(0);
+	});
+
+	// The near miss stays the question even though a newer row now carries a
+	// sentence of its own — before, a clean check simply stored nothing, so
+	// recency alone was enough to get this right.
+	it('is not displaced by a later clean check that kept its own sentence', async () => {
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: '거의 맞은 문장' } as never, 1000);
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 1, elapsedMs: 1, typed: '완벽한 문장' } as never, 2000);
+		expect((await loadAttempts([item('a_krv', 1)])).get('a_krv:1')).toBe('거의 맞은 문장');
+	});
+
+	it('keeps two packages\' verse 1 apart', async () => {
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: 'A' } as never, 1000);
+		await recordCheck('b_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: 'B' } as never, 1000);
+		const got = await loadAttempts([item('a_krv', 1), item('b_krv', 1)]);
+		expect(got.get('a_krv:1')).toBe('A');
+		expect(got.get('b_krv:1')).toBe('B');
 	});
 });

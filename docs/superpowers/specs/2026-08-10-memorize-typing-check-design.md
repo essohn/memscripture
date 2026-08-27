@@ -124,17 +124,46 @@ Dividing by the longer of the two keeps a rambling over-long answer from
 scoring above a terse one. At 224 characters worst case the matrix is
 trivial to compute.
 
-A flawless attempt scores 5 however long it took — accuracy is what this
-rating is about, and a careful correct recitation is not worse than a hurried
-one. **Anything less is capped at 3**, however small the slip, and typing pace
-lowers it from there.
+A flawless attempt is judged on accuracy alone, however long it took — a
+careful correct recitation is not worse than a hurried one. It does not jump
+to 5, though: a verse the reader has been rating 1 does not become effortless
+because it went well once, so a perfect run **climbs one step** and reaches 5
+across several checks. A verse with no rating yet has nothing to climb from
+and takes the 5.
+
+**Anything less is capped at 2 (Hard)**, however small the slip. Within that
+ceiling both how much went wrong and how slowly it came can lower it further,
+so the two remaining levels still mean something: one dropped syllable and
+half a verse lost are not the same miss.
 
 | accuracy | pace (normalized chars/sec) | rating |
 |----------|------------------------------|--------|
-| 100%     | any                          | 5 xEasy |
-| < 100%   | ≥ 1.5                        | 3 Normal |
-| < 100%   | ≥ 0.8                        | 2 Hard |
-| < 100%   | below                        | 1 xHard |
+| 100%, unrated verse | any               | 5 xEasy |
+| 100%, rated *n*     | any               | min(*n* + 1, 5) |
+| 80–99%   | ≥ 1.2                        | 2 Hard |
+| 80–99%   | below 1.2                    | 1 xHard |
+| < 80%    | any                          | 1 xHard |
+
+A flawed attempt on a verse that already had a rating is also held **one step
+under it**. Those bands bottom out at the ceiling, so a verse sitting at 2 was
+proposed 2 again — a check that went wrong left the rating exactly where it
+was, and the reader had to drag it down by hand every time. The drop stops at
+1 xHard: 0 Impossible is the reader's own word for a verse, not something a
+wrong answer says on their behalf, and a verse already at 0 is left there
+rather than lifted out of it. Like every other rule here it is a ceiling, so
+it never softens what the bands said — a 5 verse that fell apart still lands
+on 1, not 4 — and it follows the attempt in hand rather than the session, so
+a retry that finally comes out flawless is not read as another one wrong.
+
+Two more ceilings then override whatever that produced, both landing on 2 (Hard).
+**Assistance** — a hint revealed, or the verse played aloud before the attempt
+— because that tests recognition rather than recall, and rating it easy is how
+a verse stops coming back for review while still being unknown. **A miss
+anywhere in the same check session**, which is the one piece of state 다시
+deliberately does not clear: a retry made after reading the marked answer is
+not an independent attempt, and the climb must not run on a verse this very
+check already showed was shaky. 포기 counts as a miss too, even though it
+proposes no rating of its own.
 
 Pace, not elapsed seconds: the corpus runs from short verses to 224
 characters, and a long verse must not be marked down for taking longer to
@@ -168,6 +197,12 @@ seconds rather than a rate.
 | ≤ 40s   | 2 Hard |
 | beyond  | 1 xHard |
 
+The band is where this rating starts, not where it ends. It climbs one step
+per check the same way 전체 does, and the session's miss caps it at 2 the same
+way — a verse whose opening came in three seconds and whose middle was lost is
+not an easy verse. Only the climb is limited: a verse that has gone cold is
+allowed to fall to its band in a single check.
+
 If the opening is never typed correctly, no start rating is proposed and
 that badge is left for the reader to set.
 
@@ -199,15 +234,23 @@ word-level marking answers the question the reader actually has, which is
 "which words did I get wrong". Score and highlight therefore run on
 different granularities, deliberately.
 
-The panel shows **both**: the reader's attempt with their own wrong words
-marked, and the verse below it marking what they missed.
+The panel shows **both**: the verse first, 원문, marking the words the attempt
+never produced, and the reader's own 입력한 내용 below it, marking the words
+they wrote that the verse cannot account for.
 
 An earlier version showed only the verse, on the reasoning that the reader
 needs the correct text to see their error against. That answered "what does
 it say" and never "what did I write" — which is the actual question after a
-failed attempt. Both readings come from `markMismatchedWords` with the
-arguments swapped: walking the attempt and checking each word against the
-verse is the mirror of walking the verse.
+failed attempt.
+
+The two readings walk the same forward scan (`markMismatchedWords` and
+`markAttemptWords`), so they can never disagree about which words were
+produced. What the 입력한 내용 block does **not** do is restore the words that
+were skipped. A version between the two put them back in place, dashed, where
+the verse picked up again; on a bad check that filled the block with verse the
+reader never typed — most of what they were reading back was not theirs, and
+an omission is already marked on the 원문 directly above. The attempt block is
+their own hand and nothing else.
 
 ### 취소 — a clean slate
 

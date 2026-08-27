@@ -25,6 +25,10 @@ export interface RoundResult {
 	accuracy: number;
 	missed: number[];
 	elapsedMs: number;
+	/** What the reader typed, when this game produced a sentence worth
+	 *  keeping. Only the typing round sets it; recordCheck decides whether it
+	 *  is kept, so no round needs to know the threshold. */
+	typed?: string;
 }
 
 /** The rating shape hardestLevel takes — the display-side one from

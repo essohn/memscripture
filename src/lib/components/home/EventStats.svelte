@@ -142,9 +142,9 @@
 					</p>
 
 					{#if rated}
-						<div class="mt-1 grid grid-cols-5 gap-1">
+						<div class="mt-1 grid grid-cols-6 gap-0.5">
 							{#each DIFFICULTY_LEVELS as level (level)}
-								{@const count = counts[level - 1] ?? 0}
+								{@const count = counts[level] ?? 0}
 								<!-- The whole column is the target, not the mark: a level with
 								     one verse draws a 4px bar, and 4px is not something a
 								     finger can hit. An empty level is left inert — a link to
@@ -178,7 +178,9 @@
 											style="height: {barPx(count)}px; background-color: {DIFFICULTY_COLORS[
 												level
 											]}"
-											class="w-full rounded-t-[4px]"
+											class="w-full rounded-t-[4px] {level === 0
+											? 'border border-b-0 border-[var(--color-text-tertiary)]'
+											: ''}"
 										></div>
 									</div>
 									<span

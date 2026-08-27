@@ -278,28 +278,60 @@ describe('fullDifficultyFrom — accuracy capped, then slowed', () => {
 		expect(fullDifficultyFrom(1, CHARS, secs(600))).toBe(5);
 	});
 
-	// Any mistake caps the rating at 3, however small the mistake and however
-	// fast the typing.
-	it('caps a flawed attempt at 3', () => {
-		expect(fullDifficultyFrom(0.99, CHARS, secs(10))).toBe(3);
-		expect(fullDifficultyFrom(0.7, CHARS, secs(10))).toBe(3);
+	// Any mistake caps the rating at 2, however small the mistake and however
+	// fast the typing. A verse got wrong is a verse still being learned.
+	it('caps a flawed attempt at 2', () => {
+		expect(fullDifficultyFrom(0.99, CHARS, secs(10))).toBe(2);
+	});
+
+	// Within that ceiling the two levels still have to mean something, so how
+	// much went wrong decides — a fast attempt that lost a fifth of the verse is
+	// not the same as one dropped syllable.
+	it('drops a badly wrong attempt to 1 however fast it was typed', () => {
+		expect(fullDifficultyFrom(0.7, CHARS, secs(10))).toBe(1);
 	});
 
 	it('drops a slow flawed attempt further', () => {
-		expect(fullDifficultyFrom(0.9, CHARS, secs(30))).toBe(3); // ~2.0 chars/s
-		expect(fullDifficultyFrom(0.9, CHARS, secs(45))).toBe(2); // ~1.4 chars/s
-		expect(fullDifficultyFrom(0.9, CHARS, secs(200))).toBe(1); // ~0.3 chars/s
+		expect(fullDifficultyFrom(0.99, CHARS, secs(30))).toBe(2); // ~2.0 chars/s
+		expect(fullDifficultyFrom(0.99, CHARS, secs(200))).toBe(1); // ~0.3 chars/s
 	});
 
 	// Rate, not absolute seconds: a long verse must not be punished for being
 	// long. Same pace, same rating.
 	it('judges pace rather than elapsed time', () => {
-		expect(fullDifficultyFrom(0.9, 61, secs(30))).toBe(fullDifficultyFrom(0.9, 224, secs(110)));
+		expect(fullDifficultyFrom(0.99, 61, secs(200))).toBe(fullDifficultyFrom(0.99, 224, secs(735)));
 	});
 
 	it('survives a zero-length verse or instant submit', () => {
 		expect(fullDifficultyFrom(0.5, 0, secs(10))).toBeGreaterThanOrEqual(1);
 		expect(fullDifficultyFrom(0.5, CHARS, 0)).toBeGreaterThanOrEqual(1);
+	});
+});
+
+describe('fullDifficultyFrom — a miss in the same session', () => {
+	const CHARS = 61;
+	const secs = (n: number) => n * 1000;
+
+	// The reader who missed, read the answer, and recited it back is not the
+	// reader who had it the first time. The session remembers; the climb does
+	// not get to run on a verse this check already showed was shaky.
+	it('holds a flawless retry to Hard', () => {
+		expect(fullDifficultyFrom(1, CHARS, secs(30), { previous: 4 })).toBe(5);
+		expect(fullDifficultyFrom(1, CHARS, secs(30), { previous: 4, missedInSession: true })).toBe(2);
+	});
+
+	it('holds a flawless first-ever check to Hard too', () => {
+		expect(fullDifficultyFrom(1, CHARS, secs(30), { missedInSession: true })).toBe(2);
+	});
+
+	it('leaves a clean session to climb', () => {
+		expect(fullDifficultyFrom(1, CHARS, secs(30), { previous: 1 })).toBe(2);
+		expect(fullDifficultyFrom(1, CHARS, secs(30), { previous: 3 })).toBe(4);
+	});
+
+	// The ceiling is a ceiling, not a floor: a bad attempt still rates itself.
+	it('does not lift a worse attempt up to Hard', () => {
+		expect(fullDifficultyFrom(0.5, CHARS, secs(200), { missedInSession: true })).toBe(1);
 	});
 });
 
@@ -372,8 +404,14 @@ describe('paceScale', () => {
 describe('a flawless check climbs rather than jumps', () => {
 	const CHARS = 61;
 	const secs = (n: number) => n * 1000;
-	const perfect = (previous: 1 | 2 | 3 | 4 | 5 | null) =>
+	const perfect = (previous: DifficultyLevel | null) =>
 		fullDifficultyFrom(1, CHARS, secs(20), { previous });
+
+	// A verse rated Impossible is not stuck there: a flawless run moves it one
+	// step like any other, onto the bottom of the ordinary scale.
+	it('lifts an Impossible verse one step', () => {
+		expect(perfect(0)).toBe(1);
+	});
 
 	// One good morning is not mastery. A verse the reader has been rating 1
 	// does not become effortless because it went well once.
@@ -430,5 +468,50 @@ describe('assistance caps the rating', () => {
 
 	it('leaves an unassisted check alone', () => {
 		expect(fullDifficultyFrom(1, CHARS, secs(20), { assisted: false })).toBe(5);
+	});
+});
+
+describe('a miss lowers the rating the verse already had', () => {
+	const CHARS = 61;
+	const secs = (n: number) => n * 1000;
+	/** One syllable wrong, typed at an ordinary pace — the smallest real miss.
+	 *  On the bands alone this lands at the flawed ceiling whatever the verse
+	 *  was rated before. */
+	const nearMiss = (previous: DifficultyLevel | null) =>
+		fullDifficultyFrom(0.99, CHARS, secs(20), { previous });
+
+	// The bands bottom out at the flawed ceiling, so a verse sitting at Hard
+	// was proposed Hard again — a check that went wrong left the rating exactly
+	// where it was, and the reader had to move it by hand every time.
+	it('drops a Hard verse to xHard', () => {
+		expect(nearMiss(2)).toBe(1);
+	});
+
+	it('holds an xHard verse at xHard rather than proposing Impossible', () => {
+		expect(nearMiss(1)).toBe(1);
+	});
+
+	// Impossible is the reader's own word for a verse, never the grader's. A
+	// verse already there is left where it is rather than lifted out of it.
+	it('leaves an Impossible verse where it is', () => {
+		expect(nearMiss(0)).toBe(0);
+	});
+
+	// The drop is a ceiling among the others, not a replacement for them: a
+	// verse rated xEasy that fell apart is not merely one step harder.
+	it('never softens what the bands already said', () => {
+		expect(nearMiss(5)).toBe(2);
+		expect(fullDifficultyFrom(0.5, CHARS, secs(200), { previous: 5 })).toBe(1);
+	});
+
+	it('leaves a verse with no rating to the bands', () => {
+		expect(nearMiss(null)).toBe(2);
+	});
+
+	// The drop follows the attempt in hand, not the session. A retry that comes
+	// out flawless is still capped for the earlier miss, but it is a step
+	// forward and must not be read as another one wrong.
+	it('does not drop a flawless retry after an earlier miss', () => {
+		expect(fullDifficultyFrom(1, CHARS, secs(20), { previous: 1, missedInSession: true })).toBe(2);
 	});
 });

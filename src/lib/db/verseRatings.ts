@@ -1,12 +1,13 @@
 import { db, type VerseRating } from './local';
 import { touchDataModified } from './touchData';
 
-export const DIFFICULTY_LEVELS = [1, 2, 3, 4, 5] as const;
+export const DIFFICULTY_LEVELS = [0, 1, 2, 3, 4, 5] as const;
 export type DifficultyLevel = (typeof DIFFICULTY_LEVELS)[number];
 
-/** Human-readable label per level (1=hardest, 5=easiest), matching the
+/** Human-readable label per level (0=hardest, 5=easiest), matching the
  *  user-facing picker copy. */
 export const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
+	0: 'Impossible',
 	1: 'xHard',
 	2: 'Hard',
 	3: 'Normal',
@@ -14,10 +15,19 @@ export const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
 	5: 'xEasy'
 };
 
-/** Red → blue ramp, increasing easiness. Reuses the ribbon palette so the
- *  page only ships one set of color tokens. Shared by the interactive picker
- *  (DifficultyBadge) and the read-only list dot (DifficultyDot). */
+/** Black, then a red → blue ramp of increasing easiness. Reuses the ribbon
+ *  palette so the page only ships one set of color tokens. Shared by the
+ *  interactive picker (DifficultyBadge) and the read-only list dot.
+ *
+ *  0 is the one colour outside the ramp, because it is outside the scale's
+ *  ordinary range — and it carries a hairline ring wherever it is drawn: on
+ *  the dark theme's card (#211d17) a black fill is barely 1.4:1 against its
+ *  own background, so the shape has to come from the outline. The ring is
+ *  --color-text-tertiary rather than --color-border, which is itself near
+ *  black in dark mode and so drew an invisible line around an invisible
+ *  bar. */
 export const DIFFICULTY_COLORS: Record<DifficultyLevel, string> = {
+	0: 'var(--color-ribbon-black)',
 	1: 'var(--color-ribbon-red)',
 	2: 'var(--color-ribbon-amber)',
 	3: 'var(--color-text-tertiary)',
@@ -30,7 +40,7 @@ function rowId(packageId: string, verseNo: number): string {
 }
 
 function isLevel(v: unknown): v is DifficultyLevel {
-	return typeof v === 'number' && v >= 1 && v <= 5 && Number.isInteger(v);
+	return typeof v === 'number' && v >= 0 && v <= 5 && Number.isInteger(v);
 }
 
 export async function getVerseRating(

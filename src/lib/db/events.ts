@@ -142,7 +142,8 @@ export interface EventStats {
 	full: number[];
 }
 
-const LEVEL_SLOTS = 5;
+/** 0 through 5 — six of them, indexed by the level itself. */
+const LEVEL_SLOTS = 6;
 
 /**
  * Whether an event has anything worth plotting yet.
@@ -162,8 +163,8 @@ export function hasEventStats(stats: EventStats): boolean {
  *  the whole histogram into NaN. */
 function tally(into: number[], level: number | null | undefined): void {
 	if (typeof level !== 'number') return;
-	if (!Number.isInteger(level) || level < 1 || level > LEVEL_SLOTS) return;
-	into[level - 1]++;
+	if (!Number.isInteger(level) || level < 0 || level >= LEVEL_SLOTS) return;
+	into[level]++;
 }
 
 /** One verse of one package. What a link out of the chart has to name, since
@@ -230,7 +231,7 @@ export function ratedLevel(
 	dim: StatsDimension
 ): DifficultyLevel | null {
 	const raw = dim === 'start' ? rating?.startDifficulty : rating?.fullDifficulty;
-	if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 1 || raw > LEVEL_SLOTS) {
+	if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 0 || raw >= LEVEL_SLOTS) {
 		return null;
 	}
 	return raw as DifficultyLevel;

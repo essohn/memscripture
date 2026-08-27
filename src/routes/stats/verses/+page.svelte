@@ -11,6 +11,10 @@
 	} from '$lib/db/verseRatings';
 	import { ratedLevel, statsListHeading } from '$lib/db/events';
 	import { listLastCheckedAt, verseKeyOf } from '$lib/db/checkHistory';
+	import { setBookmark, clearBookmark } from '$lib/db/bookmarks';
+	import { toggleVerseMark } from '$lib/db/verseMarks';
+	import type { BookmarkColor } from '$lib/types';
+	import type { StoredMark } from '$lib/memorize/marks';
 	import type { StatsVersesLoadData } from './+page';
 
 	let { data }: { data: StatsVersesLoadData } = $props();
@@ -65,6 +69,40 @@
 		setFullDifficulty(packageId, verseNo, level).catch(() => {});
 	}
 
+	// Bookmarks and underlines are written straight through and mirrored
+	// locally, the same way the library list does it: the card should respond
+	// to the tap, not to the round trip.
+	let bookmarks = $state<Record<string, BookmarkColor | null>>({});
+	let marks = $state<Record<string, StoredMark[]>>({});
+
+	$effect(() => {
+		const next: Record<string, BookmarkColor | null> = {};
+		const nextMarks: Record<string, StoredMark[]> = {};
+		for (const r of data.rows) {
+			next[verseKeyOf(r.packageId, r.verse.no)] = r.bookmark;
+			nextMarks[verseKeyOf(r.packageId, r.verse.no)] = r.marks;
+		}
+		bookmarks = next;
+		marks = nextMarks;
+	});
+
+	function pickBookmark(packageId: string, verseNo: number, color: BookmarkColor) {
+		bookmarks = { ...bookmarks, [verseKeyOf(packageId, verseNo)]: color };
+		setBookmark(packageId, verseNo, color).catch(() => {});
+	}
+
+	function removeBookmark(packageId: string, verseNo: number) {
+		bookmarks = { ...bookmarks, [verseKeyOf(packageId, verseNo)]: null };
+		clearBookmark(packageId, verseNo).catch(() => {});
+	}
+
+	function onToggleMark(packageId: string, verseNo: number, index: number, word: string) {
+		const key = verseKeyOf(packageId, verseNo);
+		void toggleVerseMark(packageId, verseNo, index, word)
+			.then((next) => (marks = { ...marks, [key]: next }))
+			.catch(() => {});
+	}
+
 	function goBack() {
 		if (typeof history !== 'undefined' && history.length > 1) history.back();
 		else location.href = '/';
@@ -88,6 +126,13 @@
 					verse={row.verse}
 					packageName={row.packageName}
 					packageId={row.packageId}
+					tags={row.tags}
+					bookmark={bookmarks[verseKeyOf(row.packageId, row.verse.no)] ?? null}
+					onBookmarkPick={(c) => pickBookmark(row.packageId, row.verse.no, c)}
+					onBookmarkClear={() => removeBookmark(row.packageId, row.verse.no)}
+					marks={marks[verseKeyOf(row.packageId, row.verse.no)] ?? []}
+					onToggleMark={(i, word) => onToggleMark(row.packageId, row.verse.no, i, word)}
+					perfect={row.perfect}
 					startDifficulty={startDifficulties[verseKeyOf(row.packageId, row.verse.no)] ?? null}
 					fullDifficulty={fullDifficulties[verseKeyOf(row.packageId, row.verse.no)] ?? null}
 					onPickStartDifficulty={(l) => pickStart(row.packageId, row.verse.no, l)}

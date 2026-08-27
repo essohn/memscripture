@@ -6,7 +6,13 @@ import {
 	type StatsDimension
 } from '$lib/db/events';
 import { todayLocalKey } from '$lib/db/activity';
-import { installPackage, listPackages, listVerses } from '$lib/db/verses';
+import { installPackage, listPackages, listVerses, loadPackageData } from '$lib/db/verses';
+import { listAllBookmarks } from '$lib/db/bookmarks';
+import { listMarksForPackage } from '$lib/db/verseMarks';
+import { listPerfectVerseNos } from '$lib/db/checkHistory';
+import type { StoredMark } from '$lib/memorize/marks';
+import type { VerseTag } from '$lib/db/verses';
+import type { BookmarkColor } from '$lib/types';
 import type { DifficultyLevel } from '$lib/db/verseRatings';
 import type { StoredVerse } from '$lib/db/local';
 import type { PageLoad } from './$types';
@@ -18,6 +24,13 @@ export interface StatsVerseRow {
 	verse: StoredVerse;
 	packageId: string;
 	packageName: string;
+	/** The rest of what a card shows. Gathered here so this list renders the
+	 *  same card as the library list — the reader should not be able to tell
+	 *  which door they came through. */
+	bookmark: BookmarkColor | null;
+	marks: StoredMark[];
+	perfect: boolean;
+	tags: VerseTag[];
 }
 
 export interface StatsVersesLoadData {
@@ -69,10 +82,22 @@ export const load: PageLoad = async ({ url }): Promise<StatsVersesLoadData> => {
 	const packageIds = Array.from(new Set(refs.map((r) => r.packageId)));
 	await Promise.all(packageIds.map((id) => installPackage(id).catch(() => {})));
 
-	const [packages, versesPerPackage] = await Promise.all([
-		listPackages(),
-		Promise.all(packageIds.map((id) => listVerses(id)))
-	]);
+	const [packages, versesPerPackage, bookmarks, marksPerPackage, perfectPerPackage, dataPerPackage] =
+		await Promise.all([
+			listPackages(),
+			Promise.all(packageIds.map((id) => listVerses(id))),
+			listAllBookmarks().catch(() => []),
+			Promise.all(packageIds.map((id) => listMarksForPackage(id).catch(() => new Map()))),
+			Promise.all(packageIds.map((id) => listPerfectVerseNos(id).catch(() => new Set<number>()))),
+			// Tags come from the package's own group index, so they are per
+			// package even though this list spans several.
+			Promise.all(packageIds.map((id) => loadPackageData(id).catch(() => null)))
+		]);
+
+	const marksByPackage = new Map(packageIds.map((id, i) => [id, marksPerPackage[i]]));
+	const perfectByPackage = new Map(packageIds.map((id, i) => [id, perfectPerPackage[i]]));
+	const tagsByPackage = new Map(packageIds.map((id, i) => [id, dataPerPackage[i]?.tagsByVerseNo]));
+	const bookmarkByKey = new Map(bookmarks.map((b) => [`${b.packageId}:${b.verseNo}`, b.color]));
 
 	// Abbreviation, so the package label reads the same here as on the library
 	// detail and the bookmarks list.
@@ -87,7 +112,11 @@ export const load: PageLoad = async ({ url }): Promise<StatsVersesLoadData> => {
 		rows.push({
 			verse,
 			packageId: ref.packageId,
-			packageName: nameById.get(ref.packageId) ?? ref.packageId
+			packageName: nameById.get(ref.packageId) ?? ref.packageId,
+			bookmark: bookmarkByKey.get(`${ref.packageId}:${ref.verseNo}`) ?? null,
+			marks: marksByPackage.get(ref.packageId)?.get(ref.verseNo) ?? [],
+			perfect: perfectByPackage.get(ref.packageId)?.has(ref.verseNo) ?? false,
+			tags: tagsByPackage.get(ref.packageId)?.get(ref.verseNo) ?? []
 		});
 	}
 
