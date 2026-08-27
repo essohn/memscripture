@@ -356,9 +356,15 @@ Inside the `put`, after the existing `missed` spread, add:
 		// Kept only for a near miss. Deciding here rather than at each call
 		// site means the card's 점검 and the quiz's typing round cannot
 		// disagree about which sentences are worth handing back later.
+		//
+		// The false branch sets undefined rather than spreading nothing:
+		// entry.typed already rode in on ...entry above, so an empty spread
+		// would leave a collapsed attempt's sentence in place. The missed
+		// clause gets away with `: {}` only because its condition is the
+		// value itself — this one's condition is the accuracy.
 		...(entry.typed !== undefined && isRecallableAttempt(entry.accuracy)
 			? { typed: entry.typed }
-			: {})
+			: { typed: undefined })
 ```
 
 Add the predicate, above `listPerfectVerseNos`:
