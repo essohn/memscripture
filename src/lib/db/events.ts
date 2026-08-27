@@ -1,5 +1,6 @@
 import type { EventRange, MemEvent } from '$lib/types';
 import type { VerseRating } from './local';
+import type { PlaylistVerse } from '$lib/memorize/playlist';
 import { db } from './local';
 import { loadPackageData, filterVerses, isPackageInstalled } from './verses';
 import { listPerfectVerseNos } from './checkHistory';
@@ -372,6 +373,16 @@ export interface EventCardVM {
 	/** Tallied across every range, de-duplicated. Built here because the tables
 	 *  it reads are the ones rangeProgress already visits. */
 	stats: EventStats;
+	/** Every included range's verses, in range order, for 전체 듣기.
+	 *
+	 *  Resolved during the build rather than on tap: iOS honours synthesis
+	 *  only when it is reached synchronously from the gesture, so an
+	 *  IndexedDB read at tap time is silence on a phone. loadPackageData is
+	 *  resolved only for packages already installed — loadPackageData installs
+	 *  on a miss, and the home screen must not fetch a package the reader has
+	 *  never opened. Empty when any included range could not contribute its
+	 *  verses: hearing less than the card shows would be worse than no button. */
+	verses: PlaylistVerse[];
 }
 
 /** label이 비면 front 구절 title로 파생. */
@@ -392,6 +403,11 @@ export async function buildEventCards(today: string): Promise<EventCardVM[]> {
 	const cards: EventCardVM[] = [];
 	for (const e of events) {
 		const ranges: RangeCardVM[] = [];
+		const verses: PlaylistVerse[] = [];
+		/** Cleared when any included range cannot contribute its verses. The
+		 *  event's audio is all-or-nothing: hearing less than the card shows,
+		 *  with nothing saying so, is worse than no button at all. */
+		let versesComplete = true;
 		for (const r of e.ranges) {
 			const verseNos = await resolveRangeVerseNos(r).catch(() => []);
 			if (verseNos.length === 0) continue; // 미설치/해석 실패 범위는 건너뜀
@@ -404,6 +420,23 @@ export async function buildEventCards(today: string): Promise<EventCardVM[]> {
 				packageId: r.packageId,
 				verseNos
 			});
+			// Same order as the range card, so what is heard matches what is read.
+			// Guarded: loadPackageData installs on a miss, and the home screen
+			// must never fetch a package the reader has not opened — the same
+			// rule resolveRangeVerseNos follows above.
+			const data = (await isPackageInstalled(r.packageId))
+				? await loadPackageData(r.packageId).catch(() => null)
+				: null;
+			if (!data) {
+				versesComplete = false;
+				continue;
+			}
+			const byNo = new Map(data.verses.map((v) => [v.no, v]));
+			for (const no of verseNos) {
+				const v = byNo.get(no);
+				if (v) verses.push({ title: v.title, cite: v.cite, w: v.w });
+				else versesComplete = false;
+			}
 		}
 		if (ranges.length > 0) {
 			cards.push({
@@ -412,7 +445,8 @@ export async function buildEventCards(today: string): Promise<EventCardVM[]> {
 				dueAt: e.dueAt,
 				dDay: dDay(e.dueAt, today),
 				ranges,
-				stats: await eventStats(ranges)
+				stats: await eventStats(ranges),
+				verses: versesComplete ? verses : []
 			});
 		}
 	}

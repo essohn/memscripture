@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import {
 	bodyToSpeech,
 	citeToSpeech,
+	createPlayer,
 	estimateDurationMs,
 	sliceFrom,
+	speak,
 	totalChars,
 	pickKoreanVoice,
 	voiceGender,
@@ -294,5 +296,202 @@ describe('sliceFrom', () => {
 
 	it('counts the whole script for the progress fraction', () => {
 		expect(totalChars(SCRIPT)).toBe(SCRIPT[0].length + SCRIPT[1].length);
+	});
+});
+
+// ─── Global queue ownership ─────────────────────────────────────────────────
+
+/** The slice of the Web Speech API createPlayer touches. jsdom ships none of
+ *  it, and a real one cannot be driven from a test. */
+class FakeUtterance {
+	text: string;
+	lang = '';
+	rate = 1;
+	voice: unknown = null;
+	onend: (() => void) | null = null;
+	onerror: (() => void) | null = null;
+	onboundary: ((e: { charIndex: number }) => void) | null = null;
+	constructor(text: string) {
+		this.text = text;
+	}
+}
+
+function installFakeSynth() {
+	let current: FakeUtterance | null = null;
+	const spoken: FakeUtterance[] = [];
+	const synth = {
+		speaking: false,
+		pending: false,
+		paused: false,
+		getVoices: () => [{ name: 'Google 한국의', lang: 'ko-KR' }],
+		speak(u: FakeUtterance) {
+			current = u;
+			spoken.push(u);
+			synth.speaking = true;
+		},
+		// Chrome fires the current utterance's `end` on cancel. That is the
+		// behaviour the ownership fix exists for, so the fake reproduces it.
+		cancel() {
+			const u = current;
+			current = null;
+			synth.speaking = false;
+			u?.onend?.();
+		},
+		resume() {}
+	};
+	vi.stubGlobal('speechSynthesis', synth);
+	vi.stubGlobal('SpeechSynthesisUtterance', FakeUtterance);
+	return { synth, spoken };
+}
+
+describe('global queue ownership', () => {
+	beforeEach(() => installFakeSynth());
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('a new player relieves the previous one, which reports its end once', () => {
+		const onEnd = vi.fn();
+		const first = createPlayer(['가나다라마바사'], { onEnd });
+		expect(first).not.toBeNull();
+
+		const second = createPlayer(['아자차카타파하'], {});
+		expect(second).not.toBeNull();
+
+		expect(onEnd).toHaveBeenCalledTimes(1);
+		second?.stop();
+	});
+
+	// The bug this exists for: the relieved player must not treat being
+	// cancelled as "the verse finished" and start itself again.
+	it('a repeating player does not restart when another takes the queue', () => {
+		const { spoken } = installFakeSynth();
+		const first = createPlayer(['가나다라마바사'], { repeat: true });
+		const spokenAfterFirst = spoken.length;
+		const second = createPlayer(['아자차카타파하'], {});
+		// Exactly one new utterance — the second player's. A restart would have
+		// added the first player's script back on top.
+		expect(spoken.length).toBe(spokenAfterFirst + 1);
+		expect(spoken[spoken.length - 1].text).toBe('아자차카타파하');
+		first?.stop();
+		second?.stop();
+	});
+
+	it('stopping a relieved player does not unregister its successor', () => {
+		const first = createPlayer(['가나다라마바사'], {});
+		const secondEnd = vi.fn();
+		const second = createPlayer(['아자차카타파하'], { onEnd: secondEnd });
+		first?.stop();
+		expect(secondEnd).not.toHaveBeenCalled();
+		second?.stop();
+	});
+
+	it('speak() also relieves a running player', () => {
+		const onEnd = vi.fn();
+		const player = createPlayer(['가나다라마바사'], { onEnd });
+		void player;
+		speak(['짧은 문장']);
+		expect(onEnd).toHaveBeenCalledTimes(1);
+	});
+
+	// Seeking cancels to move position. The outgoing utterance's onend must
+	// not be read as "the list finished" and loop the reader back to zero.
+	it('seeking a repeating player moves there rather than back to the start', () => {
+		const { spoken } = installFakeSynth();
+		// A space partway through: sliceFrom snaps a seek to a word start, so
+		// without one to snap to the offset always collapses back to 0 and this
+		// test could not tell a real seek from a restart.
+		const player = createPlayer(['가나다라마바사 아자차카타파하'], { repeat: true });
+		const before = spoken.length;
+		player?.seek(0.5);
+		// One new utterance for the seek, and it is not the whole script again.
+		expect(spoken.length).toBe(before + 1);
+		expect(spoken[spoken.length - 1].text).not.toBe('가나다라마바사 아자차카타파하');
+		player?.stop();
+	});
+
+	// claimSynth's two lines must run in the order the file's comment says:
+	// register the new owner, *then* relieve the old one. Reversing them
+	// leaves every other test in this block passing — the old owner's own
+	// release re-nulls activeStop, and the assignment after it re-sets the
+	// same value either way — so this is the one test load-bearing on the
+	// order itself. It is built to fail if the two lines are swapped, and was
+	// verified to do so by swapping them locally and watching it fail.
+	it('a claim that arrives while a relief is still in flight is not clobbered by it', () => {
+		const { spoken } = installFakeSynth();
+		const thirdEnd = vi.fn();
+		// A holder rather than a bare `let`: the assignment happens inside
+		// first's onEnd closure below, and TypeScript does not carry that
+		// reassignment's type back out to the read at the bottom of this test.
+		const holder: { third: ReturnType<typeof createPlayer> } = { third: null };
+		const first = createPlayer(['가나다라마바사'], {
+			// Fires synchronously from inside second's own claimSynth call —
+			// second has claimed the queue but not yet started playFrom(0) —
+			// so third's claim lands while second's claim is still unwinding.
+			onEnd: () => {
+				holder.third = createPlayer(['고노도로모보소'], { onEnd: thirdEnd });
+			}
+		});
+		void first;
+		const second = createPlayer(['아자차카타파하'], {});
+		// Only first's script and third's were ever spoken. second was
+		// relieved by third before its own playFrom(0) ran, so it never
+		// reached the synth — a third entry here would mean second clobbered
+		// third's claim and got to speak anyway.
+		expect(spoken.map((u) => u.text)).toEqual(['가나다라마바사', '고노도로모보소']);
+		// second was already relieved, so stopping it now must be a no-op —
+		// in particular it must not reach back into third's synth.cancel().
+		second?.stop();
+		expect(thirdEnd).not.toHaveBeenCalled();
+		holder.third?.stop();
+	});
+});
+
+// ─── Keepalive ──────────────────────────────────────────────────────────────
+
+// Real utterances never end naturally under the fakes above (no timers drive
+// them), so this is the one place that can honestly exercise the nudge: fake
+// timers stand in for the 10-second cadence, and the assertion is on
+// synth.resume() being called, not on an utterance's onend firing.
+describe('createPlayer keepalive', () => {
+	beforeEach(() => {
+		installFakeSynth();
+		vi.useFakeTimers();
+	});
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+	});
+
+	it('resumes the synth every 10 seconds so Chrome does not drop a long utterance', () => {
+		const synth = window.speechSynthesis as unknown as {
+			speaking: boolean;
+			paused: boolean;
+			resume: () => void;
+		};
+		synth.resume = vi.fn();
+		const player = createPlayer(['가나다라마바사'], {});
+		expect(player).not.toBeNull();
+		// speak() on the fake sets `speaking = true` synchronously, matching a
+		// real synth mid-utterance.
+		expect(synth.speaking).toBe(true);
+
+		vi.advanceTimersByTime(10_000);
+		expect(synth.resume).toHaveBeenCalledTimes(1);
+
+		vi.advanceTimersByTime(10_000);
+		expect(synth.resume).toHaveBeenCalledTimes(2);
+
+		player?.stop();
+	});
+
+	it('stops nudging once stopped, so it never reaches a synth a successor now owns', () => {
+		const synth = window.speechSynthesis as unknown as {
+			resume: () => void;
+		};
+		synth.resume = vi.fn();
+		const player = createPlayer(['가나다라마바사'], {});
+		player?.stop();
+
+		vi.advanceTimersByTime(30_000);
+		expect(synth.resume).not.toHaveBeenCalled();
 	});
 });
