@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { CalendarCheck, ChevronDown, Download } from 'lucide-svelte';
+	import { CalendarCheck, Download } from 'lucide-svelte';
 	import { hasEventStats, type EventCardVM } from '$lib/db/events';
-	import { getEventStatsOpen, setEventStatsOpen } from '$lib/db/viewOptions';
 	import EventExportSheet, { type SheetNotice } from './EventExportSheet.svelte';
 	import EventStats from './EventStats.svelte';
 	import { exportEventXlsx } from '$lib/export/eventExport';
@@ -20,30 +19,6 @@
 		onError?: () => void;
 	}
 	let { events, clientId = null, onEmpty, onError }: Props = $props();
-
-	/** Which events have their stats expanded, by event id. */
-	let statsOpen = $state<Record<string, boolean>>({});
-
-	// Restored from storage rather than defaulted in place: a reader who leaves
-	// it open should find it open tomorrow. Reads `events` only, so writing the
-	// map below cannot re-trigger this.
-	$effect(() => {
-		const ids = events.map((e) => e.eventId);
-		void (async () => {
-			const flags = await Promise.all(ids.map((id) => getEventStatsOpen(id).catch(() => false)));
-			const next: Record<string, boolean> = {};
-			ids.forEach((id, i) => (next[id] = flags[i]));
-			statsOpen = next;
-		})();
-	});
-
-	/** Flipped locally first: the chart should appear on the tap, not once
-	 *  IndexedDB has acknowledged a preference. */
-	function toggleStats(eventId: string) {
-		const open = !statsOpen[eventId];
-		statsOpen = { ...statsOpen, [eventId]: open };
-		setEventStatsOpen(eventId, open).catch(() => {});
-	}
 
 	let exporting = $state<EventCardVM | null>(null);
 	let busy = $state(false);
@@ -172,33 +147,14 @@
 						</a>
 					{/each}
 				</div>
-				<!-- Folded by default. The chart is 177px of home page answering a
-				     question most opens do not ask, and the range cards above are
-				     what the reader came for. Withheld entirely when there is
-				     nothing plotted yet — a toggle onto an empty panel is worse
-				     than no toggle. -->
+				<!-- Always visible. It sat behind a 통계 보기 line for a while, which
+				     bought back 187px of home page and cost a press every time — the
+				     numbers turned out to be worth more in the open. Still withheld
+				     when there is nothing plotted: an empty panel is not worth the
+				     space whether or not a control guards it. -->
 				{#if hasEventStats(ev.stats)}
-					<div class="mt-2 px-1">
-						<button
-							type="button"
-							onclick={() => toggleStats(ev.eventId)}
-							aria-expanded={statsOpen[ev.eventId] ? 'true' : 'false'}
-							aria-controls="event-stats-{ev.eventId}"
-							class="mx-auto flex min-h-[44px] items-center gap-1 rounded-full px-3 text-[11px] font-medium text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text-secondary)]"
-						>
-							{statsOpen[ev.eventId] ? '통계 숨기기' : '통계 보기'}
-							<ChevronDown
-								size={13}
-								class="transition-transform {statsOpen[ev.eventId] ? 'rotate-180' : ''}"
-							/>
-						</button>
-						<!-- Rendered whether or not it is open so aria-controls always
-						     points at something that exists. -->
-						<div id="event-stats-{ev.eventId}">
-							{#if statsOpen[ev.eventId]}
-								<EventStats stats={ev.stats} eventId={ev.eventId} />
-							{/if}
-						</div>
+					<div class="px-1">
+						<EventStats stats={ev.stats} eventId={ev.eventId} />
 					</div>
 				{/if}
 			</div>

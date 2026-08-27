@@ -5,9 +5,7 @@ import {
 	getShowVerseTextInList,
 	getSpeakOptions,
 	setShowVerseTextInList,
-	setSpeakOption,
-	getEventStatsOpen,
-	setEventStatsOpen
+	setSpeakOption
 } from '../../src/lib/db/viewOptions';
 
 beforeEach(async () => {
@@ -101,43 +99,3 @@ describe('읽어주기 options', () => {
 });
 
 
-describe('event stats open state', () => {
-	it('starts closed for an event nobody has opened', async () => {
-		expect(await getEventStatsOpen('e1')).toBe(false);
-	});
-
-	it('round-trips per event', async () => {
-		await setEventStatsOpen('e1', true);
-		expect(await getEventStatsOpen('e1')).toBe(true);
-		expect(await getEventStatsOpen('e2')).toBe(false);
-	});
-
-	it('closes again', async () => {
-		await setEventStatsOpen('e1', true);
-		await setEventStatsOpen('e1', false);
-		expect(await getEventStatsOpen('e1')).toBe(false);
-	});
-
-	// One settings row holds the whole map, so a write has to merge rather than
-	// replace — otherwise opening one event closes every other.
-	it('keeps the other events when one is written', async () => {
-		await setEventStatsOpen('e1', true);
-		await setEventStatsOpen('e2', true);
-		expect(await getEventStatsOpen('e1')).toBe(true);
-	});
-
-	// The map shares its row with every other view option.
-	it('does not disturb the other view options', async () => {
-		await setShowVerseTextInList(false);
-		await setEventStatsOpen('e1', true);
-		expect(await getShowVerseTextInList()).toBe(false);
-	});
-
-	// Two toggles fired back to back both read-modify-write the same row; the
-	// module's write queue is what stops the second from clobbering the first.
-	it('survives two toggles fired without awaiting the first', async () => {
-		await Promise.all([setEventStatsOpen('e1', true), setEventStatsOpen('e2', true)]);
-		expect(await getEventStatsOpen('e1')).toBe(true);
-		expect(await getEventStatsOpen('e2')).toBe(true);
-	});
-});

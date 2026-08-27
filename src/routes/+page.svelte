@@ -199,7 +199,7 @@
 
 	<a
 		href="/quiz"
-		class="flex items-center justify-between rounded-2xl bg-[var(--color-card)] px-4 py-3 shadow-[var(--shadow-card)]"
+		class="mb-8 flex items-center justify-between rounded-2xl bg-[var(--color-card)] px-4 py-3 shadow-[var(--shadow-card)]"
 	>
 		<span class="text-[15px] font-medium text-[var(--color-text)]">퀴즈</span>
 		<span class="text-[12px] text-[var(--color-text-tertiary)]">범위를 골라 한 바퀴</span>
