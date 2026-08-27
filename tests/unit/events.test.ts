@@ -4,13 +4,13 @@ import {
 	dDay, activeEvents, isMemorized, rangeHref, serializeEventRange,
 	loadEvents, resolveRangeVerseNos, rangeProgress, buildEventCards, _resetEventsCache,
 	eventStats, versesAtLevel, versesByPerfection, statsVersesHref, statsPerfectHref,
-	hasEventStats, DIMENSION_LABELS, statsListHeading, type RangeCardVM
+	hasEventStats, DIMENSION_LABELS, statsListHeading, parseStatsLevel, type RangeCardVM
 } from '../../src/lib/db/events';
 import { recordCheck } from '../../src/lib/db/checkHistory';
 import { db } from '../../src/lib/db/local';
 import { listPackages, installPackage, isPackageInstalled } from '../../src/lib/db/verses';
 import { upsertProgress } from '../../src/lib/db/progress';
-import { setStartDifficulty, setFullDifficulty } from '../../src/lib/db/verseRatings';
+import { setStartDifficulty, setFullDifficulty, DIFFICULTY_LEVELS } from '../../src/lib/db/verseRatings';
 import type { MemEvent, VerseProgress } from '../../src/lib/types';
 
 const ev = (over: Partial<MemEvent> = {}): MemEvent => ({
@@ -696,5 +696,52 @@ describe('statsListHeading', () => {
 				expect(statsListHeading(dim, level, false)).not.toContain('난이도 난이도');
 			}
 		}
+	});
+});
+
+describe('parseStatsLevel', () => {
+	it('reads a level back out of the link that carried it', () => {
+		expect(parseStatsLevel('2')).toBe(2);
+	});
+
+	// 0 joined the scale after this parser was written. The chart's 0 bar links
+	// to level=0, and read as 미평가 it opened the unrated list instead — empty
+	// on an event whose verses are all rated, so the bar said 5 and the list
+	// said none.
+	it('reads 0, which is a level like any other', () => {
+		expect(parseStatsLevel('0')).toBe(0);
+	});
+
+	it('reads the unrated remainder', () => {
+		expect(parseStatsLevel('none')).toBeNull();
+	});
+
+	// Number(null), Number('') and Number(' ') are all 0. A link with no level
+	// is asking for the remainder, not for Impossible.
+	it('does not turn a missing level into 0', () => {
+		expect(parseStatsLevel(null)).toBeNull();
+		expect(parseStatsLevel('')).toBeNull();
+		expect(parseStatsLevel('   ')).toBeNull();
+	});
+
+	// A hand-edited URL should land somewhere honest rather than throw.
+	it('sends anything off the scale to the remainder', () => {
+		expect(parseStatsLevel('6')).toBeNull();
+		expect(parseStatsLevel('-1')).toBeNull();
+		expect(parseStatsLevel('2.5')).toBeNull();
+		expect(parseStatsLevel('그냥글자')).toBeNull();
+	});
+
+	// The pairing that would have caught 0 the day it was added: the parser
+	// lives beside the builder, and every level the chart can link to survives
+	// the trip.
+	it.each([...DIFFICULTY_LEVELS])('round-trips level %i through its own link', (level) => {
+		const url = new URL(statsVersesHref('e1', 'start', level), 'https://example.com');
+		expect(parseStatsLevel(url.searchParams.get('level'))).toBe(level);
+	});
+
+	it('round-trips the unrated remainder through its own link', () => {
+		const url = new URL(statsVersesHref('e1', 'start', null), 'https://example.com');
+		expect(parseStatsLevel(url.searchParams.get('level'))).toBeNull();
 	});
 });

@@ -4,7 +4,7 @@ import type { PlaylistVerse } from '$lib/memorize/playlist';
 import { db } from './local';
 import { loadPackageData, filterVerses, isPackageInstalled } from './verses';
 import { listPerfectVerseNos } from './checkHistory';
-import { DIFFICULTY_LABELS, type DifficultyLevel } from './verseRatings';
+import { DIFFICULTY_LABELS, DIFFICULTY_LEVELS, type DifficultyLevel } from './verseRatings';
 import { getJoinedGroups } from './groups';
 import { visibleTo } from '$lib/groups/visibility';
 
@@ -236,6 +236,27 @@ export function ratedLevel(
 		return null;
 	}
 	return raw as DifficultyLevel;
+}
+
+/**
+ * The level a stats link carries, read back out of it.
+ *
+ * Beside statsVersesHref deliberately, because the two are one round trip.
+ * Apart, they drifted: 0 joined the scale and the chart began linking to
+ * level=0, while the page's own parser — written when the scale started at 1
+ * — read that as 미평가 and opened the unrated list. The 0 bar counted five
+ * verses and its list showed none.
+ *
+ * The scale itself decides what is a level, so the next one added is readable
+ * the day it exists. Anything else is the unrated remainder rather than an
+ * error: a hand-edited URL should land somewhere honest. A missing parameter
+ * is the remainder too — Number(null), Number('') and Number(' ') are all 0,
+ * which would otherwise read as Impossible.
+ */
+export function parseStatsLevel(raw: string | null): DifficultyLevel | null {
+	if (raw === null || raw.trim() === '') return null;
+	const n = Number(raw);
+	return DIFFICULTY_LEVELS.includes(n as DifficultyLevel) ? (n as DifficultyLevel) : null;
 }
 
 /**
