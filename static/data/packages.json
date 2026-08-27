@@ -65,7 +65,7 @@
 		"language":	"kor",
 		"copyright": "Korea NavPress",
 		"copyright-text": "Copyright 2013 Korea NavPress | All Rights Reserved.",
-		"version": 1,
+		"version": 2,
 		"source": "data/242_krv.json",
 		"default": true
 	},

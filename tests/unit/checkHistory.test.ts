@@ -58,6 +58,21 @@ describe('checkHistory', () => {
 	it('returns nothing for a verse never checked', async () => {
 		expect(await listChecks('900_krv', 99)).toEqual([]);
 	});
+
+	it('keeps the missed word positions', async () => {
+		await recordCheck('900_krv', 1, entry({ accuracy: 0.9, missed: [2, 5] }), 1000);
+		expect((await listChecks('900_krv', 1))[0].missed).toEqual([2, 5]);
+	});
+
+	// [] is evidence, not the absence of it — a clean check is what pushes an
+	// older miss out of the suggestion window. Absent means the check predates
+	// the feature and measured nothing at all, so the two must not collapse.
+	it('distinguishes a clean check from one that measured nothing', async () => {
+		await recordCheck('900_krv', 1, entry({ missed: [] }), 1000);
+		await recordCheck('900_krv', 2, entry(), 1000);
+		expect((await listChecks('900_krv', 1))[0].missed).toEqual([]);
+		expect((await listChecks('900_krv', 2))[0].missed).toBeUndefined();
+	});
 });
 
 describe('listPerfectVerseNos', () => {

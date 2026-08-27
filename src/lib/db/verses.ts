@@ -8,6 +8,34 @@ import type { IndexGroup, PackageMeta, Verse } from '$lib/types';
 const PACKAGES_URL = '/data/packages.json';
 const GROUPS_URL = '/data/packages_index.json';
 let groupsCache: IndexGroup[] | null = null;
+let catalogCache: Record<string, { version?: number }> | null = null;
+
+/** Test-only: clear the module-level catalog, groups, and package-data caches
+ *  between tests. A fresh page load is the only thing that clears them in
+ *  production, which is exactly the moment a new deploy's catalog is read. */
+export function _resetPackageCaches(): void {
+	groupsCache = null;
+	catalogCache = null;
+	packageDataCache.clear();
+}
+
+/** The content version the catalog currently offers for a package, or null
+ *  when it cannot be read — offline, a 404, or a package the catalog has
+ *  forgotten. Null is a deliberate "don't know", never a zero: it must never
+ *  be mistaken for "older than what is installed". */
+async function catalogVersion(packageId: string): Promise<number | null> {
+	if (!catalogCache) {
+		try {
+			const res = await fetch(PACKAGES_URL);
+			if (!res.ok) return null;
+			catalogCache = (await res.json()) as Record<string, { version?: number }>;
+		} catch {
+			return null;
+		}
+	}
+	const v = catalogCache[packageId]?.version;
+	return typeof v === 'number' ? v : null;
+}
 
 /**
  * Packages the reader has actually worked in.
@@ -105,14 +133,29 @@ export async function isPackageInstalled(packageId: string): Promise<boolean> {
 	return count > 0;
 }
 
+/**
+ * Installs a package's verses, and re-installs them when the catalog has moved
+ * past the copy on this device.
+ *
+ * The verse rows carry no user data — underlines, ratings, progress and check
+ * history all live in their own tables, keyed by package and verse number — so
+ * a refresh is a pure content replacement with nothing of the reader's to lose.
+ * That is what makes correcting a typo in the corpus safe to do behind their
+ * back.
+ */
 export async function installPackage(packageId: string): Promise<void> {
-	if (await isPackageInstalled(packageId)) return;
-
 	const pkg = await db.packages.get(packageId);
 	if (!pkg) throw new Error(`Unknown package: ${packageId}`);
 
 	// User-owned packages have no JSON source — their data is created at runtime.
 	if (pkg.kind === 'user') return;
+
+	const installed = await isPackageInstalled(packageId);
+	const target = await catalogVersion(packageId);
+	// Every package shipped before this existed was version 1, so a row with no
+	// recorded version is a version-1 install. An unreadable catalog leaves the
+	// device with what it has: being offline must not cost the reader the verses.
+	if (installed && (target === null || (pkg.installedVersion ?? 1) >= target)) return;
 
 	const res = await fetch(`/${pkg.source}`);
 	if (!res.ok) throw new Error(`Failed to load ${pkg.source}: ${res.status}`);
@@ -124,6 +167,10 @@ export async function installPackage(packageId: string): Promise<void> {
 		no: v.i
 	}));
 	await db.verses.bulkPut(rows);
+	await db.packages.put({ ...pkg, installedVersion: target ?? pkg.version });
+	// The table is only half the story — loadPackageData memoizes verses per
+	// package, and a stale memo would keep the old text on screen regardless.
+	packageDataCache.delete(packageId);
 }
 
 export async function readVerse(
@@ -301,14 +348,20 @@ function buildTagsByVerseNo(verses: StoredVerse[], groups: IndexGroup[]): Map<nu
 
 /**
  * Loads (and caches) all data needed by the package detail page.
- * Subsequent calls for the same packageId return cached data instantly —
- * survives back-navigation across the SPA without hitting Dexie or recomputing tags.
+ * Subsequent calls for the same packageId skip the verse read and the tag
+ * build — back-navigation across the SPA costs only the version check below.
  */
 export async function loadPackageData(packageId: string): Promise<PackageData> {
+	// Ahead of the memo read, not after it: installPackage is what notices a
+	// newer catalog and drops the memo, and a warm memo consulted first would
+	// keep serving corrected-away text for the rest of the session. The two
+	// indexed lookups it costs are not what the memo is here to save — that is
+	// listVerses plus the tag build below, which still only run once.
+	await installPackage(packageId);
+
 	const cached = packageDataCache.get(packageId);
 	if (cached) return cached;
 
-	await installPackage(packageId);
 	const [verses, groups] = await Promise.all([listVerses(packageId), listGroups(packageId)]);
 	const tagsByVerseNo = buildTagsByVerseNo(verses, groups);
 

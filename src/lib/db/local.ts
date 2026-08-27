@@ -2,7 +2,11 @@ import Dexie, { type Table } from 'dexie';
 import type { Bookmark, PackageMeta, Verse, VerseProgress, DailyActivity } from '$lib/types';
 
 export type StoredVerse = Verse & { package_id: string; no: number };
-export type StoredPackage = PackageMeta;
+/** A package row, plus the content version actually written to `verses`.
+ *  Distinct from PackageMeta.version, which is what the catalog currently
+ *  offers — the gap between the two is what triggers a re-download.
+ *  Absent on every row written before versioning existed. */
+export type StoredPackage = PackageMeta & { installedVersion?: number };
 export type StoredSetting = { key: string; value: unknown };
 
 /** Tracks the verses the user has recently opened so the dashboard can
@@ -53,6 +57,11 @@ export interface CheckRecord {
 	/** 힌트 presses spent during the check. Optional: rows written before hints
 	 *  existed have none, and absent is not the same as zero. */
 	hints?: number;
+	/** Word positions the attempt got wrong, as markMismatchedWords saw them.
+	 *  Optional for the same reason `hints` is: records written before this
+	 *  existed have none, and absent is not the same as an empty array — one
+	 *  means nothing was measured, the other means nothing was missed. */
+	missed?: number[];
 }
 
 /** Words the reader underlined on one verse — the places they keep tripping
