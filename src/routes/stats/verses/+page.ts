@@ -1,5 +1,6 @@
 import {
 	buildEventCards,
+	parseStatsLevel,
 	versesAtLevel,
 	versesByPerfection,
 	type EventVerseRef,
@@ -48,20 +49,12 @@ function parseDim(raw: string | null): StatsDimension {
 	return raw === 'full' ? 'full' : 'start';
 }
 
-/** 'none' is the unrated remainder, and so is anything unparseable — a bad
- *  level in a hand-edited URL should land somewhere honest rather than throw. */
-function parseLevel(raw: string | null): DifficultyLevel | null {
-	const n = Number(raw);
-	if (!Number.isInteger(n) || n < 1 || n > 5) return null;
-	return n as DifficultyLevel;
-}
-
 export const load: PageLoad = async ({ url }): Promise<StatsVersesLoadData> => {
 	const rawDim = url.searchParams.get('dim');
 	const rawLevel = url.searchParams.get('level');
 	const isPerfect = rawDim === 'perfect';
 	const dim = isPerfect ? ('perfect' as const) : parseDim(rawDim);
-	const level = isPerfect ? null : parseLevel(rawLevel);
+	const level = isPerfect ? null : parseStatsLevel(rawLevel);
 	// Only an explicit yes asks for the flawless ones; anything else is the
 	// remainder, which is the safer default for a hand-edited URL.
 	const perfect = rawLevel === 'yes';
