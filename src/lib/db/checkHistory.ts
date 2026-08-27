@@ -1,14 +1,21 @@
 import { db, type CheckRecord } from './local';
 import type { DifficultyLevel } from './verseRatings';
 import { touchDataModified } from './touchData';
-import { isRecallableAttempt } from '$lib/quiz/games';
 
 /** Entries kept per verse. Older ones are pruned as new checks land — this is
  *  a "how has it been going" glance, not an audit trail, and 900 verses times
  *  an unbounded log is not worth carrying in every sync snapshot. */
 export const HISTORY_LIMIT = 10;
 
-function verseKey(packageId: string, verseNo: number): string {
+/** Characters of the attempt kept. Generous next to any real verse, so an
+ *  honest attempt is never clipped — it exists so that one pathological paste
+ *  cannot inflate a table that rides along in every Drive snapshot. */
+export const TYPED_LIMIT = 1000;
+
+/** The key a check is filed under. Exported because the callers that hand a
+ *  card its last-checked time hold a package id and a verse number, and five
+ *  routes writing `${a}:${b}` by hand is five chances to write it differently. */
+export function verseKeyOf(packageId: string, verseNo: number): string {
 	return `${packageId}:${verseNo}`;
 }
 
@@ -34,7 +41,7 @@ export async function recordCheck(
 	},
 	checkedAt: number = Date.now()
 ): Promise<void> {
-	const key = verseKey(packageId, verseNo);
+	const key = verseKeyOf(packageId, verseNo);
 	await db.checkHistory.put({
 		// Two checks of the same verse in the same millisecond would collide on
 		// a timestamp alone; the counter keeps them distinct without needing a
@@ -52,15 +59,19 @@ export async function recordCheck(
 		// absent means the record predates this field, which is not the same
 		// as missing nothing.
 		...(entry.missed ? { missed: [...entry.missed] } : {}),
-		// Kept only for a near miss. Deciding here rather than at each call
-		// site means the card's 점검 and the quiz's typing round cannot
-		// disagree about which sentences are worth handing back later.
-		// entry.typed already rode in on the ...entry spread above, so a
-		// collapsed or perfect attempt needs an explicit undefined to push it
-		// back out — an empty spread here would leave it in place.
-		...(entry.typed !== undefined
-			? { typed: isRecallableAttempt(entry.accuracy) ? entry.typed : undefined }
-			: {})
+		// Every attempt is kept, and the question of which ones are useful is
+		// asked where they are read. This used to drop anything outside
+		// isRecallableAttempt's near-miss band, which was right while 틀린 곳
+		// 찾기 was the only consumer — but the history sheet shows the reader
+		// any attempt back, and the two attempts it most wants are exactly the
+		// two that rule discards: the flawless recital, and the one they gave
+		// up on. A row dropped at write time is gone for both. loadAttempts
+		// applies the game's rule when it picks questions.
+		//
+		// Tested for undefined rather than for truth: '' is a reader who saved
+		// having typed nothing, which the sheet reports differently from a check
+		// that predates this field. A truthiness guard would erase that.
+		...(entry.typed !== undefined ? { typed: entry.typed.slice(0, TYPED_LIMIT) } : {})
 	});
 	await prune(key);
 	await touchDataModified();
@@ -113,7 +124,10 @@ export async function listChecks(
 	packageId: string,
 	verseNo: number
 ): Promise<CheckRecord[]> {
-	const rows = await db.checkHistory.where('verseKey').equals(verseKey(packageId, verseNo)).toArray();
+	const rows = await db.checkHistory
+		.where('verseKey')
+		.equals(verseKeyOf(packageId, verseNo))
+		.toArray();
 	return rows.sort((a, b) => b.checkedAt - a.checkedAt).slice(0, HISTORY_LIMIT);
 }
 
@@ -128,6 +142,40 @@ export async function listChecks(
  */
 export function countsAsRecall(r: Pick<CheckRecord, 'source'>): boolean {
 	return r.source === undefined || r.source === 'quiz';
+}
+
+/**
+ * When each verse was last 점검'd, keyed by verseKey.
+ *
+ * One scan for a whole list rather than a query per card: a 900-verse package
+ * would otherwise issue 900 round-trips for a line most cards do not even
+ * show. The same reason 점검 history itself loads lazily, and the same shape
+ * listPerfectVerseNos uses.
+ *
+ * Stricter than countsAsRecall, deliberately: that asks whether a row is
+ * evidence of recall, and a full quiz round is. This asks what the card's line
+ * may report, and the line says 최근 점검 and opens a sheet built around a
+ * difficulty no quiz round carries — so any `source` at all disqualifies a row
+ * here, including 'quiz'.
+ *
+ * `packageId` is optional because 북마크 and 통계 list verses from several
+ * packages at once. Given one, the scan rides the verseKey index, which is
+ * prefixed by the package id.
+ */
+export async function listLastCheckedAt(packageId?: string): Promise<Map<string, number>> {
+	const rows = packageId
+		? await db.checkHistory.where('verseKey').startsWith(`${packageId}:`).toArray()
+		: await db.checkHistory.toArray();
+
+	const latest = new Map<string, number>();
+	for (const r of rows) {
+		if (r.source) continue;
+		// Rows arrive in index order, not chronological order, so the newest has
+		// to be chosen by comparison rather than by whichever landed last.
+		const seen = latest.get(r.verseKey);
+		if (seen === undefined || r.checkedAt > seen) latest.set(r.verseKey, r.checkedAt);
+	}
+	return latest;
 }
 
 /**

@@ -13,6 +13,7 @@
 		type VerseTag
 	} from '$lib/db/verses';
 	import { getBookmark, setBookmark, clearBookmark } from '$lib/db/bookmarks';
+	import { listLastCheckedAt, verseKeyOf } from '$lib/db/checkHistory';
 	import { recordRecentBundle } from '$lib/db/recentBundles';
 	import {
 		getVerseRating,
@@ -33,6 +34,7 @@
 	let bookmark: BookmarkColor | null = $state(null);
 	let startDifficulty = $state<DifficultyLevel | null>(null);
 	let fullDifficulty = $state<DifficultyLevel | null>(null);
+	let lastCheckedAt = $state<number | null>(null);
 	let error: string | null = $state(null);
 	// Read-through to the header toggle, which every screen shares.
 	const showVerseText = $derived(verseVisibility.shown);
@@ -76,10 +78,11 @@
 				}
 				if (active) pkg = found;
 
-				const [data, currentBookmark, currentRating] = await Promise.all([
+				const [data, currentBookmark, currentRating, lastChecked] = await Promise.all([
 					loadPackageData(currentPackageId),
 					getBookmark(currentPackageId, currentVerseNo),
-					getVerseRating(currentPackageId, currentVerseNo)
+					getVerseRating(currentPackageId, currentVerseNo),
+					listLastCheckedAt(currentPackageId)
 				]);
 				if (active) {
 					const v = data.verses.find((x) => x.no === currentVerseNo) ?? null;
@@ -90,6 +93,7 @@
 					bookmark = currentBookmark?.color ?? null;
 					startDifficulty = (currentRating?.startDifficulty ?? null) as DifficultyLevel | null;
 					fullDifficulty = (currentRating?.fullDifficulty ?? null) as DifficultyLevel | null;
+					lastCheckedAt = lastChecked.get(verseKeyOf(currentPackageId, currentVerseNo)) ?? null;
 				}
 				// Best-effort: stamp the recents table so the dashboard surfaces
 				// this verse. Fire-and-forget; failures don't block the page.
@@ -173,6 +177,7 @@
 				showBody={showVerseText}
 				tapToCheck={false}
 				fontScale={fontScale.value}
+				{lastCheckedAt}
 			/>
 		{/key}
 

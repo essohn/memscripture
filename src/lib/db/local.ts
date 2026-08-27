@@ -66,10 +66,18 @@ export interface CheckRecord {
 	 *  before this field existed was one, and it is the app's primary act, so
 	 *  the default already says the true thing about old rows. */
 	source?: 'quiz' | 'quiz-opening' | 'quiz-spot';
-	/** What the reader actually typed. Kept only for attempts that nearly
-	 *  landed — see isRecallableAttempt. The 틀린 곳 찾기 game hands this back
-	 *  and asks what is wrong with it, so a collapsed attempt is worth
-	 *  nothing and a perfect one has nothing in it to find. */
+	/** What the reader actually typed, truncated at TYPED_LIMIT.
+	 *
+	 *  Kept for every check, and filtered where it is read rather than where it
+	 *  is written. Two consumers want different subsets — the history sheet
+	 *  shows the reader any attempt back, while 틀린 곳 찾기 can only use a near
+	 *  miss (isRecallableAttempt) — and a row dropped at write time is gone for
+	 *  both. See loadAttempts, which applies the game's rule when it picks
+	 *  questions.
+	 *
+	 *  Optional on the terms `hints` and `missed` set: absent means the check
+	 *  predates this field and captured nothing, while '' means the reader
+	 *  saved having typed nothing. The sheet says a different thing for each. */
 	typed?: string;
 }
 

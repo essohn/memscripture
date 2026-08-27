@@ -3,6 +3,7 @@ import { buildEventCards } from '$lib/db/events';
 import { isPackageInstalled, listPackages, listVerses } from '$lib/db/verses';
 import type { ItemRating, QuizItem } from './session';
 import type { DifficultyLevel } from '$lib/db/verseRatings';
+import { isRecallableAttempt } from './games';
 
 /** Something the reader can quiz themselves on. */
 export type Target =
@@ -95,14 +96,20 @@ export async function resolveTarget(
 }
 
 /**
- * Per verse, the `typed` of its most recent record that has one.
+ * Per verse, the sentence behind its most recent near-miss attempt.
  *
- * Not the most recent record — that may well be a later clean check, which
- * keeps no attempt. A verse whose attempt was recorded weeks ago is still a
- * question worth asking; the point is to hand back the sentence the reader
- * actually wrote, whenever they wrote it.
+ * Not the most recent record — that may well be a later clean check, whose
+ * sentence is no question at all. A verse whose near miss was recorded weeks
+ * ago is still worth asking about; the point is to hand back the sentence the
+ * reader actually wrote, whenever they wrote it.
  *
- * Keyed by QuizItem.id. Verses with no stored attempt are absent, so the
+ * The near-miss rule runs here rather than in recordCheck, which keeps every
+ * attempt. Two consumers want different subsets of the same field — the
+ * history sheet shows the reader any attempt back, including the flawless
+ * recital and the one they gave up on — and a row dropped at write time is
+ * gone for both.
+ *
+ * Keyed by QuizItem.id. Verses with no usable attempt are absent, so the
  * picker can count the map's size to say how many real questions a scope holds.
  */
 export async function loadAttempts(items: QuizItem[]): Promise<Map<string, string>> {
@@ -114,6 +121,7 @@ export async function loadAttempts(items: QuizItem[]): Promise<Map<string, strin
 		const rows = await db.checkHistory.where('verseKey').startsWith(`${packageId}:`).toArray();
 		for (const r of rows) {
 			if (r.typed === undefined) continue;
+			if (!isRecallableAttempt(r.accuracy)) continue;
 			const id = `${r.packageId}:${r.verseNo}`;
 			if (!wanted.has(id)) continue;
 			if ((newest.get(id) ?? -Infinity) >= r.checkedAt) continue;

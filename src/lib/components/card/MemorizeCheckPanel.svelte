@@ -48,6 +48,8 @@
 			elapsedMs: number;
 			hints: number;
 			missed: number[];
+			/** The attempt as written, for the history sheet to show back. '' is
+			 *  a reader who gave up before typing, not a missing value. */
 			typed: string;
 		}) => void;
 		/** 닫기: leave memorize mode and return to the ordinary card. */

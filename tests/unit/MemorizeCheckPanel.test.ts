@@ -504,6 +504,49 @@ describe('포기', () => {
 	});
 });
 
+// The history sheet shows the attempt back to the reader, which it can only do
+// if the panel hands it over. Every path that reports a result reports this
+// one, including 포기 — its own comment already promises "whatever was typed
+// is still recorded".
+describe('the attempt itself', () => {
+	it('reports what was typed on a flawed attempt', async () => {
+		const { onGraded } = setup();
+		await type('그들에게 율례와 법을');
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
+		expect(onGraded).toHaveBeenCalledWith(
+			expect.objectContaining({ typed: '그들에게 율례와 법을' })
+		);
+	});
+
+	// A flawless attempt skips the dialog and reports straight from submit().
+	it('reports what was typed on a flawless attempt', async () => {
+		const { onGraded } = setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ typed: VERSE }));
+	});
+
+	it('reports what was typed when the reader gives up', async () => {
+		const { onGraded } = setup();
+		await type('그들에게 율례와');
+		await fireEvent.click(screen.getByRole('button', { name: '포기' }));
+		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
+		expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ typed: '그들에게 율례와' }));
+	});
+
+	// 포기 is enabled before anything is typed. '' is not a missing value here
+	// — it is a reader who opened the check and gave up cold, and the sheet
+	// says something different about that than about a check too old to have
+	// captured anything.
+	it('reports an empty string when the reader gave up cold', async () => {
+		const { onGraded } = setup();
+		await fireEvent.click(screen.getByRole('button', { name: '포기' }));
+		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
+		expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ typed: '' }));
+	});
+});
+
 describe('the input comes first', () => {
 	it('focuses the box on open so 점검 goes straight to typing', () => {
 		setup();

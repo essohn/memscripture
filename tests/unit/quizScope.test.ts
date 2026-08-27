@@ -152,6 +152,29 @@ describe('loadAttempts', () => {
 		expect((await loadAttempts([item('a_krv', 1)])).get('a_krv:1')).toBe('나중');
 	});
 
+	// recordCheck keeps every attempt now, so the near-miss rule this game runs
+	// on lives here instead. 틀린 곳 찾기 hands the sentence back and asks what
+	// is wrong with it: a perfect attempt has nothing wrong in it to find, and
+	// a verse abandoned after two words is not a spot-the-difference question.
+	it('does not offer a perfect attempt as a question', async () => {
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 1, elapsedMs: 1, typed: '완벽한 문장' } as never, 1000);
+		expect((await loadAttempts([item('a_krv', 1)])).size).toBe(0);
+	});
+
+	it('does not offer a collapsed attempt as a question', async () => {
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.3, elapsedMs: 1, typed: '두 단어' } as never, 1000);
+		expect((await loadAttempts([item('a_krv', 1)])).size).toBe(0);
+	});
+
+	// The near miss stays the question even though a newer row now carries a
+	// sentence of its own — before, a clean check simply stored nothing, so
+	// recency alone was enough to get this right.
+	it('is not displaced by a later clean check that kept its own sentence', async () => {
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: '거의 맞은 문장' } as never, 1000);
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 1, elapsedMs: 1, typed: '완벽한 문장' } as never, 2000);
+		expect((await loadAttempts([item('a_krv', 1)])).get('a_krv:1')).toBe('거의 맞은 문장');
+	});
+
 	it('keeps two packages\' verse 1 apart', async () => {
 		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: 'A' } as never, 1000);
 		await recordCheck('b_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: 'B' } as never, 1000);

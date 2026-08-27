@@ -25,6 +25,7 @@
 		type DifficultyLevel
 	} from '$lib/db/verseRatings';
 	import type { StoredVerse } from '$lib/db/local';
+	import { listLastCheckedAt, verseKeyOf } from '$lib/db/checkHistory';
 
 	let verses = $state<StoredVerse[]>([]);
 	// Read-through to the header toggle, which every screen shares.
@@ -33,6 +34,7 @@
 	// dimension so a write to one doesn't blow away the other.
 	let startDifficulties = $state<Record<number, DifficultyLevel | null>>({});
 	let fullDifficulties = $state<Record<number, DifficultyLevel | null>>({});
+	let lastCheckedByKey = $state<Map<string, number>>(new Map());
 	let sheet = $state<{ mode: 'create' | 'edit'; initial?: VerseEditValues; editingNo?: number } | null>(null);
 	let toast = $state<{ message: string; actionLabel?: string; onAction?: () => void } | null>(null);
 
@@ -52,10 +54,12 @@
 
 			// Hydrate difficulty maps after the list lands. Done in a second
 			// pass so the list renders fast even if there are many verses.
-			const ratings = await Promise.all(
-				list.map((v) => getVerseRating(OYO_PACKAGE_ID, v.no))
-			);
+			const [ratings, lastChecked] = await Promise.all([
+				Promise.all(list.map((v) => getVerseRating(OYO_PACKAGE_ID, v.no))),
+				listLastCheckedAt(OYO_PACKAGE_ID)
+			]);
 			if (!active) return;
+			lastCheckedByKey = lastChecked;
 			const starts: Record<number, DifficultyLevel | null> = {};
 			const fulls: Record<number, DifficultyLevel | null> = {};
 			list.forEach((v, i) => {
@@ -359,6 +363,7 @@
 					onPickFullDifficulty={(l) => pickFull(verse.no, l)}
 					onEdit={() => openEdit(verse)}
 					onDelete={() => handleDelete(verse)}
+					lastCheckedAt={lastCheckedByKey.get(verseKeyOf(OYO_PACKAGE_ID, verse.no)) ?? null}
 				/>
 			{/each}
 		</div>
