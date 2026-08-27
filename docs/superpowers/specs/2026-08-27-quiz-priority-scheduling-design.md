@@ -325,6 +325,21 @@ assisted-eviction fix.
 Baseline before this work: **1496 tests, 109 files** on `origin/main`
 @ `5981092`.
 
+## Known limit
+
+Filtering assisted records before the window protects the *read*, not
+storage. `prune` caps a verse at `HISTORY_LIMIT` rows and prefers
+`countsAsRecall` ones, and an assisted 점검 is recall-bearing — its `source`
+is absent — so ten hinted checks on one verse can evict older failing quiz
+rows permanently. `signalOf` then sees no failures, and the verse's
+`lastAskedAt` keeps resetting, so it sinks.
+
+Accepted rather than fixed. Reaching it takes more than `HISTORY_LIMIT`
+records on a single verse with the newest ten all assisted, and the fix lives
+in `prune`'s retention policy — which is Phase 1 machinery serving the history
+sheet and the 만점 badge as much as this rule. Changing it here would be
+changing what the app remembers in order to change what the quiz asks.
+
 ## Open
 
 None. The one question Phase 1 left open is closed above.
