@@ -41,6 +41,12 @@
 			attemptCount = null;
 			return;
 		}
+		// Reset before the read is kicked off, not just when leaving 'spot':
+		// the total (queue.length, template-read) updates the instant a tier
+		// chip moves, and a count left over from the previous scope would
+		// pair the new total with a stale answer — a ratio that can exceed
+		// itself. The line already hides itself while attemptCount is null.
+		attemptCount = null;
 		const forQueue = queue;
 		loadAttempts(forQueue)
 			.then((m) => {

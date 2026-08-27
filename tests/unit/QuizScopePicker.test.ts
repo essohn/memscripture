@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import QuizScopePicker from '../../src/lib/components/quiz/QuizScopePicker.svelte';
-import type { Target } from '../../src/lib/quiz/scope';
+import { loadAttempts, type Target } from '../../src/lib/quiz/scope';
 import type { ItemRating, QuizItem } from '../../src/lib/quiz/session';
 
 vi.mock('../../src/lib/quiz/scope', async (importOriginal) => ({
@@ -122,5 +122,60 @@ describe('QuizScopePicker — games', () => {
 		setup();
 		expect(screen.getByText('난이도 그룹 선택')).toBeInTheDocument();
 		expect(screen.queryByText('난이도')).toBeNull();
+	});
+
+	// The total (queue.length, template-read) updates the instant a chip
+	// moves, but the attempt count is read async. Left un-reset, the count
+	// from the larger, pre-toggle scope would sit next to the new, smaller
+	// total — "1구절 중 2개" is an impossible ratio. The mock's second call
+	// is held pending so the in-flight state is directly observable rather
+	// than raced against real timing.
+	it('drops the count while a chip change is being re-read, rather than pairing it with a smaller total', async () => {
+		const mocked = vi.mocked(loadAttempts);
+		mocked.mockImplementationOnce(
+			async () =>
+				new Map([
+					['a_krv:1', '거의 맞은 문장'],
+					['a_krv:2', '다른 문장']
+				])
+		);
+		let resolveSecond: ((m: Map<string, string>) => void) | undefined;
+		mocked.mockImplementationOnce(
+			() =>
+				new Promise<Map<string, string>>((resolve) => {
+					resolveSecond = resolve;
+				})
+		);
+
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
+		await waitFor(() =>
+			expect(screen.getByText('2구절 중 2개에 내 오답 기록이 있습니다')).toBeInTheDocument()
+		);
+
+		await fireEvent.click(screen.getByRole('button', { name: 'xEasy' }));
+		// The re-read for the smaller scope is still in flight. Nothing —
+		// not the stale "2개", not any other figure — may be shown against
+		// the new "1구절" total until the new answer lands.
+		expect(screen.queryByText(/내 오답 기록이 있습니다/)).toBeNull();
+
+		resolveSecond?.(new Map([['a_krv:1', '거의 맞은 문장']]));
+		await waitFor(() =>
+			expect(screen.getByText('1구절 중 1개에 내 오답 기록이 있습니다')).toBeInTheDocument()
+		);
+	});
+
+	// A regression that swapped the filtered queue for the raw items would
+	// still read as "some count of some total" — only checking what
+	// loadAttempts was actually called with catches it.
+	it('reads attempts for the tier-filtered queue, not the raw items', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'xEasy' }));
+		await waitFor(() => {
+			const calls = vi.mocked(loadAttempts).mock.calls;
+			const last = calls.at(-1)?.[0] as QuizItem[] | undefined;
+			expect(last?.map((i) => i.id)).toEqual(['a_krv:1']);
+		});
 	});
 });
