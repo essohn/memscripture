@@ -1,12 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
 	buildImportLink,
-	duplicateIndexes,
 	MAX_IMPORT_VERSES,
-	normalizeCite,
 	parseImportFragment,
-	readFragmentParam,
-	type ImportVerse
+	readFragmentParam
 } from '../../src/lib/oyo/importLink';
 
 /** Exactly the one liner the sending app is documented to use — btoa over a
@@ -178,47 +175,6 @@ describe('parseImportFragment', () => {
 	it('has no source when the sender names none', () => {
 		const r = parseImportFragment(senderEncodes({ v: 1, verses: [VERSE] }));
 		expect(r.ok && r.payload.source).toBeNull();
-	});
-});
-
-describe('normalizeCite', () => {
-	// An imported verse should be indistinguishable from one added by hand.
-	it.each([
-		['창 12:1', '창세기 12 : 1'],
-		['창세기 12:1-3', '창세기 12 : 1-3'],
-		['  창세기  12 : 1  ', '창세기 12 : 1']
-	])('%s → %s', (raw, expected) => {
-		expect(normalizeCite(raw)).toBe(expected);
-	});
-
-	// The sender may know a book naming this app does not. A verse whose
-	// reference reads oddly beats no verse at all.
-	it('keeps a citation it cannot parse rather than dropping it', () => {
-		expect(normalizeCite('토비트 3 : 1')).toBe('토비트 3 : 1');
-	});
-});
-
-describe('duplicateIndexes', () => {
-	const incoming: ImportVerse[] = [
-		{ cite: '창세기 12 : 1', title: 'a', w: 'a' },
-		{ cite: '창세기 12 : 2', title: 'b', w: 'b' }
-	];
-
-	it('flags what the reader already has', () => {
-		expect([...duplicateIndexes(incoming, ['창세기 12 : 1'])]).toEqual([0]);
-	});
-
-	// A hand-typed OYO citation was never normalized on the way in.
-	it('matches a hand-typed citation in the other shape', () => {
-		expect([...duplicateIndexes(incoming, ['창 12:2'])]).toEqual([1]);
-	});
-
-	it('flags nothing against an empty library', () => {
-		expect(duplicateIndexes(incoming, []).size).toBe(0);
-	});
-
-	it('ignores blank rows in the library', () => {
-		expect(duplicateIndexes(incoming, ['', '   ']).size).toBe(0);
 	});
 });
 

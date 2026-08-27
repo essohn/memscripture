@@ -1,4 +1,5 @@
-import { formatStandardRef, parsePassageRef } from '$lib/bible/index';
+import { cleanText } from '$lib/utils/cleanText';
+import { MAX_IMPORT_VERSES, normalizeCite } from './cite';
 
 /**
  * The hand-off contract for verses arriving from another app — today the
@@ -32,11 +33,6 @@ import { formatStandardRef, parsePassageRef } from '$lib/bible/index';
  */
 
 export const IMPORT_VERSION = 1;
-
-/** Guards a hand-built or truncated link. Well past any real selection — a
- *  chapter of Psalm 119 is 176 verses — while still bounding the work a
- *  single tap can queue up. */
-export const MAX_IMPORT_VERSES = 200;
 
 export interface ImportVerse {
 	cite: string;
@@ -88,25 +84,6 @@ export function readFragmentParam(hash: string): string | null {
 	const params = new URLSearchParams(hash.replace(/^#/, ''));
 	const v = params.get('v');
 	return v && v.length > 0 ? v : null;
-}
-
-function cleanText(value: unknown): string {
-	return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
-}
-
-/**
- * Rewrites an incoming citation into this project's standard shape, so an
- * imported verse is indistinguishable from one added by hand — "창 12:1" and
- * "창세기 12 : 1" both become the latter.
- *
- * A citation this app cannot parse is kept verbatim rather than rejected.
- * The sender may know about a book naming this one does not, and a verse
- * whose reference reads oddly is worth far more than no verse at all.
- */
-export function normalizeCite(cite: string): string {
-	const trimmed = cleanText(cite);
-	const parsed = parsePassageRef(trimmed);
-	return parsed ? formatStandardRef(parsed) : trimmed;
 }
 
 /** Parses one entry, or null when it is not a whole verse. */
@@ -187,24 +164,6 @@ export function buildImportLink(origin: string, payload: ImportPayload): string 
 	return `${origin}/oyo/import#v=${encodeURIComponent(base64)}`;
 }
 
-/**
- * Which incoming rows the reader already has.
- *
- * Matched on the citation alone, not the body: the point is to stop a second
- * tap on the same link from producing twins, and two rows with the same
- * reference are the same verse whatever whitespace differs. Both sides go
- * through normalizeCite so a hand-typed "창 12:1" matches an imported
- * "창세기 12 : 1".
- *
- * Returns indexes rather than filtering, because the screen still shows a
- * duplicate — unchecked, and labelled — instead of silently dropping a row
- * the reader chose to send.
- */
-export function duplicateIndexes(verses: ImportVerse[], existingCites: string[]): Set<number> {
-	const have = new Set(existingCites.map(normalizeCite).filter((c) => c.length > 0));
-	const out = new Set<number>();
-	verses.forEach((v, i) => {
-		if (have.has(v.cite)) out.add(i);
-	});
-	return out;
-}
+// Re-exported because the deeplink protocol is still where readers of this
+// file expect to find the import's size bound.
+export { MAX_IMPORT_VERSES };

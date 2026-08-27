@@ -127,3 +127,35 @@ export async function setSpeakOption<K extends keyof SpeakOptionsStored>(
 	writeQueue = next.catch(() => {});
 	return next;
 }
+
+// ─── 암송 Day 통계 펼침 ──────────────────────────────────────────────────────
+
+/** The open events, as a map inside the shared view-options row.
+ *  A row per event would grow the settings table by one for every event that
+ *  ever ran, and leave the closed ones behind forever. */
+function readOpenMap(raw: Record<string, unknown>): Record<string, boolean> {
+	const map = raw.eventStatsOpen;
+	return map && typeof map === 'object' && !Array.isArray(map)
+		? (map as Record<string, boolean>)
+		: {};
+}
+
+export async function getEventStatsOpen(eventId: string): Promise<boolean> {
+	return readOpenMap(await readRaw())[eventId] === true;
+}
+
+export async function setEventStatsOpen(eventId: string, open: boolean): Promise<void> {
+	const next = writeQueue.then(async () => {
+		const raw = await readRaw();
+		const map = { ...readOpenMap(raw) };
+		// Closing forgets the event rather than storing false: only the events
+		// actually opened need to be remembered, and the map stays the size of
+		// what the reader uses instead of everything they have ever seen.
+		if (open) map[eventId] = true;
+		else delete map[eventId];
+		await db.settings.put({ key: KEY, value: { ...raw, eventStatsOpen: map } });
+		await touchDataModified();
+	});
+	writeQueue = next.catch(() => {});
+	return next;
+}

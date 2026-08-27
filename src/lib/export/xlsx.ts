@@ -1,4 +1,5 @@
 import { zipStore, type ZipEntry } from './zip';
+import { columnName } from '$lib/utils/columnName';
 
 /** `fill` is RRGGBB without '#'. A null `v` emits no cell at all. */
 export interface SheetCell {
@@ -40,19 +41,6 @@ function xmlEscape(s: string): string {
 	return s.replace(/[&<>"']/g, (c) =>
 		c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '"' ? '&quot;' : '&apos;'
 	);
-}
-
-/** 0 → A, 25 → Z, 26 → AA. Spreadsheet columns are bijective base-26, so
- *  this is not a plain radix conversion. */
-export function columnName(index0: number): string {
-	let n = index0 + 1;
-	let s = '';
-	while (n > 0) {
-		const r = (n - 1) % 26;
-		s = String.fromCharCode(65 + r) + s;
-		n = Math.floor((n - 1) / 26);
-	}
-	return s;
 }
 
 /** Excel rejects sheet names longer than 31 characters, containing any of

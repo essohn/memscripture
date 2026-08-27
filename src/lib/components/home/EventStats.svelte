@@ -6,7 +6,7 @@
 		DIFFICULTY_LEVELS,
 		type DifficultyLevel
 	} from '$lib/db/verseRatings';
-	import { statsVersesHref, type EventStats } from '$lib/db/events';
+	import { hasEventStats, statsVersesHref, type EventStats } from '$lib/db/events';
 
 	interface Props {
 		stats: EventStats;
@@ -30,9 +30,7 @@
 	/** Nothing rated and nothing recited means nothing to plot. An empty chart
 	 *  would sit on the home page claiming the reader has been measured, when
 	 *  what it really shows is that the event is new. */
-	const empty = $derived(
-		stats.perfect === 0 && stats.start.every((n) => n === 0) && stats.full.every((n) => n === 0)
-	);
+	const empty = $derived(!hasEventStats(stats));
 
 	/** One ceiling for both charts. Scaled apart, counts of 2 and 4 would draw
 	 *  the same bar, and comparing the two shapes is the whole reason they sit

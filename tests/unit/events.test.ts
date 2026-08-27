@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
 	dDay, activeEvents, isMemorized, rangeHref, serializeEventRange,
 	loadEvents, resolveRangeVerseNos, rangeProgress, buildEventCards, _resetEventsCache,
-	eventStats, versesAtLevel, statsVersesHref, type RangeCardVM
+	eventStats, versesAtLevel, statsVersesHref, hasEventStats, type RangeCardVM
 } from '../../src/lib/db/events';
 import { recordCheck } from '../../src/lib/db/checkHistory';
 import { db } from '../../src/lib/db/local';
@@ -459,5 +459,29 @@ describe('statsVersesHref', () => {
 
 	it('escapes an event id that would otherwise break the query', () => {
 		expect(statsVersesHref('a b&c', 'start', 1)).toContain('event=a+b%26c');
+	});
+});
+
+describe('hasEventStats', () => {
+	const empty = { total: 12, perfect: 0, start: [0, 0, 0, 0, 0], full: [0, 0, 0, 0, 0] };
+
+	// The rule lives here so the chart and the control that opens it cannot
+	// disagree — a toggle that opens onto nothing is worse than no toggle.
+	it('is false when nothing has been rated or recited', () => {
+		expect(hasEventStats(empty)).toBe(false);
+	});
+
+	it('is true once a verse is rated', () => {
+		expect(hasEventStats({ ...empty, start: [1, 0, 0, 0, 0] })).toBe(true);
+		expect(hasEventStats({ ...empty, full: [0, 0, 0, 0, 1] })).toBe(true);
+	});
+
+	it('is true once a verse is recited flawlessly', () => {
+		expect(hasEventStats({ ...empty, perfect: 1 })).toBe(true);
+	});
+
+	// A total on its own is just the size of the event, not progress in it.
+	it('is false for an untouched event however many verses it has', () => {
+		expect(hasEventStats({ ...empty, total: 900 })).toBe(false);
 	});
 });
