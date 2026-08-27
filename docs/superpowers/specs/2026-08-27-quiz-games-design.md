@@ -117,6 +117,34 @@ generated 조사 swap is a puzzle; their own sentence is a mirror.
 The cost is honest and was accepted: until attempts accumulate, most rounds
 are 이상 없음, and the picker's count says so rather than hiding it.
 
+### Three consequences worth stating here
+
+Accepted along with the design above, and better read here than discovered
+later in the code:
+
+- **An omitted word is a question 틀린 곳 찾기 cannot ask.** A word that is
+  missing has no "does not belong" to tap — there is nothing there to find.
+  A reader whose attempt dropped a word gets 이상 없음 graded correct on a
+  sentence they did, in fact, get wrong. This is a gap in what the game
+  knows how to ask, not a grading error in what it does ask.
+
+- **`typed` carries more into every sync snapshot than the alternative this
+  spec turned down.** "What is stored, and what is not" rejected storing
+  `{i, w}` pairs specifically to avoid carrying word text for 900 verses
+  through every snapshot. Whole sentences — up to ten per verse — are
+  strictly more text than that would have been. The reversal is deliberate,
+  not an oversight: a pair could only ever name the words `missed` already
+  indexed, and the whole point of this game is handing back the sentence as
+  it was actually typed, which a partial sentence cannot do.
+
+- **A synced `quiz-opening` row can light a stale badge on an older build.**
+  A device running a build from before `countsAsRecall` existed reads every
+  row as recall regardless of `source`. A perfect opening round synced in
+  from a newer device will light that device's 만점 배지, and its
+  `missed: []` dilutes its suggestion window. No corruption — the record is
+  exactly what it says it is — and it self-heals the moment that device
+  updates.
+
 ## Data
 
 ### What is stored, and what is not
@@ -365,16 +393,27 @@ the summary counts what could not be stored.
 - selecting a game changes what `onStart` reports
 - 틀린 곳 찾기 shows the attempts count; the other games do not
 
+`tests/unit/quizPageAttempts.test.ts`
+- a completed opening round records `source: 'quiz-opening'`, a completed
+  spot round records `'quiz-spot'`, and the typing round still records
+  `'quiz'` — checked against what actually lands in `checkHistory`, not a
+  spy on an intermediate call. This is the automated version of Manual
+  verification's step 5 below.
+
 The suite must stay green.
 
 ## Manual verification
 
-The route's wiring has no unit test, so it is walked once in a browser:
+This repo *can* render a `+page.svelte` under vitest — `oyoImportMenu.test.ts`
+and `tableImportPage.test.ts` already did before this spec was written, and
+`quizPageAttempts.test.ts` above does the same for this route. The walk below
+is not standing in for that coverage; it is what the automated tests cannot
+see — the actual screens, in a real browser:
 
 1. Pick a scope, choose 첫 단어, start. Typing the first two words advances
    without pressing anything.
-2. Choose 틀린 곳 찾기 on a scope with no history: every round shows the verse
-   itself and 이상 없음 is correct, and the picker said `0개`.
+2. Choose 틀린 곳 찾기 on a scope with no history: the picker said `0개` and
+   시작 was disabled.
 3. Run 전체 타이핑 on a verse and get one word wrong. Confirm `typed` is now
    on that record in IndexedDB.
 4. Choose 틀린 곳 찾기 again: that verse now shows the sentence just typed, the
@@ -382,8 +421,10 @@ The route's wiring has no unit test, so it is walked once in a browser:
 5. The card's 만점 배지 does **not** light from an opening round, and the
    underline suggestions do not move from a spot round.
 
-Step 5 is the one that proves the `source` widening did what it claims; the
-rest can pass with every game writing `'quiz'`.
+Step 5 is the one visual confirmation that the `source` widening did what it
+claims; `quizPageAttempts.test.ts` proves the same thing at the data layer,
+so the rest of this walk is the part that stays manual — it can otherwise
+pass with every game writing `'quiz'`.
 
 ## Delivery
 

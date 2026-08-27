@@ -1320,6 +1320,12 @@ Widen the `onStart` prop type to `(queue: QuizItem[], game: Game) => void`, and 
 			attemptCount = null;
 			return;
 		}
+		// Reset before the read is kicked off, not just when leaving 'spot':
+		// the total (queue.length, template-read) updates the instant a tier
+		// chip moves, and a count left over from the previous scope would
+		// pair the new total with a stale answer — a ratio that can exceed
+		// itself. The line already hides itself while attemptCount is null.
+		attemptCount = null;
 		const forQueue = queue;
 		loadAttempts(forQueue)
 			.then((m) => {
@@ -1397,10 +1403,16 @@ EOF
 
 ### Task 7: Wire the games into the route
 
-The last task. No new unit tests: this repo renders no `+page.svelte` under vitest. Verified by the browser walk below.
+The last task. This repo *can* render a `+page.svelte` under vitest —
+`tests/unit/oyoImportMenu.test.ts` and `tests/unit/tableImportPage.test.ts`
+already did before this plan was written — so this route gets one too:
+`tests/unit/quizPageAttempts.test.ts`, which renders the real `QuizPage` and
+checks what actually lands in `checkHistory`. The browser walk below still
+happens on top of that, for what an automated test cannot see.
 
 **Files:**
 - Modify: `src/routes/quiz/+page.svelte`
+- Test: `tests/unit/quizPageAttempts.test.ts` (new)
 
 **Interfaces:**
 - Consumes: everything from Tasks 1–6.
