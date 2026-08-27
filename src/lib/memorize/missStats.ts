@@ -30,13 +30,19 @@ export const SUGGEST_MAX_PER_VERSE = 3;
  * `history` is most-recent-first, as listChecks() returns it.
  */
 export function suggestedMarks(
-	history: Pick<CheckRecord, 'missed'>[],
+	history: Pick<CheckRecord, 'missed' | 'hints'>[],
 	wordCount: number
 ): Set<number> {
 	if (wordCount <= 0) return new Set();
 
 	const tally = new Map<number, number>();
-	for (const record of history.slice(0, SUGGEST_WINDOW)) {
+	// Assisted checks are dropped before the window is taken, not after. A
+	// check made with the words on screen is not evidence that the reader
+	// knows the verse — grade.ts says the same thing about difficulty — and
+	// letting five of them fill the window would retract a suggestion the
+	// reader had already earned. Truthy, so an absent field (predating the
+	// feature) and a zero (힌트 never pressed) both count as unassisted.
+	for (const record of history.filter((r) => !r.hints).slice(0, SUGGEST_WINDOW)) {
 		// Absent is not an empty array: the check predates this feature and
 		// measured nothing, so it fills the window silently rather than counting
 		// as a clean run.

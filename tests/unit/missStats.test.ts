@@ -65,4 +65,21 @@ describe('suggestedMarks', () => {
 	it('proposes nothing for a verse with no words', () => {
 		expect(suggestedMarks(checks([0], [0]), 0)).toEqual(new Set());
 	});
+
+	// The question Phase 1 left open. A hinted clean check writes missed: []
+	// and used to occupy a slot in the window; five of them would push both
+	// earned misses out and silently retract a suggestion the reader had
+	// already earned. Assisted records are dropped before the slice now, for
+	// the same reason the quiz's priority rule drops them.
+	it('does not let assisted checks evict an earned suggestion', () => {
+		const assisted = [1, 2, 3, 4, 5].map(() => ({ missed: [] as number[], hints: 2 }));
+		const earned = [{ missed: [2] }, { missed: [2] }];
+		expect(suggestedMarks([...assisted, ...earned], 11)).toEqual(new Set([2]));
+	});
+
+	it('still counts a check where 힌트 was never pressed', () => {
+		expect(suggestedMarks([{ missed: [2], hints: 0 }, { missed: [2] }], 11)).toEqual(
+			new Set([2])
+		);
+	});
 });
