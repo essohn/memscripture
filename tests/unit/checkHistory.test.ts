@@ -133,6 +133,45 @@ describe('checkHistory', () => {
 	});
 });
 
+// 다시 하기 replays the same queue, so ten rounds of 첫 단어 or 틀린 곳 찾기 on a
+// one-verse scope is ten taps. Before prune knew about source, that alone
+// could push the sole 점검 or quiz row for that verse out of the budget —
+// taking the 만점 배지, the missed positions, and the typed sentence with it,
+// none of which can be reconstructed.
+describe('prune protects recall-bearing rows from non-recall churn', () => {
+	it('keeps the 점검 row, and the badge it earned, through ten opening rounds', async () => {
+		await recordCheck('900_krv', 30, entry({ accuracy: 1 }), 1000);
+		for (let i = 1; i <= HISTORY_LIMIT; i++) {
+			await recordCheck('900_krv', 30, entry({ accuracy: 1, source: 'quiz-opening' }), 1000 + i * 1000);
+		}
+		const rows = await listChecks('900_krv', 30);
+		expect(rows.length).toBeLessThanOrEqual(HISTORY_LIMIT);
+		expect(rows.some((r) => r.checkedAt === 1000)).toBe(true);
+		expect(await listPerfectVerseNos('900_krv')).toEqual(new Set([30]));
+	});
+
+	it('keeps the typed sentence 틀린 곳 찾기 hands back, through ten opening rounds', async () => {
+		await recordCheck('900_krv', 31, entry({ accuracy: 0.95, typed: '거의 맞은 문장' }), 1000);
+		for (let i = 1; i <= HISTORY_LIMIT; i++) {
+			await recordCheck('900_krv', 31, entry({ accuracy: 1, source: 'quiz-opening' }), 1000 + i * 1000);
+		}
+		expect((await listChecks('900_krv', 31)).find((r) => r.checkedAt === 1000)?.typed).toBe(
+			'거의 맞은 문장'
+		);
+	});
+
+	it('keeps the missed positions the underline suggestions read, through ten opening rounds', async () => {
+		await recordCheck('900_krv', 32, entry({ accuracy: 0.9, missed: [2] }), 1000);
+		await recordCheck('900_krv', 32, entry({ accuracy: 0.9, missed: [2], source: 'quiz' }), 2000);
+		for (let i = 1; i <= HISTORY_LIMIT; i++) {
+			await recordCheck('900_krv', 32, entry({ accuracy: 1, source: 'quiz-opening' }), 2000 + i * 1000);
+		}
+		const rows = await listChecks('900_krv', 32);
+		expect(rows.length).toBeLessThanOrEqual(HISTORY_LIMIT);
+		expect(suggestedMarks(rows.filter(countsAsRecall), 11)).toEqual(new Set([2]));
+	});
+});
+
 // The suggestions and the 만점 badge speak about recall. An opening round
 // proves the reader can start a verse; a spot round proves they can recognise
 // a mistake. Neither is evidence that the verse was recited.

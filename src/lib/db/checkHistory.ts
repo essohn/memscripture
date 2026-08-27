@@ -75,13 +75,36 @@ async function nextSuffix(key: string, checkedAt: number): Promise<number> {
 	return clash;
 }
 
+/**
+ * Keeps the table bounded without letting a non-recall row evict evidence
+ * nothing can replace.
+ *
+ * Before quiz-opening and quiz-spot existed, every row in the budget counted
+ * for something, so "keep the newest HISTORY_LIMIT" was the whole rule. Now
+ * an opening or spot round can be replayed ten times over on a one-verse
+ * scope (다시 하기 replays the same queue), and by recency alone those rounds
+ * would push out the 점검 or quiz row that holds the 만점 배지, the `missed`
+ * positions the underline suggestions read, and the `typed` sentence 틀린 곳
+ * 찾기 exists to hand back — none of which a non-recall row can replace.
+ *
+ * So recall-bearing rows are kept first, up to the limit, and non-recall rows
+ * fill only what is left over. A non-recall row can therefore never evict a
+ * recall-bearing one; two recall rows can still evict each other by age, same
+ * as before.
+ */
 async function prune(key: string): Promise<void> {
 	const rows = await db.checkHistory.where('verseKey').equals(key).toArray();
 	if (rows.length <= HISTORY_LIMIT) return;
-	const doomed = rows
-		.sort((a, b) => b.checkedAt - a.checkedAt)
-		.slice(HISTORY_LIMIT)
-		.map((r) => r.id);
+
+	const byRecency = (a: CheckRecord, b: CheckRecord) => b.checkedAt - a.checkedAt;
+	const recall = rows.filter(countsAsRecall).sort(byRecency);
+	const nonRecall = rows.filter((r) => !countsAsRecall(r)).sort(byRecency);
+
+	const keptRecall = recall.slice(0, HISTORY_LIMIT);
+	const keptNonRecall = nonRecall.slice(0, HISTORY_LIMIT - keptRecall.length);
+	const kept = new Set([...keptRecall, ...keptNonRecall].map((r) => r.id));
+
+	const doomed = rows.filter((r) => !kept.has(r.id)).map((r) => r.id);
 	await db.checkHistory.bulkDelete(doomed);
 }
 
