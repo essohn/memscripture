@@ -6,7 +6,13 @@
 		DIFFICULTY_LEVELS,
 		type DifficultyLevel
 	} from '$lib/db/verseRatings';
-	import { statsVersesHref, type EventStats } from '$lib/db/events';
+	import {
+		DIMENSION_LABELS,
+		hasEventStats,
+		statsPerfectHref,
+		statsVersesHref,
+		type EventStats
+	} from '$lib/db/events';
 
 	interface Props {
 		stats: EventStats;
@@ -23,16 +29,14 @@
 	const MIN_BAR_PX = 4;
 
 	const SERIES = [
-		{ key: 'start' as const, label: '시작' },
-		{ key: 'full' as const, label: '전체' }
+		{ key: 'start' as const, label: DIMENSION_LABELS.start },
+		{ key: 'full' as const, label: DIMENSION_LABELS.full }
 	];
 
 	/** Nothing rated and nothing recited means nothing to plot. An empty chart
 	 *  would sit on the home page claiming the reader has been measured, when
 	 *  what it really shows is that the event is new. */
-	const empty = $derived(
-		stats.perfect === 0 && stats.start.every((n) => n === 0) && stats.full.every((n) => n === 0)
-	);
+	const empty = $derived(!hasEventStats(stats));
 
 	/** One ceiling for both charts. Scaled apart, counts of 2 and 4 would draw
 	 *  the same bar, and comparing the two shapes is the whole reason they sit
@@ -59,6 +63,11 @@
 	/** Verses the five bars do not account for: rated on neither end of this
 	 *  dimension. Clamped because the total and the histogram are separate
 	 *  reads, and a negative remainder is not a thing to print at anyone. */
+	/** Verses whose last check was not flawless — including the ones never
+	 *  checked at all. Same shape as `unrated` below: total minus the ones that
+	 *  qualify, so the panel's five numbers all mean the same kind of thing. */
+	const imperfect = $derived(Math.max(0, stats.total - stats.perfect));
+
 	function unrated(key: 'start' | 'full'): number {
 		const rated = countsOf(key).reduce((a, b) => a + b, 0);
 		return Math.max(0, stats.total - rated);
@@ -70,17 +79,45 @@
 		<!-- One headline figure, not a one-bar chart: a single magnitude reads
 		     faster as a number, and it needs the total beside it to mean
 		     anything at all. -->
-		<div class="flex items-baseline gap-1.5">
-			<PartyPopper size={14} class="translate-y-[2px] text-[var(--color-accent)]" />
-			<span class="text-[11px] font-medium text-[var(--color-text-secondary)]">폭죽</span>
-			<span
-				data-testid="perfect-count"
-				class="ml-0.5 text-[19px] font-bold tabular-nums text-[var(--color-text)]"
+		<!-- One sentence at one size. The 19px number beside 11px labels read as
+		     two separate facts; these are one. The anchors keep a 44px minimum
+		     even though the text is 12px — the hit area is not the type size,
+		     and wrapping just the digits measured 12x31 and 47x17. -->
+		<div data-testid="headline" class="flex flex-wrap items-center text-[12px]">
+			<PartyPopper size={13} class="mr-1.5 shrink-0 text-[var(--color-accent)]" />
+			<svelte:element
+				this={stats.perfect > 0 ? 'a' : 'span'}
+				href={stats.perfect > 0 ? statsPerfectHref(eventId, true) : undefined}
+				class="flex min-h-[44px] items-center gap-1 rounded-md px-1 {stats.perfect > 0
+					? 'transition-colors hover:bg-[var(--color-elevated)]'
+					: ''}"
 			>
-				{stats.perfect}
-			</span>
-			<span class="text-[11px] text-[var(--color-text-tertiary)]">
-				/ <span data-testid="perfect-total" class="tabular-nums">{stats.total}</span> 구절
+				<span class="text-[12px] text-[var(--color-text-secondary)]">완벽</span>
+				<span
+					data-testid="perfect-count"
+					class="text-[12px] font-semibold tabular-nums text-[var(--color-text)]"
+				>
+					{stats.perfect}
+				</span>
+			</svelte:element><span
+				class="-ml-1 mr-1 text-[12px] text-[var(--color-text-tertiary)]">,</span
+			><svelte:element
+				this={imperfect > 0 ? 'a' : 'span'}
+				href={imperfect > 0 ? statsPerfectHref(eventId, false) : undefined}
+				class="flex min-h-[44px] items-center gap-1 rounded-md px-1 {imperfect > 0
+					? 'transition-colors hover:bg-[var(--color-elevated)]'
+					: ''}"
+			>
+				<span class="text-[12px] text-[var(--color-text-secondary)]">미완벽</span>
+				<span
+					data-testid="imperfect-count"
+					class="text-[12px] font-semibold tabular-nums text-[var(--color-text)]"
+				>
+					{imperfect}
+				</span>
+			</svelte:element>
+			<span data-testid="perfect-total" class="ml-1 text-[12px] text-[var(--color-text-tertiary)]">
+				/ <span class="tabular-nums">{stats.total}</span> 구절
 			</span>
 		</div>
 

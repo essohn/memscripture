@@ -23,6 +23,85 @@ function barPx(series: 'start' | 'full', level: number): number {
 }
 
 describe('EventStats', () => {
+	it('spells out what each difficulty measures', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [1, 0, 0, 0, 0] }) });
+		expect(screen.getByText('암송 시작 난이도')).toBeInTheDocument();
+		expect(screen.getByText('전체 일치 난이도')).toBeInTheDocument();
+	});
+
+	// One line, one size: the 19px number beside 11px labels made the headline
+	// read as two separate facts rather than one sentence.
+	it('prints both headline counts at the same size', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ total: 149, perfect: 137 }) });
+		expect(screen.getByTestId('perfect-count')).toHaveClass('text-[12px]');
+		expect(screen.getByTestId('imperfect-count')).toHaveClass('text-[12px]');
+		expect(screen.getByTestId('perfect-total')).toHaveClass('text-[12px]');
+	});
+
+	// Content and order, not exact spacing: the gaps between these pieces come
+	// from CSS, so pinning the whitespace would fail on a padding change while
+	// still passing if the comma or a whole term went missing.
+	it('reads as one sentence', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ total: 149, perfect: 137 }) });
+		expect(screen.getByTestId('headline').textContent?.replace(/\s+/g, ' ').trim()).toMatch(
+			/^완벽\s*137\s*,\s*미완벽\s*12\s*\/\s*149\s*구절$/
+		);
+	});
+
+	it('calls the flawless count 완벽', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ total: 34, perfect: 12 }) });
+		expect(screen.getByText('완벽')).toBeInTheDocument();
+		expect(screen.queryByText('폭죽')).toBeNull();
+	});
+
+	// The remainder follows the same rule as 미평가 below it — total minus the
+	// ones that qualify — so every number in the panel reads the same way.
+	it('shows the remainder alongside the flawless count', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ total: 149, perfect: 12 }) });
+		expect(screen.getByTestId('imperfect-count')).toHaveTextContent('137');
+	});
+
+	it('links the flawless count to its list', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ total: 149, perfect: 12 }) });
+		expect(screen.getByTestId('perfect-count').closest('a')?.getAttribute('href')).toBe(
+			'/stats/verses?event=e1&dim=perfect&level=yes'
+		);
+	});
+
+	it('links the remainder to its own list', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ total: 149, perfect: 12 }) });
+		expect(screen.getByTestId('imperfect-count').closest('a')?.getAttribute('href')).toBe(
+			'/stats/verses?event=e1&dim=perfect&level=no'
+		);
+	});
+
+	// Measured in the browser at 12x31 and 47x17 when the anchors wrapped only
+	// the digits — under WCAG AA's 24px floor, let alone the 44px a thumb
+	// wants, and inconsistent with the 55x67 columns below them.
+	it('gives both headline links a thumb-sized target', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ total: 149, perfect: 12 }) });
+		expect(screen.getByTestId('perfect-count').closest('a')).toHaveClass('min-h-[44px]');
+		expect(screen.getByTestId('imperfect-count').closest('a')).toHaveClass('min-h-[44px]');
+	});
+
+	// The label belongs to the link: "완벽" is the word naming what it opens,
+	// and a lone digit is not something anyone aims at.
+	it('puts the label inside the flawless link', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ total: 149, perfect: 12 }) });
+		expect(screen.getByTestId('perfect-count').closest('a')).toHaveTextContent('완벽');
+	});
+
+	it('leaves a flawless count of zero unlinked', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ total: 5, perfect: 0, start: [1, 0, 0, 0, 0] }) });
+		expect(screen.getByTestId('perfect-count').closest('a')).toBeNull();
+	});
+
+	// Everything recited flawlessly: there is no remainder to go and look at.
+	it('leaves a remainder of zero unlinked', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ total: 5, perfect: 5 }) });
+		expect(screen.getByTestId('imperfect-count').closest('a')).toBeNull();
+	});
+
 	// A bare 12 says nothing about whether the event is nearly done or barely
 	// begun; 12 of 34 does.
 	it('shows the flawless count against the verse total', () => {

@@ -127,3 +127,4 @@ export async function setSpeakOption<K extends keyof SpeakOptionsStored>(
 	writeQueue = next.catch(() => {});
 	return next;
 }
+

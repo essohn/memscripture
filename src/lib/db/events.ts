@@ -3,7 +3,7 @@ import type { VerseRating } from './local';
 import { db } from './local';
 import { loadPackageData, filterVerses, isPackageInstalled } from './verses';
 import { listPerfectVerseNos } from './checkHistory';
-import type { DifficultyLevel } from './verseRatings';
+import { DIFFICULTY_LABELS, type DifficultyLevel } from './verseRatings';
 import { getJoinedGroups } from './groups';
 import { visibleTo } from '$lib/groups/visibility';
 
@@ -144,6 +144,18 @@ export interface EventStats {
 
 const LEVEL_SLOTS = 5;
 
+/**
+ * Whether an event has anything worth plotting yet.
+ *
+ * Lives here rather than inside the chart because the control that opens the
+ * chart has to ask the same question: a toggle that expands onto nothing is
+ * worse than no toggle. `total` deliberately does not count — that is the size
+ * of the event, not progress through it.
+ */
+export function hasEventStats(stats: EventStats): boolean {
+	return stats.perfect > 0 || stats.start.some((n) => n > 0) || stats.full.some((n) => n > 0);
+}
+
 /** Adds one to the slot a level names, and nothing at all to a level outside
  *  the scale. Rows arriving from a synced device never passed through the
  *  setters' guard, and an out-of-range value would index off the end and turn
@@ -162,6 +174,31 @@ export interface EventVerseRef {
 }
 
 export type StatsDimension = 'start' | 'full';
+
+/** What each difficulty actually measures, spelled out. Shared by the chart's
+ *  column titles and the verse list's heading so the two cannot drift — they
+ *  each carried their own copy of '시작'/'전체' before. */
+export const DIMENSION_LABELS: Record<StatsDimension, string> = {
+	start: '암송 시작 난이도',
+	full: '전체 일치 난이도'
+};
+
+/**
+ * The heading over a list of verses opened from the chart.
+ *
+ * Built here rather than in the page because the labels above already contain
+ * the word 난이도: a heading that appends its own reads "암송 시작 난이도
+ * 난이도 2", which is exactly what the previous composition did.
+ */
+export function statsListHeading(
+	dim: StatsDimension | 'perfect',
+	level: DifficultyLevel | null,
+	perfect: boolean
+): string {
+	if (dim === 'perfect') return perfect ? '완벽' : '미완벽';
+	const label = DIMENSION_LABELS[dim];
+	return level === null ? `${label} 미평가` : `${label} ${level} · ${DIFFICULTY_LABELS[level]}`;
+}
 
 /**
  * Verse numbers per package, de-duplicated.
@@ -218,6 +255,46 @@ export function statsVersesHref(
 	params.set('dim', dim);
 	params.set('level', level === null ? 'none' : String(level));
 	return `/stats/verses?${params.toString()}`;
+}
+
+/**
+ * Link to the flawless verses of an event, or to everything else.
+ *
+ * Separate from statsVersesHref rather than a third `dim` on it: the level
+ * there is a difficulty, and threading a yes/no through the same parameter
+ * would give one function two incompatible meanings for one argument. The URL
+ * shape stays the same — a dimension and a bucket within it.
+ */
+export function statsPerfectHref(eventId: string, perfect: boolean): string {
+	const params = new URLSearchParams();
+	params.set('event', eventId);
+	params.set('dim', 'perfect');
+	params.set('level', perfect ? 'yes' : 'no');
+	return `/stats/verses?${params.toString()}`;
+}
+
+/**
+ * The event's verses split by whether their last check was flawless.
+ *
+ * `perfect: false` is the remainder, and it is deliberately everything else:
+ * a verse checked and missed and a verse never opened both belong to it. That
+ * is the same rule the 미평가 counts follow — total minus the ones that
+ * qualify — so every number in the panel can be read the same way.
+ */
+export async function versesByPerfection(
+	ranges: RangeCardVM[],
+	perfect: boolean
+): Promise<EventVerseRef[]> {
+	const out: EventVerseRef[] = [];
+
+	for (const [packageId, verseNos] of groupVerseNos(ranges)) {
+		const perfectNos = await listPerfectVerseNos(packageId).catch(() => new Set<number>());
+		for (const verseNo of [...verseNos].sort((a, b) => a - b)) {
+			if (perfectNos.has(verseNo) === perfect) out.push({ packageId, verseNo });
+		}
+	}
+
+	return out;
 }
 
 /**

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { CalendarCheck, Download } from 'lucide-svelte';
-	import type { EventCardVM } from '$lib/db/events';
+	import { hasEventStats, type EventCardVM } from '$lib/db/events';
 	import EventExportSheet, { type SheetNotice } from './EventExportSheet.svelte';
 	import EventStats from './EventStats.svelte';
 	import { exportEventXlsx } from '$lib/export/eventExport';
@@ -147,9 +147,16 @@
 						</a>
 					{/each}
 				</div>
-				<div class="px-1">
-					<EventStats stats={ev.stats} eventId={ev.eventId} />
-				</div>
+				<!-- Always visible. It sat behind a 통계 보기 line for a while, which
+				     bought back 187px of home page and cost a press every time — the
+				     numbers turned out to be worth more in the open. Still withheld
+				     when there is nothing plotted: an empty panel is not worth the
+				     space whether or not a control guards it. -->
+				{#if hasEventStats(ev.stats)}
+					<div class="px-1">
+						<EventStats stats={ev.stats} eventId={ev.eventId} />
+					</div>
+				{/if}
 			</div>
 			{#if exporting?.eventId === ev.eventId}
 				<EventExportSheet

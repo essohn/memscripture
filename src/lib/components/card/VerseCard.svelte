@@ -788,6 +788,11 @@
 						>{/if}{/each}</p>
 		{/if}
 		{#if mode === 'check'}
+			<!-- 점검 only. One `checkHistory` state feeds two consumers that want
+			     different things: this list counts 점검 and its label says so,
+			     while the underline suggestions count quiz rounds too — same act
+			     without the rating. Filtering here rather than at the query keeps
+			     it to one read. -->
 			<MemorizeCheckPanel
 				verse={verse.w}
 				currentStart={startDifficulty}
@@ -795,7 +800,7 @@
 				{heardAloud}
 				onPickStart={onPickStartDifficulty!}
 				onPickFull={onPickFullDifficulty!}
-				history={checkHistory}
+				history={checkHistory.filter((r) => !r.source)}
 				onGraded={(outcome) => {
 					revealAll();
 					// Assigned, not just raised: a flawed attempt takes the popper back.

@@ -1,6 +1,7 @@
 import {
 	buildEventCards,
 	versesAtLevel,
+	versesByPerfection,
 	type EventVerseRef,
 	type StatsDimension
 } from '$lib/db/events';
@@ -21,9 +22,12 @@ export interface StatsVerseRow {
 
 export interface StatsVersesLoadData {
 	eventTitle: string;
-	dim: StatsDimension;
-	/** null is the 미평가 list. */
+	/** 'perfect' asks about the last check rather than a difficulty rating. */
+	dim: StatsDimension | 'perfect';
+	/** For a difficulty dimension: the level, or null for 미평가. For 'perfect':
+	 *  true is 완벽 and false is the remainder. */
 	level: DifficultyLevel | null;
+	perfect: boolean;
 	rows: StatsVerseRow[];
 }
 
@@ -40,8 +44,14 @@ function parseLevel(raw: string | null): DifficultyLevel | null {
 }
 
 export const load: PageLoad = async ({ url }): Promise<StatsVersesLoadData> => {
-	const dim = parseDim(url.searchParams.get('dim'));
-	const level = parseLevel(url.searchParams.get('level'));
+	const rawDim = url.searchParams.get('dim');
+	const rawLevel = url.searchParams.get('level');
+	const isPerfect = rawDim === 'perfect';
+	const dim = isPerfect ? ('perfect' as const) : parseDim(rawDim);
+	const level = isPerfect ? null : parseLevel(rawLevel);
+	// Only an explicit yes asks for the flawless ones; anything else is the
+	// remainder, which is the safer default for a hand-edited URL.
+	const perfect = rawLevel === 'yes';
 	const eventId = url.searchParams.get('event') ?? '';
 
 	// Resolved through buildEventCards rather than the raw event so this page
@@ -49,10 +59,12 @@ export const load: PageLoad = async ({ url }): Promise<StatsVersesLoadData> => {
 	// same dropped-because-uninstalled ranges. A list that disagreed with the
 	// bar it was opened from would be worse than no list.
 	const card = (await buildEventCards(todayLocalKey())).find((c) => c.eventId === eventId);
-	if (!card) return { eventTitle: '', dim, level, rows: [] };
+	if (!card) return { eventTitle: '', dim, level, perfect, rows: [] };
 
-	const refs: EventVerseRef[] = await versesAtLevel(card.ranges, dim, level);
-	if (refs.length === 0) return { eventTitle: card.eventTitle, dim, level, rows: [] };
+	const refs: EventVerseRef[] = isPerfect
+		? await versesByPerfection(card.ranges, perfect)
+		: await versesAtLevel(card.ranges, dim as StatsDimension, level);
+	if (refs.length === 0) return { eventTitle: card.eventTitle, dim, level, perfect, rows: [] };
 
 	const packageIds = Array.from(new Set(refs.map((r) => r.packageId)));
 	await Promise.all(packageIds.map((id) => installPackage(id).catch(() => {})));
@@ -79,5 +91,5 @@ export const load: PageLoad = async ({ url }): Promise<StatsVersesLoadData> => {
 		});
 	}
 
-	return { eventTitle: card.eventTitle, dim, level, rows };
+	return { eventTitle: card.eventTitle, dim, level, perfect, rows };
 };

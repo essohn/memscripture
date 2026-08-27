@@ -1,5 +1,7 @@
 import { render, screen } from '@testing-library/svelte';
-import { describe, it, expect } from 'vitest';
+import 'fake-indexeddb/auto';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { db } from '../../src/lib/db/local';
 import EventSection from '../../src/lib/components/home/EventSection.svelte';
 import type { EventCardVM } from '../../src/lib/db/events';
 
@@ -24,6 +26,11 @@ const card: EventCardVM = {
 };
 
 describe('EventSection', () => {
+	beforeEach(async () => {
+		await db.delete();
+		await db.open();
+	});
+
 	it('renders nothing when there are no events', () => {
 		const { container } = render(EventSection, { props: { events: [] } });
 		expect(container.querySelector('section')).toBeNull();
@@ -37,14 +44,29 @@ describe('EventSection', () => {
 		expect(screen.getByText('3/5 암송')).toBeInTheDocument();
 	});
 
-	it('shows the event stats beneath the range cards', () => {
-		render(EventSection, {
-			props: {
-				events: [{ ...card, stats: { total: 5, perfect: 4, start: [1, 0, 0, 0, 0], full: [0, 0, 0, 0, 0] } }]
-			}
-		});
+	const withStats = {
+		...card,
+		stats: { total: 5, perfect: 4, start: [1, 0, 0, 0, 0], full: [0, 0, 0, 0, 0] }
+	};
+
+	it('shows the stats beneath the range cards', () => {
+		render(EventSection, { props: { events: [withStats] } });
 		expect(screen.getByTestId('perfect-count')).toHaveTextContent('4');
 		expect(screen.getByTestId('bar-start-1')).toBeInTheDocument();
+	});
+
+	// They were behind a 통계 보기 line for a while. Always visible now, so
+	// there is nothing to press and nothing to remember.
+	it('offers no control to fold them away', () => {
+		render(EventSection, { props: { events: [withStats] } });
+		expect(screen.queryByRole('button', { name: /통계/ })).toBeNull();
+	});
+
+	// Still withheld when there is nothing plotted — an empty panel is not
+	// worth the space whether or not a toggle guards it.
+	it('shows nothing for an event with nothing plotted yet', () => {
+		render(EventSection, { props: { events: [card] } });
+		expect(screen.queryByTestId('perfect-count')).toBeNull();
 	});
 
 	it('links each range card to its library href', () => {
