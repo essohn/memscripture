@@ -4,7 +4,7 @@ import {
 	dDay, activeEvents, isMemorized, rangeHref, serializeEventRange,
 	loadEvents, resolveRangeVerseNos, rangeProgress, buildEventCards, _resetEventsCache,
 	eventStats, versesAtLevel, versesByPerfection, statsVersesHref, statsPerfectHref,
-	hasEventStats, type RangeCardVM
+	hasEventStats, DIMENSION_LABELS, statsListHeading, type RangeCardVM
 } from '../../src/lib/db/events';
 import { recordCheck } from '../../src/lib/db/checkHistory';
 import { db } from '../../src/lib/db/local';
@@ -574,5 +574,37 @@ describe('statsPerfectHref', () => {
 
 	it('names the remainder', () => {
 		expect(statsPerfectHref('e1', false)).toBe('/stats/verses?event=e1&dim=perfect&level=no');
+	});
+});
+
+describe('dimension labels', () => {
+	it('spells out what each difficulty measures', () => {
+		expect(DIMENSION_LABELS.start).toBe('암송 시작 난이도');
+		expect(DIMENSION_LABELS.full).toBe('전체 일치 난이도');
+	});
+});
+
+describe('statsListHeading', () => {
+	it('names the level and its word', () => {
+		expect(statsListHeading('start', 2, false)).toBe('암송 시작 난이도 2 · Hard');
+	});
+
+	it('names the unrated remainder', () => {
+		expect(statsListHeading('full', null, false)).toBe('전체 일치 난이도 미평가');
+	});
+
+	it('names the flawless list and its remainder', () => {
+		expect(statsListHeading('perfect', null, true)).toBe('완벽');
+		expect(statsListHeading('perfect', null, false)).toBe('미완벽');
+	});
+
+	// The labels carry the word 난이도 themselves now, so a heading that still
+	// appends it reads "암송 시작 난이도 난이도 2".
+	it('never doubles the word 난이도', () => {
+		for (const dim of ['start', 'full'] as const) {
+			for (const level of [1, 2, 3, 4, 5, null] as const) {
+				expect(statsListHeading(dim, level, false)).not.toContain('난이도 난이도');
+			}
+		}
 	});
 });

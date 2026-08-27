@@ -7,6 +7,7 @@
 		type DifficultyLevel
 	} from '$lib/db/verseRatings';
 	import {
+		DIMENSION_LABELS,
 		hasEventStats,
 		statsPerfectHref,
 		statsVersesHref,
@@ -28,8 +29,8 @@
 	const MIN_BAR_PX = 4;
 
 	const SERIES = [
-		{ key: 'start' as const, label: '시작' },
-		{ key: 'full' as const, label: '전체' }
+		{ key: 'start' as const, label: DIMENSION_LABELS.start },
+		{ key: 'full' as const, label: DIMENSION_LABELS.full }
 	];
 
 	/** Nothing rated and nothing recited means nothing to plot. An empty chart
@@ -78,45 +79,46 @@
 		<!-- One headline figure, not a one-bar chart: a single magnitude reads
 		     faster as a number, and it needs the total beside it to mean
 		     anything at all. -->
-		<!-- Both anchors carry their own label and a 44px minimum. Wrapping just
-		     the digit measured 12x31 and 47x17 in the browser — under WCAG AA's
-		     24px floor, and nothing anyone can aim a thumb at. -->
-		<div class="flex items-center gap-1.5">
-			<PartyPopper size={14} class="text-[var(--color-accent)]" />
+		<!-- One sentence at one size. The 19px number beside 11px labels read as
+		     two separate facts; these are one. The anchors keep a 44px minimum
+		     even though the text is 12px — the hit area is not the type size,
+		     and wrapping just the digits measured 12x31 and 47x17. -->
+		<div data-testid="headline" class="flex flex-wrap items-center text-[12px]">
+			<PartyPopper size={13} class="mr-1.5 shrink-0 text-[var(--color-accent)]" />
 			<svelte:element
 				this={stats.perfect > 0 ? 'a' : 'span'}
 				href={stats.perfect > 0 ? statsPerfectHref(eventId, true) : undefined}
-				class="flex min-h-[44px] items-center gap-1.5 rounded-md {stats.perfect > 0
+				class="flex min-h-[44px] items-center gap-1 rounded-md px-1 {stats.perfect > 0
 					? 'transition-colors hover:bg-[var(--color-elevated)]'
 					: ''}"
 			>
-				<span class="flex items-baseline gap-1.5">
-					<span class="text-[11px] font-medium text-[var(--color-text-secondary)]">완벽</span>
-					<span
-						data-testid="perfect-count"
-						class="text-[19px] font-bold tabular-nums text-[var(--color-text)]"
-					>
-						{stats.perfect}
-					</span>
-					<span class="text-[11px] text-[var(--color-text-tertiary)]">
-						/ <span data-testid="perfect-total" class="tabular-nums">{stats.total}</span> 구절
-					</span>
+				<span class="text-[12px] text-[var(--color-text-secondary)]">완벽</span>
+				<span
+					data-testid="perfect-count"
+					class="text-[12px] font-semibold tabular-nums text-[var(--color-text)]"
+				>
+					{stats.perfect}
 				</span>
-			</svelte:element>
-			<!-- Pushed right, the way the D-day badge sits in the event header. -->
-			<svelte:element
+			</svelte:element><span
+				class="-ml-1 mr-1 text-[12px] text-[var(--color-text-tertiary)]">,</span
+			><svelte:element
 				this={imperfect > 0 ? 'a' : 'span'}
 				href={imperfect > 0 ? statsPerfectHref(eventId, false) : undefined}
-				class="ml-auto flex min-h-[44px] items-center rounded-md px-1.5 text-[10px] text-[var(--color-text-tertiary)] {imperfect >
-				0
+				class="flex min-h-[44px] items-center gap-1 rounded-md px-1 {imperfect > 0
 					? 'transition-colors hover:bg-[var(--color-elevated)]'
 					: ''}"
 			>
-				미완벽
-				<span data-testid="imperfect-count" class="ml-1 font-semibold tabular-nums">
+				<span class="text-[12px] text-[var(--color-text-secondary)]">미완벽</span>
+				<span
+					data-testid="imperfect-count"
+					class="text-[12px] font-semibold tabular-nums text-[var(--color-text)]"
+				>
 					{imperfect}
 				</span>
 			</svelte:element>
+			<span data-testid="perfect-total" class="ml-1 text-[12px] text-[var(--color-text-tertiary)]">
+				/ <span class="tabular-nums">{stats.total}</span> 구절
+			</span>
 		</div>
 
 		<!-- Two single-series charts in one row rather than two series in one

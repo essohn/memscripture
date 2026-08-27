@@ -3,7 +3,7 @@ import type { VerseRating } from './local';
 import { db } from './local';
 import { loadPackageData, filterVerses, isPackageInstalled } from './verses';
 import { listPerfectVerseNos } from './checkHistory';
-import type { DifficultyLevel } from './verseRatings';
+import { DIFFICULTY_LABELS, type DifficultyLevel } from './verseRatings';
 import { getJoinedGroups } from './groups';
 import { visibleTo } from '$lib/groups/visibility';
 
@@ -174,6 +174,31 @@ export interface EventVerseRef {
 }
 
 export type StatsDimension = 'start' | 'full';
+
+/** What each difficulty actually measures, spelled out. Shared by the chart's
+ *  column titles and the verse list's heading so the two cannot drift — they
+ *  each carried their own copy of '시작'/'전체' before. */
+export const DIMENSION_LABELS: Record<StatsDimension, string> = {
+	start: '암송 시작 난이도',
+	full: '전체 일치 난이도'
+};
+
+/**
+ * The heading over a list of verses opened from the chart.
+ *
+ * Built here rather than in the page because the labels above already contain
+ * the word 난이도: a heading that appends its own reads "암송 시작 난이도
+ * 난이도 2", which is exactly what the previous composition did.
+ */
+export function statsListHeading(
+	dim: StatsDimension | 'perfect',
+	level: DifficultyLevel | null,
+	perfect: boolean
+): string {
+	if (dim === 'perfect') return perfect ? '완벽' : '미완벽';
+	const label = DIMENSION_LABELS[dim];
+	return level === null ? `${label} 미평가` : `${label} ${level} · ${DIFFICULTY_LABELS[level]}`;
+}
 
 /**
  * Verse numbers per package, de-duplicated.

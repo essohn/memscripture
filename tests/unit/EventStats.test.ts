@@ -23,6 +23,31 @@ function barPx(series: 'start' | 'full', level: number): number {
 }
 
 describe('EventStats', () => {
+	it('spells out what each difficulty measures', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [1, 0, 0, 0, 0] }) });
+		expect(screen.getByText('암송 시작 난이도')).toBeInTheDocument();
+		expect(screen.getByText('전체 일치 난이도')).toBeInTheDocument();
+	});
+
+	// One line, one size: the 19px number beside 11px labels made the headline
+	// read as two separate facts rather than one sentence.
+	it('prints both headline counts at the same size', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ total: 149, perfect: 137 }) });
+		expect(screen.getByTestId('perfect-count')).toHaveClass('text-[12px]');
+		expect(screen.getByTestId('imperfect-count')).toHaveClass('text-[12px]');
+		expect(screen.getByTestId('perfect-total')).toHaveClass('text-[12px]');
+	});
+
+	// Content and order, not exact spacing: the gaps between these pieces come
+	// from CSS, so pinning the whitespace would fail on a padding change while
+	// still passing if the comma or a whole term went missing.
+	it('reads as one sentence', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ total: 149, perfect: 137 }) });
+		expect(screen.getByTestId('headline').textContent?.replace(/\s+/g, ' ').trim()).toMatch(
+			/^완벽\s*137\s*,\s*미완벽\s*12\s*\/\s*149\s*구절$/
+		);
+	});
+
 	it('calls the flawless count 완벽', () => {
 		render(EventStats, { eventId: 'e1', stats: stats({ total: 34, perfect: 12 }) });
 		expect(screen.getByText('완벽')).toBeInTheDocument();

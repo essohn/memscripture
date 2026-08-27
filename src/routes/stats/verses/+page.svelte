@@ -7,10 +7,9 @@
 		getVerseRating,
 		setStartDifficulty,
 		setFullDifficulty,
-		DIFFICULTY_LABELS,
 		type DifficultyLevel
 	} from '$lib/db/verseRatings';
-	import { ratedLevel } from '$lib/db/events';
+	import { ratedLevel, statsListHeading } from '$lib/db/events';
 	import type { StatsVersesLoadData } from './+page';
 
 	let { data }: { data: StatsVersesLoadData } = $props();
@@ -26,12 +25,7 @@
 		return `${packageId}:${verseNo}`;
 	}
 
-	const dimLabel = $derived(data.dim === 'start' ? '시작' : '전체');
-	const heading = $derived.by(() => {
-		if (data.dim === 'perfect') return data.perfect ? '완벽' : '미완벽';
-		if (data.level === null) return `${dimLabel} 난이도 미평가`;
-		return `${dimLabel} 난이도 ${data.level} · ${DIFFICULTY_LABELS[data.level]}`;
-	});
+	const heading = $derived(statsListHeading(data.dim, data.level, data.perfect));
 
 	$effect(() => {
 		const rows = data.rows;
