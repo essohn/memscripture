@@ -62,7 +62,11 @@
 	<p class="mt-0.5 text-[calc(14px*var(--vfs))] text-[var(--color-text-secondary)]">{item.cite}</p>
 
 	<p class="mt-3 text-[calc(16px*var(--vfs))] leading-[1.9] break-keep">
-		{#each words as word, i (i)}<span
+		{#each words as word, i (i)}<!-- role/tabindex are applied dynamically
+			(button only before the reader has answered); the static a11y check
+			can't see that, so the noninteractive-tabindex rule is a false
+			positive here. -->
+		<!-- svelte-ignore a11y_no_noninteractive_tabindex --><span
 			class="word"
 			class:tappable={!answered}
 			class:wrong={answered && wrong.includes(i)}
