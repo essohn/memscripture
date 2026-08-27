@@ -144,6 +144,18 @@ export interface EventStats {
 
 const LEVEL_SLOTS = 5;
 
+/**
+ * Whether an event has anything worth plotting yet.
+ *
+ * Lives here rather than inside the chart because the control that opens the
+ * chart has to ask the same question: a toggle that expands onto nothing is
+ * worse than no toggle. `total` deliberately does not count — that is the size
+ * of the event, not progress through it.
+ */
+export function hasEventStats(stats: EventStats): boolean {
+	return stats.perfect > 0 || stats.start.some((n) => n > 0) || stats.full.some((n) => n > 0);
+}
+
 /** Adds one to the slot a level names, and nothing at all to a level outside
  *  the scale. Rows arriving from a synced device never passed through the
  *  setters' guard, and an out-of-range value would index off the end and turn
