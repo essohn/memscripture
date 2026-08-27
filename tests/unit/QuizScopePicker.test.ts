@@ -204,3 +204,44 @@ describe('QuizScopePicker — games', () => {
 		expect(screen.queryByText('아직 내 오답 기록이 없어 출제할 문제가 없습니다')).toBeNull();
 	});
 });
+
+// Three strips of buttons with no announced boundary between them read as one
+// long run of controls. The app already names its other strips this way —
+// SeriesSubTabStrip carries role="group" with a label — and each of these has
+// a visible heading, so the heading is the name rather than a second string
+// that can drift away from it.
+describe('QuizScopePicker — announced structure', () => {
+	it('names each group of controls after its own visible heading', () => {
+		setup();
+		expect(screen.getByRole('group', { name: '범위' })).toBeInTheDocument();
+		expect(screen.getByRole('group', { name: '난이도 그룹 선택' })).toBeInTheDocument();
+		expect(screen.getByRole('group', { name: '게임' })).toBeInTheDocument();
+	});
+
+	// A live region has to exist before the text inside it changes, or the
+	// change is never announced. These lines appear and disappear with the
+	// scope, so the region has to outlive them.
+	it('keeps a live region in place even when it has nothing to say', () => {
+		setup({ items: [] });
+		const live = document.querySelector('[aria-live="polite"]');
+		expect(live).not.toBeNull();
+	});
+
+	it('tells a disabled 시작 why it is disabled', async () => {
+		setup({ items: [] });
+		const start = screen.getByRole('button', { name: '시작' });
+		expect(start).toBeDisabled();
+		const describedBy = start.getAttribute('aria-describedby');
+		expect(describedBy).toBeTruthy();
+		expect(document.getElementById(describedBy as string)?.textContent?.trim()).toBe(
+			'고른 범위에 구절이 없습니다'
+		);
+	});
+
+	it('leaves an enabled 시작 undescribed', () => {
+		setup();
+		const start = screen.getByRole('button', { name: '시작' });
+		expect(start).not.toBeDisabled();
+		expect(start.getAttribute('aria-describedby')).toBeNull();
+	});
+});

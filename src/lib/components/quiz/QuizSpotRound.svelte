@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { markMismatchedWords } from '$lib/memorize/grade';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
 
@@ -32,9 +33,17 @@
 	const answered = $derived(answer !== undefined);
 	const correct = $derived(answer === null ? wrong.length === 0 : wrong.includes(answer as number));
 
+	/** The 다음 button, once the answer is in. */
+	let nextButton = $state<HTMLButtonElement | undefined>();
+
 	function choose(a: number | null) {
 		if (answered) return;
 		answer = a;
+		// Answering takes role and tabindex off every word, so whatever the
+		// reader was standing on stops being focusable and the browser drops
+		// focus to <body> — from there a keyboard reader has to tab in from the
+		// top of the page to reach the only control left. Hand it over instead.
+		tick().then(() => nextButton?.focus());
 	}
 
 	function next() {
@@ -90,6 +99,7 @@
 			{correct ? '맞았습니다' : '다시 볼 구절'}
 		</p>
 		<button
+			bind:this={nextButton}
 			type="button"
 			onclick={next}
 			class="mt-2 w-full rounded-xl bg-[var(--color-accent)] py-2.5 font-medium text-white"

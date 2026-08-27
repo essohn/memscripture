@@ -29,6 +29,16 @@
 
 	const queue = $derived(buildQueue(items, tiers, ratings));
 
+	/** The line explaining why 시작 cannot be pressed, or undefined when it
+	 *  can. Tabbing onto a dead button should say what would revive it. */
+	const describedBy = $derived(
+		queue.length === 0
+			? 'quiz-start-empty'
+			: game === 'spot' && attemptCount === 0
+				? 'quiz-start-no-attempts'
+				: undefined
+	);
+
 	function toggle(t: Tier) {
 		const next = new Set(tiers);
 		if (next.has(t)) next.delete(t);
@@ -62,8 +72,8 @@
 
 <section class="space-y-4">
 	<div>
-		<h2 class="text-[13px] font-semibold text-[var(--color-text-secondary)]">범위</h2>
-		<div class="mt-2 flex flex-col gap-1.5">
+		<h2 id="quiz-scope-heading" class="text-[13px] font-semibold text-[var(--color-text-secondary)]">범위</h2>
+		<div role="group" aria-labelledby="quiz-scope-heading" class="mt-2 flex flex-col gap-1.5">
 			{#each targets as t (t.kind + t.id)}
 				<button
 					type="button"
@@ -81,8 +91,8 @@
 	</div>
 
 	<div>
-		<h2 class="text-[13px] font-semibold text-[var(--color-text-secondary)]">난이도 그룹 선택</h2>
-		<div class="mt-2 flex flex-wrap gap-1.5">
+		<h2 id="quiz-tier-heading" class="text-[13px] font-semibold text-[var(--color-text-secondary)]">난이도 그룹 선택</h2>
+		<div role="group" aria-labelledby="quiz-tier-heading" class="mt-2 flex flex-wrap gap-1.5">
 			{#each DIFFICULTY_LEVELS as level (level)}
 				<button
 					type="button"
@@ -109,8 +119,8 @@
 	</div>
 
 	<div>
-		<h2 class="text-[13px] font-semibold text-[var(--color-text-secondary)]">게임</h2>
-		<div class="mt-2 flex flex-wrap gap-1.5">
+		<h2 id="quiz-game-heading" class="text-[13px] font-semibold text-[var(--color-text-secondary)]">게임</h2>
+		<div role="group" aria-labelledby="quiz-game-heading" class="mt-2 flex flex-wrap gap-1.5">
 			{#each GAMES as g (g)}
 				<button
 					type="button"
@@ -140,19 +150,27 @@
 			type="button"
 			onclick={() => onStart(queue, game)}
 			disabled={queue.length === 0 || (game === 'spot' && attemptCount === 0)}
+			aria-describedby={describedBy}
 			class="rounded-xl bg-[var(--color-accent)] px-5 py-2 font-medium text-white disabled:opacity-40"
 		>
 			시작
 		</button>
 	</div>
-	{#if queue.length === 0}
-		<p class="text-[12px] text-[var(--color-text-tertiary)]">고른 범위에 구절이 없습니다</p>
-	{:else if game === 'spot' && attemptCount === 0}
-		<!-- Not `attemptCount == null`: that means the read is still in
-		     flight, and disabling 시작 on a stale "loading" read would block a
-		     scope that turns out to have real questions once it resolves. -->
-		<p class="text-[12px] text-[var(--color-text-tertiary)]">
-			아직 내 오답 기록이 없어 출제할 문제가 없습니다
-		</p>
-	{/if}
+	<!-- Always rendered, even with nothing to say. A live region has to exist
+	     before its text changes or the change is never announced, and these
+	     lines come and go with the scope. -->
+	<div aria-live="polite">
+		{#if queue.length === 0}
+			<p id="quiz-start-empty" class="text-[12px] text-[var(--color-text-tertiary)]">
+				고른 범위에 구절이 없습니다
+			</p>
+		{:else if game === 'spot' && attemptCount === 0}
+			<!-- Not `attemptCount == null`: that means the read is still in
+			     flight, and disabling 시작 on a stale "loading" read would block a
+			     scope that turns out to have real questions once it resolves. -->
+			<p id="quiz-start-no-attempts" class="text-[12px] text-[var(--color-text-tertiary)]">
+				아직 내 오답 기록이 없어 출제할 문제가 없습니다
+			</p>
+		{/if}
+	</div>
 </section>
