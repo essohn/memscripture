@@ -7,11 +7,14 @@
 	import { parseImportFragment, type ImportVerse } from '$lib/oyo/importLink';
 	import { duplicateIndexes } from '$lib/oyo/cite';
 	import { createOyoVerse, listOyoVerses, seedOyoPackageIfMissing } from '$lib/db/oyo';
+	import { undoImport } from '$lib/oyo/undoImport';
+	import ConfirmDialog from '$lib/components/feedback/ConfirmDialog.svelte';
 
 	type Screen =
 		| { kind: 'loading' }
 		| { kind: 'review'; source: string | null; verses: ImportVerse[] }
 		| { kind: 'saved'; count: number }
+		| { kind: 'undone'; count: number; total: number }
 		| { kind: 'failed'; message: string };
 
 	let screen = $state<Screen>({ kind: 'loading' });
@@ -23,6 +26,13 @@
 	 *  reference", which is a different fact and one that outlives the import. */
 	let titles = $state<string[]>([]);
 	let saving = $state(false);
+
+	/** The verse numbers this import wrote, so the reader can take them back in
+	 *  one tap. Held for the life of this screen only — see undoImport for why
+	 *  a durable "undo yesterday's import" is a promise this app cannot keep. */
+	let savedNos = $state<number[]>([]);
+	let confirmUndo = $state(false);
+	let undoing = $state(false);
 
 	const FAILURES: Record<string, string> = {
 		missing: '가져올 구절이 없습니다. 성경에서 구절을 선택한 뒤 다시 보내주세요.',
@@ -87,7 +97,8 @@
 			const order = [...chosen].sort((a, b) => a - b);
 			for (const i of order) {
 				const v = verses[i];
-				await createOyoVerse({ cite: v.cite, w: v.w, title: titles[i].trim() });
+				const row = await createOyoVerse({ cite: v.cite, w: v.w, title: titles[i].trim() });
+				savedNos.push(row.no);
 			}
 			history.replaceState(history.state, '', location.pathname);
 			screen = { kind: 'saved', count: order.length };
@@ -96,6 +107,15 @@
 		} finally {
 			saving = false;
 		}
+	}
+
+	async function undo() {
+		if (undoing) return;
+		undoing = true;
+		confirmUndo = false;
+		const result = await undoImport(savedNos);
+		undoing = false;
+		screen = { kind: 'undone', count: result.removed, total: result.total };
 	}
 </script>
 
@@ -120,17 +140,50 @@
 		>
 			나의 구절로
 		</a>
-	{:else if screen.kind === 'saved'}
-		<div class="flex items-center gap-2 text-[15px] font-semibold text-[var(--color-text)]">
-			<Check size={18} strokeWidth={2.25} class="text-[var(--color-success)]" />
-			{screen.count}개 구절을 나의 구절에 담았습니다
-		</div>
+	{:else if screen.kind === 'undone'}
+		<p class="text-[15px] font-semibold text-[var(--color-text)]">
+			{screen.count}개를 되돌렸습니다
+		</p>
+		{#if screen.count < screen.total}
+			<p class="mt-1 text-[13px] text-[var(--color-text-secondary)]">
+				{screen.total - screen.count}개는 지우지 못했습니다. 나의 구절에서 확인해주세요.
+			</p>
+		{/if}
 		<a
 			href="/library/oyo"
 			class="mt-5 inline-flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-4 py-2 text-[13px] font-medium text-[var(--color-on-accent)] transition-opacity hover:opacity-90"
 		>
 			나의 구절 보기
 		</a>
+	{:else if screen.kind === 'saved'}
+		<div class="flex items-center gap-2 text-[15px] font-semibold text-[var(--color-text)]">
+			<Check size={18} strokeWidth={2.25} class="text-[var(--color-success)]" />
+			{screen.count}개 구절을 나의 구절에 담았습니다
+		</div>
+		<div class="mt-5 flex items-center gap-3">
+			<a
+				href="/library/oyo"
+				class="inline-flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-4 py-2 text-[13px] font-medium text-[var(--color-on-accent)] transition-opacity hover:opacity-90"
+			>
+				나의 구절 보기
+			</a>
+			<button
+				type="button"
+				onclick={() => (confirmUndo = true)}
+				disabled={undoing}
+				class="text-[13px] font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)] disabled:opacity-40"
+			>
+				{undoing ? '되돌리는 중…' : '되돌리기'}
+			</button>
+		</div>
+		<ConfirmDialog
+			open={confirmUndo}
+			title="방금 담은 구절을 되돌릴까요?"
+			body="나의 구절에서 {screen.count}개를 지웁니다. 이 동작은 되돌릴 수 없습니다."
+			confirmLabel="지우기"
+			onConfirm={undo}
+			onCancel={() => (confirmUndo = false)}
+		/>
 	{:else}
 		{@const verses = screen.verses}
 		<div class="flex items-baseline justify-between gap-3">

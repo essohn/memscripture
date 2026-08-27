@@ -7,7 +7,9 @@ import TableImportPage from '../../src/routes/oyo/import/table/+page.svelte';
 import { __clearChapterCacheForTest } from '../../src/lib/bible/fetch';
 
 const created: { cite: string; title: string; w: string }[] = [];
+const deleted: number[] = [];
 let failAfter = Infinity;
+let failDeleteAfter = Infinity;
 
 vi.mock('../../src/lib/db/oyo', () => ({
 	OYO_PACKAGE_ID: 'oyo',
@@ -17,6 +19,11 @@ vi.mock('../../src/lib/db/oyo', () => ({
 		if (created.length >= failAfter) throw new Error('write failed');
 		created.push(input);
 		return { package_id: 'oyo', no: created.length, i: created.length, ...input };
+	}),
+	deleteOyoVerse: vi.fn(async (no: number) => {
+		if (deleted.length >= failDeleteAfter) throw new Error('delete failed');
+		deleted.push(no);
+		return { package_id: 'oyo', no, i: no, cite: '', title: '', w: '' };
 	})
 }));
 
@@ -37,7 +44,9 @@ async function paste(text: string) {
 
 beforeEach(() => {
 	created.length = 0;
+	deleted.length = 0;
 	failAfter = Infinity;
+	failDeleteAfter = Infinity;
 	__clearChapterCacheForTest();
 });
 
@@ -195,5 +204,57 @@ describe('table import screen', () => {
 		await waitFor(() =>
 			expect(screen.getByRole('button', { name: /나의 구절에 담기 \(1\)/ })).toBeEnabled()
 		);
+	});
+
+	it('되돌리기 removes exactly the verses this import created', async () => {
+		stubFetch();
+		render(TableImportPage);
+		await paste('장절\t제목\t본문\n요 3:16\t영생\t본문 하나\n창 12:1\t부르심\t본문 둘');
+		await screen.findByText('이렇게 읽었습니다. 맞나요?');
+		await fireEvent.click(screen.getByRole('button', { name: '맞아요, 계속' }));
+		await fireEvent.click(await screen.findByRole('button', { name: /나의 구절에 담기/ }));
+		await screen.findByText('2개 구절을 나의 구절에 담았습니다');
+
+		await fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+		await fireEvent.click(await screen.findByRole('button', { name: '지우기' }));
+
+		expect(await screen.findByText('2개를 되돌렸습니다')).toBeInTheDocument();
+		expect(deleted).toEqual([1, 2]);
+	});
+
+	it('reports how many it really took back when a delete fails partway', async () => {
+		stubFetch();
+		render(TableImportPage);
+		await paste('장절\t제목\t본문\n요 3:16\t영생\t본문 하나\n창 12:1\t부르심\t본문 둘\n시 23:1\t목자\t본문 셋');
+		await screen.findByText('이렇게 읽었습니다. 맞나요?');
+		await fireEvent.click(screen.getByRole('button', { name: '맞아요, 계속' }));
+		await fireEvent.click(await screen.findByRole('button', { name: /나의 구절에 담기/ }));
+		await screen.findByText('3개 구절을 나의 구절에 담았습니다');
+
+		// The third delete throws; two verses are already gone.
+		failDeleteAfter = 2;
+		await fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+		await fireEvent.click(await screen.findByRole('button', { name: '지우기' }));
+
+		expect(await screen.findByText('2개를 되돌렸습니다')).toBeInTheDocument();
+		expect(
+			screen.getByText('1개는 지우지 못했습니다. 나의 구절에서 확인해주세요.')
+		).toBeInTheDocument();
+	});
+
+	it('keeps the verses when the reader cancels the confirm', async () => {
+		stubFetch();
+		render(TableImportPage);
+		await paste('장절\t제목\t본문\n요 3:16\t영생\t본문 하나');
+		await screen.findByText('이렇게 읽었습니다. 맞나요?');
+		await fireEvent.click(screen.getByRole('button', { name: '맞아요, 계속' }));
+		await fireEvent.click(await screen.findByRole('button', { name: /나의 구절에 담기/ }));
+		await screen.findByText('1개 구절을 나의 구절에 담았습니다');
+
+		await fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+		await fireEvent.click(await screen.findByRole('button', { name: '취소' }));
+
+		expect(deleted).toEqual([]);
+		expect(screen.getByText('1개 구절을 나의 구절에 담았습니다')).toBeInTheDocument();
 	});
 });

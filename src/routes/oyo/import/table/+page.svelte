@@ -16,12 +16,15 @@
 	import { duplicateIndexes } from '$lib/oyo/cite';
 	import { fillMissingBodies, type RowStatus } from '$lib/oyo/autofill';
 	import { createOyoVerse, listOyoVerses, seedOyoPackageIfMissing } from '$lib/db/oyo';
+	import { undoImport } from '$lib/oyo/undoImport';
+	import ConfirmDialog from '$lib/components/feedback/ConfirmDialog.svelte';
 
 	type Screen =
 		| { kind: 'pick'; error: string | null }
 		| { kind: 'confirm' }
 		| { kind: 'review' }
-		| { kind: 'saved'; count: number };
+		| { kind: 'saved'; count: number }
+		| { kind: 'undone'; count: number; total: number };
 
 	let screen = $state<Screen>({ kind: 'pick', error: null });
 
@@ -48,6 +51,14 @@
 	// Kept out of the Screen union: a failed save must not cost the reader the
 	// bodies the fill just fetched, so it stays on `review` and says so here.
 	let saveError = $state<string | null>(null);
+
+	/** The verse numbers this import wrote, so the reader can take them back in
+	 *  one tap instead of deleting up to two hundred cards by hand. Held for
+	 *  the life of this screen only — see undoImport for why a durable "undo
+	 *  yesterday's import" is a promise this app cannot keep. */
+	let savedNos = $state<number[]>([]);
+	let confirmUndo = $state(false);
+	let undoing = $state(false);
 
 	let pasteText = $state('');
 	let fillRun: AbortController | null = null;
@@ -229,7 +240,15 @@
 		try {
 			await seedOyoPackageIfMissing();
 			for (const i of order) {
-				await createOyoVerse({ cite: drafts[i].cite, w: drafts[i].w, title: titles[i].trim() });
+				const row = await createOyoVerse({
+					cite: drafts[i].cite,
+					w: drafts[i].w,
+					title: titles[i].trim()
+				});
+				// Recorded as it lands, so a retry after a partial failure adds to
+				// the list rather than replacing it — 되돌리기 has to take back
+				// everything this screen wrote, not just the last attempt.
+				savedNos.push(row.no);
 				landed++;
 				// Dropped as it lands rather than all at the end. The error copy
 				// below invites a retry, and a retry that re-walked the whole list
@@ -243,6 +262,15 @@
 		} finally {
 			saving = false;
 		}
+	}
+
+	async function undo() {
+		if (undoing) return;
+		undoing = true;
+		confirmUndo = false;
+		const result = await undoImport(savedNos);
+		undoing = false;
+		screen = { kind: 'undone', count: result.removed, total: result.total };
 	}
 </script>
 
@@ -393,16 +421,52 @@
 			<BookPlus size={16} strokeWidth={2} />
 			{saving ? '담는 중…' : `나의 구절에 담기 (${saveCount})`}
 		</button>
-	{:else}
-		<div class="flex items-center gap-2 text-[15px] font-semibold text-[var(--color-text)]">
-			<Check size={18} strokeWidth={2.25} class="text-[var(--color-success)]" />
-			{screen.count}개 구절을 나의 구절에 담았습니다
-		</div>
+	{:else if screen.kind === 'undone'}
+		<p class="text-[15px] font-semibold text-[var(--color-text)]">
+			{screen.count}개를 되돌렸습니다
+		</p>
+		{#if screen.count < screen.total}
+			<!-- Said out loud rather than swallowed. A delete that stopped partway
+			     leaves verses the reader believes are gone, and the only place they
+			     can act on that is 나의 구절. -->
+			<p class="mt-1 text-[13px] text-[var(--color-text-secondary)]">
+				{screen.total - screen.count}개는 지우지 못했습니다. 나의 구절에서 확인해주세요.
+			</p>
+		{/if}
 		<a
 			href="/library/oyo"
 			class="mt-5 inline-flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-4 py-2 text-[13px] font-medium text-[var(--color-on-accent)] transition-opacity hover:opacity-90"
 		>
 			나의 구절 보기
 		</a>
+	{:else}
+		<div class="flex items-center gap-2 text-[15px] font-semibold text-[var(--color-text)]">
+			<Check size={18} strokeWidth={2.25} class="text-[var(--color-success)]" />
+			{screen.count}개 구절을 나의 구절에 담았습니다
+		</div>
+		<div class="mt-5 flex items-center gap-3">
+			<a
+				href="/library/oyo"
+				class="inline-flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-4 py-2 text-[13px] font-medium text-[var(--color-on-accent)] transition-opacity hover:opacity-90"
+			>
+				나의 구절 보기
+			</a>
+			<button
+				type="button"
+				onclick={() => (confirmUndo = true)}
+				disabled={undoing}
+				class="text-[13px] font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)] disabled:opacity-40"
+			>
+				{undoing ? '되돌리는 중…' : '되돌리기'}
+			</button>
+		</div>
+		<ConfirmDialog
+			open={confirmUndo}
+			title="방금 담은 구절을 되돌릴까요?"
+			body="나의 구절에서 {screen.count}개를 지웁니다. 이 동작은 되돌릴 수 없습니다."
+			confirmLabel="지우기"
+			onConfirm={undo}
+			onCancel={() => (confirmUndo = false)}
+		/>
 	{/if}
 </main>
