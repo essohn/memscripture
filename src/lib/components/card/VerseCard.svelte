@@ -7,6 +7,8 @@
 	import VerseOverflowMenu from '$lib/components/oyo/VerseOverflowMenu.svelte';
 	import DifficultyBadge from '$lib/components/card/DifficultyBadge.svelte';
 	import MemorizeCheckPanel from './MemorizeCheckPanel.svelte';
+	import CheckHistorySheet from './CheckHistorySheet.svelte';
+	import { relativeTimeKo } from '$lib/utils/relativeTime';
 	import type { DifficultyLevel } from '$lib/db/verseRatings';
 	import { normalizeForGrading } from '$lib/memorize/grade';
 	import { activeMarks, tokenizeVerse, type StoredMark } from '$lib/memorize/marks';
@@ -72,6 +74,12 @@
 		onToggleMark?: (index: number, word: string) => void;
 		/** This verse has been recited flawlessly at least once. */
 		perfect?: boolean;
+		/** When this verse was last 점검'd, or null if never. Passed in rather
+		 *  than read per card, the same way `marks` and `perfect` are: a
+		 *  900-verse list must not issue 900 queries for a line most cards do
+		 *  not even show. Quiz rounds are excluded upstream — see
+		 *  listLastCheckedAt. */
+		lastCheckedAt?: number | null;
 	}
 	let {
 		verse,
@@ -98,7 +106,8 @@
 		packageHref,
 		marks = [],
 		onToggleMark,
-		perfect = false
+		perfect = false,
+		lastCheckedAt = null
 	}: Props = $props();
 
 	const bookmarksEnabled = $derived(Boolean(onBookmarkPick && onBookmarkClear));
@@ -288,12 +297,44 @@
 	 *  점검 and 밑줄 come through here and share the one piece of state, so a
 	 *  reader who checks a verse and then opens 밑줄 sees the check they just
 	 *  finished. */
-	function loadCheckHistory() {
-		if (!packageId) return;
-		listChecks(packageId, verse.no)
-			.then((rows) => (checkHistory = rows))
+	function loadCheckHistory(): Promise<void> {
+		if (!packageId) return Promise.resolve();
+		return listChecks(packageId, verse.no)
+			.then((rows) => {
+				checkHistory = rows;
+			})
 			.catch(() => {});
 	}
+
+	/** 점검 only. A quiz round is the same act without the rating, so the
+	 *  underline suggestions count it — but anything that shows a difficulty
+	 *  has nothing to show for one. */
+	const checkOnlyHistory = $derived(checkHistory.filter((r) => !r.source));
+
+	let historyOpen = $state(false);
+
+	/**
+	 * Loads before it opens, and declines to open on nothing.
+	 *
+	 * The line is drawn from `lastCheckedAt`, which the page read once; a sync
+	 * that arrived since could have taken the last 점검 away. Opening first and
+	 * filling in after would flash an empty sheet in that case, so the read
+	 * settles first and an empty result simply does nothing.
+	 */
+	async function openHistory() {
+		await loadCheckHistory();
+		if (checkOnlyHistory.length > 0) historyOpen = true;
+	}
+
+	/**
+	 * When this card last saw a check, preferring one finished in this session.
+	 *
+	 * Overrides the prop for the reason `lastCheckPerfect` overrides `perfect`:
+	 * the prop was read when the page loaded, so a card the reader just checked
+	 * would still say 3일 전 about the check before it.
+	 */
+	let lastCheckedLocal = $state<number | null>(null);
+	const shownLastCheckedAt = $derived(lastCheckedLocal ?? lastCheckedAt);
 
 	/** Words this reader keeps missing, proposed as underlines. Derived rather
 	 *  than stored: a saved suggestion would outlive the history it came from
@@ -632,7 +673,13 @@
 	onkeydown={interactive ? handleCardKey : undefined}
 >
 	<header class="space-y-1">
-		<div class="flex items-start justify-between gap-3">
+		<!-- Wraps rather than squeezes. The controls need ~228px once the
+		     last-checked line joins them, and a 320px card has 280px in total —
+		     the title, free to shrink to nothing, was being erased outright.
+		     Given a floor it pushes the cluster onto its own row instead, which
+		     also relieves a squeeze the title already had before this line
+		     existed (52px, two lines, for a reference like 창세기 28 : 14). -->
+		<div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
 			<!-- The popper rides with the title, not with the difficulty badges: it
 			     is something the verse earned, while that cluster is a set of
 			     controls.
@@ -645,7 +692,7 @@
 			     beside neither line. It joins the heading's accessible name,
 			     which is the truth about the verse rather than noise. -->
 			<h2
-				class="min-w-0 flex-1 text-[calc(19px*var(--vfs))] font-bold leading-tight text-[var(--color-text)]"
+				class="min-w-[7rem] flex-1 text-[calc(19px*var(--vfs))] font-bold leading-tight text-[var(--color-text)]"
 			>{heading}{#if mode === 'read' && (lastCheckPerfect ?? perfect)}<PartyPopper
 					size={15}
 					strokeWidth={2}
@@ -655,8 +702,39 @@
 			<!-- gap-2 rather than gap-1: these are four separate targets on a
 			     phone, each smaller than a fingertip, and 4px between them made
 			     난이도 and 암송 trade taps. -->
-			<div class="flex shrink-0 items-center gap-2">
+			<!-- ml-auto is only felt on the wrapped row, where the cluster is
+			     alone and would otherwise sit left, away from the edge it lines
+			     up with everywhere else. On one line the title's flex-1 has
+			     already eaten the slack. -->
+			<div class="ml-auto flex shrink-0 items-center gap-2">
 				{#if mode === 'read'}
+					<!-- Only when there is a check to report. Most verses have none,
+					     and on a 320px phone this row already leaves the title a
+					     third of its width — so the cost of the line is paid only by
+					     the verses actually being worked on.
+
+					     Kept at the badges' 28px so the cluster stays one row, with
+					     the touch target grown to 44px by a pseudo-element instead:
+					     making the element itself 44px would push every control
+					     beside it out of line. -->
+					{#if shownLastCheckedAt !== null}
+						<button
+							type="button"
+							data-testid="last-checked"
+							onclick={(e) => {
+								// The card's own tap starts a check. Without this the
+								// reader would get the history and lose the card behind
+								// a panel at the same time.
+								e.stopPropagation();
+								openHistory();
+							}}
+							aria-haspopup="dialog"
+							aria-label="최근 점검 {relativeTimeKo(shownLastCheckedAt)}, 점검 기록 보기"
+							class="relative inline-flex h-7 shrink-0 items-center rounded-md px-1 text-[11px] text-[var(--color-text-tertiary)] transition-colors before:absolute before:inset-x-0 before:-inset-y-2 before:content-[''] hover:bg-[var(--color-elevated)] hover:text-[var(--color-text-secondary)]"
+						>
+							{relativeTimeKo(shownLastCheckedAt)}
+						</button>
+					{/if}
 					{#if ratingsEnabled}
 						<div class="flex items-center gap-1.5">
 							<DifficultyBadge
@@ -800,13 +878,17 @@
 				{heardAloud}
 				onPickStart={onPickStartDifficulty!}
 				onPickFull={onPickFullDifficulty!}
-				history={checkHistory.filter((r) => !r.source)}
+				history={checkOnlyHistory}
 				onGraded={(outcome) => {
 					revealAll();
 					// Assigned, not just raised: a flawed attempt takes the popper back.
 					lastCheckPerfect = outcome.accuracy >= 1;
 					if (!packageId) return;
-					recordCheck(packageId, verse.no, outcome).then(loadCheckHistory).catch(() => {});
+					const checkedAt = Date.now();
+					lastCheckedLocal = checkedAt;
+					recordCheck(packageId, verse.no, outcome, checkedAt)
+						.then(loadCheckHistory)
+						.catch(() => {});
 				}}
 				onClose={exitMode}
 				onRestart={() => (revealedCount = 0)}
@@ -937,6 +1019,16 @@
 		</div>
 	{/if}
 </article>
+
+<!-- Outside the article: the sheet is fixed to the viewport, and a card in a
+     list is inside a transformed, clipped ancestor that would trap it. -->
+{#if historyOpen}
+	<CheckHistorySheet
+		heading={verse.cite}
+		records={checkOnlyHistory}
+		onClose={() => (historyOpen = false)}
+	/>
+{/if}
 
 <style>
 	.verse-card {

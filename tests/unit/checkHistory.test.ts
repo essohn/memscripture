@@ -4,8 +4,10 @@ import { db } from '../../src/lib/db/local';
 import {
 	HISTORY_LIMIT,
 	listChecks,
+	listLastCheckedAt,
 	listPerfectVerseNos,
-	recordCheck
+	recordCheck,
+	TYPED_LIMIT
 } from '../../src/lib/db/checkHistory';
 import { suggestedMarks } from '../../src/lib/memorize/missStats';
 
@@ -148,5 +150,87 @@ describe('listPerfectVerseNos', () => {
 
 	it('is empty for a package with no checks', async () => {
 		expect((await listPerfectVerseNos('5_krv')).size).toBe(0);
+	});
+});
+
+describe('recordCheck typed text', () => {
+	it('keeps what the reader typed', async () => {
+		await recordCheck('900_krv', 1, entry({ typed: '태초에 하나님이' }), 1000);
+		expect((await listChecks('900_krv', 1))[0].typed).toBe('태초에 하나님이');
+	});
+
+	// Absent is not empty, the rule `missed` and `source` already set. A record
+	// written before this field existed captured nothing; an empty string means
+	// the reader saved without typing anything. The sheet prints a different
+	// line for each, so collapsing them here would make it lie about old checks.
+	it('leaves typed absent when none was passed', async () => {
+		await recordCheck('900_krv', 1, entry(), 1000);
+		expect('typed' in (await listChecks('900_krv', 1))[0]).toBe(false);
+	});
+
+	it('keeps an empty attempt distinct from an uncaptured one', async () => {
+		await recordCheck('900_krv', 1, entry({ typed: '' }), 1000);
+		expect((await listChecks('900_krv', 1))[0].typed).toBe('');
+	});
+
+	// The whole table rides along in every Drive snapshot, so one pathological
+	// paste must not be able to inflate it.
+	it('truncates a pathologically long attempt', async () => {
+		await recordCheck('900_krv', 1, entry({ typed: 'ㄱ'.repeat(TYPED_LIMIT + 500) }), 1000);
+		expect((await listChecks('900_krv', 1))[0].typed).toHaveLength(TYPED_LIMIT);
+	});
+});
+
+describe('listLastCheckedAt', () => {
+	it('reports the newest check per verse, keyed by verseKey', async () => {
+		await recordCheck('900_krv', 1, entry(), 1000);
+		await recordCheck('900_krv', 1, entry(), 5000);
+		await recordCheck('900_krv', 2, entry(), 3000);
+		const map = await listLastCheckedAt('900_krv');
+		expect(map.get('900_krv:1')).toBe(5000);
+		expect(map.get('900_krv:2')).toBe(3000);
+	});
+
+	// Rows come back in index order, not chronological order.
+	it('is not fooled by checks recorded out of order', async () => {
+		await recordCheck('900_krv', 1, entry(), 5000);
+		await recordCheck('900_krv', 1, entry(), 1000);
+		expect((await listLastCheckedAt('900_krv')).get('900_krv:1')).toBe(5000);
+	});
+
+	// The card's line says 최근 점검, and tapping it opens a sheet of 점검. A
+	// quiz round carries no difficulty, so counting one here would date the
+	// line by a session the sheet then cannot show.
+	it('ignores quiz rounds', async () => {
+		await recordCheck('900_krv', 1, entry(), 1000);
+		await recordCheck('900_krv', 1, entry({ source: 'quiz' }), 9000);
+		expect((await listLastCheckedAt('900_krv')).get('900_krv:1')).toBe(1000);
+	});
+
+	it('omits a verse checked only by quiz', async () => {
+		await recordCheck('900_krv', 1, entry({ source: 'quiz' }), 9000);
+		expect((await listLastCheckedAt('900_krv')).has('900_krv:1')).toBe(false);
+	});
+
+	it('scopes to one package when given one', async () => {
+		await recordCheck('900_krv', 1, entry(), 1000);
+		await recordCheck('242_krv', 1, entry(), 2000);
+		const map = await listLastCheckedAt('900_krv');
+		expect(map.has('900_krv:1')).toBe(true);
+		expect(map.has('242_krv:1')).toBe(false);
+	});
+
+	// 북마크 and 통계 list verses from several packages at once, so they need
+	// the whole table rather than one package's slice.
+	it('spans every package when given none', async () => {
+		await recordCheck('900_krv', 1, entry(), 1000);
+		await recordCheck('242_krv', 1, entry(), 2000);
+		const map = await listLastCheckedAt();
+		expect(map.get('900_krv:1')).toBe(1000);
+		expect(map.get('242_krv:1')).toBe(2000);
+	});
+
+	it('is empty when nothing has been checked', async () => {
+		expect((await listLastCheckedAt('900_krv')).size).toBe(0);
 	});
 });

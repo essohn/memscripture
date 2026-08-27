@@ -66,6 +66,11 @@ export interface CheckRecord {
 	 *  before this field existed was one, and it is the app's primary act, so
 	 *  the default already says the true thing about old rows. */
 	source?: 'quiz';
+	/** What the reader actually wrote, truncated at TYPED_LIMIT. Optional on
+	 *  the terms `hints` and `missed` set: absent means the check predates this
+	 *  field and captured nothing, while '' means they saved having typed
+	 *  nothing. The history sheet says a different thing for each. */
+	typed?: string;
 }
 
 /** Words the reader underlined on one verse — the places they keep tripping

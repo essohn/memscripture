@@ -10,6 +10,7 @@
 		type DifficultyLevel
 	} from '$lib/db/verseRatings';
 	import { ratedLevel, statsListHeading } from '$lib/db/events';
+	import { listLastCheckedAt, verseKeyOf } from '$lib/db/checkHistory';
 	import type { StatsVersesLoadData } from './+page';
 
 	let { data }: { data: StatsVersesLoadData } = $props();
@@ -20,23 +21,24 @@
 	// verse number alone is not unique.
 	let startDifficulties = $state<Record<string, DifficultyLevel | null>>({});
 	let fullDifficulties = $state<Record<string, DifficultyLevel | null>>({});
-
-	function ratingKey(packageId: string, verseNo: number): string {
-		return `${packageId}:${verseNo}`;
-	}
+	let lastCheckedByKey = $state<Map<string, number>>(new Map());
 
 	const heading = $derived(statsListHeading(data.dim, data.level, data.perfect));
 
 	$effect(() => {
 		const rows = data.rows;
 		void (async () => {
-			const ratings = await Promise.all(
-				rows.map((r) => getVerseRating(r.packageId, r.verse.no))
-			);
+			// Unscoped: this list spans packages, so one scan of the whole table
+			// beats one per package it happens to include.
+			const [ratings, lastChecked] = await Promise.all([
+				Promise.all(rows.map((r) => getVerseRating(r.packageId, r.verse.no))),
+				listLastCheckedAt()
+			]);
+			lastCheckedByKey = lastChecked;
 			const start: Record<string, DifficultyLevel | null> = {};
 			const full: Record<string, DifficultyLevel | null> = {};
 			rows.forEach((r, i) => {
-				const key = ratingKey(r.packageId, r.verse.no);
+				const key = verseKeyOf(r.packageId, r.verse.no);
 				start[key] = ratedLevel(ratings[i], 'start');
 				full[key] = ratedLevel(ratings[i], 'full');
 			});
@@ -54,12 +56,12 @@
 	 * work than one that goes briefly stale.
 	 */
 	function pickStart(packageId: string, verseNo: number, level: DifficultyLevel | null) {
-		startDifficulties = { ...startDifficulties, [ratingKey(packageId, verseNo)]: level };
+		startDifficulties = { ...startDifficulties, [verseKeyOf(packageId, verseNo)]: level };
 		setStartDifficulty(packageId, verseNo, level).catch(() => {});
 	}
 
 	function pickFull(packageId: string, verseNo: number, level: DifficultyLevel | null) {
-		fullDifficulties = { ...fullDifficulties, [ratingKey(packageId, verseNo)]: level };
+		fullDifficulties = { ...fullDifficulties, [verseKeyOf(packageId, verseNo)]: level };
 		setFullDifficulty(packageId, verseNo, level).catch(() => {});
 	}
 
@@ -81,17 +83,18 @@
 			{data.eventTitle} · <span class="tabular-nums">{data.rows.length}</span>구절
 		</p>
 		<div class="space-y-5">
-			{#each data.rows as row (ratingKey(row.packageId, row.verse.no))}
+			{#each data.rows as row (verseKeyOf(row.packageId, row.verse.no))}
 				<VerseCard
 					verse={row.verse}
 					packageName={row.packageName}
 					packageId={row.packageId}
-					startDifficulty={startDifficulties[ratingKey(row.packageId, row.verse.no)] ?? null}
-					fullDifficulty={fullDifficulties[ratingKey(row.packageId, row.verse.no)] ?? null}
+					startDifficulty={startDifficulties[verseKeyOf(row.packageId, row.verse.no)] ?? null}
+					fullDifficulty={fullDifficulties[verseKeyOf(row.packageId, row.verse.no)] ?? null}
 					onPickStartDifficulty={(l) => pickStart(row.packageId, row.verse.no, l)}
 					onPickFullDifficulty={(l) => pickFull(row.packageId, row.verse.no, l)}
 					showBody={showVerseText}
 					fontScale={fontScale.value}
+					lastCheckedAt={lastCheckedByKey.get(verseKeyOf(row.packageId, row.verse.no)) ?? null}
 				/>
 			{/each}
 		</div>

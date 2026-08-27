@@ -16,7 +16,7 @@
 		import { db } from '$lib/db/local';
 	import { setBookmark, clearBookmark } from '$lib/db/bookmarks';
 	import { listMarksForPackage, toggleVerseMark } from '$lib/db/verseMarks';
-	import { listPerfectVerseNos } from '$lib/db/checkHistory';
+	import { listLastCheckedAt, listPerfectVerseNos, verseKeyOf } from '$lib/db/checkHistory';
 	import type { StoredMark } from '$lib/memorize/marks';
 	import {
 		setStartDifficulty,
@@ -42,6 +42,7 @@
 	let ratingsByVerseNo = $state<Map<number, VerseRowRating>>(new Map());
 	let marksByVerseNo = $state<Map<number, StoredMark[]>>(new Map());
 	let perfectVerseNos = $state<Set<number>>(new Set());
+	let lastCheckedByKey = $state<Map<string, number>>(new Map());
 	let bookmarksByVerseNo = $state<Map<number, BookmarkColor>>(new Map());
 
 	// Multi-select: a Set of verse.no the user has tapped. When non-empty, the
@@ -230,12 +231,14 @@
 		// for long lists. All three tables are indexed on packageId; rows only
 		// exist after the user interacts, so the scans stay small.
 		(async () => {
-			const [ratingRows, bookmarkRows, markRows, perfectRows] = await Promise.all([
-				db.verseRatings.where('packageId').equals(currentPackageId).toArray(),
-				db.bookmarks.where('packageId').equals(currentPackageId).toArray(),
-				listMarksForPackage(currentPackageId),
-				listPerfectVerseNos(currentPackageId)
-			]);
+			const [ratingRows, bookmarkRows, markRows, perfectRows, lastCheckedRows] =
+				await Promise.all([
+					db.verseRatings.where('packageId').equals(currentPackageId).toArray(),
+					db.bookmarks.where('packageId').equals(currentPackageId).toArray(),
+					listMarksForPackage(currentPackageId),
+					listPerfectVerseNos(currentPackageId),
+					listLastCheckedAt(currentPackageId)
+				]);
 			if (!active) return;
 			const nextRatings = new Map<number, VerseRowRating>();
 			for (const r of ratingRows) {
@@ -250,6 +253,7 @@
 			bookmarksByVerseNo = nextBookmarks;
 			marksByVerseNo = markRows;
 			perfectVerseNos = perfectRows;
+			lastCheckedByKey = lastCheckedRows;
 		})().catch(() => {});
 		return () => {
 			active = false;
@@ -446,6 +450,7 @@
 					fullDifficulty={rating?.full ?? null}
 					marks={marksByVerseNo.get(v.no) ?? []}
 					perfect={perfectVerseNos.has(v.no)}
+					lastCheckedAt={lastCheckedByKey.get(verseKeyOf(packageId, v.no)) ?? null}
 					onToggleMark={(i, word) => onToggleMark(v.no, i, word)}
 					onPickStartDifficulty={(l) => pickStart(v.no, l)}
 					onPickFullDifficulty={(l) => pickFull(v.no, l)}
