@@ -15,6 +15,7 @@
 	} from '$lib/memorize/grade';
 	import { submitsOnEnter } from '$lib/memorize/typing';
 	import { hasTypedOpening, startDifficultyFor } from '$lib/memorize/timing';
+	import { applyRatingKey, type RatingCursor } from '$lib/memorize/ratingEntry';
 	import { isSpeechSupported, joinSpoken, startSpeech, type SpeechSession } from '$lib/memorize/speech';
 	import { Mic, Square } from 'lucide-svelte';
 
@@ -112,6 +113,9 @@
 	 *  reading is "how long to recall the start", not "how long in total". */
 	let openingAtMs = $state<number | null>(null);
 	let confirming = $state(false);
+	/** Which rating the next digit fills. Reset whenever a confirmation opens,
+	 *  so every check starts at 첫 시작 however the last one ended. */
+	let cursor = $state<RatingCursor>('start');
 	let proposed = $state<{ start: DifficultyLevel | null; full: DifficultyLevel | null } | null>(
 		null
 	);
@@ -371,6 +375,7 @@
 		// Anything short of perfect goes through the reader — the app may
 		// declare success on its own, but not that a flawed attempt was easy.
 		proposed = result;
+		cursor = 'start';
 		confirming = true;
 	}
 
@@ -391,7 +396,53 @@
 		missedInSession = true;
 		proposed = { start: null, full: null };
 		gaveUp = true;
+		cursor = 'start';
 		confirming = true;
+	}
+
+	/** True while a badge's own menu is open. */
+	function menuIsOpen(): boolean {
+		return document.querySelector('[role="menu"]') !== null;
+	}
+
+	/** True when the keystroke belongs to something the reader is typing into. */
+	function aimedAtAField(target: EventTarget | null): boolean {
+		if (!(target instanceof HTMLElement)) return false;
+		return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+	}
+
+	/**
+	 * The confirmation screen, typed rather than clicked.
+	 *
+	 * Only while confirming: before that the reader is typing the verse, and
+	 * the digits are the verse's. On window rather than the panel because this
+	 * screen has nothing focused — the textarea it replaced is gone — so the
+	 * keystrokes arrive at the body.
+	 *
+	 * Everything it does not claim is left alone, unconsumed: the browser's own
+	 * combinations, a field elsewhere on the page, and any key while a badge
+	 * menu is open and handling its own.
+	 */
+	function onWindowKeydown(e: KeyboardEvent) {
+		if (!confirming || saved) return;
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		if (aimedAtAField(e.target) || menuIsOpen()) return;
+
+		if (submitsOnEnter(e)) {
+			// Exactly what the 저장 button offers, and never more: 전체 is what
+			// this screen exists to capture.
+			if (!proposed || proposed.full === null) return;
+			e.preventDefault();
+			save();
+			return;
+		}
+
+		if (!proposed) return;
+		const next = applyRatingKey({ ...proposed, cursor }, e.key);
+		if (!next) return;
+		e.preventDefault();
+		proposed = { start: next.start, full: next.full };
+		cursor = next.cursor;
 	}
 
 	function save() {
@@ -486,6 +537,8 @@
 		return panelEl?.closest<HTMLElement>('[data-testid="verse-row"]') ?? panelEl ?? null;
 	}
 </script>
+
+<svelte:window onkeydown={onWindowKeydown} />
 
 <Confetti fire={celebrate} origin={burstOrigin()} />
 
@@ -793,7 +846,14 @@
 					>{' '}{/each}
 			</p>
 		{/if}
-		<div class="mt-3 flex items-center gap-3">
+		<!-- Keyboard only. A phone has no such key, and the line would be one
+		     more thing to read past on the screen that matters most. -->
+		<p
+			class="mt-3 hidden text-[10.5px] text-[var(--color-text-tertiary)] pointer-fine:block"
+		>
+			숫자 키로 난이도 · Enter로 저장 · Backspace로 취소
+		</p>
+		<div class="mt-2 flex items-center gap-3">
 			<DifficultyBadge
 				value={proposed?.start ?? null}
 				label="첫 시작 난이도"
