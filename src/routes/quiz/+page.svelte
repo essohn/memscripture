@@ -42,6 +42,14 @@
 	 *  once looked perfect while saving nothing. */
 	let unsaved = $state(0);
 
+	/** The rounds' record writes. finishRound deliberately does not await
+	 *  them — a storage round-trip mid-quiz costs the reader their rhythm —
+	 *  but close() must, because it re-resolves the 대상 and a read that
+	 *  overtook the last write would miss the verse just asked about. That
+	 *  verse would then rank itself straight back to the top of the next
+	 *  session, which is the one thing this feature exists to prevent. */
+	let writes: Promise<unknown> = Promise.resolve();
+
 	const done = $derived(queue !== null && index >= queue.length);
 	const summary = $derived(summarize(results));
 	const failedItems = $derived(
@@ -109,7 +117,7 @@
 		if (item) {
 			// The reader is mid-quiz. A storage failure costs one record's worth
 			// of future evidence; stopping them to report it costs the session.
-			recordCheck(item.packageId, item.verseNo, {
+			const write = recordCheck(item.packageId, item.verseNo, {
 				start: null,
 				full: null,
 				accuracy: result.accuracy,
@@ -120,6 +128,7 @@
 			}).catch(() => {
 				unsaved += 1;
 			});
+			writes = Promise.all([writes, write]);
 		}
 		index += 1;
 	}
@@ -128,10 +137,19 @@
 		if (queue) start(queue, game);
 	}
 
-	function close() {
+	async function close() {
 		queue = null;
 		index = 0;
 		results = [];
+		// Re-resolve rather than just returning to the picker. The ten verses
+		// just asked about now carry a fresh lastAskedAt, and that is the
+		// entire mechanism by which they sink and the next session takes the
+		// next ten — without this, 닫기 다음 시작 hands back the identical ten.
+		// It also picks up a near-miss just recorded, which is a new question
+		// for 틀린 곳 찾기.
+		if (!selected) return;
+		await writes;
+		pick(selected);
 	}
 </script>
 

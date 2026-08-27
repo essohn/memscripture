@@ -214,3 +214,32 @@ describe('quiz/+page.svelte — source recording', () => {
 		});
 	});
 });
+
+// The reader's natural loop — finish ten verses, tap 끝내기, tap 시작 — must
+// hand back a freshly ranked ten, not the identical ones. The ten verses just
+// asked about now carry a fresh lastAskedAt, and that only reaches the queue
+// if closing the summary re-resolves the 대상.
+describe('quiz/+page.svelte — closing re-resolves the 대상', () => {
+	it('re-resolves the 대상 on 끝내기, not just on the initial pick', async () => {
+		render(QuizPage);
+		await waitFor(() => expect(screen.getByRole('button', { name: '시작' })).not.toBeDisabled());
+		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+
+		await fireEvent.input(screen.getByRole('textbox', { name: '암송 구절 입력' }), {
+			target: { value: verse.w }
+		});
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+
+		await waitFor(() =>
+			expect(screen.getByRole('button', { name: '끝내기' })).toBeInTheDocument()
+		);
+
+		const callsBeforeClose = resolveTargetMock.mock.calls.length;
+		await fireEvent.click(screen.getByRole('button', { name: '끝내기' }));
+
+		await waitFor(() =>
+			expect(resolveTargetMock.mock.calls.length).toBeGreaterThan(callsBeforeClose)
+		);
+	});
+});

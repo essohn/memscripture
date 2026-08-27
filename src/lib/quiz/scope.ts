@@ -51,7 +51,8 @@ function toItem(v: { package_id: string; no: number; title: string; cite: string
 }
 
 /**
- * A 대상's verses and their ratings, both keyed by `${packageId}:${verseNo}`.
+ * A 대상's verses, their ratings, their priority signals, and their recorded
+ * near-miss attempts — all keyed by `${packageId}:${verseNo}`.
  *
  * Reads verses with listVerses rather than loadPackageData: the latter calls
  * installPackage on a miss, and installing a package as a side effect of
@@ -111,9 +112,10 @@ export async function resolveTarget(target: Target): Promise<{
 	// something true to say about a verse's signal once the read actually
 	// succeeded, so a failure must skip it rather than report every verse as
 	// clean.
-	const history = await listRecentChecks([...packageIds]).catch(
-		() => undefined as Map<string, CheckRecord[]> | undefined
-	);
+	const history = await listRecentChecks([...packageIds]).catch((e) => {
+		console.warn('[quiz] history read failed; ranking falls back to id order', e);
+		return undefined;
+	});
 
 	const signals = new Map<string, VerseSignal>();
 	const attempts = new Map<string, string>();

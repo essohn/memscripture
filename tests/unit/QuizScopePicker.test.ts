@@ -110,6 +110,25 @@ describe('QuizScopePicker — games', () => {
 		);
 	});
 
+	// attemptCount is derived from `pool` (the tier-filtered scope), not the
+	// raw `items`. Every other fixture in this file has pool.length ===
+	// items.length, so a regression to items would pass all of them — this
+	// one needs both verses to carry an attempt AND one of them filtered out
+	// by a chip, so the pool-based count and the items-based count diverge.
+	it('counts attempts in the tier-filtered pool, not the raw items', async () => {
+		setup({
+			attempts: new Map([
+				['a_krv:1', '거의 맞은 문장'],
+				['a_krv:2', '또 다른 문장']
+			])
+		});
+		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'xEasy' }));
+		await waitFor(() =>
+			expect(screen.getByText('1구절 중 1개에 내 오답 기록이 있습니다')).toBeInTheDocument()
+		);
+	});
+
 	it('says nothing about attempts for the other games', () => {
 		setup();
 		expect(screen.queryByText(/내 오답 기록이 있습니다/)).toBeNull();

@@ -340,6 +340,18 @@ in `prune`'s retention policy — which is Phase 1 machinery serving the history
 sheet and the 만점 badge as much as this rule. Changing it here would be
 changing what the app remembers in order to change what the quiz asks.
 
+A second path of the same kind, and a commoner one. `signalOf` counts
+`quiz-opening` and `quiz-spot` rows as evidence, but `prune` treats them as
+second-class: `keptNonRecall = nonRecall.slice(0, HISTORY_LIMIT - keptRecall.length)`.
+On a verse already holding `HISTORY_LIMIT` recall-bearing rows that slice is
+empty, so every 첫 단어 and 틀린 곳 찾기 result is deleted in the same call
+that wrote it. For exactly the verses with the most history — the ones this
+rule most wants to hear about — two of the three games contribute nothing to
+the ranking. Reaching this takes ten checks on one verse, not ten *hinted*
+ones, so it is more reachable than the limit above. Accepted on the same
+terms, and for the same reason: the fix lives in `prune`'s retention policy,
+which serves the history sheet and the 만점 badge as much as it serves this.
+
 ## Open
 
 None. The one question Phase 1 left open is closed above.
