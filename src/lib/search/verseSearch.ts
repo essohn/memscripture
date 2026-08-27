@@ -7,6 +7,8 @@
  * exchange for nothing.
  */
 
+import { getBookFullName } from '$lib/bible/index';
+
 /** Leading consonant of each Hangul syllable block, in Unicode order. */
 const CHOSEONG = [
 	'ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ',
@@ -137,6 +139,32 @@ export function looksLikeReference(q: string): boolean {
 }
 
 /**
+ * Rewrites a leading book abbreviation into the full name citations are
+ * stored under: '살전 5' → '데살로니가전서 5'.
+ *
+ * Matching is a plain substring test against the citation, and citations only
+ * ever carry full names. That happened to work for 창 and 대상 — an
+ * abbreviation that opens its own full name is a substring of it — but 31 of
+ * the 66 do not, and '살전' is nowhere inside '데살로니가전서': the 살 is its
+ * second syllable and the 전 its sixth. Those books were unreachable by the
+ * name anyone actually types.
+ *
+ * Only fires when a chapter follows. '사' is 이사야 and '시' is 시편, so
+ * expanding a bare leading syllable would turn '사랑' into '이사야랑' and
+ * '시작' into '시편작', losing every real hit. A digit is what separates
+ * someone naming a passage from someone typing a word.
+ *
+ * A full name expands to itself, so the reader who spells it out is unaffected.
+ */
+export function expandBookAbbreviation(query: string): string {
+	const m = /^\s*([가-힣]+)\s*(\d.*)$/.exec(query);
+	if (!m) return query;
+	const [, book, rest] = m;
+	const full = getBookFullName(book);
+	return full === null ? query : `${full} ${rest}`;
+}
+
+/**
  * Verses matching the query, best field first.
  *
  * Body matches come last deliberately: someone typing a reference or a title
@@ -148,7 +176,11 @@ export function searchVerses(
 	query: string,
 	limit = 100
 ): SearchHit[] {
-	const q = normalizeQuery(query);
+	// Expanded before normalizing, because the abbreviation is told from a word
+	// by the digit that follows it — and normalizing strips the space that
+	// digit sits behind. 초성 queries carry no digits, so this never fires on
+	// one; `byChoseong` still reads the query as the reader typed it.
+	const q = normalizeQuery(expandBookAbbreviation(query));
 	if (q.length === 0) return [];
 	const byChoseong = isChoseongQuery(query);
 	const needle = q;

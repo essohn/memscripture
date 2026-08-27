@@ -143,3 +143,61 @@ describe('searchVerses', () => {
 		expect(searchVerses(many, '자손', 10)).toHaveLength(10);
 	});
 });
+
+// Citations are stored under full book names only, and the search compares the
+// query to them as a plain substring. That works for 창 and 대상 by accident —
+// they happen to open their own full names — but 31 of the 66 abbreviations do
+// not, and nobody types 데살로니가전서.
+describe('searchVerses: book abbreviations', () => {
+	const 살전 = V({ no: 40, title: '기도', cite: '데살로니가전서 5 : 17-18', w: '쉬지 말고 기도하라' });
+	const 창세기 = V({ no: 1, cite: '창세기 28 : 14' });
+
+	it('finds a verse by the abbreviation the reader actually types', () => {
+		const hits = searchVerses([살전, 창세기], '살전 5');
+		expect(hits).toHaveLength(1);
+		expect(hits[0].verse.cite).toBe('데살로니가전서 5 : 17-18');
+	});
+
+	it('accepts the abbreviation with no space before the chapter', () => {
+		expect(searchVerses([살전, 창세기], '살전5')[0]?.verse.no).toBe(40);
+	});
+
+	it('carries the verse through as well as the chapter', () => {
+		expect(searchVerses([살전, 창세기], '살전 5:17')[0]?.verse.no).toBe(40);
+	});
+
+	// An abbreviation whose full name it does not open, in the other direction:
+	// 롬 has no 롬 in 로마서 at all.
+	it('finds the books whose abbreviation shares no syllable with their name', () => {
+		const 롬 = V({ no: 7, cite: '로마서 8 : 28' });
+		const 벧전 = V({ no: 8, cite: '베드로전서 5 : 7' });
+		expect(searchVerses([롬, 벧전], '롬 8')[0]?.verse.cite).toBe('로마서 8 : 28');
+		expect(searchVerses([롬, 벧전], '벧전 5')[0]?.verse.cite).toBe('베드로전서 5 : 7');
+	});
+
+	it('still works when the reader spells the book out', () => {
+		expect(searchVerses([살전, 창세기], '데살로니가전서 5')[0]?.verse.no).toBe(40);
+		expect(searchVerses([살전, 창세기], '창세기 28')[0]?.verse.no).toBe(1);
+	});
+
+	// The expansion must not fire on ordinary text. '사' is 이사야 and '시' is
+	// 시편, and rewriting them mid-search would turn a body query into a
+	// reference and lose every real hit.
+	it('leaves a plain word alone even when it opens with a book abbreviation', () => {
+		const 사랑 = V({ no: 9, title: '사랑', cite: '요한복음 3 : 16', w: '하나님이 세상을 이처럼 사랑하사' });
+		expect(searchVerses([사랑], '사랑')[0]?.field).toBe('title');
+		expect(searchVerses([사랑], '세상')[0]?.field).toBe('body');
+	});
+
+	it('does not expand a book name that is not followed by a chapter', () => {
+		const 시편 = V({ no: 10, title: '시작', cite: '시편 23 : 1', w: '여호와는 나의 목자시니' });
+		expect(searchVerses([시편], '시작')[0]?.field).toBe('title');
+	});
+
+	// The highlight has to land on the citation as printed, not on the
+	// abbreviation the reader typed — which is not in the text at all.
+	it('highlights the full book name the citation actually shows', () => {
+		const hit = searchVerses([살전], '살전 5')[0];
+		expect(hitText(hit)).toBe('데살로니가전서 5');
+	});
+});

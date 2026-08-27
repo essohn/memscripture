@@ -212,9 +212,35 @@ export interface SpeakOptions {
 	voice?: string;
 	/** Preferred gender, applied only when the device has such a voice. */
 	gender?: VoiceGender;
-	/** Keep reading the verse over and over until stopped. */
+	/** Keep reading the script over and over until stopped. What that means is
+	 *  the caller's choice, not this file's: one verse from `VerseCard`, a
+	 *  whole list from `PlaylistPlayer` — the engine loops whatever `segments`
+	 *  it was handed. */
 	repeat?: boolean;
 	onEnd?: () => void;
+}
+
+/**
+ * The playback currently holding the global speechSynthesis queue.
+ *
+ * There is one queue, so there is one owner. A new playback relieves the old
+ * one through its own stop() rather than yanking the queue with cancel() —
+ * cancel fires the outgoing utterance's `end`, which a repeating player reads
+ * as "the verse finished" and answers by starting itself again. Two voices at
+ * once was the symptom; this is the cause.
+ */
+let activeStop: (() => void) | null = null;
+
+function claimSynth(stop: () => void): void {
+	const previous = activeStop;
+	// Registered before the previous owner is stopped, so that owner's own
+	// release() sees it is no longer current and leaves the new one alone.
+	activeStop = stop;
+	if (previous !== stop) previous?.();
+}
+
+function releaseSynth(stop: () => void): void {
+	if (activeStop === stop) activeStop = null;
 }
 
 export function isTtsSupported(): boolean {
@@ -235,20 +261,60 @@ const KEEPALIVE_MS = 10_000;
 export function speak(segments: string[], opts: SpeakOptions = {}): SpeakHandle | null {
 	if (!isTtsSupported() || segments.length === 0) return null;
 	const synth = window.speechSynthesis;
-	// Whatever another card was saying stops here — speechSynthesis is one
-	// global queue, so two cards playing at once is not a thing that can happen.
-	// Guarded rather than unconditional: on iOS a cancel() immediately followed
-	// by speak() in the same tick swallows the utterance, so nothing is
-	// cancelled when there was nothing to cancel.
-	if (synth.speaking || synth.pending) synth.cancel();
 
 	let stopped = false;
 	let keepalive: ReturnType<typeof setInterval> | null = null;
+
+	// Named rather than inline so it can be handed to claimSynth as this
+	// playback's identity: the next playback relieves it by calling this.
+	function stop() {
+		// Order matters: mark stopped first so the chained onend does not
+		// start the next segment as cancel() tears the current one down. A
+		// second call must stop there: once relieved, the global queue may
+		// already belong to a successor, and reaching synth.cancel() again
+		// would cancel *their* utterance — the same "cancel reads as
+		// finished" bug this file exists to fix, sprung from behind by a
+		// stale handle instead of by another playback starting.
+		const wasStopped = stopped;
+		stopped = true;
+		if (keepalive !== null) clearInterval(keepalive);
+		if (wasStopped) return;
+		releaseSynth(stop);
+		synth.cancel();
+		opts.onEnd?.();
+	}
+
+	// Assigned before claimSynth: relieving the previous owner can run this
+	// playback's own stop() synchronously — its onEnd chaining straight into
+	// a new playback, whose claim reaches back and relieves this one before
+	// it has spoken a word. stop() must find a real interval to clear then,
+	// not null, or the timer below outlives every handle that could clear it.
+	keepalive = setInterval(() => {
+		if (stopped) return;
+		if (synth.speaking && !synth.paused) synth.resume();
+	}, KEEPALIVE_MS);
+
+	claimSynth(stop);
+	// Still guarded rather than unconditional: on iOS a cancel() immediately
+	// followed by speak() in the same tick swallows the utterance, so nothing
+	// is cancelled when there was nothing to cancel. claimSynth has already
+	// relieved any playback this module started; this covers a queue left busy
+	// by something outside it.
+	//
+	// Also guarded by `stopped`: claimSynth can synchronously run a chain of
+	// onEnd handlers that ends with a third playback claiming the queue and
+	// relieving *this* one before this line runs. Without the check, this
+	// would cancel that successor's utterance out from under it — say(0)'s own
+	// `if (stopped) return` already declines to speak in that case, but this
+	// cancel doesn't ask first, and the result is silence instead of the third
+	// playback's verse.
+	if (!stopped && (synth.speaking || synth.pending)) synth.cancel();
 
 	function finish() {
 		if (stopped) return;
 		stopped = true;
 		if (keepalive !== null) clearInterval(keepalive);
+		releaseSynth(stop);
 		opts.onEnd?.();
 	}
 
@@ -279,24 +345,9 @@ export function speak(segments: string[], opts: SpeakOptions = {}): SpeakHandle 
 		synth.speak(u);
 	}
 
-	keepalive = setInterval(() => {
-		if (stopped) return;
-		if (synth.speaking && !synth.paused) synth.resume();
-	}, KEEPALIVE_MS);
-
 	say(0);
 
-	return {
-		stop: () => {
-			// Order matters: mark stopped first so the chained onend does not
-			// start the next segment as cancel() tears the current one down.
-			const wasStopped = stopped;
-			stopped = true;
-			if (keepalive !== null) clearInterval(keepalive);
-			synth.cancel();
-			if (!wasStopped) opts.onEnd?.();
-		}
-	};
+	return { stop };
 }
 
 // ─── Player ─────────────────────────────────────────────────────────────────
@@ -390,6 +441,7 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 	let stopped = false;
 	let paused = false;
 	let ticker: ReturnType<typeof setInterval> | null = null;
+	let keepalive: ReturnType<typeof setInterval> | null = null;
 	let current: SpeechSynthesisUtterance | null = null;
 
 	function elapsed(): number {
@@ -407,6 +459,21 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 			elapsedMs: elapsed(),
 			totalMs
 		});
+	}
+
+	/**
+	 * Silences the outgoing utterance before the synth is cancelled.
+	 *
+	 * cancel() fires `end` on whatever is speaking. Inside playFrom that
+	 * utterance is our own, one line from being replaced — and its handler
+	 * would read the cancel as "the script finished" and, with repeat armed,
+	 * throw the reader back to offset 0 instead of to where they scrubbed.
+	 */
+	function detachCurrent() {
+		if (!current) return;
+		current.onend = null;
+		current.onboundary = null;
+		current.onerror = null;
 	}
 
 	function playFrom(offset: number) {
@@ -443,6 +510,7 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 			finish();
 		};
 		u.onerror = () => finish();
+		detachCurrent();
 		current = u;
 		if (synth.speaking || synth.pending) synth.cancel();
 		synth.speak(u);
@@ -452,7 +520,23 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		if (stopped) return;
 		stopped = true;
 		if (ticker !== null) clearInterval(ticker);
+		if (keepalive !== null) clearInterval(keepalive);
+		releaseSynth(stop);
 		opts.onProgress?.({ fraction: 1, elapsedMs: totalMs, totalMs });
+		opts.onEnd?.();
+	}
+
+	// Named for the same reason speak()'s is: this is the handle claimSynth
+	// holds, and the way the next playback relieves this one.
+	function stop() {
+		if (stopped) return;
+		stopped = true;
+		if (ticker !== null) clearInterval(ticker);
+		if (keepalive !== null) clearInterval(keepalive);
+		releaseSynth(stop);
+		detachCurrent();
+		synth.cancel();
+		current = null;
 		opts.onEnd?.();
 	}
 
@@ -460,6 +544,28 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		if (!stopped && !paused) report();
 	}, 200);
 
+	// Same platform fact speak()'s keepalive above is for — Chrome drops
+	// synthesis after roughly 15 seconds unless resume() is called — but the
+	// odds of hitting it are two orders of magnitude higher here. speak() only
+	// ever reads one verse; this engine now also carries 전체 듣기's whole
+	// script as a single utterance (playFrom joins the entire remainder), and
+	// the shipped fixture alone runs to 149 verses, ~15,000 characters, tens of
+	// minutes of audio — all of it past the 15-second cliff. Worse, because
+	// speakListRepeat defaults on, the death does not go quiet: playFrom's
+	// onend reads it as "the script finished" and restarts from offset 0, so
+	// what a reader hears is the first verse looping forever while the bar's
+	// clock keeps climbing toward a runtime it will never reach. resume() on a
+	// synth that is not paused is a no-op, so this is inert if the platform
+	// ever stops needing it. A second interval rather than folding into the
+	// 200ms ticker above: the nudge cadence is a platform constant, not a UI
+	// refresh rate, and tying the two together would make a future change to
+	// report()'s frequency silently change this too.
+	keepalive = setInterval(() => {
+		if (stopped || paused) return;
+		if (synth.speaking && !synth.paused) synth.resume();
+	}, KEEPALIVE_MS);
+
+	claimSynth(stop);
 	startedAt = Date.now();
 	playFrom(0);
 
@@ -468,6 +574,7 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 			if (stopped || paused) return;
 			paused = true;
 			elapsedBefore += Date.now() - startedAt;
+			detachCurrent();
 			synth.cancel();
 			report();
 		},
@@ -492,13 +599,6 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 			playFrom(offset);
 			report();
 		},
-		stop() {
-			if (stopped) return;
-			stopped = true;
-			if (ticker !== null) clearInterval(ticker);
-			synth.cancel();
-			current = null;
-			opts.onEnd?.();
-		}
+		stop
 	};
 }

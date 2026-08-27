@@ -89,6 +89,11 @@ export interface SpeakOptionsStored {
 	speakRate: SpeakRate;
 	/** Keep reading the verse until stopped. */
 	speakRepeat: boolean;
+	/** Loop the whole list in 전체 듣기. Separate from speakRepeat, which means
+	 *  "loop this one verse forever" on a card — a reader who wants a list to
+	 *  come round again does not want every card to loop. On by default:
+	 *  reaching for 전체 듣기 is usually about soaking in a set. */
+	speakListRepeat: boolean;
 	/** Chosen voice name, or '' to let the ranking decide. Voices differ by
 	 *  device and taste, so this is the reader's call when they want it. */
 	speakVoice: string;
@@ -96,10 +101,11 @@ export interface SpeakOptionsStored {
 	speakGender: 'male' | 'female' | 'auto';
 }
 
-const SPEAK_DEFAULTS: SpeakOptionsStored = {
+export const SPEAK_DEFAULTS: SpeakOptionsStored = {
 	speakTitle: false,
 	speakRate: 0.9,
 	speakRepeat: false,
+	speakListRepeat: true,
 	speakVoice: '',
 	// Auto, which the quality ranking resolves to the neural voice — 'Google
 	// 한국의' on Chrome. Naming it here instead would go silent on iPhone,
@@ -115,6 +121,10 @@ export async function getSpeakOptions(): Promise<SpeakOptionsStored> {
 		speakRate: rate ?? SPEAK_DEFAULTS.speakRate,
 		speakRepeat:
 			typeof raw.speakRepeat === 'boolean' ? raw.speakRepeat : SPEAK_DEFAULTS.speakRepeat,
+		speakListRepeat:
+			typeof raw.speakListRepeat === 'boolean'
+				? raw.speakListRepeat
+				: SPEAK_DEFAULTS.speakListRepeat,
 		speakVoice: typeof raw.speakVoice === 'string' ? raw.speakVoice : SPEAK_DEFAULTS.speakVoice,
 		speakGender:
 			raw.speakGender === 'male' || raw.speakGender === 'female' || raw.speakGender === 'auto'

@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/svelte';
+import { render, screen, fireEvent } from '@testing-library/svelte';
 import 'fake-indexeddb/auto';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { db } from '../../src/lib/db/local';
 import EventSection from '../../src/lib/components/home/EventSection.svelte';
 import type { EventCardVM } from '../../src/lib/db/events';
@@ -22,7 +22,8 @@ const card: EventCardVM = {
 	],
 	// All zero, so the stats block stays hidden and the cases below keep
 	// measuring what they were written to measure.
-	stats: { total: 5, perfect: 0, start: [0, 0, 0, 0, 0], full: [0, 0, 0, 0, 0] }
+	stats: { total: 5, perfect: 0, start: [0, 0, 0, 0, 0], full: [0, 0, 0, 0, 0] },
+	verses: []
 };
 
 describe('EventSection', () => {
@@ -77,5 +78,150 @@ describe('EventSection', () => {
 	it('shows D-DAY on the due date', () => {
 		render(EventSection, { props: { events: [{ ...card, dDay: 0 }] } });
 		expect(screen.getByText('D-DAY')).toBeInTheDocument();
+	});
+});
+
+// `unknown[]`, not `Record<string, unknown>[]`: FakeUtterance is declared
+// inside installFakeSynth() below, so its type isn't in scope up here, and a
+// class instance isn't structurally assignable to an indexed-signature type.
+const spoken: unknown[] = [];
+
+function installFakeSynth() {
+	class FakeUtterance {
+		text: string;
+		lang = '';
+		rate = 1;
+		voice: unknown = null;
+		onend: (() => void) | null = null;
+		onerror: (() => void) | null = null;
+		onboundary: ((e: { charIndex: number }) => void) | null = null;
+		constructor(text: string) {
+			this.text = text;
+		}
+	}
+	const synth = {
+		speaking: false,
+		pending: false,
+		paused: false,
+		getVoices: () => [{ name: 'Google 한국의', lang: 'ko-KR' }],
+		speak(u: FakeUtterance) {
+			spoken.push(u);
+			synth.speaking = true;
+		},
+		cancel() {
+			synth.speaking = false;
+		},
+		resume() {}
+	};
+	vi.stubGlobal('speechSynthesis', synth);
+	vi.stubGlobal('SpeechSynthesisUtterance', FakeUtterance);
+}
+
+const withVerses: EventCardVM = {
+	...card,
+	verses: [
+		{ title: '중심', cite: '창세기 28 : 14', w: '네 자손이 땅의 티끌 같이 되어' },
+		{ title: '사랑', cite: '요한복음 3 : 16', w: '하나님이 세상을 이처럼 사랑하사' }
+	]
+};
+
+// A second, distinctly-titled event with its own verses — for proving the
+// section raises exactly one bar, not one per event.
+const withVersesB: EventCardVM = {
+	...card,
+	eventId: 'e2',
+	eventTitle: '12월 암송 데이',
+	verses: [
+		{ title: '소망', cite: '로마서 8 : 28', w: '우리가 알거니와 하나님을 사랑하는 자 곧' },
+		{ title: '믿음', cite: '히브리서 11 : 1', w: '믿음은 바라는 것들의 실상이요' }
+	]
+};
+
+describe('EventSection — 전체 듣기', () => {
+	beforeEach(() => {
+		spoken.length = 0;
+		installFakeSynth();
+	});
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('offers 전체 듣기 for an event with verses', () => {
+		render(EventSection, { props: { events: [withVerses] } });
+		expect(
+			screen.getByRole('button', { name: '11월 암송 데이 전체 듣기' })
+		).toBeInTheDocument();
+	});
+
+	// Absent rather than offered and then failing.
+	it('offers nothing when the platform does not speak', () => {
+		vi.unstubAllGlobals();
+		// Unstubbing is not enough on its own: tests/unit/setup.ts installs a
+		// global speechSynthesis so route components can reach for one at module
+		// scope, and support is read as `'speechSynthesis' in window` — the key
+		// has to be gone, not merely undefined, for the platform to look mute.
+		// setup.ts defines it configurable, and the next case's beforeEach stubs
+		// it back, so the deletion cannot leak past this test.
+		const restore = Object.getOwnPropertyDescriptor(globalThis, 'speechSynthesis');
+		delete (globalThis as { speechSynthesis?: unknown }).speechSynthesis;
+		try {
+			render(EventSection, { props: { events: [withVerses] } });
+			expect(screen.queryByRole('button', { name: /전체 듣기/ })).toBeNull();
+		} finally {
+			if (restore) Object.defineProperty(globalThis, 'speechSynthesis', restore);
+		}
+	});
+
+	it('offers nothing for an event with no verses', () => {
+		render(EventSection, { props: { events: [{ ...withVerses, verses: [] }] } });
+		expect(screen.queryByRole('button', { name: /전체 듣기/ })).toBeNull();
+	});
+
+	it('tapping it speaks and raises the bar', async () => {
+		render(EventSection, { props: { events: [withVerses] } });
+		await fireEvent.click(screen.getByRole('button', { name: '11월 암송 데이 전체 듣기' }));
+		expect(spoken).toHaveLength(1);
+		expect(screen.getByRole('button', { name: '재생 닫기' })).toBeInTheDocument();
+		expect(screen.getByText('창세기 28 : 14')).toBeInTheDocument();
+		// `index` arrives 1-based, not 0-based, for the two-verse fixture.
+		expect(screen.getByText('1/2')).toBeInTheDocument();
+		// listRepeat defaults on — proves `repeat` is wired to player.listRepeat.
+		expect(screen.getByRole('button', { name: '목록 반복' })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+	});
+
+	it('the header button becomes a stop while its own list is open', async () => {
+		render(EventSection, { props: { events: [withVerses] } });
+		await fireEvent.click(screen.getByRole('button', { name: '11월 암송 데이 전체 듣기' }));
+		expect(
+			screen.getByRole('button', { name: '11월 암송 데이 듣기 정지' })
+		).toBeInTheDocument();
+	});
+
+	it('tapping the stop puts the bar away', async () => {
+		render(EventSection, { props: { events: [withVerses] } });
+		await fireEvent.click(screen.getByRole('button', { name: '11월 암송 데이 전체 듣기' }));
+		await fireEvent.click(screen.getByRole('button', { name: '11월 암송 데이 듣기 정지' }));
+		expect(screen.queryByRole('button', { name: '재생 닫기' })).toBeNull();
+	});
+
+	it('starting a second event hands the one bar off — not one per event', async () => {
+		render(EventSection, { props: { events: [withVerses, withVersesB] } });
+		await fireEvent.click(screen.getByRole('button', { name: '11월 암송 데이 전체 듣기' }));
+		expect(screen.getByText('창세기 28 : 14')).toBeInTheDocument();
+
+		await fireEvent.click(screen.getByRole('button', { name: '12월 암송 데이 전체 듣기' }));
+
+		// The plural query is the point: there must be exactly one bar, hence
+		// exactly one close button, even with a second event now playing.
+		expect(screen.getAllByRole('button', { name: '재생 닫기' })).toHaveLength(1);
+		expect(
+			screen.getByRole('button', { name: '11월 암송 데이 전체 듣기' })
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: '12월 암송 데이 듣기 정지' })
+		).toBeInTheDocument();
+		expect(screen.getByText('로마서 8 : 28')).toBeInTheDocument();
+		expect(screen.queryByText('창세기 28 : 14')).toBeNull();
 	});
 });
