@@ -555,14 +555,17 @@ EOF
 ### Task 4: 첫 단어
 
 **Files:**
+- Modify: `src/lib/memorize/timing.ts` (extract `openingOf`)
 - Create: `src/lib/components/quiz/QuizOpeningRound.svelte`
-- Test: `tests/unit/QuizOpeningRound.test.ts`
+- Test: `tests/unit/timing.test.ts` (extend), `tests/unit/QuizOpeningRound.test.ts`
 
 **Interfaces:**
-- Consumes: `hasTypedOpening` from `$lib/memorize/timing`; `QuizItem`, `RoundResult` from `$lib/quiz/session`.
-- Produces: a component with props `{ item: QuizItem; index: number; total: number; onDone: (result: RoundResult) => void }` — the same four the typing round takes, so the route treats them alike.
+- Consumes: `hasTypedOpening` and `openingOf` from `$lib/memorize/timing`; `QuizItem`, `RoundResult` from `$lib/quiz/session`.
+- Produces: `openingOf(verse: string): string` exported from `timing.ts`, and a component with props `{ item: QuizItem; index: number; total: number; onDone: (result: RoundResult) => void }` — the same four the typing round takes, so the route treats them alike.
 
 The pass rule is `hasTypedOpening(item.w, typed)`, used exactly as it stands. It compares under the grading normalization (so spacing never holds it open) and falls back for verses shorter than two words. Do not reimplement it and do not change `OPENING_WORDS`.
+
+**`모르겠어요` has to show the opening, and that means extracting it.** `OPENING_WORDS` is private to `timing.ts` and `hasTypedOpening` computes the opening only to compare it. Writing `.slice(0, 2)` in the component would put the number in two places — which is the second definition of "has started this verse" the constraints forbid. So this task first pulls the phrase out of `hasTypedOpening` into an exported `openingOf`, and both callers use it.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -675,11 +678,60 @@ Expected: FAIL — cannot resolve `QuizOpeningRound.svelte`.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Create `src/lib/components/quiz/QuizOpeningRound.svelte`:
+First, in `src/lib/memorize/timing.ts`, export the phrase and let
+`hasTypedOpening` use it:
+
+```ts
+/**
+ * The words that count as having started this verse.
+ *
+ * Exported because 첫 단어 has to *show* the opening when the reader gives up,
+ * and slicing it again at the call site would put OPENING_WORDS in two places
+ * — two definitions of the same thing, drifting apart the first time either
+ * moves.
+ */
+export function openingOf(verse: string): string {
+	return verse.trim().split(/\s+/).filter(Boolean).slice(0, OPENING_WORDS).join(' ');
+}
+```
+
+and rewrite `hasTypedOpening`'s first two lines to read it:
+
+```ts
+export function hasTypedOpening(verse: string, typed: string): boolean {
+	const opening = normalizeForGrading(openingOf(verse));
+	if (opening.length === 0) return false;
+	return normalizeForGrading(typed).startsWith(opening);
+}
+```
+
+Add to `tests/unit/timing.test.ts`:
+
+```ts
+describe('openingOf', () => {
+	it('is the first two words', () => {
+		expect(openingOf('그들에게 율례와 법도를 가르쳐서')).toBe('그들에게 율례와');
+	});
+
+	// A one-word verse still has an opening, so its clock can stop.
+	it('falls back to what a short verse has', () => {
+		expect(openingOf('여호와여')).toBe('여호와여');
+	});
+
+	it('is empty for an empty verse', () => {
+		expect(openingOf('   ')).toBe('');
+	});
+});
+```
+
+extending that file's import from `../../src/lib/memorize/timing` to include
+`openingOf`.
+
+Then create `src/lib/components/quiz/QuizOpeningRound.svelte`:
 
 ```svelte
 <script lang="ts">
-	import { hasTypedOpening } from '$lib/memorize/timing';
+	import { hasTypedOpening, openingOf } from '$lib/memorize/timing';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
 
 	interface Props {
@@ -702,8 +754,10 @@ Create `src/lib/components/quiz/QuizOpeningRound.svelte`:
 	 *  the pause before starting is part of recalling how a verse opens. */
 	const startedAt = Date.now();
 
-	/** The words that count as having started. Shown only after 모르겠어요. */
-	const opening = $derived(item.w.trim().split(/\s+/).filter(Boolean).slice(0, 2).join(' '));
+	/** The words that count as having started. Shown only after 모르겠어요.
+	 *  Borrowed from timing.ts rather than sliced here — the number lives in
+	 *  one place or it is two definitions of the same thing. */
+	const opening = $derived(openingOf(item.w));
 
 	/** Graded continuously — there is no 제출. Leaving is still a separate
 	 *  step, so the reader sees the verdict before the round is swapped out. */
@@ -772,13 +826,16 @@ Create `src/lib/components/quiz/QuizOpeningRound.svelte`:
 Run: `pnpm test tests/unit/QuizOpeningRound.test.ts`
 Expected: PASS, 9 tests.
 
+Run: `pnpm test tests/unit/timing.test.ts`
+Expected: PASS — 3 new plus the file's existing tests, which must survive the extraction unchanged.
+
 Run: `pnpm check`
 Expected: 0 errors.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/lib/components/quiz/QuizOpeningRound.svelte tests/unit/QuizOpeningRound.test.ts
+git add src/lib/memorize/timing.ts src/lib/components/quiz/QuizOpeningRound.svelte tests/unit/timing.test.ts tests/unit/QuizOpeningRound.test.ts
 git commit -F - <<'EOF'
 feat(quiz): a round that only asks you to get started
 
@@ -1407,7 +1464,7 @@ In `finishRound`, replace the hardcoded `source: 'quiz'`:
 - [ ] **Step 4: Run the whole suite**
 
 Run: `pnpm test`
-Expected: PASS. The branch started at 1303; this plan adds 7 + 9 + 3 + 9 + 8 + 9 = 45, so expect **1348**. If the totals disagree, report the real numbers rather than adjusting the expectation.
+Expected: PASS. The branch started at 1303; this plan adds 7 + 9 + 3 + 12 + 8 + 9 = 48, so expect **1351**. If the totals disagree, report the real numbers rather than adjusting the expectation.
 
 Run: `pnpm check`
 Expected: 0 errors.
