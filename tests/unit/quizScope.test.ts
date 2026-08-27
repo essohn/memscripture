@@ -1,7 +1,8 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../src/lib/db/local';
-import { listTargets, resolveTarget, type Target } from '../../src/lib/quiz/scope';
+import { listTargets, loadAttempts, resolveTarget, type Target } from '../../src/lib/quiz/scope';
+import { recordCheck } from '../../src/lib/db/checkHistory';
 
 beforeEach(async () => {
 	await db.delete();
@@ -115,5 +116,47 @@ describe('listTargets', () => {
 		const targets = await listTargets('2026-08-27');
 		const a = targets.find((t) => t.kind === 'package' && t.id === 'a_krv');
 		expect(a).toMatchObject({ kind: 'package', label: 'A구절' });
+	});
+});
+
+describe('loadAttempts', () => {
+	const item = (packageId: string, verseNo: number) => ({
+		id: `${packageId}:${verseNo}`,
+		packageId,
+		verseNo,
+		title: 't',
+		cite: 'c',
+		w: 'w'
+	});
+
+	it('returns nothing when no attempt was ever kept', async () => {
+		expect((await loadAttempts([item('a_krv', 1)])).size).toBe(0);
+	});
+
+	it('returns the stored attempt for a verse that has one', async () => {
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: '거의 맞은 문장' } as never, 1000);
+		expect((await loadAttempts([item('a_krv', 1)])).get('a_krv:1')).toBe('거의 맞은 문장');
+	});
+
+	// The most recent record with an attempt — not the most recent record,
+	// which may well be a later clean check that kept nothing.
+	it('is not erased by a later clean check', async () => {
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: '거의 맞은 문장' } as never, 1000);
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 1, elapsedMs: 1 } as never, 2000);
+		expect((await loadAttempts([item('a_krv', 1)])).get('a_krv:1')).toBe('거의 맞은 문장');
+	});
+
+	it('prefers the newer of two stored attempts', async () => {
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: '먼저' } as never, 1000);
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: '나중' } as never, 2000);
+		expect((await loadAttempts([item('a_krv', 1)])).get('a_krv:1')).toBe('나중');
+	});
+
+	it('keeps two packages\' verse 1 apart', async () => {
+		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: 'A' } as never, 1000);
+		await recordCheck('b_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: 'B' } as never, 1000);
+		const got = await loadAttempts([item('a_krv', 1), item('b_krv', 1)]);
+		expect(got.get('a_krv:1')).toBe('A');
+		expect(got.get('b_krv:1')).toBe('B');
 	});
 });

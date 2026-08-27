@@ -1,8 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import QuizScopePicker from '../../src/lib/components/quiz/QuizScopePicker.svelte';
 import type { Target } from '../../src/lib/quiz/scope';
 import type { ItemRating, QuizItem } from '../../src/lib/quiz/session';
+
+vi.mock('../../src/lib/quiz/scope', async (importOriginal) => ({
+	...(await importOriginal<typeof import('../../src/lib/quiz/scope')>()),
+	loadAttempts: vi.fn(async () => new Map([['a_krv:1', '거의 맞은 문장']]))
+}));
 
 const targets: Target[] = [
 	{ kind: 'event', id: 'e1', label: '11월 암송 데이', ranges: [] },
@@ -75,5 +80,47 @@ describe('QuizScopePicker', () => {
 		const { onPick } = setup();
 		await fireEvent.click(screen.getByRole('button', { name: '11월 암송 데이' }));
 		expect(onPick).toHaveBeenCalledWith(targets[0]);
+	});
+});
+
+describe('QuizScopePicker — games', () => {
+	it('offers the three games and starts on 전체 타이핑', () => {
+		setup();
+		expect(screen.getByRole('button', { name: '전체 타이핑' })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+		expect(screen.getByRole('button', { name: '첫 단어' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: '틀린 곳 찾기' })).toBeInTheDocument();
+	});
+
+	it('tells onStart which game was chosen', async () => {
+		const { onStart } = setup();
+		await fireEvent.click(screen.getByRole('button', { name: '첫 단어' }));
+		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+		expect(onStart.mock.calls[0][1]).toBe('opening');
+	});
+
+	// Early on most verses have no recorded attempt, and without this line the
+	// winning strategy is to press 이상 없음 every round.
+	it('says how many real questions 틀린 곳 찾기 has', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
+		await waitFor(() =>
+			expect(screen.getByText('2구절 중 1개에 내 오답 기록이 있습니다')).toBeInTheDocument()
+		);
+	});
+
+	it('says nothing about attempts for the other games', () => {
+		setup();
+		expect(screen.queryByText(/내 오답 기록이 있습니다/)).toBeNull();
+	});
+
+	// The heading names what the chips do — they pick a group of verses by
+	// difficulty, they do not set one.
+	it('heads the difficulty chips 난이도 그룹 선택', () => {
+		setup();
+		expect(screen.getByText('난이도 그룹 선택')).toBeInTheDocument();
+		expect(screen.queryByText('난이도')).toBeNull();
 	});
 });

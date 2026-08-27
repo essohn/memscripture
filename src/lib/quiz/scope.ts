@@ -93,3 +93,34 @@ export async function resolveTarget(
 
 	return { items, ratings };
 }
+
+/**
+ * Per verse, the `typed` of its most recent record that has one.
+ *
+ * Not the most recent record — that may well be a later clean check, which
+ * keeps no attempt. A verse whose attempt was recorded weeks ago is still a
+ * question worth asking; the point is to hand back the sentence the reader
+ * actually wrote, whenever they wrote it.
+ *
+ * Keyed by QuizItem.id. Verses with no stored attempt are absent, so the
+ * picker can count the map's size to say how many real questions a scope holds.
+ */
+export async function loadAttempts(items: QuizItem[]): Promise<Map<string, string>> {
+	const wanted = new Set(items.map((i) => i.id));
+	const out = new Map<string, string>();
+	const newest = new Map<string, number>();
+
+	for (const packageId of new Set(items.map((i) => i.packageId))) {
+		const rows = await db.checkHistory.where('verseKey').startsWith(`${packageId}:`).toArray();
+		for (const r of rows) {
+			if (r.typed === undefined) continue;
+			const id = `${r.packageId}:${r.verseNo}`;
+			if (!wanted.has(id)) continue;
+			if ((newest.get(id) ?? -Infinity) >= r.checkedAt) continue;
+			newest.set(id, r.checkedAt);
+			out.set(id, r.typed);
+		}
+	}
+
+	return out;
+}
