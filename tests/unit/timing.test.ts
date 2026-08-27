@@ -20,6 +20,43 @@ describe('startDifficultyFor', () => {
 	});
 });
 
+describe('startDifficultyFor — a climb rather than a jump', () => {
+	// The bands alone said a verse rated xHard becomes xEasy the morning its
+	// opening finally comes quickly. It doesn't: that is one good morning.
+	it('rises at most one step above the verse own rating', () => {
+		expect(startDifficultyFor(4_000)).toBe(5);
+		expect(startDifficultyFor(4_000, { previous: 1 })).toBe(2);
+		expect(startDifficultyFor(4_000, { previous: 2 })).toBe(3);
+	});
+
+	// Nothing to climb from, so the band stands as it is.
+	it('leaves an unrated verse to the bands', () => {
+		expect(startDifficultyFor(4_000, { previous: null })).toBe(5);
+	});
+
+	// Only the climb is limited. A verse that has gone cold says so at once.
+	it('does not slow a fall', () => {
+		expect(startDifficultyFor(600_000, { previous: 5 })).toBe(1);
+	});
+
+	it('never lowers a rating the bands already agree with', () => {
+		expect(startDifficultyFor(4_000, { previous: 5 })).toBe(5);
+	});
+});
+
+describe('startDifficultyFor — a miss in the same session', () => {
+	// A check the reader got wrong somewhere is not evidence of an easy verse,
+	// however quickly the opening came.
+	it('holds the rating to Hard', () => {
+		expect(startDifficultyFor(4_000, { missedInSession: true })).toBe(2);
+		expect(startDifficultyFor(4_000, { previous: 4, missedInSession: true })).toBe(2);
+	});
+
+	it('still lets a slow opening rate lower than Hard', () => {
+		expect(startDifficultyFor(600_000, { missedInSession: true })).toBe(1);
+	});
+});
+
 describe('hasTypedOpening', () => {
 	// Two words, not extractFirstClause's 3–8. The clock measures recalling how
 	// a verse *starts*; by the second word the reader has clearly got it, and

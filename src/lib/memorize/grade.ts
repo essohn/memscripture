@@ -68,9 +68,18 @@ export function fullDifficultyFor(accuracy: number): DifficultyLevel {
 	return (FULL_BANDS.find((b) => accuracy >= b.min) ?? FULL_BANDS[FULL_BANDS.length - 1]).level;
 }
 
-/** Ceiling once anything at all was wrong. A near miss is still a miss, so it
- *  cannot reach the top of the scale. */
-const FLAWED_CEILING: DifficultyLevel = 3;
+/**
+ * Ceiling once anything at all was wrong.
+ *
+ * A near miss is still a miss. Held at Hard rather than Normal because Normal
+ * reads as "this one is fine now", and a verse the reader could not produce is
+ * not fine — it is the verse the next check should be spent on.
+ *
+ * Applied twice over: to the attempt in hand, and to every later attempt in
+ * the same check session. One constant on purpose, so retuning the strictness
+ * of a miss moves both together.
+ */
+export const FLAWED_CEILING: DifficultyLevel = 2;
 
 /** Typing pace, in normalized characters per second, for a flawed attempt.
  *  Rate rather than elapsed seconds: the corpus runs from short verses to 224
@@ -105,18 +114,6 @@ export function paceScale(verseLength: number): PaceScale {
 	return { marks, totalMs: marks[marks.length - 1] ?? 0 };
 }
 
-/**
- * 전체 암송 난이도 from accuracy first, then pace.
- *
- * A flawless attempt scores 5 no matter how long it took — accuracy is what
- * this rating is about, and a careful correct recitation is not worse than a
- * hurried one. Anything less is capped at 3 however small the slip, and pace
- * lowers it from there.
- *
- * Note this makes elapsed time feed both ratings: 첫 시작 from the moment the
- * opening was recalled, 전체 from the pace across the whole verse. They
- * measure different things, but a slow day moves both.
- */
 /** The best a check can score when the reader was helped. Near the hard end
  *  on purpose: a verse recited with the words in front of you is a verse you
  *  have not recited, and a 5 there would quietly retire it from review. */
@@ -127,21 +124,35 @@ export interface GradeContext {
 	previous?: DifficultyLevel | null;
 	/** A hint was revealed, or the verse was played aloud, before submitting. */
 	assisted?: boolean;
+	/** An attempt in this same check session went wrong — this one, or an
+	 *  earlier one the reader discarded and tried again. */
+	missedInSession?: boolean;
 }
 
 /**
- * The 전체 rating for one check.
+ * The 전체 rating for one check: accuracy first, then pace, then the ceilings.
  *
- * A flawless check no longer jumps straight to 5. A verse the reader has been
+ * A flawless check does not jump straight to 5. A verse the reader has been
  * rating 1 does not become effortless because it went well once — that is one
  * good morning, not mastery — so a perfect run moves it one step up the scale
  * and it climbs to 5 across several. A verse with no history still starts at
  * the top of what one perfect run can claim, because there is nothing to
  * climb from.
  *
- * Assistance overrides all of it. Reading the verse off a hint, or hearing it
- * a moment earlier, tests recognition rather than recall, and scoring that as
- * easy is how a verse stops coming back for review while still being unknown.
+ * Anything short of flawless is capped at FLAWED_CEILING however small the
+ * slip, and both how much went wrong and how slowly it came can lower it
+ * further.
+ *
+ * Two ceilings then override whatever that produced. Assistance: reading the
+ * verse off a hint, or hearing it a moment earlier, tests recognition rather
+ * than recall, and scoring that as easy is how a verse stops coming back for
+ * review while still being unknown. A miss in the session: the climb must not
+ * run on a verse this very check already showed was shaky, so a flawless retry
+ * after a wrong first go is graded as the hard verse it evidently is.
+ *
+ * Note this makes elapsed time feed both ratings: 첫 시작 from the moment the
+ * opening was recalled, 전체 from the pace across the whole verse. They
+ * measure different things, but a slow day moves both.
  */
 export function fullDifficultyFrom(
 	accuracy: number,
@@ -149,8 +160,10 @@ export function fullDifficultyFrom(
 	elapsedMs: number,
 	context: GradeContext = {}
 ): DifficultyLevel {
-	const level = ungradedAssistance(accuracy, verseLength, elapsedMs, context.previous ?? null);
-	return context.assisted ? (Math.min(level, ASSISTED_CEILING) as DifficultyLevel) : level;
+	const ceilings = [ungradedAssistance(accuracy, verseLength, elapsedMs, context.previous ?? null)];
+	if (context.assisted) ceilings.push(ASSISTED_CEILING);
+	if (context.missedInSession) ceilings.push(FLAWED_CEILING);
+	return Math.min(...ceilings) as DifficultyLevel;
 }
 
 function ungradedAssistance(
@@ -160,15 +173,20 @@ function ungradedAssistance(
 	previous: DifficultyLevel | null
 ): DifficultyLevel {
 	if (accuracy >= 1) return previous === null ? 5 : (Math.min(5, previous + 1) as DifficultyLevel);
-	// No pace to compute without both a verse and a duration; fall back to the
-	// ceiling rather than punishing a measurement we do not have.
-	if (verseLength <= 0 || elapsedMs <= 0) return FLAWED_CEILING;
+	// Below the ceiling the two remaining levels have to mean something, so how
+	// much went wrong is read alongside how slowly it came: one dropped syllable
+	// and half a verse lost are not the same miss.
+	const byAccuracy = fullDifficultyFor(accuracy);
+	// No pace to compute without both a verse and a duration; fall back to
+	// accuracy alone rather than punishing a measurement we do not have.
+	if (verseLength <= 0 || elapsedMs <= 0)
+		return Math.min(FLAWED_CEILING, byAccuracy) as DifficultyLevel;
 	const charsPerSecond = verseLength / (elapsedMs / 1000);
 	const paced = (
 		PACE_BANDS.find((b) => charsPerSecond >= b.minCharsPerSecond) ??
 		PACE_BANDS[PACE_BANDS.length - 1]
 	).level;
-	return Math.min(FLAWED_CEILING, paced) as DifficultyLevel;
+	return Math.min(FLAWED_CEILING, paced, byAccuracy) as DifficultyLevel;
 }
 
 /** How far past the expected position a word may still be recognised. Roughly
