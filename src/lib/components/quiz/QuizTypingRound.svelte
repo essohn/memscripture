@@ -32,7 +32,8 @@
 			passed: accuracy >= 1,
 			accuracy,
 			missed: markMismatchedWords(item.w, typed).flatMap((m, i) => (m.ok ? [] : [i])),
-			elapsedMs: Date.now() - startedAt
+			elapsedMs: Date.now() - startedAt,
+			typed
 		};
 	}
 

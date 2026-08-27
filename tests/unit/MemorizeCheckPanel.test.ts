@@ -232,6 +232,24 @@ describe('MemorizeCheckPanel', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
 		expect(onPickStart).not.toHaveBeenCalled();
 	});
+
+	// recordCheck decides whether to keep it, so the panel reports the
+	// sentence on every save and stays out of the threshold's business.
+	it('reports the sentence it graded', async () => {
+		const { onGraded } = setup();
+		const attempt = VERSE.replace('법도를', '법을');
+		await type(attempt);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '저장' }));
+		expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ typed: attempt }));
+	});
+
+	it('reports the sentence on a flawless attempt too', async () => {
+		const { onGraded } = setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ typed: VERSE }));
+	});
 });
 
 describe('Enter to submit', () => {

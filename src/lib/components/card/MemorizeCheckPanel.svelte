@@ -47,6 +47,7 @@
 			elapsedMs: number;
 			hints: number;
 			missed: number[];
+			typed: string;
 		}) => void;
 		/** 닫기: leave memorize mode and return to the ordinary card. */
 		onClose: () => void;
@@ -342,7 +343,7 @@
 			commit(result);
 			celebrate = true;
 			saved = result;
-			onGraded({ ...result, accuracy, elapsedMs, hints: hintsUsed, missed: missedIndices() });
+			onGraded({ ...result, accuracy, elapsedMs, hints: hintsUsed, missed: missedIndices(), typed });
 			return;
 		}
 		// Anything short of perfect goes through the reader — the app may
@@ -376,7 +377,8 @@
 				accuracy: accuracyOf(verse, typed),
 				elapsedMs,
 				hints: hintsUsed,
-				missed: missedIndices()
+				missed: missedIndices(),
+				typed
 			});
 		}
 		confirming = false;

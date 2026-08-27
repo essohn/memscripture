@@ -89,6 +89,7 @@
 				accuracy: result.accuracy,
 				elapsedMs: result.elapsedMs,
 				missed: result.missed,
+				typed: result.typed,
 				source: 'quiz'
 			}).catch(() => {
 				unsaved += 1;
