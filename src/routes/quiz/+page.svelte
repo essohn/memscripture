@@ -2,8 +2,11 @@
 	import Header from '$lib/components/nav/Header.svelte';
 	import QuizScopePicker from '$lib/components/quiz/QuizScopePicker.svelte';
 	import QuizTypingRound from '$lib/components/quiz/QuizTypingRound.svelte';
+	import QuizOpeningRound from '$lib/components/quiz/QuizOpeningRound.svelte';
+	import QuizSpotRound from '$lib/components/quiz/QuizSpotRound.svelte';
 	import QuizSummary from '$lib/components/quiz/QuizSummary.svelte';
-	import { listTargets, resolveTarget, type Target } from '$lib/quiz/scope';
+	import { listTargets, loadAttempts, resolveTarget, type Target } from '$lib/quiz/scope';
+	import { GAME_SOURCE, type Game } from '$lib/quiz/games';
 	import { summarize, type ItemRating, type QuizItem, type RoundResult } from '$lib/quiz/session';
 	import { recordCheck } from '$lib/db/checkHistory';
 	import { todayLocalKey } from '$lib/db/activity';
@@ -14,6 +17,11 @@
 	let ratings = $state<Map<string, ItemRating>>(new Map());
 
 	let queue = $state<QuizItem[] | null>(null);
+	let game = $state<Game>('typing');
+	/** Recorded attempts for the verses in play, keyed by QuizItem.id. Empty
+	 *  for the other two games, and for verses the reader has never nearly
+	 *  landed. */
+	let attempts = $state<Map<string, string>>(new Map());
 	let index = $state(0);
 	let results = $state<RoundResult[]>([]);
 
@@ -70,11 +78,21 @@
 			});
 	}
 
-	function start(picked: QuizItem[]) {
+	function start(picked: QuizItem[], chosen: Game) {
 		queue = picked;
+		game = chosen;
 		index = 0;
 		results = [];
 		unsaved = 0;
+		attempts = new Map();
+		if (chosen !== 'spot') return;
+		const forRun = picked;
+		loadAttempts(picked)
+			.then((m) => {
+				if (forRun !== queue) return;
+				attempts = m;
+			})
+			.catch(() => {});
 	}
 
 	function finishRound(result: RoundResult) {
@@ -90,7 +108,7 @@
 				elapsedMs: result.elapsedMs,
 				missed: result.missed,
 				typed: result.typed,
-				source: 'quiz'
+				source: GAME_SOURCE[game]
 			}).catch(() => {
 				unsaved += 1;
 			});
@@ -99,7 +117,7 @@
 	}
 
 	function again() {
-		if (queue) start(queue);
+		if (queue) start(queue, game);
 	}
 
 	function close() {
@@ -125,12 +143,19 @@
 		/>
 	{:else}
 		{#key `${index}:${queue[index].id}`}
-			<QuizTypingRound
-				item={queue[index]}
-				{index}
-				total={queue.length}
-				onDone={finishRound}
-			/>
+			{#if game === 'opening'}
+				<QuizOpeningRound item={queue[index]} {index} total={queue.length} onDone={finishRound} />
+			{:else if game === 'spot'}
+				<QuizSpotRound
+					item={queue[index]}
+					shown={attempts.get(queue[index].id) ?? queue[index].w}
+					{index}
+					total={queue.length}
+					onDone={finishRound}
+				/>
+			{:else}
+				<QuizTypingRound item={queue[index]} {index} total={queue.length} onDone={finishRound} />
+			{/if}
 		{/key}
 	{/if}
 </main>
