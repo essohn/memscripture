@@ -7,6 +7,7 @@ import {
 	listPerfectVerseNos,
 	recordCheck
 } from '../../src/lib/db/checkHistory';
+import { suggestedMarks } from '../../src/lib/memorize/missStats';
 
 beforeEach(async () => {
 	await db.delete();
@@ -64,6 +65,15 @@ describe('checkHistory', () => {
 		expect((await listChecks('900_krv', 1))[0].missed).toEqual([2, 5]);
 	});
 
+	// The quiz's round holds its verdict in $state, so `missed` can arrive as a
+	// reactive Proxy. IndexedDB cannot structured-clone one, and the write
+	// rejects — silently, because the caller is mid-quiz and swallows it.
+	it('stores a missed list that arrives as a proxy', async () => {
+		const proxied = new Proxy([2, 5], {});
+		await recordCheck('900_krv', 7, entry({ accuracy: 0.9, missed: proxied }), 1000);
+		expect((await listChecks('900_krv', 7))[0].missed).toEqual([2, 5]);
+	});
+
 	// [] is evidence, not the absence of it — a clean check is what pushes an
 	// older miss out of the suggestion window. Absent means the check predates
 	// the feature and measured nothing at all, so the two must not collapse.
@@ -72,6 +82,27 @@ describe('checkHistory', () => {
 		await recordCheck('900_krv', 2, entry(), 1000);
 		expect((await listChecks('900_krv', 1))[0].missed).toEqual([]);
 		expect((await listChecks('900_krv', 2))[0].missed).toBeUndefined();
+	});
+
+	it('remembers that a round came from the quiz', async () => {
+		await recordCheck('900_krv', 1, entry({ source: 'quiz' }), 1000);
+		expect((await listChecks('900_krv', 1))[0].source).toBe('quiz');
+	});
+
+	// Absent is the app's primary act, not a missing value. Every record
+	// written before this field existed was a 점검, so defaulting it would
+	// have meant rewriting all of them to say what they already said.
+	it('leaves a 점검 record with no source at all', async () => {
+		await recordCheck('900_krv', 2, entry(), 1000);
+		expect((await listChecks('900_krv', 2))[0].source).toBeUndefined();
+	});
+
+	// The underline suggestions treat a quiz round as evidence like any other:
+	// it is a 점검 without the rating, so the words it got wrong count.
+	it('counts a quiz round toward the underline suggestions', async () => {
+		await recordCheck('900_krv', 3, entry({ accuracy: 0.9, missed: [2], source: 'quiz' }), 1000);
+		await recordCheck('900_krv', 3, entry({ accuracy: 0.9, missed: [2], source: 'quiz' }), 2000);
+		expect(suggestedMarks(await listChecks('900_krv', 3), 11)).toEqual(new Set([2]));
 	});
 });
 

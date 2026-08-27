@@ -28,6 +28,7 @@ export async function recordCheck(
 		elapsedMs: number;
 		hints?: number;
 		missed?: number[];
+		source?: 'quiz';
 	},
 	checkedAt: number = Date.now()
 ): Promise<void> {
@@ -41,7 +42,14 @@ export async function recordCheck(
 		packageId,
 		verseNo,
 		checkedAt,
-		...entry
+		...entry,
+		// Copied, not passed through. A caller may hand us a reactive array —
+		// the quiz's round holds its verdict in $state — and IndexedDB's
+		// structured clone cannot clone a Proxy, so the write rejects and the
+		// round is lost silently. Spreading undefined must stay undefined:
+		// absent means the record predates this field, which is not the same
+		// as missing nothing.
+		...(entry.missed ? { missed: [...entry.missed] } : {})
 	});
 	await prune(key);
 	await touchDataModified();
@@ -80,8 +88,8 @@ export async function listChecks(
  *
  * Read from the history rather than stored as a flag on the verse: the record
  * of a perfect check already exists, and a second copy could disagree with it.
- * Once earned it stays — a later slip does not take it back, because the badge
- * says "I have done this", not "I could do this today".
+ * The most recent check decides, so a later slip does take the badge back —
+ * it says "this verse is solid right now", not "I have ever done this".
  *
  * One range scan on the verseKey index, which is prefixed by the package id,
  * rather than a query per verse.
