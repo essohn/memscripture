@@ -53,4 +53,22 @@ describe('나의 구절 — 가져오기 menu', () => {
 		await fireEvent.click(backdrop!);
 		expect(screen.queryByRole('menu', { name: '가져오기 방법' })).toBeNull();
 	});
+
+	it('lands focus on the first item so a keyboard reader is inside the menu', async () => {
+		render(OyoPage);
+		await fireEvent.click(screen.getByRole('button', { name: '가져오기' }));
+		expect(document.activeElement).toBe(
+			screen.getByRole('menuitem', { name: /표에서 가져오기/ })
+		);
+	});
+
+	it('walks the items with the arrow keys', async () => {
+		render(OyoPage);
+		await fireEvent.click(screen.getByRole('button', { name: '가져오기' }));
+		const menu = screen.getByRole('menu', { name: '가져오기 방법' });
+		await fireEvent.keyDown(menu, { key: 'ArrowDown' });
+		expect(document.activeElement).toBe(
+			screen.getByRole('menuitem', { name: /백업에서 복원/ })
+		);
+	});
 });

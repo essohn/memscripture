@@ -6,6 +6,7 @@
 		type DifficultyLevel
 	} from '$lib/db/verseRatings';
 	import { placePopover } from '$lib/utils/popover';
+	import { menuFocus } from '$lib/utils/menuFocus';
 
 	interface Props {
 		/** Currently stored level, or null when the user hasn't rated yet. */
@@ -104,6 +105,7 @@
 	></div>
 	<div
 		role="menu"
+		use:menuFocus
 		aria-label={`${label} 선택`}
 		bind:this={popoverEl}
 		class="popover fixed left-0 top-0 z-[60] min-w-[160px] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] py-1 shadow-lg"

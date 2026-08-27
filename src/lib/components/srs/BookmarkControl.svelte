@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { X } from 'lucide-svelte';
 	import { BOOKMARK_COLORS, type BookmarkColor } from '$lib/types';
+	import { menuFocus } from '$lib/utils/menuFocus';
 
 	interface Props {
 		current: BookmarkColor | null;
@@ -102,6 +103,7 @@
 
 		<div
 			role="menu"
+			use:menuFocus
 			aria-label="북마크 색상 선택"
 			class="popover fixed z-[60] rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-3"
 			style={popoverStyle}

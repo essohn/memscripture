@@ -17,6 +17,7 @@
 		updateOyoVerse
 	} from '$lib/db/oyo';
 	import { applyOyoBackup, buildOyoBackup } from '$lib/db/oyoBackup';
+	import { menuFocus } from '$lib/utils/menuFocus';
 	import {
 		getVerseRating,
 		setStartDifficulty,
@@ -255,6 +256,7 @@
 					></div>
 					<div
 						role="menu"
+						use:menuFocus
 						aria-label="가져오기 방법"
 						class="absolute right-0 top-full z-[60] mt-1 w-52 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-lg"
 					>

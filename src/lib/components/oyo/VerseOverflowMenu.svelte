@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { MoreHorizontal, Pencil, Trash2 } from 'lucide-svelte';
+	import { menuFocus } from '$lib/utils/menuFocus';
 
 	interface Props {
 		onEdit?: () => void;
@@ -64,6 +65,7 @@
 	></div>
 	<div
 		role="menu"
+		use:menuFocus
 		aria-label="구절 액션"
 		class="fixed z-[60] min-w-[140px] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] py-1 shadow-lg"
 		style={menuStyle}

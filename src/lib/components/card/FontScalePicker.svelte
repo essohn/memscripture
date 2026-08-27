@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { VERSE_FONT_SCALES, type VerseFontScale } from '$lib/db/viewOptions';
+	import { menuFocus } from '$lib/utils/menuFocus';
 
 	interface Props {
 		value: VerseFontScale;
@@ -72,6 +73,7 @@
 	></div>
 	<div
 		role="menu"
+		use:menuFocus
 		aria-label="글자 크기 선택"
 		class="fixed z-[60] min-w-[140px] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] py-1 shadow-lg"
 		style={popoverStyle}
