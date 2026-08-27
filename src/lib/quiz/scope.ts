@@ -4,6 +4,9 @@ import { isPackageInstalled, listPackages, listVerses } from '$lib/db/verses';
 import type { ItemRating, QuizItem } from './session';
 import type { DifficultyLevel } from '$lib/db/verseRatings';
 import { isRecallableAttempt } from './games';
+import { listRecentChecks } from '$lib/db/checkHistory';
+import { signalOf, type VerseSignal } from './priority';
+import type { CheckRecord } from '$lib/db/local';
 
 /** Something the reader can quiz themselves on. */
 export type Target =
@@ -55,9 +58,12 @@ function toItem(v: { package_id: string; no: number; title: string; cite: string
  * listing quiz scopes is the fault the home screen was already fixed for. A
  * range whose package is absent is skipped, the way buildEventCards skips it.
  */
-export async function resolveTarget(
-	target: Target
-): Promise<{ items: QuizItem[]; ratings: Map<string, ItemRating> }> {
+export async function resolveTarget(target: Target): Promise<{
+	items: QuizItem[];
+	ratings: Map<string, ItemRating>;
+	signals: Map<string, VerseSignal>;
+	attempts: Map<string, string>;
+}> {
 	const items: QuizItem[] = [];
 	const packageIds = new Set<string>();
 
@@ -92,43 +98,61 @@ export async function resolveTarget(
 		}
 	}
 
-	return { items, ratings };
+	// One scan serves both the ranking and 틀린 곳 찾기's questions. They used
+	// to be two reads at two different times, each behind its own
+	// stale-result guard, and the guard was where Phase B's critical defect
+	// lived. Reading here also means the picker holds everything it needs as
+	// plain props and does no I/O of its own.
+	//
+	// Caught rather than propagated: a failed verse read empties the scope
+	// and the picker says so, but a failed history read must not — the verses
+	// are fine and the reader can still quiz them, unranked. Left undefined
+	// rather than defaulted to an empty Map: the loop below only has
+	// something true to say about a verse's signal once the read actually
+	// succeeded, so a failure must skip it rather than report every verse as
+	// clean.
+	const history = await listRecentChecks([...packageIds]).catch(
+		() => undefined as Map<string, CheckRecord[]> | undefined
+	);
+
+	const signals = new Map<string, VerseSignal>();
+	const attempts = new Map<string, string>();
+	if (history) {
+		for (const item of items) {
+			// QuizItem.id and CheckRecord.verseKey are the same string by
+			// construction — both are `${packageId}:${verseNo}`.
+			const rows = history.get(item.id) ?? [];
+			signals.set(item.id, signalOf(rows));
+			const attempt = newestAttempt(rows);
+			if (attempt !== undefined) attempts.set(item.id, attempt);
+		}
+	}
+
+	return { items, ratings, signals, attempts };
 }
 
 /**
- * Per verse, the sentence behind its most recent near-miss attempt.
+ * The sentence behind this verse's most recent near-miss attempt, if it has
+ * one. `rows` is newest-first, as listRecentChecks returns it.
  *
- * Not the most recent record — that may well be a later clean check, whose
- * sentence is no question at all. A verse whose near miss was recorded weeks
- * ago is still worth asking about; the point is to hand back the sentence the
- * reader actually wrote, whenever they wrote it.
+ * Not simply the newest record's `typed` — that may well be a later clean
+ * check, whose sentence is no question at all. A verse whose near miss was
+ * recorded weeks ago is still worth asking about; the point is to hand back
+ * the sentence the reader actually wrote, whenever they wrote it.
  *
  * The near-miss rule runs here rather than in recordCheck, which keeps every
  * attempt. Two consumers want different subsets of the same field — the
  * history sheet shows the reader any attempt back, including the flawless
  * recital and the one they gave up on — and a row dropped at write time is
  * gone for both.
- *
- * Keyed by QuizItem.id. Verses with no usable attempt are absent, so the
- * picker can count the map's size to say how many real questions a scope holds.
  */
-export async function loadAttempts(items: QuizItem[]): Promise<Map<string, string>> {
-	const wanted = new Set(items.map((i) => i.id));
-	const out = new Map<string, string>();
-	const newest = new Map<string, number>();
-
-	for (const packageId of new Set(items.map((i) => i.packageId))) {
-		const rows = await db.checkHistory.where('verseKey').startsWith(`${packageId}:`).toArray();
-		for (const r of rows) {
-			if (r.typed === undefined) continue;
-			if (!isRecallableAttempt(r.accuracy)) continue;
-			const id = `${r.packageId}:${r.verseNo}`;
-			if (!wanted.has(id)) continue;
-			if ((newest.get(id) ?? -Infinity) >= r.checkedAt) continue;
-			newest.set(id, r.checkedAt);
-			out.set(id, r.typed);
-		}
+export function newestAttempt(
+	rows: Pick<CheckRecord, 'typed' | 'accuracy'>[]
+): string | undefined {
+	for (const r of rows) {
+		if (r.typed === undefined) continue;
+		if (!isRecallableAttempt(r.accuracy)) continue;
+		return r.typed;
 	}
-
-	return out;
+	return undefined;
 }

@@ -1,8 +1,17 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../../src/lib/db/local';
-import { listTargets, loadAttempts, resolveTarget, type Target } from '../../src/lib/quiz/scope';
-import { recordCheck } from '../../src/lib/db/checkHistory';
+import { listTargets, newestAttempt, resolveTarget, type Target } from '../../src/lib/quiz/scope';
+
+// listRecentChecks defaults to the real implementation below, so every test
+// but the one that overrides it reads through fake-indexeddb like normal.
+const { listRecentChecksMock } = vi.hoisted(() => ({ listRecentChecksMock: vi.fn() }));
+
+vi.mock('../../src/lib/db/checkHistory', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('../../src/lib/db/checkHistory')>();
+	listRecentChecksMock.mockImplementation(actual.listRecentChecks);
+	return { ...actual, listRecentChecks: listRecentChecksMock };
+});
 
 beforeEach(async () => {
 	await db.delete();
@@ -89,6 +98,56 @@ describe('resolveTarget', () => {
 		expect(items).toEqual([]);
 		expect(ratings.size).toBe(0);
 	});
+
+	// beforeEach already installs a_krv with verses 1 and 2 and no history.
+	it('returns a signal for every verse, including one never checked', async () => {
+		const { signals } = await resolveTarget({ kind: 'package', id: 'a_krv', label: 'A구절' });
+		expect(signals.get('a_krv:1')).toEqual({ fails: 0, lastAskedAt: undefined });
+		expect(signals.get('a_krv:2')).toEqual({ fails: 0, lastAskedAt: undefined });
+	});
+
+	it("counts a failed check into the verse's signal", async () => {
+		await db.checkHistory.add({
+			id: 'a_krv:1:1000',
+			verseKey: 'a_krv:1',
+			packageId: 'a_krv',
+			verseNo: 1,
+			checkedAt: 1000,
+			start: null,
+			full: null,
+			accuracy: 0.5,
+			elapsedMs: 1000
+		});
+		const { signals } = await resolveTarget({ kind: 'package', id: 'a_krv', label: 'A구절' });
+		expect(signals.get('a_krv:1')?.fails).toBe(1);
+	});
+
+	it('returns the recorded near miss as an attempt', async () => {
+		await db.checkHistory.add({
+			id: 'a_krv:1:1000',
+			verseKey: 'a_krv:1',
+			packageId: 'a_krv',
+			verseNo: 1,
+			checkedAt: 1000,
+			start: null,
+			full: null,
+			accuracy: 0.95,
+			elapsedMs: 1000,
+			typed: '거의 맞은 문장'
+		});
+		const { attempts } = await resolveTarget({ kind: 'package', id: 'a_krv', label: 'A구절' });
+		expect(attempts.get('a_krv:1')).toBe('거의 맞은 문장');
+	});
+
+	// The verses are fine; only the history read failed. Emptying the scope
+	// would tell the reader they have nothing to quiz, which is false.
+	it('keeps the scope intact when the history read fails', async () => {
+		listRecentChecksMock.mockRejectedValueOnce(new Error('read failed'));
+		const r = await resolveTarget({ kind: 'package', id: 'a_krv', label: 'A구절' });
+		expect(r.items).toHaveLength(2);
+		expect(r.signals.size).toBe(0);
+		expect(r.attempts.size).toBe(0);
+	});
 });
 
 // buildEventCards fetches /data/events.json, which has no server to answer it
@@ -119,67 +178,39 @@ describe('listTargets', () => {
 	});
 });
 
-describe('loadAttempts', () => {
-	const item = (packageId: string, verseNo: number) => ({
-		id: `${packageId}:${verseNo}`,
-		packageId,
-		verseNo,
-		title: 't',
-		cite: 'c',
-		w: 'w'
+describe('newestAttempt', () => {
+	// Rows arrive newest-first, as listRecentChecks returns them.
+	const near = (typed: string) => ({ typed, accuracy: 0.95 });
+
+	it('returns nothing when no attempt was ever kept', () => {
+		expect(newestAttempt([])).toBeUndefined();
 	});
 
-	it('returns nothing when no attempt was ever kept', async () => {
-		expect((await loadAttempts([item('a_krv', 1)])).size).toBe(0);
+	it('returns the stored attempt for a verse that has one', () => {
+		expect(newestAttempt([near('거의 맞은 문장')])).toBe('거의 맞은 문장');
 	});
 
-	it('returns the stored attempt for a verse that has one', async () => {
-		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: '거의 맞은 문장' } as never, 1000);
-		expect((await loadAttempts([item('a_krv', 1)])).get('a_krv:1')).toBe('거의 맞은 문장');
+	it('prefers the newer of two stored attempts', () => {
+		expect(newestAttempt([near('새 문장'), near('옛 문장')])).toBe('새 문장');
 	});
 
-	// The most recent record with an attempt — not the most recent record,
-	// which may well be a later clean check that kept nothing.
-	it('is not erased by a later clean check', async () => {
-		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: '거의 맞은 문장' } as never, 1000);
-		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 1, elapsedMs: 1 } as never, 2000);
-		expect((await loadAttempts([item('a_krv', 1)])).get('a_krv:1')).toBe('거의 맞은 문장');
+	it('is not erased by a later clean check', () => {
+		expect(newestAttempt([{ typed: undefined, accuracy: 1 }, near('거의 맞은 문장')])).toBe(
+			'거의 맞은 문장'
+		);
 	});
 
-	it('prefers the newer of two stored attempts', async () => {
-		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: '먼저' } as never, 1000);
-		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: '나중' } as never, 2000);
-		expect((await loadAttempts([item('a_krv', 1)])).get('a_krv:1')).toBe('나중');
+	it('is not displaced by a later clean check that kept its own sentence', () => {
+		expect(newestAttempt([{ typed: '완벽한 문장', accuracy: 1 }, near('거의 맞은 문장')])).toBe(
+			'거의 맞은 문장'
+		);
 	});
 
-	// recordCheck keeps every attempt now, so the near-miss rule this game runs
-	// on lives here instead. 틀린 곳 찾기 hands the sentence back and asks what
-	// is wrong with it: a perfect attempt has nothing wrong in it to find, and
-	// a verse abandoned after two words is not a spot-the-difference question.
-	it('does not offer a perfect attempt as a question', async () => {
-		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 1, elapsedMs: 1, typed: '완벽한 문장' } as never, 1000);
-		expect((await loadAttempts([item('a_krv', 1)])).size).toBe(0);
+	it('does not offer a perfect attempt as a question', () => {
+		expect(newestAttempt([{ typed: '완벽한 문장', accuracy: 1 }])).toBeUndefined();
 	});
 
-	it('does not offer a collapsed attempt as a question', async () => {
-		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.3, elapsedMs: 1, typed: '두 단어' } as never, 1000);
-		expect((await loadAttempts([item('a_krv', 1)])).size).toBe(0);
-	});
-
-	// The near miss stays the question even though a newer row now carries a
-	// sentence of its own — before, a clean check simply stored nothing, so
-	// recency alone was enough to get this right.
-	it('is not displaced by a later clean check that kept its own sentence', async () => {
-		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: '거의 맞은 문장' } as never, 1000);
-		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 1, elapsedMs: 1, typed: '완벽한 문장' } as never, 2000);
-		expect((await loadAttempts([item('a_krv', 1)])).get('a_krv:1')).toBe('거의 맞은 문장');
-	});
-
-	it('keeps two packages\' verse 1 apart', async () => {
-		await recordCheck('a_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: 'A' } as never, 1000);
-		await recordCheck('b_krv', 1, { start: null, full: null, accuracy: 0.95, elapsedMs: 1, typed: 'B' } as never, 1000);
-		const got = await loadAttempts([item('a_krv', 1), item('b_krv', 1)]);
-		expect(got.get('a_krv:1')).toBe('A');
-		expect(got.get('b_krv:1')).toBe('B');
+	it('does not offer a collapsed attempt as a question', () => {
+		expect(newestAttempt([{ typed: '앞부분만', accuracy: 0.3 }])).toBeUndefined();
 	});
 });
