@@ -8,7 +8,8 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			$lib: path.resolve('./src/lib'),
-			$app: path.resolve('./tests/__mocks__/app')
+			$app: path.resolve('./tests/__mocks__/app'),
+			$env: path.resolve('./tests/__mocks__/env')
 		}
 	},
 	test: {
