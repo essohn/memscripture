@@ -45,6 +45,20 @@
 	 */
 	let pickVersion = 0;
 
+	/**
+	 * A spot-attempts read that resolves after a later run started must not
+	 * win.
+	 *
+	 * Same shape as pickVersion, and not by coincidence: comparing the loaded
+	 * array against `queue` doesn't work, because assigning a plain array into
+	 * `$state` hands back a reactive proxy — the reference captured before the
+	 * read is never `===` the one `queue` returns afterwards, so an
+	 * identity-based guard fires on every run and the read's result is
+	 * silently dropped. A counter sidesteps that: it doesn't care what the
+	 * reactivity layer did to the array.
+	 */
+	let runVersion = 0;
+
 	/** Loaded once. The effect's body reads nothing reactive, but saying so
 	 *  with a flag beats relying on what the tracker happens not to see: an
 	 *  edit that moves a read into the body would otherwise turn this into a
@@ -85,11 +99,11 @@
 		results = [];
 		unsaved = 0;
 		attempts = new Map();
+		const version = ++runVersion;
 		if (chosen !== 'spot') return;
-		const forRun = picked;
 		loadAttempts(picked)
 			.then((m) => {
-				if (forRun !== queue) return;
+				if (version !== runVersion) return;
 				attempts = m;
 			})
 			.catch(() => {});
