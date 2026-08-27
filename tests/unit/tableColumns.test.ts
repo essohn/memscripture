@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { applyMapping, detectColumns, type ColumnMapping } from '../../src/lib/oyo/tableColumns';
 import { MAX_IMPORT_VERSES } from '../../src/lib/oyo/cite';
+import { parseDelimited } from '../../src/lib/oyo/tableParse';
 
 const CITE_TITLE_BODY: ColumnMapping = { cite: 0, title: 1, w: 2 };
 
@@ -18,6 +19,16 @@ describe('applyMapping', () => {
 
 	it('numbers rows against the source table, header included', () => {
 		const grid = [['장절'], ['요 3:16'], ['창 12:1']];
+		const { drafts } = applyMapping(grid, true, { cite: 0, title: null, w: null });
+		expect(drafts.map((d) => d.row)).toEqual([2, 3]);
+	});
+
+	it('numbers against the parsed grid, not against the sheet the reader pasted', () => {
+		// The blank line is a spacer row in their sheet. parseDelimited drops it
+		// before applyMapping ever sees it, so 창 12:1 — the fourth line of what
+		// they pasted — comes back as 3. This test exists to keep `row` honest
+		// about being a stable key rather than a claim about where a verse sat.
+		const grid = parseDelimited('장절\n요 3:16\n\n창 12:1');
 		const { drafts } = applyMapping(grid, true, { cite: 0, title: null, w: null });
 		expect(drafts.map((d) => d.row)).toEqual([2, 3]);
 	});

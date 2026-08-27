@@ -18,7 +18,17 @@ export interface ColumnMapping {
 }
 
 export interface TableDraft {
-	/** 1-based row number in the source table, header included. */
+	/**
+	 * A stable 1-based number for this row within the parsed grid — enough to
+	 * key a list by, and nothing more.
+	 *
+	 * Deliberately NOT the row number in the sheet the reader pasted.
+	 * `parseDelimited` drops empty rows before this file ever sees the grid, so
+	 * one spacer row shifts every number below it. Putting this on screen would
+	 * be handing the reader a number that does not match their spreadsheet; the
+	 * review screen identifies a row by its citation instead, which is the
+	 * better handle for finding it again in any case.
+	 */
 	row: number;
 	cite: string;
 	title: string;
