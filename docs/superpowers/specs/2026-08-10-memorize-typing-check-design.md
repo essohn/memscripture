@@ -223,15 +223,23 @@ word-level marking answers the question the reader actually has, which is
 "which words did I get wrong". Score and highlight therefore run on
 different granularities, deliberately.
 
-The panel shows **both**: the reader's attempt with their own wrong words
-marked, and the verse below it marking what they missed.
+The panel shows **both**: the verse first, 원문, marking the words the attempt
+never produced, and the reader's own 입력한 내용 below it, marking the words
+they wrote that the verse cannot account for.
 
 An earlier version showed only the verse, on the reasoning that the reader
 needs the correct text to see their error against. That answered "what does
 it say" and never "what did I write" — which is the actual question after a
-failed attempt. Both readings come from `markMismatchedWords` with the
-arguments swapped: walking the attempt and checking each word against the
-verse is the mirror of walking the verse.
+failed attempt.
+
+The two readings walk the same forward scan (`markMismatchedWords` and
+`markAttemptWords`), so they can never disagree about which words were
+produced. What the 입력한 내용 block does **not** do is restore the words that
+were skipped. A version between the two put them back in place, dashed, where
+the verse picked up again; on a bad check that filled the block with verse the
+reader never typed — most of what they were reading back was not theirs, and
+an omission is already marked on the 원문 directly above. The attempt block is
+their own hand and nothing else.
 
 ### 취소 — a clean slate
 

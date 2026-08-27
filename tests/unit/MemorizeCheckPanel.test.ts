@@ -20,6 +20,11 @@ function setup(extra: Record<string, unknown> = {}) {
 	return { onPickStart, onPickFull, onClose, onGraded };
 }
 
+/** What the 입력한 내용 block reads as, with the inter-word spacing collapsed. */
+function attemptText() {
+	return (screen.getByTestId('attempt-words').textContent ?? '').replace(/\s+/g, ' ').trim();
+}
+
 async function type(text: string) {
 	const box = screen.getByRole('textbox');
 	await fireEvent.input(box, { target: { value: text } });
@@ -166,9 +171,7 @@ describe('MemorizeCheckPanel', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		const attempt = screen.getByTestId('attempt-words');
 		expect(attempt.textContent).toContain('가르치고');
-		// Typed-and-wrong, not the ghost of the word that belonged there —
-		// both are "not ok", and only one of them is something they wrote.
-		const wrong = attempt.querySelectorAll('[data-ok="false"][data-missing="false"]');
+		const wrong = attempt.querySelectorAll('[data-ok="false"]');
 		expect(wrong).toHaveLength(1);
 		expect(wrong[0].textContent).toBe('가르치고');
 	});
@@ -219,27 +222,22 @@ describe('MemorizeCheckPanel', () => {
 		expect(screen.getByTestId('attempt-words')).toHaveClass('italic');
 	});
 
-	// Dropping a word is the ordinary way to miss a verse, and it used to leave
-	// the attempt looking unmarked: there was no word there to paint.
-	it('shows a skipped word as a ghost inside the attempt', async () => {
+	// 입력한 내용 is the reader's own hand and nothing else. Restoring the words
+	// they skipped filled the block with verse they never wrote — on a bad
+	// check, most of what they were reading back was not theirs.
+	it('leaves a skipped word out of the attempt entirely', async () => {
 		setup();
-		await type(VERSE.replace('마땅히 ', ''));
+		const typed = VERSE.replace('마땅히 ', '');
+		await type(typed);
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		const ghosts = screen
-			.getByTestId('attempt-words')
-			.querySelectorAll('[data-missing="true"]');
-		expect(ghosts).toHaveLength(1);
-		expect(ghosts[0].textContent).toBe('마땅히');
+		expect(attemptText()).toBe(typed);
 	});
 
-	it('marks the tail the reader never reached', async () => {
+	it('shows an attempt that stopped early as exactly what was written', async () => {
 		setup();
 		await type('그들에게 율례와 법도를 가르쳐서');
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		const ghosts = screen
-			.getByTestId('attempt-words')
-			.querySelectorAll('[data-missing="true"]');
-		expect(ghosts.length).toBeGreaterThan(1);
+		expect(attemptText()).toBe('그들에게 율례와 법도를 가르쳐서');
 	});
 
 	// A flawed attempt is discarded and the panel re-armed — cancel() has

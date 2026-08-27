@@ -5,8 +5,8 @@
 	import { DIFFICULTY_LABELS, type DifficultyLevel } from '$lib/db/verseRatings';
 	import {
 		accuracyOf,
-		alignAttempt,
 		fullDifficultyFrom,
+		markAttemptWords,
 		markMismatchedWords,
 		nextHint,
 		paceScale,
@@ -215,13 +215,9 @@
 
 	/** The verse, marking the words the attempt did not produce. */
 	const mismatches = $derived(markMismatchedWords(verse, typed));
-	/** The attempt, marking the reader's own wrong words. Same function with
-	 *  the arguments swapped: walking the attempt and checking each word
-	 *  against the verse is exactly the mirror of walking the verse. */
-	/** The attempt with skipped words put back where they belonged. Replaces a
-	 *  plain marking pass, which could only paint words that were there and so
-	 *  said nothing about the commonest miss of all. */
-	const attemptMarks = $derived(alignAttempt(verse, typed));
+	/** The attempt, marking the reader's own wrong words — and only their own.
+	 *  A word they skipped is the 원문 block's to mark, right above this one. */
+	const attemptMarks = $derived(markAttemptWords(verse, typed));
 
 	// ─── 힌트: the next word, one character at a time ────────────────────────
 	/** Where the attempt stopped matching. -1 once the verse is complete. */
@@ -788,12 +784,9 @@
 			>
 				{#each attemptMarks as m, i (i)}<span
 						data-ok={m.ok}
-						data-missing={m.kind === 'missing'}
-						class={m.kind === 'missing'
-							? 'rounded border border-dashed border-[var(--color-border)] px-0.5 text-[var(--color-text-tertiary)]'
-							: m.ok
-								? 'text-[var(--color-text)]'
-								: 'rounded bg-[var(--color-ribbon-red)]/20 px-0.5 text-[var(--color-danger)]'}
+						class={m.ok
+							? 'text-[var(--color-text)]'
+							: 'rounded bg-[var(--color-ribbon-red)]/20 px-0.5 text-[var(--color-danger)]'}
 						>{m.word}</span
 					>{' '}{/each}
 			</p>

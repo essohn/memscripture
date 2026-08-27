@@ -245,31 +245,29 @@ export function markMismatchedWords(
 
 export interface AttemptToken {
 	word: string;
-	/** `typed` is a word the reader wrote. `missing` is a verse word that
-	 *  belonged at this point and never arrived. */
-	kind: 'typed' | 'missing';
-	/** Whether a typed word belongs to the verse. Always false for `missing`. */
+	/** Whether the verse accounts for this word. */
 	ok: boolean;
 }
 
 /**
- * The reader's attempt with the words they skipped put back in place.
+ * The reader's attempt, word by word, with the ones the verse cannot account
+ * for marked.
  *
- * markMismatchedWords can only paint words that exist, so it says nothing
- * about an omission — and dropping a word or stopping early is the ordinary
- * way to miss a verse, which left the attempt looking unmarked exactly when
- * the reader most wanted to know what went wrong.
+ * Only what they wrote. An earlier version put the words they had skipped back
+ * in place, dashed, where the verse picked up again — which on a bad check
+ * meant most of the block was verse the reader never typed, and the one place
+ * that is supposed to be their own hand read as someone else's. What was
+ * missed is already on the 원문 above, marked there; saying it twice cost the
+ * attempt its only job.
  *
- * Placement rides on the same forward scan the marking uses, so the two can
- * never disagree about which words were produced. normalizeForGrading only
- * ever deletes characters, so the normalized typed words concatenate to
- * exactly the string that scan searches — which is what makes a matched
- * character offset resolvable back to the typed word it landed in.
- *
- * A run of skipped words is placed before the typed word where the verse
- * picks up again; a run with nothing after it goes at the end.
+ * Whether a word is right still rides on the same forward scan
+ * markMismatchedWords uses, so the two can never disagree about which words
+ * were produced. normalizeForGrading only ever deletes characters, so the
+ * normalized typed words concatenate to exactly the string that scan searches
+ * — which is what makes a matched character offset resolvable back to the
+ * typed word it landed in.
  */
-export function alignAttempt(expected: string, actual: string): AttemptToken[] {
+export function markAttemptWords(expected: string, actual: string): AttemptToken[] {
 	const typedWords = actual.trim().split(/\s+/).filter(Boolean);
 	const attempt = normalizeForGrading(actual);
 
@@ -282,25 +280,18 @@ export function alignAttempt(expected: string, actual: string): AttemptToken[] {
 		span += normalizeForGrading(word).length;
 		ends.push(span);
 	}
-	/** The typed word a matched character offset fell inside. */
-	const typedIndexAt = (at: number): number => {
-		const i = ends.findIndex((end) => at < end);
-		return i === -1 ? typedWords.length : i;
-	};
 
-	// The same walk markMismatchedWords does, keeping where each word landed.
+	// The same walk markMismatchedWords does, keeping where each verse word
+	// landed. A word it never found contributes nothing and is simply passed
+	// over: the gap it left belongs to the 원문, not here.
 	let cursor = 0;
-	const placed: { word: string; at: number | null }[] = [];
+	const placed: { word: string; at: number }[] = [];
 	for (const word of expected.trim().split(/\s+/).filter(Boolean)) {
 		const needle = normalizeForGrading(word);
-		// A '*' verse-boundary marker is nothing to recite, so it can neither be
-		// got wrong nor be missing.
+		// A '*' verse-boundary marker is nothing to recite.
 		if (needle.length === 0) continue;
 		const at = attempt.indexOf(needle, cursor);
-		if (at === -1 || at - cursor > MAX_DRIFT_CHARS) {
-			placed.push({ word, at: null });
-			continue;
-		}
+		if (at === -1 || at - cursor > MAX_DRIFT_CHARS) continue;
 		cursor = at + needle.length;
 		placed.push({ word, at });
 	}
@@ -317,7 +308,6 @@ export function alignAttempt(expected: string, actual: string): AttemptToken[] {
 	// and painted every remaining word wrong.
 	const coveredChars = typedWords.map(() => 0);
 	for (const { word, at } of placed) {
-		if (at === null) continue;
 		const end = at + normalizeForGrading(word).length;
 		for (let i = 0; i < typedWords.length; i++) {
 			const overlap = Math.min(end, ends[i]) - Math.max(at, starts[i]);
@@ -325,32 +315,12 @@ export function alignAttempt(expected: string, actual: string): AttemptToken[] {
 		}
 	}
 
-	const skippedBefore = new Map<number, string[]>();
-	for (let i = 0; i < placed.length; i++) {
-		if (placed[i].at !== null) continue;
-		let next = i + 1;
-		while (next < placed.length && placed[next].at === null) next++;
-		const index =
-			next < placed.length ? typedIndexAt(placed[next].at as number) : typedWords.length;
-		const run = skippedBefore.get(index) ?? [];
-		run.push(placed[i].word);
-		skippedBefore.set(index, run);
-	}
-
-	const out: AttemptToken[] = [];
-	for (let i = 0; i <= typedWords.length; i++) {
-		for (const word of skippedBefore.get(i) ?? []) {
-			out.push({ word, kind: 'missing', ok: false });
-		}
-		if (i < typedWords.length) {
-			// A token that normalizes away entirely has nothing to produce, so
-			// it can never be got wrong.
-			const length = ends[i] - starts[i];
-			const ok = length === 0 || coveredChars[i] >= length;
-			out.push({ word: typedWords[i], kind: 'typed', ok });
-		}
-	}
-	return out;
+	return typedWords.map((word, i) => {
+		// A token that normalizes away entirely has nothing to produce, so it
+		// can never be got wrong.
+		const length = ends[i] - starts[i];
+		return { word, ok: length === 0 || coveredChars[i] >= length };
+	});
 }
 
 export interface Hint {
