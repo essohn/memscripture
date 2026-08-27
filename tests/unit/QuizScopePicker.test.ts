@@ -1,13 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import QuizScopePicker from '../../src/lib/components/quiz/QuizScopePicker.svelte';
-import { loadAttempts, type Target } from '../../src/lib/quiz/scope';
+import type { Target } from '../../src/lib/quiz/scope';
 import type { ItemRating, QuizItem } from '../../src/lib/quiz/session';
-
-vi.mock('../../src/lib/quiz/scope', async (importOriginal) => ({
-	...(await importOriginal<typeof import('../../src/lib/quiz/scope')>()),
-	loadAttempts: vi.fn(async () => new Map([['a_krv:1', '거의 맞은 문장']]))
-}));
+import type { VerseSignal } from '../../src/lib/quiz/priority';
 
 const targets: Target[] = [
 	{ kind: 'event', id: 'e1', label: '11월 암송 데이', ranges: [] },
@@ -32,6 +28,9 @@ function setup(over: Record<string, unknown> = {}) {
 			['a_krv:1', { start: 2, full: 2 }],
 			['a_krv:2', { start: 5, full: 5 }]
 		]),
+		signals: new Map<string, VerseSignal>(),
+		attempts: new Map([['a_krv:1', '거의 맞은 문장']]),
+		now: 1_700_000_000_000,
 		onPick: vi.fn(),
 		onStart: vi.fn(),
 		...over
@@ -124,84 +123,17 @@ describe('QuizScopePicker — games', () => {
 		expect(screen.queryByText('난이도')).toBeNull();
 	});
 
-	// The total (queue.length, template-read) updates the instant a chip
-	// moves, but the attempt count is read async. Left un-reset, the count
-	// from the larger, pre-toggle scope would sit next to the new, smaller
-	// total — "1구절 중 2개" is an impossible ratio. The mock's second call
-	// is held pending so the in-flight state is directly observable rather
-	// than raced against real timing.
-	it('drops the count while a chip change is being re-read, rather than pairing it with a smaller total', async () => {
-		const mocked = vi.mocked(loadAttempts);
-		mocked.mockImplementationOnce(
-			async () =>
-				new Map([
-					['a_krv:1', '거의 맞은 문장'],
-					['a_krv:2', '다른 문장']
-				])
-		);
-		let resolveSecond: ((m: Map<string, string>) => void) | undefined;
-		mocked.mockImplementationOnce(
-			() =>
-				new Promise<Map<string, string>>((resolve) => {
-					resolveSecond = resolve;
-				})
-		);
-
-		setup();
-		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
-		await waitFor(() =>
-			expect(screen.getByText('2구절 중 2개에 내 오답 기록이 있습니다')).toBeInTheDocument()
-		);
-
-		await fireEvent.click(screen.getByRole('button', { name: 'xEasy' }));
-		// The re-read for the smaller scope is still in flight. Nothing —
-		// not the stale "2개", not any other figure — may be shown against
-		// the new "1구절" total until the new answer lands.
-		expect(screen.queryByText(/내 오답 기록이 있습니다/)).toBeNull();
-
-		resolveSecond?.(new Map([['a_krv:1', '거의 맞은 문장']]));
-		await waitFor(() =>
-			expect(screen.getByText('1구절 중 1개에 내 오답 기록이 있습니다')).toBeInTheDocument()
-		);
-	});
-
-	// A regression that swapped the filtered queue for the raw items would
-	// still read as "some count of some total" — only checking what
-	// loadAttempts was actually called with catches it.
-	it('reads attempts for the tier-filtered queue, not the raw items', async () => {
-		setup();
-		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
-		await fireEvent.click(screen.getByRole('button', { name: 'xEasy' }));
-		await waitFor(() => {
-			const calls = vi.mocked(loadAttempts).mock.calls;
-			const last = calls.at(-1)?.[0] as QuizItem[] | undefined;
-			expect(last?.map((i) => i.id)).toEqual(['a_krv:1']);
-		});
-	});
-
 	// A 틀린 곳 찾기 session over a scope with nothing to ask is a row of
 	// rubber stamps — every round shows the intact verse and 이상 없음 is
 	// always right — that then writes accuracy-1 quiz-spot rows competing for
 	// the per-verse history budget for no reason.
 	it('disables 시작 when 틀린 곳 찾기 has nothing to ask, and says why', async () => {
-		vi.mocked(loadAttempts).mockResolvedValueOnce(new Map());
-		setup();
+		setup({ attempts: new Map() });
 		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
 		await waitFor(() => expect(screen.getByRole('button', { name: '시작' })).toBeDisabled());
 		expect(
 			screen.getByText('아직 내 오답 기록이 없어 출제할 문제가 없습니다')
 		).toBeInTheDocument();
-	});
-
-	// While the count is still loading it is null, not zero — disabling 시작
-	// on that would block a scope that turns out to have real questions the
-	// instant the read resolves.
-	it('does not disable 시작 while the attempt count is still loading', async () => {
-		vi.mocked(loadAttempts).mockImplementationOnce(() => new Promise(() => {}));
-		setup();
-		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
-		expect(screen.getByRole('button', { name: '시작' })).not.toBeDisabled();
-		expect(screen.queryByText('아직 내 오답 기록이 없어 출제할 문제가 없습니다')).toBeNull();
 	});
 });
 
@@ -256,5 +188,67 @@ describe('QuizScopePicker — announced structure', () => {
 		const start = screen.getByRole('button', { name: '시작' });
 		expect(start).not.toBeDisabled();
 		expect(start.getAttribute('aria-describedby')).toBeNull();
+	});
+});
+
+describe('QuizScopePicker — session size', () => {
+	const many = (n: number) =>
+		Array.from({ length: n }, (_, i) => ({
+			id: `a_krv:${i + 1}`,
+			packageId: 'a_krv',
+			verseNo: i + 1,
+			title: `제목 ${i + 1}`,
+			cite: `창세기 1 : ${i + 1}`,
+			w: `본문 ${i + 1}`
+		}));
+
+	it('says only the count when the whole scope fits in one session', () => {
+		setup({ items: many(7), ratings: new Map(), attempts: new Map() });
+		expect(screen.getByText('7구절')).toBeInTheDocument();
+	});
+
+	it("says how much of a larger scope today's session covers", () => {
+		setup({ items: many(48), ratings: new Map(), attempts: new Map() });
+		expect(screen.getByText('48구절 중 오늘 10구절')).toBeInTheDocument();
+	});
+
+	it('hands onStart only the capped session', async () => {
+		const props = setup({ items: many(48), ratings: new Map(), attempts: new Map() });
+		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+		expect(vi.mocked(props.onStart).mock.calls[0]?.[0]).toHaveLength(10);
+	});
+
+	it('puts a verse with recent failures ahead of one passed today', async () => {
+		const now = 1_700_000_000_000;
+		const props = setup({
+			items: many(2),
+			ratings: new Map(),
+			attempts: new Map(),
+			now,
+			signals: new Map<string, VerseSignal>([
+				['a_krv:1', { fails: 0, lastAskedAt: now }],
+				['a_krv:2', { fails: 3, lastAskedAt: now }]
+			])
+		});
+		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+		expect(vi.mocked(props.onStart).mock.calls[0]?.[0]?.[0]?.id).toBe('a_krv:2');
+	});
+
+	it('shows the attempt count without waiting for a read', () => {
+		setup();
+		fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
+		// No waitFor: attempts arrived with the scope.
+		return waitFor(() =>
+			expect(screen.getByText('2구절 중 1개에 내 오답 기록이 있습니다')).toBeInTheDocument()
+		);
+	});
+
+	it('starts 틀린 곳 찾기 only on verses it has a question for', async () => {
+		const props = setup();
+		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
+		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+		expect(vi.mocked(props.onStart).mock.calls[0]?.[0]?.map((i: QuizItem) => i.id)).toEqual([
+			'a_krv:1'
+		]);
 	});
 });
