@@ -93,20 +93,48 @@
 	}
 
 	function start(picked: QuizItem[], chosen: Game) {
-		queue = picked;
 		game = chosen;
-		index = 0;
-		results = [];
-		unsaved = 0;
-		attempts = new Map();
 		const version = ++runVersion;
-		if (chosen !== 'spot') return;
+
+		// The other two games never read attempts, so nothing to wait for —
+		// they start immediately, same as before.
+		if (chosen !== 'spot') {
+			queue = picked;
+			index = 0;
+			results = [];
+			unsaved = 0;
+			attempts = new Map();
+			return;
+		}
+
+		// Rounds must not mount before this settles: `shown` is a prop, read
+		// once at mount, not re-derived per round. Setting `queue` early and
+		// letting `attempts` arrive later — the previous shape — let a round
+		// mount against the intact verse and then have its text swapped out
+		// from under an answer already in progress once the read resolved.
 		loadAttempts(picked)
 			.then((m) => {
 				if (version !== runVersion) return;
 				attempts = m;
+				queue = picked;
+				index = 0;
+				results = [];
+				unsaved = 0;
 			})
-			.catch(() => {});
+			.catch(() => {
+				if (version !== runVersion) return;
+				// The read failed, so nothing here is known to be a real
+				// question — every round would show the intact verse and every
+				// 이상 없음 would pass. The run still happens (the picker
+				// already promised a scope of this size), but the reader is
+				// told the same way a storage failure is told: on the summary,
+				// via the same counter finishRound uses below.
+				attempts = new Map();
+				queue = picked;
+				index = 0;
+				results = [];
+				unsaved = picked.length;
+			});
 	}
 
 	function finishRound(result: RoundResult) {

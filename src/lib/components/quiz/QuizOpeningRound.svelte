@@ -28,8 +28,17 @@
 	const opening = $derived(openingOf(item.w));
 
 	/** Graded continuously — there is no 제출. Leaving is still a separate
-	 *  step, so the reader sees the verdict before the round is swapped out. */
-	const done = $derived(gaveUp || hasTypedOpening(item.w, typed));
+	 *  step, so the reader sees the verdict before the round is swapped out.
+	 *
+	 * Latched, not re-derived: reaching the opening is an event, not a state
+	 * the text can be edited back out of. Without the latch, backspacing past
+	 * the opening would un-grade a pass already earned — 통과 and 다음 would
+	 * vanish, 모르겠어요 would return, and pressing it would record a failure
+	 * for a verse the reader had just demonstrably started. */
+	let done = $state(false);
+	$effect(() => {
+		if (!done && (gaveUp || hasTypedOpening(item.w, typed))) done = true;
+	});
 
 	function next() {
 		if (!done || reported) return;

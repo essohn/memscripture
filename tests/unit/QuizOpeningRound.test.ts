@@ -94,4 +94,19 @@ describe('QuizOpeningRound', () => {
 		setup();
 		expect(screen.getByText('1 / 3')).toBeInTheDocument();
 	});
+
+	// `done` re-derived per keystroke would let backspacing past the opening
+	// un-grade a pass already earned: 통과 and 다음 gone, 모르겠어요 back, and
+	// pressing it would record a failure for a verse just demonstrably
+	// started.
+	it('keeps the pass once the opening is produced, even after a later deletion', async () => {
+		setup();
+		await type('그들에게 율례와');
+		expect(screen.getByRole('button', { name: '다음' })).toBeInTheDocument();
+
+		await type('그들에게 율례');
+
+		expect(screen.getByRole('button', { name: '다음' })).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: '모르겠어요' })).toBeNull();
+	});
 });
