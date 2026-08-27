@@ -136,16 +136,21 @@ describe('buildQueue', () => {
 		]);
 	});
 
-	// The whole reason eligibility is applied before the cap: the ten
-	// highest-priority verses can easily be ten the reader has no recorded
-	// attempt for, and a 틀린 곳 찾기 session built from them would open with
-	// no rounds at all.
+	// The two eligible verses are the lowest-priority in the pool: everything
+	// else is unproven and scores STALE_CAP, while these two were passed
+	// today and score zero. A queue that sliced to SESSION_SIZE before
+	// applying eligibility would drop both and open a 틀린 곳 찾기 session
+	// with no rounds at all — which is the whole reason the filter runs first.
 	it('fills the session from eligible verses rather than dropping them after the cap', () => {
-		const pool = Array.from({ length: SESSION_SIZE + 3 }, (_, i) => item('a_krv', i + 1));
-		const eligible = new Set([`a_krv:${SESSION_SIZE + 2}`, `a_krv:${SESSION_SIZE + 3}`]);
-		expect(buildQueue(pool, { signals: noSignals, now: NOW, eligible }).map((i) => i.id)).toEqual(
-			[...eligible]
+		const pool = Array.from({ length: SESSION_SIZE + 2 }, (_, i) => item('a_krv', i + 1));
+		const eligible = new Set([`a_krv:${SESSION_SIZE + 1}`, `a_krv:${SESSION_SIZE + 2}`]);
+		const signals = new Map<string, VerseSignal>(
+			[...eligible].map((id) => [id, { fails: 0, lastAskedAt: NOW }])
 		);
+		expect(buildQueue(pool, { signals, now: NOW, eligible }).map((i) => i.id)).toEqual([
+			'a_krv:11',
+			'a_krv:12'
+		]);
 	});
 
 	it('asks about everything when no eligibility is given', () => {
