@@ -64,6 +64,7 @@ describe('읽어주기 options', () => {
 			speakTitle: false,
 			speakRate: 0.9,
 			speakRepeat: false,
+			speakListRepeat: true,
 			speakVoice: '',
 			speakGender: 'auto'
 		});
@@ -79,6 +80,7 @@ describe('읽어주기 options', () => {
 			speakTitle: false,
 			speakRate: 0.6,
 			speakRepeat: true,
+			speakListRepeat: true,
 			speakVoice: '',
 			speakGender: 'auto'
 		});
@@ -96,6 +98,31 @@ describe('읽어주기 options', () => {
 	it('snaps an unknown rate back to the default', async () => {
 		await db.settings.put({ key: 'view_options', value: { speakRate: 9 } });
 		expect((await getSpeakOptions()).speakRate).toBe(0.9);
+	});
+
+	// Separate from speakRepeat on purpose. That one means "loop this one
+	// verse forever" on a card; a reader who wants a list to come round again
+	// does not want every card to loop.
+	it('speakListRepeat defaults to true', async () => {
+		expect((await getSpeakOptions()).speakListRepeat).toBe(true);
+	});
+
+	it('round-trips speakListRepeat false', async () => {
+		await setSpeakOption('speakListRepeat', false);
+		expect((await getSpeakOptions()).speakListRepeat).toBe(false);
+	});
+
+	it('falls back to the default when speakListRepeat is not a boolean', async () => {
+		await db.settings.put({ key: 'view_options', value: { speakListRepeat: 'yes' } });
+		expect((await getSpeakOptions()).speakListRepeat).toBe(true);
+	});
+
+	it('leaves speakRepeat alone when speakListRepeat is written', async () => {
+		await setSpeakOption('speakRepeat', true);
+		await setSpeakOption('speakListRepeat', false);
+		const opts = await getSpeakOptions();
+		expect(opts.speakRepeat).toBe(true);
+		expect(opts.speakListRepeat).toBe(false);
 	});
 });
 

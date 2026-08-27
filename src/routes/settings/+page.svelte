@@ -94,6 +94,7 @@
 
 	let speakTitle = $state(false);
 	let speakRepeat = $state(false);
+	let speakListRepeat = $state(true);
 	let speakRate = $state<SpeakRate>(0.9);
 	let speakVoice = $state('');
 	let speakGender = $state<'male' | 'female' | 'auto'>('auto');
@@ -118,6 +119,7 @@
 			.then((o) => {
 				speakTitle = o.speakTitle;
 				speakRepeat = o.speakRepeat;
+				speakListRepeat = o.speakListRepeat;
 				speakRate = o.speakRate;
 				speakVoice = o.speakVoice;
 				speakGender = o.speakGender;
@@ -458,6 +460,24 @@
 				onchange={(e) => {
 					speakRepeat = e.currentTarget.checked;
 					setSpeakOption('speakRepeat', speakRepeat);
+				}}
+				class="h-4 w-4 shrink-0 accent-[var(--color-accent)]"
+			/>
+		</label>
+
+		<label class="mt-3 flex items-center justify-between gap-3">
+			<span class="text-[13px] text-[var(--color-text)]">
+				전체 듣기 반복
+				<span class="block text-[11px] text-[var(--color-text-tertiary)]">
+					목록이 끝나면 처음부터 다시 재생합니다
+				</span>
+			</span>
+			<input
+				type="checkbox"
+				checked={speakListRepeat}
+				onchange={(e) => {
+					speakListRepeat = e.currentTarget.checked;
+					setSpeakOption('speakListRepeat', speakListRepeat);
 				}}
 				class="h-4 w-4 shrink-0 accent-[var(--color-accent)]"
 			/>

@@ -198,6 +198,7 @@
 		speakTitle: false,
 		speakRate: 0.9,
 		speakRepeat: false,
+		speakListRepeat: true,
 		speakVoice: '',
 		speakGender: 'auto'
 	});
