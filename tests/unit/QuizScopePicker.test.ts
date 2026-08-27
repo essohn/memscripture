@@ -178,4 +178,29 @@ describe('QuizScopePicker — games', () => {
 			expect(last?.map((i) => i.id)).toEqual(['a_krv:1']);
 		});
 	});
+
+	// A 틀린 곳 찾기 session over a scope with nothing to ask is a row of
+	// rubber stamps — every round shows the intact verse and 이상 없음 is
+	// always right — that then writes accuracy-1 quiz-spot rows competing for
+	// the per-verse history budget for no reason.
+	it('disables 시작 when 틀린 곳 찾기 has nothing to ask, and says why', async () => {
+		vi.mocked(loadAttempts).mockResolvedValueOnce(new Map());
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
+		await waitFor(() => expect(screen.getByRole('button', { name: '시작' })).toBeDisabled());
+		expect(
+			screen.getByText('아직 내 오답 기록이 없어 출제할 문제가 없습니다')
+		).toBeInTheDocument();
+	});
+
+	// While the count is still loading it is null, not zero — disabling 시작
+	// on that would block a scope that turns out to have real questions the
+	// instant the read resolves.
+	it('does not disable 시작 while the attempt count is still loading', async () => {
+		vi.mocked(loadAttempts).mockImplementationOnce(() => new Promise(() => {}));
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
+		expect(screen.getByRole('button', { name: '시작' })).not.toBeDisabled();
+		expect(screen.queryByText('아직 내 오답 기록이 없어 출제할 문제가 없습니다')).toBeNull();
+	});
 });

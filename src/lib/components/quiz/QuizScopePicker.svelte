@@ -139,7 +139,7 @@
 		<button
 			type="button"
 			onclick={() => onStart(queue, game)}
-			disabled={queue.length === 0}
+			disabled={queue.length === 0 || (game === 'spot' && attemptCount === 0)}
 			class="rounded-xl bg-[var(--color-accent)] px-5 py-2 font-medium text-white disabled:opacity-40"
 		>
 			시작
@@ -147,5 +147,12 @@
 	</div>
 	{#if queue.length === 0}
 		<p class="text-[12px] text-[var(--color-text-tertiary)]">고른 범위에 구절이 없습니다</p>
+	{:else if game === 'spot' && attemptCount === 0}
+		<!-- Not `attemptCount == null`: that means the read is still in
+		     flight, and disabling 시작 on a stale "loading" read would block a
+		     scope that turns out to have real questions once it resolves. -->
+		<p class="text-[12px] text-[var(--color-text-tertiary)]">
+			아직 내 오답 기록이 없어 출제할 문제가 없습니다
+		</p>
 	{/if}
 </section>

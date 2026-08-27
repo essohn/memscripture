@@ -5,6 +5,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import QuizPage from '../../src/routes/quiz/+page.svelte';
 import { db } from '../../src/lib/db/local';
+import { listChecks } from '../../src/lib/db/checkHistory';
 import type { Target } from '../../src/lib/quiz/scope';
 import type { QuizItem } from '../../src/lib/quiz/session';
 
@@ -163,3 +164,56 @@ describe('quiz/+page.svelte — 틀린 곳 찾기 attempts', () => {
 	});
 });
 
+// The plan calls this "the one that proves the source widening did what it
+// claims" — each game must record its own value, not a shared 'quiz'.
+describe('quiz/+page.svelte — source recording', () => {
+	it('records source "quiz" for a completed typing round', async () => {
+		render(QuizPage);
+		await waitFor(() => expect(screen.getByRole('button', { name: '시작' })).not.toBeDisabled());
+		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+
+		await fireEvent.input(screen.getByRole('textbox', { name: '암송 구절 입력' }), {
+			target: { value: verse.w }
+		});
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+
+		await waitFor(async () => {
+			const rows = await listChecks('a_krv', 1);
+			expect(rows[0]?.source).toBe('quiz');
+		});
+	});
+
+	it('records source "quiz-opening" for a completed opening round', async () => {
+		render(QuizPage);
+		await waitFor(() => expect(screen.getByRole('button', { name: '시작' })).not.toBeDisabled());
+		await fireEvent.click(screen.getByRole('button', { name: '첫 단어' }));
+		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+
+		await fireEvent.input(screen.getByRole('textbox', { name: '구절 첫머리 입력' }), {
+			target: { value: '또 증거는' }
+		});
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+
+		await waitFor(async () => {
+			const rows = await listChecks('a_krv', 1);
+			expect(rows[0]?.source).toBe('quiz-opening');
+		});
+	});
+
+	it('records source "quiz-spot" for a completed spot round', async () => {
+		loadAttemptsMock.mockResolvedValue(new Map());
+
+		await startSpotRun();
+		await waitFor(() =>
+			expect(screen.getByRole('button', { name: '이상 없음' })).toBeInTheDocument()
+		);
+		await fireEvent.click(screen.getByRole('button', { name: '이상 없음' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+
+		await waitFor(async () => {
+			const rows = await listChecks('a_krv', 1);
+			expect(rows[0]?.source).toBe('quiz-spot');
+		});
+	});
+});
