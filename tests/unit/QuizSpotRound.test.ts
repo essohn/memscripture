@@ -94,4 +94,16 @@ describe('QuizSpotRound', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
 		expect(onDone).toHaveBeenCalledTimes(1);
 	});
+
+	// Answering strips role and tabindex from every word, so the element the
+	// reader was standing on stops being focusable and the browser drops focus
+	// to <body> — a keyboard reader would have to tab in from the top of the
+	// page to reach the only control left.
+	it('hands focus to 다음 once the words stop being targets', async () => {
+		const { container } = setup(FLAWED);
+		const word = wordAt(container, 2) as HTMLElement;
+		word.focus();
+		await fireEvent.click(word);
+		expect(document.activeElement).toBe(screen.getByRole('button', { name: '다음' }));
+	});
 });
