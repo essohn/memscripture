@@ -168,6 +168,16 @@ describe('listPerfectVerseNos with games', () => {
 		await recordCheck('900_krv', 23, entry({ accuracy: 1, source: 'quiz-spot' }), 3000);
 		expect(await listPerfectVerseNos('900_krv')).toEqual(new Set());
 	});
+
+	// The most recent *counted* check decides, so a later spot round is
+	// invisible rather than decisive. Filter the rows after choosing the
+	// latest instead of before, and this badge disappears — taken away by a
+	// round that says nothing about whether the verse can be recited.
+	it('keeps a badge that a later spot round cannot speak to', async () => {
+		await recordCheck('900_krv', 24, entry({ accuracy: 1 }), 1000);
+		await recordCheck('900_krv', 24, entry({ accuracy: 0.4, source: 'quiz-spot' }), 2000);
+		expect(await listPerfectVerseNos('900_krv')).toEqual(new Set([24]));
+	});
 });
 
 describe('listPerfectVerseNos', () => {
