@@ -11,8 +11,8 @@ const MIN_BAR_PX = 4;
 const stats = (over: Partial<Stats> = {}): Stats => ({
 	total: 10,
 	perfect: 0,
-	start: [0, 0, 0, 0, 0],
-	full: [0, 0, 0, 0, 0],
+	start: [0, 0, 0, 0, 0, 0],
+	full: [0, 0, 0, 0, 0, 0],
 	...over
 });
 
@@ -24,7 +24,7 @@ function barPx(series: 'start' | 'full', level: number): number {
 
 describe('EventStats', () => {
 	it('spells out what each difficulty measures', () => {
-		render(EventStats, { eventId: 'e1', stats: stats({ start: [1, 0, 0, 0, 0] }) });
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 1, 0, 0, 0, 0] }) });
 		expect(screen.getByText('암송 시작 난이도')).toBeInTheDocument();
 		expect(screen.getByText('전체 일치 난이도')).toBeInTheDocument();
 	});
@@ -92,7 +92,7 @@ describe('EventStats', () => {
 	});
 
 	it('leaves a flawless count of zero unlinked', () => {
-		render(EventStats, { eventId: 'e1', stats: stats({ total: 5, perfect: 0, start: [1, 0, 0, 0, 0] }) });
+		render(EventStats, { eventId: 'e1', stats: stats({ total: 5, perfect: 0, start: [0, 1, 0, 0, 0, 0] }) });
 		expect(screen.getByTestId('perfect-count').closest('a')).toBeNull();
 	});
 
@@ -116,26 +116,26 @@ describe('EventStats', () => {
 	it('counts the verses still unrated in each series', () => {
 		render(EventStats, {
 			eventId: 'e1',
-			stats: stats({ total: 10, start: [1, 1, 0, 2, 0], full: [0, 0, 1, 0, 0] })
+			stats: stats({ total: 10, start: [0, 1, 1, 0, 2, 0], full: [0, 0, 0, 1, 0, 0] })
 		});
 		expect(screen.getByTestId('unrated-start')).toHaveTextContent('6');
 		expect(screen.getByTestId('unrated-full')).toHaveTextContent('9');
 	});
 
 	it('never shows a negative remainder', () => {
-		render(EventStats, { eventId: 'e1', stats: stats({ total: 1, start: [3, 0, 0, 0, 0] }) });
+		render(EventStats, { eventId: 'e1', stats: stats({ total: 1, start: [0, 3, 0, 0, 0, 0] }) });
 		expect(screen.getByTestId('unrated-start')).toHaveTextContent('0');
 	});
 
 	it('lays the two series side by side in one row', () => {
-		render(EventStats, { eventId: 'e1', stats: stats({ start: [1, 0, 0, 0, 0], full: [1, 0, 0, 0, 0] }) });
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 1, 0, 0, 0, 0], full: [0, 1, 0, 0, 0, 0] }) });
 		const row = screen.getByTestId('series-row');
 		expect(row).toContainElement(screen.getByTestId('bar-start-1'));
 		expect(row).toContainElement(screen.getByTestId('bar-full-1'));
 	});
 
 	it('gives every level a slot in both series', () => {
-		render(EventStats, { eventId: 'e1', stats: stats({ start: [1, 1, 1, 1, 1], full: [1, 1, 1, 1, 1] }) });
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 1, 1, 1, 1, 1], full: [0, 1, 1, 1, 1, 1] }) });
 		for (const level of [1, 2, 3, 4, 5]) {
 			expect(screen.getByTestId(`bar-start-${level}`)).toBeInTheDocument();
 			expect(screen.getByTestId(`bar-full-${level}`)).toBeInTheDocument();
@@ -146,13 +146,13 @@ describe('EventStats', () => {
 	// height from counts of 2 and 4, which is the chart telling a lie about
 	// the one comparison it exists to make.
 	it('scales both series against the taller of the two', () => {
-		render(EventStats, { eventId: 'e1', stats: stats({ start: [2, 0, 0, 0, 0], full: [4, 0, 0, 0, 0] }) });
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 2, 0, 0, 0, 0], full: [0, 4, 0, 0, 0, 0] }) });
 		expect(barPx('full', 1)).toBe(PLOT_PX);
 		expect(barPx('start', 1)).toBe(PLOT_PX / 2);
 	});
 
 	it('draws no bar for a level nobody chose', () => {
-		render(EventStats, { eventId: 'e1', stats: stats({ start: [4, 0, 0, 0, 0] }) });
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 4, 0, 0, 0, 0] }) });
 		expect(barPx('start', 2)).toBe(0);
 	});
 
@@ -161,7 +161,7 @@ describe('EventStats', () => {
 	// costs a percent of accuracy and buys back the difference between one and
 	// none, which is the only comparison that bar has to make.
 	it('keeps a single verse visible against a tall ceiling', () => {
-		render(EventStats, { eventId: 'e1', stats: stats({ start: [1, 0, 0, 0, 100] }) });
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 1, 0, 0, 0, 100] }) });
 		expect(barPx('start', 1)).toBe(MIN_BAR_PX);
 		expect(barPx('start', 2)).toBe(0);
 	});
@@ -171,7 +171,7 @@ describe('EventStats', () => {
 	// shrink-wraps its children, so a plot box without w-full gives the bar a
 	// zero-width parent to take 100% of. This shipped exactly that way once.
 	it('keeps the plot box full width so the bar has something to fill', () => {
-		render(EventStats, { eventId: 'e1', stats: stats({ start: [3, 0, 0, 0, 0] }) });
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 3, 0, 0, 0, 0] }) });
 		expect(screen.getByTestId('bar-start-1').parentElement).toHaveClass('w-full');
 	});
 
@@ -179,7 +179,7 @@ describe('EventStats', () => {
 	// level — including the empty ones, where a missing number would read as
 	// missing data rather than as none.
 	it('prints the count for every level', () => {
-		render(EventStats, { eventId: 'e1', stats: stats({ start: [3, 0, 0, 0, 0] }) });
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 3, 0, 0, 0, 0] }) });
 		expect(screen.getByTestId('count-start-1')).toHaveTextContent('3');
 		expect(screen.getByTestId('count-start-2')).toHaveTextContent('0');
 	});
@@ -187,7 +187,7 @@ describe('EventStats', () => {
 	// Five zeroes over an empty axis is a chart with nothing in it, taking the
 	// height of one that has something. A line of text says the same thing.
 	it('replaces an unrated series with a note instead of an empty axis', () => {
-		render(EventStats, { eventId: 'e1', stats: stats({ start: [1, 0, 0, 0, 0], full: [0, 0, 0, 0, 0] }) });
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 1, 0, 0, 0, 0], full: [0, 0, 0, 0, 0, 0] }) });
 		expect(screen.getByTestId('bar-start-1')).toBeInTheDocument();
 		expect(screen.queryByTestId('bar-full-1')).toBeNull();
 		expect(screen.getByTestId('empty-full')).toBeInTheDocument();
@@ -208,12 +208,12 @@ describe('EventStats', () => {
 
 	// Colour alone never carries the level: the scale is printed under the bars.
 	it('labels each bar with its difficulty level', () => {
-		render(EventStats, { eventId: 'e1', stats: stats({ start: [1, 0, 0, 0, 0] }) });
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 1, 0, 0, 0, 0] }) });
 		expect(screen.getByTestId('level-start-3')).toHaveTextContent('3');
 	});
 
 	it('names the level in each bar accessible label', () => {
-		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 0, 7, 0, 0] }) });
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 0, 0, 7, 0, 0] }) });
 		expect(screen.getByTestId('bar-start-3')).toHaveAttribute(
 			'aria-label',
 			expect.stringContaining('Normal') as unknown as string
@@ -228,7 +228,7 @@ describe('EventStats links', () => {
 	}
 
 	it('links a populated level to the verses behind it', () => {
-		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 3, 0, 0, 0] }) });
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 0, 3, 0, 0, 0] }) });
 		expect(columnLink('start', 2)?.getAttribute('href')).toBe(
 			'/stats/verses?event=e1&dim=start&level=2'
 		);
@@ -236,7 +236,7 @@ describe('EventStats links', () => {
 
 	// A link to an empty list is a dead end; the slot still shows its 0.
 	it('leaves a level nobody chose unlinked', () => {
-		render(EventStats, { eventId: 'e1', stats: stats({ start: [3, 0, 0, 0, 0] }) });
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 3, 0, 0, 0, 0] }) });
 		expect(columnLink('start', 2)).toBeNull();
 		expect(screen.getByTestId('count-start-2')).toHaveTextContent('0');
 	});
@@ -244,21 +244,47 @@ describe('EventStats links', () => {
 	// A 4px bar is not a tap target. The whole column — count, plot and level
 	// label — is what the finger gets.
 	it('makes the whole column the tap target, not just the bar', () => {
-		render(EventStats, { eventId: 'e1', stats: stats({ start: [3, 0, 0, 0, 0] }) });
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 3, 0, 0, 0, 0] }) });
 		const link = columnLink('start', 1);
 		expect(link).toContainElement(screen.getByTestId('bar-start-1'));
 		expect(link).toContainElement(screen.getByTestId('level-start-1'));
 	});
 
 	it('links the unrated remainder to its own list', () => {
-		render(EventStats, { eventId: 'e1', stats: stats({ total: 10, start: [1, 0, 0, 0, 0] }) });
+		render(EventStats, { eventId: 'e1', stats: stats({ total: 10, start: [0, 1, 0, 0, 0, 0] }) });
 		expect(screen.getByTestId('unrated-start').closest('a')?.getAttribute('href')).toBe(
 			'/stats/verses?event=e1&dim=start&level=none'
 		);
 	});
 
 	it('leaves a remainder of zero unlinked', () => {
-		render(EventStats, { eventId: 'e1', stats: stats({ total: 1, start: [1, 0, 0, 0, 0] }) });
+		render(EventStats, { eventId: 'e1', stats: stats({ total: 1, start: [0, 1, 0, 0, 0, 0] }) });
 		expect(screen.getByTestId('unrated-start').closest('a')).toBeNull();
+	});
+});
+
+describe('EventStats level 0', () => {
+	it('gives Impossible a column of its own', () => {
+		render(EventStats, {
+			eventId: 'e1',
+			stats: { total: 9, perfect: 0, start: [4, 0, 0, 0, 0, 0], full: [0, 0, 0, 0, 0, 0] }
+		});
+		expect(screen.getByTestId('count-start-0')).toHaveTextContent('4');
+		expect(screen.getByTestId('level-start-0')).toHaveTextContent('0');
+		expect(screen.getByTestId('bar-start-0')).toHaveAttribute(
+			'aria-label',
+			expect.stringContaining('Impossible') as unknown as string
+		);
+	});
+
+	// Black on the dark theme's card is barely 1.4:1 against its own
+	// background, so the bar's shape has to come from an outline.
+	it('outlines the black bar so it survives the dark theme', () => {
+		render(EventStats, {
+			eventId: 'e1',
+			stats: { total: 9, perfect: 0, start: [4, 0, 0, 0, 0, 0], full: [0, 0, 0, 0, 0, 0] }
+		});
+		expect(screen.getByTestId('bar-start-0').className).toContain('border');
+		expect(screen.getByTestId('bar-start-1').className).not.toContain('border');
 	});
 });

@@ -404,8 +404,14 @@ describe('paceScale', () => {
 describe('a flawless check climbs rather than jumps', () => {
 	const CHARS = 61;
 	const secs = (n: number) => n * 1000;
-	const perfect = (previous: 1 | 2 | 3 | 4 | 5 | null) =>
+	const perfect = (previous: DifficultyLevel | null) =>
 		fullDifficultyFrom(1, CHARS, secs(20), { previous });
+
+	// A verse rated Impossible is not stuck there: a flawless run moves it one
+	// step like any other, onto the bottom of the ordinary scale.
+	it('lifts an Impossible verse one step', () => {
+		expect(perfect(0)).toBe(1);
+	});
 
 	// One good morning is not mastery. A verse the reader has been rating 1
 	// does not become effortless because it went well once.

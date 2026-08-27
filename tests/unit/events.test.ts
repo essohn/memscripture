@@ -226,8 +226,8 @@ describe('events data layer', () => {
 		expect(cards[0].stats).toEqual({
 			total: 2,
 			perfect: 1,
-			start: [0, 1, 0, 0, 0],
-			full: [0, 0, 0, 1, 0]
+			start: [0, 0, 1, 0, 0, 0],
+			full: [0, 0, 0, 0, 1, 0]
 		});
 	});
 });
@@ -256,8 +256,8 @@ describe('eventStats', () => {
 		await setFullDifficulty('5_krv', 1, 5);
 
 		const stats = await eventStats([range([1, 2, 3])]);
-		expect(stats.start).toEqual([2, 0, 0, 1, 0]);
-		expect(stats.full).toEqual([0, 0, 0, 0, 1]);
+		expect(stats.start).toEqual([0, 2, 0, 0, 1, 0]);
+		expect(stats.full).toEqual([0, 0, 0, 0, 0, 1]);
 	});
 
 	// A verse outside the event is somebody else's business, however it is rated.
@@ -265,7 +265,7 @@ describe('eventStats', () => {
 		await setStartDifficulty('5_krv', 1, 3);
 		await setStartDifficulty('5_krv', 9, 3);
 
-		expect((await eventStats([range([1])])).start).toEqual([0, 0, 1, 0, 0]);
+		expect((await eventStats([range([1])])).start).toEqual([0, 0, 0, 1, 0, 0]);
 	});
 
 	// Two ranges of one package may overlap; the reader memorized the verse
@@ -273,14 +273,14 @@ describe('eventStats', () => {
 	it('counts a verse once when two ranges both cover it', async () => {
 		await setStartDifficulty('5_krv', 1, 2);
 
-		expect((await eventStats([range([1, 2]), range([1, 3])])).start).toEqual([0, 1, 0, 0, 0]);
+		expect((await eventStats([range([1, 2]), range([1, 3])])).start).toEqual([0, 0, 1, 0, 0, 0]);
 	});
 
 	it('sums across ranges from different packages', async () => {
 		await setStartDifficulty('5_krv', 1, 2);
 		await setStartDifficulty('8_krv', 1, 2);
 
-		expect((await eventStats([range([1]), range([1], '8_krv')])).start).toEqual([0, 2, 0, 0, 0]);
+		expect((await eventStats([range([1]), range([1], '8_krv')])).start).toEqual([0, 0, 2, 0, 0, 0]);
 	});
 
 	// Half-rated verses are the normal mid-week state; the two histograms are
@@ -289,8 +289,8 @@ describe('eventStats', () => {
 		await setStartDifficulty('5_krv', 1, 3);
 
 		const stats = await eventStats([range([1, 2])]);
-		expect(stats.start).toEqual([0, 0, 1, 0, 0]);
-		expect(stats.full).toEqual([0, 0, 0, 0, 0]);
+		expect(stats.start).toEqual([0, 0, 0, 1, 0, 0]);
+		expect(stats.full).toEqual([0, 0, 0, 0, 0, 0]);
 	});
 
 	it('counts a verse as perfect when its last check was flawless', async () => {
@@ -317,24 +317,24 @@ describe('eventStats', () => {
 	// A row can arrive from a synced device without passing through the
 	// setters' guard, and an out-of-range level would index off the end of the
 	// histogram and turn the whole bar chart into NaN.
-	it('ignores a rating outside the 1-5 scale', async () => {
+	it('ignores a rating outside the 0-5 scale', async () => {
 		await db.verseRatings.put({
 			id: '5_krv:1',
 			packageId: '5_krv',
 			verseNo: 1,
 			startDifficulty: 7,
-			fullDifficulty: 0,
+			fullDifficulty: -1,
 			updatedAt: 1
 		});
 
 		const stats = await eventStats([range([1])]);
-		expect(stats.start).toEqual([0, 0, 0, 0, 0]);
-		expect(stats.full).toEqual([0, 0, 0, 0, 0]);
+		expect(stats.start).toEqual([0, 0, 0, 0, 0, 0]);
+		expect(stats.full).toEqual([0, 0, 0, 0, 0, 0]);
 	});
 
 	it('reports zeroes for an event nobody has touched', async () => {
 		const stats = await eventStats([range([1, 2])]);
-		expect(stats).toEqual({ total: 2, perfect: 0, start: [0, 0, 0, 0, 0], full: [0, 0, 0, 0, 0] });
+		expect(stats).toEqual({ total: 2, perfect: 0, start: [0, 0, 0, 0, 0, 0], full: [0, 0, 0, 0, 0, 0] });
 	});
 
 	// The counts only mean something against how many verses there are: five
@@ -438,9 +438,9 @@ describe('versesAtLevel', () => {
 		const ranges = [range([1, 2, 3, 4]), range([1, 2], '8_krv')];
 
 		const stats = await eventStats(ranges);
-		for (const level of [1, 2, 3, 4, 5] as const) {
-			expect((await versesAtLevel(ranges, 'start', level)).length).toBe(stats.start[level - 1]);
-			expect((await versesAtLevel(ranges, 'full', level)).length).toBe(stats.full[level - 1]);
+		for (const level of [0, 1, 2, 3, 4, 5] as const) {
+			expect((await versesAtLevel(ranges, 'start', level)).length).toBe(stats.start[level]);
+			expect((await versesAtLevel(ranges, 'full', level)).length).toBe(stats.full[level]);
 		}
 		const ratedStart = stats.start.reduce((a, b) => a + b, 0);
 		expect((await versesAtLevel(ranges, 'start', null)).length).toBe(stats.total - ratedStart);

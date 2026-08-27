@@ -54,6 +54,7 @@ export function formatDueAt(dueAt: string): string {
  * other.
  */
 export const DIFFICULTY_FILLS: Record<DifficultyLevel, string> = {
+	0: '14100C',
 	1: 'F4573F',
 	2: 'F79A3E',
 	3: 'F5D14E',

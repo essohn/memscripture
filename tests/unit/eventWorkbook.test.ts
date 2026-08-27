@@ -89,6 +89,7 @@ describe('difficulty cells', () => {
 		// Row 1 is the caption and row 2 the header, so the body is rows 3..5.
 		expect(s.conditionalFills![0].range).toBe('A3:B5');
 		expect(s.conditionalFills![0].byValue).toEqual([
+			{ value: 0, fill: DIFFICULTY_FILLS[0] },
 			{ value: 1, fill: DIFFICULTY_FILLS[1] },
 			{ value: 2, fill: DIFFICULTY_FILLS[2] },
 			{ value: 3, fill: DIFFICULTY_FILLS[3] },
@@ -110,8 +111,9 @@ describe('difficulty cells', () => {
 		expect(s.rows[2][0].fill).toBeUndefined();
 	});
 
-	it('runs red at 1 through green at 5', () => {
+	it('runs black at 0, then red at 1 through green at 5', () => {
 		expect(DIFFICULTY_FILLS).toEqual({
+			0: '14100C',
 			1: 'F4573F',
 			2: 'F79A3E',
 			3: 'F5D14E',
