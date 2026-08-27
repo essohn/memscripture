@@ -109,3 +109,24 @@ describe('openingOf', () => {
 		expect(openingOf('   ')).toBe('');
 	});
 });
+
+describe('a wider opening', () => {
+	// The 첫 단어 quiz asks for three words; the card's 첫 시작 clock keeps the
+	// two its bands were calibrated against. One number shared by both would
+	// have made the quiz's change re-rate every verse in the library.
+	it('counts the words it is given', () => {
+		expect(openingOf('그들에게 율례와 법도를 가르쳐서', 3)).toBe('그들에게 율례와 법도를');
+	});
+
+	it('is not satisfied by the default two', () => {
+		expect(hasTypedOpening(VERSE, '그들에게 율례와', 3)).toBe(false);
+		expect(hasTypedOpening(VERSE, '그들에게 율례와 법도를', 3)).toBe(true);
+	});
+
+	// A two-word verse must still be reachable when three are asked for, or a
+	// short verse becomes a round nobody can pass.
+	it('falls back to what a short verse has', () => {
+		expect(openingOf('할렐루야 아멘', 3)).toBe('할렐루야 아멘');
+		expect(hasTypedOpening('할렐루야 아멘', '할렐루야 아멘', 3)).toBe(true);
+	});
+});

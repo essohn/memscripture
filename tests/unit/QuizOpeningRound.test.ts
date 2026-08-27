@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
+import { tick } from 'svelte';
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import QuizOpeningRound from '../../src/lib/components/quiz/QuizOpeningRound.svelte';
 import type { QuizItem } from '../../src/lib/quiz/session';
 
-// 그들에게(0) 율례와(1) — two words is the opening.
+// 그들에게(0) 율례와(1) 법도를(2) — three words is the opening this game asks for.
 const VERSE = '그들에게 율례와 법도를 가르쳐서 마땅히 갈 길과 할 일을 그들에게 보이고';
+const OPENING = '그들에게 율례와 법도를';
 
 const item: QuizItem = {
 	id: '900_krv:127',
@@ -21,8 +23,15 @@ function setup() {
 	return { onDone };
 }
 
+const box = () => screen.getByRole('textbox');
+
 async function type(text: string) {
-	await fireEvent.input(screen.getByRole('textbox'), { target: { value: text } });
+	await fireEvent.input(box(), { target: { value: text } });
+}
+
+/** Enter as the keyboard delivers it once a syllable is already committed. */
+async function pressEnter(init: Partial<KeyboardEventInit> = {}) {
+	await fireEvent.keyDown(box(), { key: 'Enter', ...init });
 }
 
 describe('QuizOpeningRound', () => {
@@ -33,7 +42,7 @@ describe('QuizOpeningRound', () => {
 	});
 
 	// No 제출 button: the point of this game is getting going, and hunting
-	// for a button after two words erases it.
+	// for a button after three words erases it.
 	it('has no submit button', () => {
 		setup();
 		expect(screen.queryByRole('button', { name: '제출' })).toBeNull();
@@ -41,7 +50,7 @@ describe('QuizOpeningRound', () => {
 
 	it('passes the moment the opening is produced', async () => {
 		setup();
-		await type('그들에게 율례와');
+		await type(OPENING);
 		expect(screen.getByRole('button', { name: '다음' })).toBeInTheDocument();
 	});
 
@@ -51,17 +60,24 @@ describe('QuizOpeningRound', () => {
 		expect(screen.queryByRole('button', { name: '다음' })).toBeNull();
 	});
 
+	// Two used to be enough. Three is a start you could carry on from.
+	it('is not satisfied by two words', async () => {
+		setup();
+		await type('그들에게 율례와');
+		expect(screen.queryByRole('button', { name: '다음' })).toBeNull();
+	});
+
 	// Korean spacing is a spelling problem, not a recall failure — the shared
 	// normalization decides, not the space bar.
 	it('is not decided by spacing', async () => {
 		setup();
-		await type('그들에게율례와');
+		await type('그들에게율례와법도를');
 		expect(screen.getByRole('button', { name: '다음' })).toBeInTheDocument();
 	});
 
 	it('reports a pass only when 다음 is pressed', async () => {
 		const { onDone } = setup();
-		await type('그들에게 율례와');
+		await type(OPENING);
 		expect(onDone).not.toHaveBeenCalled();
 		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
 		expect(onDone).toHaveBeenCalledWith(
@@ -72,18 +88,16 @@ describe('QuizOpeningRound', () => {
 	it('reveals the opening and fails on 모르겠어요', async () => {
 		const { onDone } = setup();
 		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
-		expect(screen.getByText('그들에게 율례와')).toBeInTheDocument();
+		expect(screen.getByText(OPENING)).toBeInTheDocument();
 		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
-		expect(onDone).toHaveBeenCalledWith(
-			expect.objectContaining({ passed: false, accuracy: 0 })
-		);
+		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: false, accuracy: 0 }));
 	});
 
 	// The route advances its index off onDone, so a second report would skip
 	// the next verse entirely.
 	it('reports once even if 다음 is tapped twice', async () => {
 		const { onDone } = setup();
-		await type('그들에게 율례와');
+		await type(OPENING);
 		const next = screen.getByRole('button', { name: '다음' });
 		await fireEvent.click(next);
 		await fireEvent.click(next);
@@ -101,12 +115,63 @@ describe('QuizOpeningRound', () => {
 	// started.
 	it('keeps the pass once the opening is produced, even after a later deletion', async () => {
 		setup();
-		await type('그들에게 율례와');
+		await type(OPENING);
 		expect(screen.getByRole('button', { name: '다음' })).toBeInTheDocument();
 
-		await type('그들에게 율례');
+		await type('그들에게 율례와 법도');
 
 		expect(screen.getByRole('button', { name: '다음' })).toBeInTheDocument();
 		expect(screen.queryByRole('button', { name: '모르겠어요' })).toBeNull();
+	});
+
+	// Three words never wrap, and a two-row box invites a recital the game
+	// does not grade — nor does it want the newline a textarea takes Enter to
+	// mean.
+	it('answers on a single line', () => {
+		setup();
+		expect(box().tagName).toBe('INPUT');
+	});
+
+	// The route wraps each round in {#key}, so this is a fresh component per
+	// card: focusing on mount is what makes 다음 land the reader on the next
+	// verse ready to type rather than one tap short of it.
+	it('focuses the box when the round appears', async () => {
+		setup();
+		await tick();
+		expect(document.activeElement).toBe(box());
+	});
+
+	it('advances on Enter once the opening is produced', async () => {
+		const { onDone } = setup();
+		await type(OPENING);
+		await pressEnter();
+		expect(onDone).toHaveBeenCalledTimes(1);
+	});
+
+	it('does nothing on Enter while the opening is still missing', async () => {
+		const { onDone } = setup();
+		await type('그들에게 율례와');
+		await pressEnter();
+		expect(onDone).not.toHaveBeenCalled();
+		// And it must not stand in for 모르겠어요 — that records a failure.
+		expect(screen.getByRole('button', { name: '모르겠어요' })).toBeInTheDocument();
+	});
+
+	// Korean input uses Enter to commit a syllable. Advancing on that keystroke
+	// would throw the reader onto the next verse as they finished a word.
+	it('ignores the Enter that commits a syllable', async () => {
+		const { onDone } = setup();
+		await type(OPENING);
+		await pressEnter({ isComposing: true });
+		expect(onDone).not.toHaveBeenCalled();
+	});
+
+	// 모르겠어요 removes the button the reader just pressed, so the browser
+	// drops focus to <body> and Enter stops reaching anything at all.
+	it('hands focus to 다음 when 모르겠어요 takes its own button away', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
+		await tick();
+		expect(document.activeElement).toBe(screen.getByRole('button', { name: '다음' }));
 	});
 });

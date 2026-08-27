@@ -52,37 +52,48 @@ export function startDifficultyFor(elapsedMs: number, context: StartContext = {}
 	return Math.min(...ceilings) as DifficultyLevel;
 }
 
-/** Words that count as having started the verse. */
+/** Words that count as having started the verse, unless a caller asks for more. */
 const OPENING_WORDS = 2;
 
 /**
  * The words that count as having started this verse.
  *
  * Exported because 첫 단어 has to *show* the opening when the reader gives up,
- * and slicing it again at the call site would put OPENING_WORDS in two places
+ * and slicing it again at the call site would put the count in two places
  * — two definitions of the same thing, drifting apart the first time either
  * moves.
+ *
+ * The count is a parameter rather than one constant both callers share,
+ * because they are asking different questions. The check panel's clock wants
+ * the earliest honest moment the reader has recalled the start (see below).
+ * 첫 단어 wants a start worth passing on, and asks for three. Raising the
+ * constant to serve the game would have re-rated every verse in the library.
  */
-export function openingOf(verse: string): string {
-	return verse.trim().split(/\s+/).filter(Boolean).slice(0, OPENING_WORDS).join(' ');
+export function openingOf(verse: string, words: number = OPENING_WORDS): string {
+	return verse.trim().split(/\s+/).filter(Boolean).slice(0, words).join(' ');
 }
 
 /**
  * Has the reader produced the verse's opening yet?
  *
- * Two words, deliberately — this no longer borrows extractFirstClause, which
- * yields 3–8 words for the daily review card's cue. That is the right size for
- * a *hint*, but the wrong size for this clock: by the second word the reader
- * has plainly recalled how the verse starts, and waiting for up to eight turned
- * 첫 시작 난이도 into a measure of typing speed on long verses.
+ * Two by default, deliberately — this no longer borrows extractFirstClause,
+ * which yields 3–8 words for the daily review card's cue. That is the right
+ * size for a *hint*, but the wrong size for this clock: by the second word the
+ * reader has plainly recalled how the verse starts, and waiting for up to eight
+ * turned 첫 시작 난이도 into a measure of typing speed on long verses. Callers
+ * that are grading rather than timing pass their own count.
  *
  * Short verses fall back to whatever they have, so a one- or two-word verse can
  * still stop the clock rather than leaving it running forever.
  *
  * Compared under the grading normalization, so spacing never holds it open.
  */
-export function hasTypedOpening(verse: string, typed: string): boolean {
-	const opening = normalizeForGrading(openingOf(verse));
+export function hasTypedOpening(
+	verse: string,
+	typed: string,
+	words: number = OPENING_WORDS
+): boolean {
+	const opening = normalizeForGrading(openingOf(verse, words));
 	if (opening.length === 0) return false;
 	return normalizeForGrading(typed).startsWith(opening);
 }

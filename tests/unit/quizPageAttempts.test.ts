@@ -191,7 +191,7 @@ describe('quiz/+page.svelte — source recording', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
 
 		await fireEvent.input(screen.getByRole('textbox', { name: '구절 첫머리 입력' }), {
-			target: { value: '또 증거는' }
+			target: { value: '또 증거는 이것이니' }
 		});
 		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
 
