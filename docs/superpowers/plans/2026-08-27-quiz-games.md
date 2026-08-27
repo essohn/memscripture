@@ -1240,6 +1240,14 @@ describe('QuizScopePicker — games', () => {
 		setup();
 		expect(screen.queryByText(/내 오답 기록이 있습니다/)).toBeNull();
 	});
+
+	// The heading names what the chips do — they pick a group of verses by
+	// difficulty, they do not set one.
+	it('heads the difficulty chips 난이도 그룹 선택', () => {
+		setup();
+		expect(screen.getByText('난이도 그룹 선택')).toBeInTheDocument();
+		expect(screen.queryByText('난이도')).toBeNull();
+	});
 });
 ```
 
@@ -1325,7 +1333,11 @@ Widen the `onStart` prop type to `(queue: QuizItem[], game: Game) => void`, and 
 	});
 ```
 
-Add the 게임 section above the count row, following the 난이도 section's markup:
+**Rename the difficulty heading.** `QuizScopePicker.svelte:52` currently reads
+`난이도`; change that heading's text to exactly `난이도 그룹 선택`. Nothing else
+about that section changes, and no other file mentions the string.
+
+Add the 게임 section above the count row, following that section's markup:
 
 ```svelte
 	<div>
@@ -1470,7 +1482,7 @@ In `finishRound`, replace the hardcoded `source: 'quiz'`:
 - [ ] **Step 4: Run the whole suite**
 
 Run: `pnpm test`
-Expected: PASS. The branch started at 1303; this plan adds 7 + 9 + 3 + 12 + 8 + 9 = 48, so expect **1351**. If the totals disagree, report the real numbers rather than adjusting the expectation.
+Expected: PASS. The branch started at 1303; this plan adds 7 + 9 + 3 + 12 + 8 + 10 = 49, so expect **1352**. If the totals disagree, report the real numbers rather than adjusting the expectation.
 
 Run: `pnpm check`
 Expected: 0 errors.
