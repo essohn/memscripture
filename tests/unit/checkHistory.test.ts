@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { db } from '../../src/lib/db/local';
 import {
 	HISTORY_LIMIT,
+	countsAsRecall,
 	listChecks,
 	listPerfectVerseNos,
 	recordCheck
@@ -103,6 +104,118 @@ describe('checkHistory', () => {
 		await recordCheck('900_krv', 3, entry({ accuracy: 0.9, missed: [2], source: 'quiz' }), 1000);
 		await recordCheck('900_krv', 3, entry({ accuracy: 0.9, missed: [2], source: 'quiz' }), 2000);
 		expect(suggestedMarks(await listChecks('900_krv', 3), 11)).toEqual(new Set([2]));
+	});
+
+	// Near-misses become future 틀린 곳 찾기 questions. The rule lives in
+	// recordCheck so the card's check and the quiz's round cannot disagree
+	// about what is worth keeping.
+	it('keeps the sentence behind a near miss', async () => {
+		await recordCheck('900_krv', 10, entry({ accuracy: 0.95, typed: '거의 맞은 문장' }), 1000);
+		expect((await listChecks('900_krv', 10))[0].typed).toBe('거의 맞은 문장');
+	});
+
+	it('drops the sentence behind a collapse', async () => {
+		await recordCheck('900_krv', 11, entry({ accuracy: 0.3, typed: '두 단어' }), 1000);
+		expect((await listChecks('900_krv', 11))[0].typed).toBeUndefined();
+	});
+
+	// A perfect attempt has nothing wrong in it to find.
+	it('drops the sentence behind a perfect attempt', async () => {
+		await recordCheck('900_krv', 12, entry({ accuracy: 1, typed: '완벽한 문장' }), 1000);
+		expect((await listChecks('900_krv', 12))[0].typed).toBeUndefined();
+	});
+
+	it('records which game produced a round', async () => {
+		await recordCheck('900_krv', 13, entry({ source: 'quiz-opening' }), 1000);
+		await recordCheck('900_krv', 14, entry({ source: 'quiz-spot' }), 1000);
+		expect((await listChecks('900_krv', 13))[0].source).toBe('quiz-opening');
+		expect((await listChecks('900_krv', 14))[0].source).toBe('quiz-spot');
+	});
+});
+
+// 다시 하기 replays the same queue, so ten rounds of 첫 단어 or 틀린 곳 찾기 on a
+// one-verse scope is ten taps. Before prune knew about source, that alone
+// could push the sole 점검 or quiz row for that verse out of the budget —
+// taking the 만점 배지, the missed positions, and the typed sentence with it,
+// none of which can be reconstructed.
+describe('prune protects recall-bearing rows from non-recall churn', () => {
+	it('keeps the 점검 row, and the badge it earned, through ten opening rounds', async () => {
+		await recordCheck('900_krv', 30, entry({ accuracy: 1 }), 1000);
+		for (let i = 1; i <= HISTORY_LIMIT; i++) {
+			await recordCheck('900_krv', 30, entry({ accuracy: 1, source: 'quiz-opening' }), 1000 + i * 1000);
+		}
+		const rows = await listChecks('900_krv', 30);
+		expect(rows.length).toBeLessThanOrEqual(HISTORY_LIMIT);
+		expect(rows.some((r) => r.checkedAt === 1000)).toBe(true);
+		expect(await listPerfectVerseNos('900_krv')).toEqual(new Set([30]));
+	});
+
+	it('keeps the typed sentence 틀린 곳 찾기 hands back, through ten opening rounds', async () => {
+		await recordCheck('900_krv', 31, entry({ accuracy: 0.95, typed: '거의 맞은 문장' }), 1000);
+		for (let i = 1; i <= HISTORY_LIMIT; i++) {
+			await recordCheck('900_krv', 31, entry({ accuracy: 1, source: 'quiz-opening' }), 1000 + i * 1000);
+		}
+		expect((await listChecks('900_krv', 31)).find((r) => r.checkedAt === 1000)?.typed).toBe(
+			'거의 맞은 문장'
+		);
+	});
+
+	it('keeps the missed positions the underline suggestions read, through ten opening rounds', async () => {
+		await recordCheck('900_krv', 32, entry({ accuracy: 0.9, missed: [2] }), 1000);
+		await recordCheck('900_krv', 32, entry({ accuracy: 0.9, missed: [2], source: 'quiz' }), 2000);
+		for (let i = 1; i <= HISTORY_LIMIT; i++) {
+			await recordCheck('900_krv', 32, entry({ accuracy: 1, source: 'quiz-opening' }), 2000 + i * 1000);
+		}
+		const rows = await listChecks('900_krv', 32);
+		expect(rows.length).toBeLessThanOrEqual(HISTORY_LIMIT);
+		expect(suggestedMarks(rows.filter(countsAsRecall), 11)).toEqual(new Set([2]));
+	});
+});
+
+// The suggestions and the 만점 badge speak about recall. An opening round
+// proves the reader can start a verse; a spot round proves they can recognise
+// a mistake. Neither is evidence that the verse was recited.
+describe('countsAsRecall', () => {
+	it('counts a 점검 and a full typing round', () => {
+		expect(countsAsRecall({ source: undefined })).toBe(true);
+		expect(countsAsRecall({ source: 'quiz' })).toBe(true);
+	});
+
+	it('does not count the opening or spot games', () => {
+		expect(countsAsRecall({ source: 'quiz-opening' })).toBe(false);
+		expect(countsAsRecall({ source: 'quiz-spot' })).toBe(false);
+	});
+});
+
+describe('listPerfectVerseNos with games', () => {
+	it('does not light the badge from an opening round', async () => {
+		await recordCheck('900_krv', 20, entry({ accuracy: 1, source: 'quiz-opening' }), 1000);
+		expect(await listPerfectVerseNos('900_krv')).toEqual(new Set());
+	});
+
+	it('still lights it from a 점검 and from a full typing round', async () => {
+		await recordCheck('900_krv', 21, entry({ accuracy: 1 }), 1000);
+		await recordCheck('900_krv', 22, entry({ accuracy: 1, source: 'quiz' }), 1000);
+		expect(await listPerfectVerseNos('900_krv')).toEqual(new Set([21, 22]));
+	});
+
+	// The latest *counted* record decides. A spot round landing after a
+	// flawed check must not revive a badge the check took away.
+	it('lets a later spot round neither give nor take the badge', async () => {
+		await recordCheck('900_krv', 23, entry({ accuracy: 1 }), 1000);
+		await recordCheck('900_krv', 23, entry({ accuracy: 0.5 }), 2000);
+		await recordCheck('900_krv', 23, entry({ accuracy: 1, source: 'quiz-spot' }), 3000);
+		expect(await listPerfectVerseNos('900_krv')).toEqual(new Set());
+	});
+
+	// The most recent *counted* check decides, so a later spot round is
+	// invisible rather than decisive. Filter the rows after choosing the
+	// latest instead of before, and this badge disappears — taken away by a
+	// round that says nothing about whether the verse can be recited.
+	it('keeps a badge that a later spot round cannot speak to', async () => {
+		await recordCheck('900_krv', 24, entry({ accuracy: 1 }), 1000);
+		await recordCheck('900_krv', 24, entry({ accuracy: 0.4, source: 'quiz-spot' }), 2000);
+		expect(await listPerfectVerseNos('900_krv')).toEqual(new Set([24]));
 	});
 });
 

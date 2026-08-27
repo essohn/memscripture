@@ -1,6 +1,7 @@
 import { db, type CheckRecord } from './local';
 import type { DifficultyLevel } from './verseRatings';
 import { touchDataModified } from './touchData';
+import { isRecallableAttempt } from '$lib/quiz/games';
 
 /** Entries kept per verse. Older ones are pruned as new checks land — this is
  *  a "how has it been going" glance, not an audit trail, and 900 verses times
@@ -28,7 +29,8 @@ export async function recordCheck(
 		elapsedMs: number;
 		hints?: number;
 		missed?: number[];
-		source?: 'quiz';
+		source?: 'quiz' | 'quiz-opening' | 'quiz-spot';
+		typed?: string;
 	},
 	checkedAt: number = Date.now()
 ): Promise<void> {
@@ -49,7 +51,16 @@ export async function recordCheck(
 		// round is lost silently. Spreading undefined must stay undefined:
 		// absent means the record predates this field, which is not the same
 		// as missing nothing.
-		...(entry.missed ? { missed: [...entry.missed] } : {})
+		...(entry.missed ? { missed: [...entry.missed] } : {}),
+		// Kept only for a near miss. Deciding here rather than at each call
+		// site means the card's 점검 and the quiz's typing round cannot
+		// disagree about which sentences are worth handing back later.
+		// entry.typed already rode in on the ...entry spread above, so a
+		// collapsed or perfect attempt needs an explicit undefined to push it
+		// back out — an empty spread here would leave it in place.
+		...(entry.typed !== undefined
+			? { typed: isRecallableAttempt(entry.accuracy) ? entry.typed : undefined }
+			: {})
 	});
 	await prune(key);
 	await touchDataModified();
@@ -64,13 +75,36 @@ async function nextSuffix(key: string, checkedAt: number): Promise<number> {
 	return clash;
 }
 
+/**
+ * Keeps the table bounded without letting a non-recall row evict evidence
+ * nothing can replace.
+ *
+ * Before quiz-opening and quiz-spot existed, every row in the budget counted
+ * for something, so "keep the newest HISTORY_LIMIT" was the whole rule. Now
+ * an opening or spot round can be replayed ten times over on a one-verse
+ * scope (다시 하기 replays the same queue), and by recency alone those rounds
+ * would push out the 점검 or quiz row that holds the 만점 배지, the `missed`
+ * positions the underline suggestions read, and the `typed` sentence 틀린 곳
+ * 찾기 exists to hand back — none of which a non-recall row can replace.
+ *
+ * So recall-bearing rows are kept first, up to the limit, and non-recall rows
+ * fill only what is left over. A non-recall row can therefore never evict a
+ * recall-bearing one; two recall rows can still evict each other by age, same
+ * as before.
+ */
 async function prune(key: string): Promise<void> {
 	const rows = await db.checkHistory.where('verseKey').equals(key).toArray();
 	if (rows.length <= HISTORY_LIMIT) return;
-	const doomed = rows
-		.sort((a, b) => b.checkedAt - a.checkedAt)
-		.slice(HISTORY_LIMIT)
-		.map((r) => r.id);
+
+	const byRecency = (a: CheckRecord, b: CheckRecord) => b.checkedAt - a.checkedAt;
+	const recall = rows.filter(countsAsRecall).sort(byRecency);
+	const nonRecall = rows.filter((r) => !countsAsRecall(r)).sort(byRecency);
+
+	const keptRecall = recall.slice(0, HISTORY_LIMIT);
+	const keptNonRecall = nonRecall.slice(0, HISTORY_LIMIT - keptRecall.length);
+	const kept = new Set([...keptRecall, ...keptNonRecall].map((r) => r.id));
+
+	const doomed = rows.filter((r) => !kept.has(r.id)).map((r) => r.id);
 	await db.checkHistory.bulkDelete(doomed);
 }
 
@@ -81,6 +115,19 @@ export async function listChecks(
 ): Promise<CheckRecord[]> {
 	const rows = await db.checkHistory.where('verseKey').equals(verseKey(packageId, verseNo)).toArray();
 	return rows.sort((a, b) => b.checkedAt - a.checkedAt).slice(0, HISTORY_LIMIT);
+}
+
+/**
+ * Does this record say something about recall?
+ *
+ * 점검 and the quiz's full typing round do: the reader produced the verse
+ * from memory. The opening game proves only that they can start it, and the
+ * spot game proves they can recognise a mistake — neither is evidence that
+ * the verse was recited, so neither may move the underline suggestions or the
+ * 만점 badge.
+ */
+export function countsAsRecall(r: Pick<CheckRecord, 'source'>): boolean {
+	return r.source === undefined || r.source === 'quiz';
 }
 
 /**
@@ -103,6 +150,7 @@ export async function listPerfectVerseNos(packageId: string): Promise<Set<number
 	// the card telling the reader something they just disproved.
 	const latest = new Map<number, { checkedAt: number; accuracy: number }>();
 	for (const r of rows) {
+		if (!countsAsRecall(r)) continue;
 		const seen = latest.get(r.verseNo);
 		if (!seen || r.checkedAt > seen.checkedAt) latest.set(r.verseNo, r);
 	}

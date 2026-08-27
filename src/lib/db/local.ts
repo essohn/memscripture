@@ -65,7 +65,12 @@ export interface CheckRecord {
 	/** What produced this record. Absent means 점검 — every record written
 	 *  before this field existed was one, and it is the app's primary act, so
 	 *  the default already says the true thing about old rows. */
-	source?: 'quiz';
+	source?: 'quiz' | 'quiz-opening' | 'quiz-spot';
+	/** What the reader actually typed. Kept only for attempts that nearly
+	 *  landed — see isRecallableAttempt. The 틀린 곳 찾기 game hands this back
+	 *  and asks what is wrong with it, so a collapsed attempt is worth
+	 *  nothing and a perfect one has nothing in it to find. */
+	typed?: string;
 }
 
 /** Words the reader underlined on one verse — the places they keep tripping

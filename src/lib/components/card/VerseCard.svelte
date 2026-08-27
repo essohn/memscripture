@@ -16,7 +16,7 @@
 	import { createPlayer, isTtsSupported, speechSegments, type PlayerHandle } from '$lib/memorize/speak';
 	import VersePlayer from './VersePlayer.svelte';
 	import { getSpeakOptions, setSpeakOption, type SpeakOptionsStored } from '$lib/db/viewOptions';
-	import { listChecks, recordCheck } from '$lib/db/checkHistory';
+	import { countsAsRecall, listChecks, recordCheck } from '$lib/db/checkHistory';
 	import type { CheckRecord } from '$lib/db/local';
 	import { tick } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -300,7 +300,7 @@
 	 *  and point at a place already fixed. Empty outside marking mode, where a
 	 *  dot would be a remark with nothing to tap. */
 	const suggested = $derived(
-		marking ? suggestedMarks(checkHistory, totalWords) : new Set<number>()
+		marking ? suggestedMarks(checkHistory.filter(countsAsRecall), totalWords) : new Set<number>()
 	);
 	/** A proposal still waiting to be taken. The hint line speaks off this
 	 *  rather than off `suggested` itself: once the reader has underlined every
