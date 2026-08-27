@@ -79,6 +79,23 @@ describe('QuizSpotRound', () => {
 		expect(onDone).toHaveBeenCalledTimes(1);
 	});
 
+	// The reported defect: a reader arriving cold saw one button — 이상 없음 —
+	// and no sign the words themselves were the other half of the answer, so
+	// the only verdict they could express was "nothing is wrong". The words
+	// carried role="button" and a hover tint, neither of which exists on a
+	// touch screen. VerseCard's marking mode answers the same problem with a
+	// hint line; this is that line.
+	it('tells the reader the words are how they point at the mistake', () => {
+		setup(FLAWED);
+		expect(screen.getByText('틀린 단어를 누르세요')).toBeInTheDocument();
+	});
+
+	it('stops offering the hint once the answer is in', async () => {
+		const { container } = setup(FLAWED);
+		await fireEvent.click(wordAt(container, 2));
+		expect(screen.queryByText('틀린 단어를 누르세요')).toBeNull();
+	});
+
 	it('says which round this is', () => {
 		setup(FLAWED);
 		expect(screen.getByText('2 / 4')).toBeInTheDocument();

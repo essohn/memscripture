@@ -94,6 +94,18 @@
 		>{' '}{/each}
 	</p>
 
+	{#if !answered}
+		<!-- The words are the other half of the answer, and nothing said so. They
+		     carry role="button" and a hover tint; neither exists on a touch
+		     screen, so a reader arriving cold saw a verse and one button reading
+		     이상 없음 — and the only verdict they could express was that nothing
+		     was wrong. VerseCard's marking mode has the same invisible-target
+		     problem and answers it with a hint line rather than a per-word
+		     marker; dotted styling already means "자주 틀린 곳" elsewhere in the
+		     app, so borrowing it here would say something else. -->
+		<p class="mt-3 text-[11px] text-[var(--color-text-tertiary)]">틀린 단어를 누르세요</p>
+	{/if}
+
 	{#if answered}
 		<p class="mt-3 text-[calc(13px*var(--vfs))] font-medium">
 			{correct ? '맞았습니다' : '다시 볼 구절'}
