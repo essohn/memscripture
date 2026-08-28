@@ -646,7 +646,14 @@
 	{:else if !confirming}
 		<!-- The box comes first. It is the only thing on this panel the reader has
 		     to act on, and it is now focused on open, so anything above it would
-		     sit between them and a cursor that is already blinking. -->
+		     sit between them and a cursor that is already blinking.
+
+		     16px in BOTH the class and --field-size, which have to move together:
+		     on a coarse pointer app.css wins with
+		     `max(16px, var(--field-size)) !important`, so --field-size is the one
+		     that decides on a phone and the class is the one that decides on a
+		     desktop. Changing only the visible one leaves the two platforms at
+		     different sizes. -->
 		<textarea
 			bind:this={inputEl}
 			bind:value={typed}
@@ -654,7 +661,7 @@
 			aria-label="암송 구절 입력"
 			onkeydown={onKeydown}
 			placeholder="외운 구절을 입력하세요"
-			class="w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-2 text-[calc(14px*var(--vfs))] text-[var(--color-text)] [--field-size:calc(14px*var(--vfs))]"
+			class="w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-2 text-[calc(16px*var(--vfs))] text-[var(--color-text)] [--field-size:calc(16px*var(--vfs))]"
 		></textarea>
 
 		<!-- The clock, as a bar rather than a number alone. The track is the pace

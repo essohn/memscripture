@@ -50,8 +50,9 @@ test('form controls are large enough that iOS will not zoom', async ({ page }) =
 
 // The check input is the one people actually type into, and the only field
 // that opts into the reader's text-size setting — so it is the one where the
-// 16px floor is doing real work. Its own size is 14px at the default scale
-// and smaller still at the smallest, which is exactly what iOS zooms on.
+// 16px floor is doing real work. Its own size is 16px at the default scale but
+// 14.4px at 작게, which is exactly what iOS zooms on. Legibility is a separate
+// question from this one and lives in check-input.spec.ts.
 test('the check input is above the zoom threshold despite scaling', async ({ page }) => {
 	await page.goto('/library/5_krv');
 	await page.getByRole('button', { name: '점검' }).first().click();
