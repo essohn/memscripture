@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { ChevronRight } from 'lucide-svelte';
 	import type { QuizItem } from '$lib/quiz/session';
+	import { rankOf } from '$lib/arcade/score';
+	import { arcade } from '$lib/state/arcade.svelte';
 
 	interface Props {
 		passed: number;
@@ -10,14 +12,58 @@
 		 *  above zero — silence is how a total storage failure once hid for a
 		 *  whole session. */
 		unsaved?: number;
+		/** The arcade's total for the run. Zero is a real answer — a session
+		 *  that scored nothing still happened. */
+		points?: number;
+		/** The longest chain the run managed. */
+		bestCombo?: number;
 		onAgain: () => void;
 		onClose: () => void;
 	}
-	let { passed, total, failed, unsaved = 0, onAgain, onClose }: Props = $props();
+	let {
+		passed,
+		total,
+		failed,
+		unsaved = 0,
+		points = 0,
+		bestCombo = 0,
+		onAgain,
+		onClose
+	}: Props = $props();
+
+	const rank = $derived(rankOf(passed, total));
+
+	// The one flourish in the sound set, and the only place it plays.
+	$effect(() => {
+		arcade.play('clear');
+	});
 </script>
 
 <section class="space-y-4 text-center">
+	{#if rank}
+		<!-- The letter is read off passes alone. Points reward speed and
+		     chains, and a reader who was slow but right still recited every
+		     verse — a headline that fell for being unhurried would say
+		     otherwise. -->
+		<p
+			data-testid="quiz-rank"
+			class="mx-auto flex h-16 w-16 items-center justify-center rounded-xl border-[3px] border-[var(--color-accent)] text-[34px] leading-none font-bold tracking-tight text-[var(--color-accent)] tabular-nums"
+		>
+			{rank}
+		</p>
+	{/if}
 	<p class="text-[32px] font-semibold text-[var(--color-text)]">{passed} / {total}</p>
+
+	<div class="flex items-center justify-center gap-4 text-[12px] tracking-wider">
+		<span data-testid="quiz-points" class="tabular-nums text-[var(--color-text-secondary)]">
+			{points.toLocaleString('en-US')} P
+		</span>
+		{#if bestCombo > 0}
+			<span data-testid="quiz-best-combo" class="tabular-nums text-[var(--color-accent)]">
+				최고 {bestCombo} COMBO
+			</span>
+		{/if}
+	</div>
 	{#if unsaved > 0}
 		<p class="text-[12px] text-[var(--color-text-tertiary)]">{unsaved}개 라운드는 기록하지 못했습니다</p>
 	{/if}

@@ -11,6 +11,8 @@
 	import { GAME_SOURCE, type Game } from '$lib/quiz/games';
 	import { summarize, type ItemRating, type QuizItem, type RoundResult } from '$lib/quiz/session';
 	import { recordCheck } from '$lib/db/checkHistory';
+	import { NO_COMBO, comboHit, comboMiss, type ComboState } from '$lib/arcade/combo';
+	import { arcade } from '$lib/state/arcade.svelte';
 	import { todayLocalKey } from '$lib/db/activity';
 
 	let targets = $state<Target[]>([]);
@@ -37,6 +39,16 @@
 	let attempts = $state<Map<string, string>>(new Map());
 	let index = $state(0);
 	let results = $state<RoundResult[]>([]);
+
+	/**
+	 * The session's chain, and with it the score.
+	 *
+	 * Owned here rather than in the rounds because a chain is the thing that
+	 * spans them — a round only knows whether it beat its own clock. A session
+	 * plays one game throughout, so the multiplier always means "in a row at
+	 * this game" and never mixes two scales.
+	 */
+	let combo = $state<ComboState>(NO_COMBO);
 
 	/** Rounds whose result could not be stored. The run continues either way —
 	 *  the reader is mid-quiz — but a silent total failure is how this feature
@@ -84,6 +96,9 @@
 	$effect(() => {
 		if (loaded) return;
 		loaded = true;
+		// The sound preference, read once for the whole run. A round that had to
+		// wait on storage before it could make a noise would make it late.
+		void arcade.load();
 		const wanted = page.url.searchParams.get('event');
 		listTargets(todayLocalKey())
 			.then((t) => {
@@ -134,10 +149,18 @@
 		index = 0;
 		results = [];
 		unsaved = 0;
+		combo = NO_COMBO;
+		arcade.play('select');
 	}
 
 	function finishRound(result: RoundResult) {
 		results = [...results, result];
+		combo = result.passed
+			? comboHit(combo, { inTime: result.inTime ?? false, base: result.points ?? 0 })
+			: comboMiss(combo);
+		// The chime is the chain: each link answers a step higher, so a run
+		// sounds like a run. Only for a link that actually extended it.
+		if (result.passed && result.inTime) arcade.playCombo(combo.streak);
 		const item = queue?.[index];
 		if (item) {
 			// The reader is mid-quiz. A storage failure costs one record's worth
@@ -198,26 +221,70 @@
 		<QuizSummary
 			passed={summary.passed}
 			total={summary.total}
+			points={combo.points}
+			bestCombo={combo.best}
 			failed={failedItems}
 			{unsaved}
 			onAgain={again}
 			onClose={close}
 		/>
 	{:else}
+		<!-- One wrapper per round, keyed, so the animation runs on every verse
+		     rather than once for the run. -->
 		{#key `${index}:${queue[index].id}`}
+			<div class="round-enter">
 			{#if game === 'opening'}
-				<QuizOpeningRound item={queue[index]} {index} total={queue.length} onDone={finishRound} />
+				<QuizOpeningRound
+					item={queue[index]}
+					{index}
+					total={queue.length}
+					streak={combo.streak}
+					onDone={finishRound}
+				/>
 			{:else if game === 'spot'}
 				<QuizSpotRound
 					item={queue[index]}
 					shown={attempts.get(queue[index].id) ?? queue[index].w}
 					{index}
 					total={queue.length}
+					streak={combo.streak}
 					onDone={finishRound}
 				/>
 			{:else}
-				<QuizTypingRound item={queue[index]} {index} total={queue.length} onDone={finishRound} />
+				<QuizTypingRound
+					item={queue[index]}
+					{index}
+					total={queue.length}
+					streak={combo.streak}
+					onDone={finishRound}
+				/>
 			{/if}
+			</div>
 		{/key}
 	{/if}
 </main>
+
+<style>
+	/* Stepped rather than smooth: four frames is what a cabinet had, and an
+	   eased fade would be the one transition in the quiz that had never seen
+	   one. Short enough that it never delays an answer. */
+	@keyframes round-in {
+		from {
+			opacity: 0;
+			transform: translateY(10px) scale(0.985);
+		}
+		to {
+			opacity: 1;
+			transform: none;
+		}
+	}
+	.round-enter {
+		animation: round-in 200ms steps(4, end) both;
+	}
+	/* The reader's answer, given once to the whole system. */
+	@media (prefers-reduced-motion: reduce) {
+		.round-enter {
+			animation: none;
+		}
+	}
+</style>

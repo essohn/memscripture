@@ -3,6 +3,10 @@
 	import { markMismatchedWords } from '$lib/memorize/grade';
 	import { findSpotFlaws } from '$lib/quiz/spot';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
+	import ComboMeter from '$lib/components/arcade/ComboMeter.svelte';
+	import ShatterReveal from '$lib/components/arcade/ShatterReveal.svelte';
+	import { arcade } from '$lib/state/arcade.svelte';
+	import { SPOT_HIT_POINTS, comboLimitMs } from '$lib/arcade/combo';
 	import QuizAnswer from './QuizAnswer.svelte';
 
 	interface Props {
@@ -12,9 +16,19 @@
 		shown: string;
 		index: number;
 		total: number;
+		/** The chain the session is carrying into this round. */
+		streak?: number;
 		onDone: (result: RoundResult) => void;
 	}
-	let { item, shown, index, total, onDone }: Props = $props();
+	let { item, shown, index, total, streak = 0, onDone }: Props = $props();
+
+	/** Scaled to the sentence: a flat limit would be generous for 여호와여 and
+	 *  impossible for sixty characters. */
+	const limitMs = $derived(comboLimitMs(shown.length));
+	/** Whether the answer beat the clock. Latched at the answer, because the
+	 *  reader then sits on the verdict screen and the clock would keep running
+	 *  past it. */
+	let inTime = $state(true);
 
 	/**
 	 * The reader's verdict: is anything wrong, or not. Undefined while they are
@@ -47,6 +61,19 @@
 	const showDropped = $derived(flaws.wrong.length === 0 && flaws.flawed);
 
 	const answered = $derived(answer !== undefined);
+
+	/** The answer arrives behind a wall, which comes down a beat later. The
+	 *  beat is the point: a wall already in pieces on the frame it appears was
+	 *  never a wall. */
+	let revealed = $state(false);
+	$effect(() => {
+		if (!answered || revealed) return;
+		const id = setTimeout(() => {
+			revealed = true;
+			arcade.play('shatter');
+		}, 260);
+		return () => clearTimeout(id);
+	});
 	const correct = $derived(answered && (answer === 'flawed') === flaws.flawed);
 
 	/** The 다음 button, once the answer is in. */
@@ -54,7 +81,13 @@
 
 	function choose(a: Answer) {
 		if (answered) return;
+		inTime = Date.now() - startedAt <= limitMs;
 		answer = a;
+		// Read from the fresh verdict rather than `correct`, which is derived
+		// and has not been recomputed yet on this line.
+		const right = a === 'clean' ? !flaws.flawed : flaws.flawed;
+		if (right) arcade.play('select');
+		else arcade.play('fail');
 		// Answering removes the button that was just pressed, so whatever the
 		// reader was standing on stops being focusable and the browser drops
 		// focus to <body> — from there a keyboard reader has to tab in from the
@@ -72,7 +105,10 @@
 			// it". Nothing counts quiz-spot as recall.
 			accuracy: correct ? 1 : 0,
 			missed: [],
-			elapsedMs: Date.now() - startedAt
+			elapsedMs: Date.now() - startedAt,
+			// The round's own worth, before the session's chain multiplies it.
+			points: correct ? SPOT_HIT_POINTS : 0,
+			inTime
 		});
 	}
 </script>
@@ -85,6 +121,8 @@
 		<span class="text-[11px] text-[var(--color-text-tertiary)]">{index + 1} / {total}</span>
 	</div>
 	<p class="mt-0.5 text-[calc(14px*var(--vfs))] text-[var(--color-text-secondary)]">{item.cite}</p>
+
+	<ComboMeter {startedAt} {limitMs} {streak} frozen={answered} late={answered && !inTime} />
 
 	<!-- Plain text now, not a strip of targets. The two buttons are the whole
 	     answer, so nothing here needs a role, a tab stop, or a hint line
@@ -117,7 +155,9 @@
 			</p>
 		{/if}
 
-		<QuizAnswer w={item.w} />
+		<ShatterReveal broken={revealed} label="정답">
+			<QuizAnswer w={item.w} />
+		</ShatterReveal>
 		<p class="mt-3 text-[calc(13px*var(--vfs))] font-medium">
 			{correct ? '맞았습니다' : '다시 볼 구절'}
 		</p>

@@ -29,6 +29,18 @@ export interface RoundResult {
 	 *  keeping. Only the typing round sets it; recordCheck decides whether it
 	 *  is kept, so no round needs to know the threshold. */
 	typed?: string;
+	/** The arcade's own currency, totalled by the summary.
+	 *
+	 *  Deliberately separate from `passed` and `accuracy`, which are what the
+	 *  check history reads: a round can be worth nothing and still be a pass,
+	 *  and nothing about a score may reach the difficulty ratings. Absent from
+	 *  a round that does not score. */
+	points?: number;
+	/** The round was answered inside its own clock. Feeds the chain and
+	 *  nothing else — a late answer is graded exactly like a prompt one, and
+	 *  a timer that could mark a verse wrong would put pressure into a record
+	 *  the difficulty ratings read. */
+	inTime?: boolean;
 }
 
 /** The rating shape sortByDifficulty takes — the display-side VerseRating from

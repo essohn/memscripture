@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import QuizTypingRound from '../../src/lib/components/quiz/QuizTypingRound.svelte';
 import type { QuizItem } from '../../src/lib/quiz/session';
+import { PERFECT_POINTS } from '../../src/lib/arcade/combo';
 
 // Word indices: 0 그들에게 · 1 율례와 · 2 법도를 · 3 가르쳐서 · 4 마땅히 · 5 갈
 //               6 길과 · 7 할 · 8 일을 · 9 그들에게 · 10 보이고
@@ -145,5 +146,34 @@ describe('QuizTypingRound — the verse itself', () => {
 	it('does not give it away before the answer is in', () => {
 		setup();
 		expect(screen.queryByTestId('quiz-answer')).toBeNull();
+	});
+});
+
+describe('QuizTypingRound — 점수', () => {
+	it('breaks a wall to show the answer', async () => {
+		setup();
+		await type('틀린 답');
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(screen.getByTestId('shatter-wall')).toBeInTheDocument();
+	});
+
+	// Reciting a whole verse without a slip is the hardest thing the quiz asks,
+	// so it is the biggest thing it pays.
+	it('pays for a flawless recitation', async () => {
+		const { onDone } = setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		expect(onDone).toHaveBeenCalledWith(
+			expect.objectContaining({ passed: true, points: PERFECT_POINTS, inTime: true })
+		);
+	});
+
+	it('pays nothing for a flawed one', async () => {
+		const { onDone } = setup();
+		await type('그들에게 율례와');
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: false, points: 0 }));
 	});
 });

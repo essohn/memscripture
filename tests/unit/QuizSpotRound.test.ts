@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import QuizSpotRound from '../../src/lib/components/quiz/QuizSpotRound.svelte';
 import type { QuizItem } from '../../src/lib/quiz/session';
+import { comboLimitMs } from '../../src/lib/arcade/combo';
 
 // 그들에게(0) 율례와(1) 법도를(2) 가르쳐서(3) …
 const VERSE = '그들에게 율례와 법도를 가르쳐서 마땅히 갈 길과 할 일을 그들에게 보이고';
@@ -181,5 +182,59 @@ describe('QuizSpotRound — the verse itself', () => {
 	it('does not give it away before the answer is in', () => {
 		setup(FLAWED);
 		expect(screen.queryByTestId('quiz-answer')).toBeNull();
+	});
+});
+
+// Deciding quickly is the skill this game tests: a reader who has to stare at
+// their own wording for half a minute has not recognised it. The clock gates
+// the chain and never the verdict.
+describe('QuizSpotRound — 콤보', () => {
+	it('runs a clock the reader can see', () => {
+		setup(FLAWED);
+		expect(screen.getByTestId('combo-bar')).toBeInTheDocument();
+	});
+
+	it('reports an answer inside the clock as in time', async () => {
+		const { onDone } = setup(FLAWED);
+		await answer(onDone, '이상 있음');
+		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ inTime: true }));
+	});
+
+	it('reports an answer after the clock as late', async () => {
+		vi.useFakeTimers();
+		try {
+			const { onDone } = setup(FLAWED);
+			await vi.advanceTimersByTimeAsync(comboLimitMs(VERSE.length) + 500);
+			await answer(onDone, '이상 있음');
+			expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ inTime: false }));
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	// The whole promise of the timer: it may cost the chain, never the mark.
+	it('still grades a late answer on whether it was right', async () => {
+		vi.useFakeTimers();
+		try {
+			const { onDone } = setup(FLAWED);
+			await vi.advanceTimersByTimeAsync(comboLimitMs(VERSE.length) + 500);
+			await answer(onDone, '이상 있음');
+			expect(onDone).toHaveBeenCalledWith(
+				expect.objectContaining({ passed: true, accuracy: 1 })
+			);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('shows the chain it was handed', () => {
+		const onDone = vi.fn();
+		render(QuizSpotRound, { item, shown: FLAWED, index: 1, total: 4, onDone, streak: 3 });
+		expect(screen.getByTestId('combo-readout')).toHaveTextContent('3 COMBO');
+	});
+
+	it('says nothing about a chain that has not started', () => {
+		setup(FLAWED);
+		expect(screen.queryByTestId('combo-readout')).toBeNull();
 	});
 });
