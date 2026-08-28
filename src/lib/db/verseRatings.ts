@@ -15,6 +15,24 @@ export const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
 	5: 'xEasy'
 };
 
+/** The same six labels, cut to fit an axis. The home chart gives each level
+ *  about 24px, and 'Impossible' needs closer to 42px at the size it is drawn
+ *  there — but a bare 0-5 axis under a row of counts is two sets of small
+ *  numbers meaning different things.
+ *
+ *  Every entry is a truncation of its full label, never a synonym: a reader
+ *  who meets 'Imp' on the chart and 'Impossible' in the picker has to read
+ *  them as one word. Screen readers keep the full label — an aria-label is
+ *  not short of room. */
+export const DIFFICULTY_SHORT: Record<DifficultyLevel, string> = {
+	0: 'Imp',
+	1: 'xHard',
+	2: 'Hard',
+	3: 'Norm',
+	4: 'Easy',
+	5: 'xEasy'
+};
+
 /** Black, then a red → blue ramp of increasing easiness. Reuses the ribbon
  *  palette so the page only ships one set of color tokens. Shared by the
  *  interactive picker (DifficultyBadge) and the read-only list dot.

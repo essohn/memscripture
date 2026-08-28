@@ -4,7 +4,7 @@
 		DIFFICULTY_COLORS,
 		DIFFICULTY_LABELS,
 		DIFFICULTY_LEVELS,
-		type DifficultyLevel
+		DIFFICULTY_SHORT
 	} from '$lib/db/verseRatings';
 	import {
 		DIMENSION_LABELS,
@@ -27,6 +27,9 @@
 	 *  percentage of an unknown box cannot promise to stay visible. */
 	const PLOT_PX = 34;
 	const MIN_BAR_PX = 4;
+	/** Room the plot box reserves above the plot for the count riding each
+	 *  bar's top, so a full-height bar's number is not clipped by the box. */
+	const COUNT_PX = 12;
 
 	const SERIES = [
 		{ key: 'start' as const, label: DIMENSION_LABELS.start },
@@ -156,21 +159,27 @@
 										? 'transition-colors hover:bg-[var(--color-elevated)]'
 										: ''}"
 								>
-									<!-- Ink, not the bar's colour: the value is text, and the
-									     mark beneath it is what carries the level. -->
-									<span
-										data-testid="count-{s.key}-{level}"
-										class="text-[10px] font-semibold tabular-nums text-[var(--color-text-secondary)]"
-									>
-										{count}
-									</span>
 									<!-- w-full is load-bearing: the parent column is items-center,
 									     which shrink-wraps, and the bar's width is a percentage of
 									     this box. Without it every bar renders at zero width. -->
 									<div
-										class="flex w-full items-end border-b border-[var(--color-border)]"
-										style="height: {PLOT_PX}px"
+										class="flex w-full flex-col justify-end border-b border-[var(--color-border)]"
+										style="height: {PLOT_PX + COUNT_PX}px"
 									>
+										<!-- Ink, not the bar's colour: the value is text, and the
+										     mark beneath it is what carries the level.
+
+										     Stacked inside the plot box rather than above it. Printed
+										     as a sibling of the box, every count sat on one shared
+										     line however tall its bar was — a row of numbers floating
+										     over a chart they looked unrelated to. Bottom-aligned and
+										     ahead of the bar in the DOM, each one rides its own. -->
+										<span
+											data-testid="count-{s.key}-{level}"
+											class="pb-0.5 text-center text-[10px] font-semibold leading-none tabular-nums text-[var(--color-text-secondary)]"
+										>
+											{count}
+										</span>
 										<div
 											data-testid="bar-{s.key}-{level}"
 											role="img"
@@ -183,11 +192,15 @@
 											: ''}"
 										></div>
 									</div>
+									<!-- The word, not the level number: a 0-5 axis sitting under a
+									     row of counts is two sets of small numbers meaning different
+									     things, and nothing on the chart says which is which. 8px is
+									     what lets the longest label clear a ~24px column. -->
 									<span
 										data-testid="level-{s.key}-{level}"
-										class="pt-0.5 text-[9px] tabular-nums text-[var(--color-text-tertiary)]"
+										class="whitespace-nowrap pt-0.5 text-[8px] leading-none tracking-tight text-[var(--color-text-tertiary)]"
 									>
-										{level}
+										{DIFFICULTY_SHORT[level]}
 									</span>
 								</svelte:element>
 							{/each}

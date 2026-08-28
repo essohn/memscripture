@@ -2,6 +2,9 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../src/lib/db/local';
 import {
+	DIFFICULTY_LABELS,
+	DIFFICULTY_LEVELS,
+	DIFFICULTY_SHORT,
 	getVerseRating,
 	setFullDifficulty,
 	setStartDifficulty
@@ -11,6 +14,34 @@ import { getDataLastModified } from '../../src/lib/db/touchData';
 beforeEach(async () => {
 	await db.delete();
 	await db.open();
+});
+
+// The home chart gives each of the six levels about 24px, and 'Impossible'
+// needs closer to 42px at the size it is drawn. The short labels exist so the
+// axis can name the level in words rather than in a number the reader has to
+// look up — and so nobody reaches for a fresh abbreviation at the call site.
+describe('DIFFICULTY_SHORT', () => {
+	it('carries a label for every level', () => {
+		for (const level of DIFFICULTY_LEVELS) {
+			expect(DIFFICULTY_SHORT[level]).toBeTruthy();
+		}
+	});
+
+	// Five characters is what fits. Longer and the axis labels collide with
+	// their neighbours, which is the failure the numbers were replacing.
+	it('keeps every label inside five characters', () => {
+		for (const level of DIFFICULTY_LEVELS) {
+			expect(DIFFICULTY_SHORT[level].length).toBeLessThanOrEqual(5);
+		}
+	});
+
+	// A truncation, never a synonym: a reader who meets 'Imp' on the chart and
+	// 'Impossible' in the picker has to recognise them as one word.
+	it('truncates the full label rather than renaming it', () => {
+		for (const level of DIFFICULTY_LEVELS) {
+			expect(DIFFICULTY_LABELS[level].startsWith(DIFFICULTY_SHORT[level])).toBe(true);
+		}
+	});
 });
 
 describe('verseRatings', () => {

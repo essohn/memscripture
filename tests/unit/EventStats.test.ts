@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
 import EventStats from '../../src/lib/components/home/EventStats.svelte';
 import type { EventStats as Stats } from '../../src/lib/db/events';
+import { DIFFICULTY_LEVELS, DIFFICULTY_SHORT } from '../../src/lib/db/verseRatings';
 
 /** Mirrors the component's plot geometry; the bars are sized in px so the
  *  minimum-height floor below can be asserted directly. */
@@ -20,6 +21,17 @@ const stats = (over: Partial<Stats> = {}): Stats => ({
 function barPx(series: 'start' | 'full', level: number): number {
 	const el = screen.getByTestId(`bar-${series}-${level}`);
 	return Number(/height:\s*([\d.]+)px/.exec(el.getAttribute('style') ?? '')?.[1] ?? NaN);
+}
+
+/** The box a bar is drawn in — the same box its count now sits in. */
+function plotBox(series: 'start' | 'full', level: number): HTMLElement {
+	return screen.getByTestId(`bar-${series}-${level}`).parentElement as HTMLElement;
+}
+
+/** The inline height that box was given, in px. */
+function plotBoxPx(series: 'start' | 'full', level: number): number {
+	const style = plotBox(series, level).getAttribute('style') ?? '';
+	return Number(/height:\s*([\d.]+)px/.exec(style)?.[1] ?? NaN);
 }
 
 describe('EventStats', () => {
@@ -184,6 +196,37 @@ describe('EventStats', () => {
 		expect(screen.getByTestId('count-start-2')).toHaveTextContent('0');
 	});
 
+	// Printed above the plot box, every count landed on one shared line no
+	// matter how tall its bar was — a row of numbers floating over a chart
+	// they looked unrelated to. Inside the box, each one rides its own bar.
+	it('sits each count on its own bar rather than on a shared line', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 1, 0, 0, 0, 9] }) });
+		expect(plotBox('start', 1)).toContainElement(screen.getByTestId('count-start-1'));
+		expect(plotBox('start', 5)).toContainElement(screen.getByTestId('count-start-5'));
+		expect(plotBox('start', 1)).not.toContainElement(screen.getByTestId('count-start-5'));
+	});
+
+	// The number is stacked above the bar and the stack is bottom-aligned, so
+	// the count only rises with the bar if it precedes it in the DOM.
+	it('stacks the count above its bar, off the baseline', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 3, 0, 0, 0, 0] }) });
+		const box = plotBox('start', 1);
+		expect(box.className).toContain('flex-col');
+		expect(box.className).toContain('justify-end');
+		const order = screen
+			.getByTestId('count-start-1')
+			.compareDocumentPosition(screen.getByTestId('bar-start-1'));
+		expect(order & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+	});
+
+	// A full-height bar with its number on top needs more room than the plot
+	// alone, or the tallest column's count gets clipped by the box.
+	it('reserves room above a full-height bar for its count', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 0, 0, 0, 0, 7] }) });
+		expect(barPx('start', 5)).toBe(PLOT_PX);
+		expect(plotBoxPx('start', 5)).toBeGreaterThan(PLOT_PX);
+	});
+
 	// Five zeroes over an empty axis is a chart with nothing in it, taking the
 	// height of one that has something. A line of text says the same thing.
 	it('replaces an unrated series with a note instead of an empty axis', () => {
@@ -209,7 +252,19 @@ describe('EventStats', () => {
 	// Colour alone never carries the level: the scale is printed under the bars.
 	it('labels each bar with its difficulty level', () => {
 		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 1, 0, 0, 0, 0] }) });
-		expect(screen.getByTestId('level-start-3')).toHaveTextContent('3');
+		expect(screen.getByTestId('level-start-3')).toHaveTextContent('Norm');
+	});
+
+	// A 0-5 axis under a row of counts is two sets of small numbers meaning
+	// different things, and the reader has to be told which is which. Words
+	// cannot be mistaken for a count.
+	it('names every level in words, never in a bare number', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ start: [0, 1, 0, 0, 0, 0] }) });
+		for (const level of DIFFICULTY_LEVELS) {
+			const el = screen.getByTestId(`level-start-${level}`);
+			expect(el).toHaveTextContent(DIFFICULTY_SHORT[level]);
+			expect(el.textContent?.trim()).not.toBe(String(level));
+		}
 	});
 
 	it('names the level in each bar accessible label', () => {
@@ -270,7 +325,7 @@ describe('EventStats level 0', () => {
 			stats: { total: 9, perfect: 0, start: [4, 0, 0, 0, 0, 0], full: [0, 0, 0, 0, 0, 0] }
 		});
 		expect(screen.getByTestId('count-start-0')).toHaveTextContent('4');
-		expect(screen.getByTestId('level-start-0')).toHaveTextContent('0');
+		expect(screen.getByTestId('level-start-0')).toHaveTextContent('Imp');
 		expect(screen.getByTestId('bar-start-0')).toHaveAttribute(
 			'aria-label',
 			expect.stringContaining('Impossible') as unknown as string
