@@ -27,6 +27,13 @@ function setup(shown: string) {
 
 const wordAt = (container: HTMLElement, i: number) => container.querySelectorAll('.word')[i];
 
+/** Answers the round and returns what onDone was handed. */
+async function answer(onDone: ReturnType<typeof vi.fn>, name: '이상 있음' | '이상 없음') {
+	await fireEvent.click(screen.getByRole('button', { name }));
+	await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+	return onDone;
+}
+
 describe('QuizSpotRound', () => {
 	it('shows the sentence it was given, not the verse', () => {
 		const { container } = setup(FLAWED);
@@ -34,19 +41,28 @@ describe('QuizSpotRound', () => {
 		expect(container.textContent).not.toContain('법도를');
 	});
 
-	it('accepts a tap on the word that does not belong', async () => {
-		const { onDone, container } = setup(FLAWED);
-		await fireEvent.click(wordAt(container, 2));
-		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+	// The round asks one question — is anything wrong — and the two buttons are
+	// the whole answer. Pointing at the word was dropped: a reader who sees
+	// that the sentence is off has answered it, and making them also name the
+	// word turned a recognition check into a second, harder question.
+	it('asks only whether something is wrong', () => {
+		const { container } = setup(FLAWED);
+		expect(screen.getByRole('button', { name: '이상 있음' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: '이상 없음' })).toBeInTheDocument();
+		expect(container.querySelectorAll('.word[role="button"]')).toHaveLength(0);
+	});
+
+	it('accepts 이상 있음 when a word is wrong', async () => {
+		const { onDone } = setup(FLAWED);
+		await answer(onDone, '이상 있음');
 		expect(onDone).toHaveBeenCalledWith(
 			expect.objectContaining({ id: '900_krv:127', passed: true, accuracy: 1, missed: [] })
 		);
 	});
 
-	it('rejects a tap on a word that is fine', async () => {
-		const { onDone, container } = setup(FLAWED);
-		await fireEvent.click(wordAt(container, 0));
-		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+	it('rejects 이상 없음 when a word is wrong', async () => {
+		const { onDone } = setup(FLAWED);
+		await answer(onDone, '이상 없음');
 		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: false, accuracy: 0 }));
 	});
 
@@ -55,18 +71,18 @@ describe('QuizSpotRound', () => {
 	// says how many real questions a scope holds.
 	it('accepts 이상 없음 when the verse is shown intact', async () => {
 		const { onDone } = setup(VERSE);
-		await fireEvent.click(screen.getByRole('button', { name: '이상 없음' }));
-		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		await answer(onDone, '이상 없음');
 		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: true }));
 	});
 
-	it('rejects 이상 없음 when something is wrong', async () => {
-		const { onDone } = setup(FLAWED);
-		await fireEvent.click(screen.getByRole('button', { name: '이상 없음' }));
-		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+	it('rejects 이상 있음 when the verse is shown intact', async () => {
+		const { onDone } = setup(VERSE);
+		await answer(onDone, '이상 있음');
 		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: false }));
 	});
 
+	// Grading is the verdict only, but the reader still has to be shown where
+	// the sentence went wrong or the round teaches nothing.
 	it('marks the wrong word once the answer is in', async () => {
 		const { container } = setup(FLAWED);
 		await fireEvent.click(screen.getByRole('button', { name: '이상 없음' }));
@@ -74,29 +90,12 @@ describe('QuizSpotRound', () => {
 	});
 
 	it('reports once even if 다음 is tapped twice', async () => {
-		const { onDone, container } = setup(FLAWED);
-		await fireEvent.click(wordAt(container, 2));
+		const { onDone } = setup(FLAWED);
+		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
 		const next = screen.getByRole('button', { name: '다음' });
 		await fireEvent.click(next);
 		await fireEvent.click(next);
 		expect(onDone).toHaveBeenCalledTimes(1);
-	});
-
-	// The reported defect: a reader arriving cold saw one button — 이상 없음 —
-	// and no sign the words themselves were the other half of the answer, so
-	// the only verdict they could express was "nothing is wrong". The words
-	// carried role="button" and a hover tint, neither of which exists on a
-	// touch screen. VerseCard's marking mode answers the same problem with a
-	// hint line; this is that line.
-	it('tells the reader the words are how they point at the mistake', () => {
-		setup(FLAWED);
-		expect(screen.getByText(/틀린 단어를 누르세요/)).toBeInTheDocument();
-	});
-
-	it('stops offering the hint once the answer is in', async () => {
-		const { container } = setup(FLAWED);
-		await fireEvent.click(wordAt(container, 2));
-		expect(screen.queryByText(/틀린 단어를 누르세요/)).toBeNull();
 	});
 
 	it('says which round this is', () => {
@@ -108,71 +107,43 @@ describe('QuizSpotRound', () => {
 	// 합치면 라우트가 즉시 다음 구절로 넘어가 버려서, 어디가 틀렸는지 볼 틈이
 	// 없어진다.
 	it('does not report the result until 다음 is pressed', async () => {
-		const { onDone, container } = setup(FLAWED);
-		await fireEvent.click(wordAt(container, 2));
+		const { onDone } = setup(FLAWED);
+		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
 		expect(onDone).not.toHaveBeenCalled();
 		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
 		expect(onDone).toHaveBeenCalledTimes(1);
 	});
 
-	// Answering strips role and tabindex from every word, so the element the
-	// reader was standing on stops being focusable and the browser drops focus
+	// Answering removes the button that was pressed, so the browser drops focus
 	// to <body> — a keyboard reader would have to tab in from the top of the
 	// page to reach the only control left.
-	it('hands focus to 다음 once the words stop being targets', async () => {
-		const { container } = setup(FLAWED);
-		const word = wordAt(container, 2) as HTMLElement;
-		word.focus();
-		await fireEvent.click(word);
+	it('hands focus to 다음 once the answer is in', async () => {
+		setup(FLAWED);
+		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
 		expect(document.activeElement).toBe(screen.getByRole('button', { name: '다음' }));
 	});
 });
 
-// A dropped word has no "does not belong" to tap: every word on screen is a
-// word of the verse. Asked only in that direction the round had no right
+// A dropped word has no "does not belong" to point at: every word on screen is
+// a word of the verse. Asked only in that direction the round had no right
 // answer, and 이상 없음 — the claim that nothing is wrong — was graded correct
 // on a sentence the reader had got wrong.
 describe('QuizSpotRound — 빠진 단어', () => {
-	it('offers 이상 있음 alongside 이상 없음', () => {
-		setup(FLAWED);
-		expect(screen.getByRole('button', { name: '이상 있음' })).toBeInTheDocument();
-		expect(screen.getByRole('button', { name: '이상 없음' })).toBeInTheDocument();
-	});
-
 	it('accepts 이상 있음 when the sentence dropped a word', async () => {
 		const { onDone } = setup(MISSING);
-		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
-		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		await answer(onDone, '이상 있음');
 		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: true, accuracy: 1 }));
 	});
 
 	// The defect itself.
 	it('rejects 이상 없음 when the sentence dropped a word', async () => {
 		const { onDone } = setup(MISSING);
-		await fireEvent.click(screen.getByRole('button', { name: '이상 없음' }));
-		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		await answer(onDone, '이상 없음');
 		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: false, accuracy: 0 }));
 	});
 
-	it('rejects 이상 있음 when the verse is shown intact', async () => {
-		const { onDone } = setup(VERSE);
-		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
-		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
-		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: false }));
-	});
-
-	// 이상 있음 is the general answer and tapping is the precise one. Refusing
-	// the general answer on a verse that happens to have a tappable word would
-	// punish a reader who saw the flaw for not knowing which kind it was.
-	it('accepts 이상 있음 when a word is wrong rather than missing', async () => {
-		const { onDone } = setup(FLAWED);
-		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
-		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
-		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: true }));
-	});
-
-	// Underlining the wrong word teaches nothing when there is no wrong word.
-	// The reader has to be shown what the sentence should have said.
+	// Marking the wrong word teaches nothing when there is no wrong word. The
+	// reader has to be shown what the sentence should have said.
 	it('shows what the sentence dropped, once the answer is in', async () => {
 		setup(MISSING);
 		expect(screen.queryByTestId('dropped-words')).toBeNull();
@@ -180,23 +151,10 @@ describe('QuizSpotRound — 빠진 단어', () => {
 		expect(screen.getByTestId('dropped-words')).toHaveTextContent('법도를');
 	});
 
-	// Nothing to show: the flaw is on screen, underlined where it stands.
-	it('does not show the verse when the flaw was tappable', async () => {
+	// Nothing to show: the flaw is on screen, marked where it stands.
+	it('does not repeat the verse when the flaw is on screen', async () => {
 		setup(FLAWED);
 		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
 		expect(screen.queryByTestId('dropped-words')).toBeNull();
-	});
-
-	// Same hole the tap path had: answering removes the button that was
-	// pressed, and focus falls to <body>.
-	it('hands focus to 다음 after 이상 있음', async () => {
-		setup(MISSING);
-		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
-		expect(document.activeElement).toBe(screen.getByRole('button', { name: '다음' }));
-	});
-
-	it('says a dropped word is how to use 이상 있음', () => {
-		setup(FLAWED);
-		expect(screen.getByText(/빠진 단어가 있으면/)).toBeInTheDocument();
 	});
 });

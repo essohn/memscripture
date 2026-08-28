@@ -97,8 +97,7 @@ if so where.
   that attempt — the sentence they actually typed.
 - If not, it shows the **correct verse**, and 이상 없음 is the right answer.
 
-The reader taps a word, or presses 이상 있음 or 이상 없음. Any of the three
-ends the round.
+The reader presses 이상 있음 or 이상 없음. Either ends the round.
 
 **The picker says how many real questions a scope holds** — `12구절 중 5개에
 내 오답 기록이 있습니다` — because early on most verses have none, and without
@@ -137,14 +136,15 @@ later in the code:
   The fix adds 이상 있음 beside 이상 없음, and asks the difference in both
   directions (`findSpotFlaws` in `src/lib/quiz/spot.ts`): which shown words
   do not belong, *and* which of the verse's words the sentence dropped.
-  Tapping stays the precise answer; 이상 있음 is the one available when
-  there is nothing on screen to tap. Since the reader cannot know in
-  advance which kind of flaw they are looking at, 이상 있음 is accepted for
-  either — refusing it on a tappable flaw would punish them for seeing the
-  mistake without knowing its shape. After the answer, a round whose flaw
-  was an omission shows the verse with the dropped words marked, because
-  underlining the mistake in place is impossible when the mistake is an
-  absence.
+  The verdict is the whole answer, and naming the word was dropped with it:
+  a reader who sees the sentence is off has recognised the flaw, which is
+  what this game tests, and requiring them to also point at the word asked
+  a second and harder question on top of the first — one that a dropped
+  word made unanswerable. The words stay on screen as the question and are
+  marked afterwards as the answer; they are not the input. A round whose
+  flaw was only an omission shows the verse with the dropped words marked,
+  because marking the mistake in place is impossible when the mistake is
+  an absence.
 
 - **`typed` carries more into every sync snapshot than the alternative this
   spec turned down.** "What is stored, and what is not" rejected storing
@@ -213,8 +213,9 @@ markMismatchedWords(shownText, verse.w)
 
 — the arguments reversed, which is the call `MemorizeCheckPanel` already makes
 at `:203` to mark the reader's own words. It returns which words of the
-*shown* text do not belong. A tap is right if its index is among them; 이상
-없음 is right when the list is empty.
+*shown* text do not belong. `findSpotFlaws` (`src/lib/quiz/spot.ts`) runs it
+in both directions — the second pass names the verse's words the sentence
+dropped — and 이상 있음 is right when either list has anything in it.
 
 Deriving this rather than storing it is the same rule Phase 1 set for
 suggestions: a second copy of a fact can disagree with the first.
@@ -317,8 +318,10 @@ Props `{ item, shown, index, total, onDone }` — `shown` is the text to
 display, which the route supplies from `loadAttempts` or falls back to
 `item.w`.
 
-Renders `shown` word by word, each tappable, plus 이상 없음. After the answer
-it marks the wrong words and says whether the reader found it. Reports once.
+Renders `shown` word by word as plain text, plus 이상 있음 and 이상 없음.
+After the answer it marks the wrong words — or, when the flaw was an
+omission, shows the verse with the dropped words marked — and says whether
+the reader found it. Reports once.
 
 `accuracy` is 1 when the answer was right, 0 otherwise; `missed` is `[]`.
 
