@@ -174,6 +174,29 @@ describe('difficulty order', () => {
 	it('is not what the other orders do', () => {
 		expect(nos('booklet')).toEqual([1, 2, 3, 4]);
 	});
+
+	// What the reader actually sees in the sheet: the 암송 시작 column reading
+	// straight down, hardest to easiest, with 전체 일치 sorting the verses that
+	// start alike. Folding the two ratings into one level leaves this column
+	// jumbled, which is what the order looked like before.
+	it('walks the 암송 시작 column down and settles ties with 전체 일치', () => {
+		const mixed = [
+			verse({ no: 1, startDifficulty: 3, fullDifficulty: 1 }),
+			verse({ no: 2, startDifficulty: 5, fullDifficulty: 0 }),
+			verse({ no: 3, startDifficulty: 1, fullDifficulty: 5 }),
+			verse({ no: 4, startDifficulty: 3, fullDifficulty: 0 })
+		];
+		const body = buildEventSheet(EVENT, mixed, {
+			includeDifficulty: true,
+			sort: 'difficulty' as const
+		}).rows.slice(2);
+		expect(body.map((r) => [r[0].v, r[1].v])).toEqual([
+			[1, 5],
+			[3, 0],
+			[3, 1],
+			[5, 0]
+		]);
+	});
 });
 
 describe('body rows', () => {

@@ -1,59 +1,87 @@
 import { describe, expect, it } from 'vitest';
-import { hardestLevel, sortByDifficulty } from '../../src/lib/verses/difficultySort';
-
-describe('hardestLevel', () => {
-	// The scale runs 1 xHard → 5 xEasy, so the harder rating is the lower one.
-	it('takes the harder of the two ratings', () => {
-		expect(hardestLevel({ start: 4, full: 2 })).toBe(2);
-		expect(hardestLevel({ start: 1, full: 5 })).toBe(1);
-	});
-
-	// They answer different questions — how hard to get going, how hard to
-	// finish — and averaging would let a comfortable start hide a body nobody
-	// can get through.
-	it('does not average them', () => {
-		expect(hardestLevel({ start: 5, full: 1 })).toBe(1);
-	});
-
-	it('uses whichever one exists', () => {
-		expect(hardestLevel({ start: 3, full: null })).toBe(3);
-		expect(hardestLevel({ start: null, full: 3 })).toBe(3);
-	});
-
-	it.each([[{ start: null, full: null }], [undefined], [null]])(
-		'is null for an unrated verse (%o)',
-		(rating) => {
-			expect(hardestLevel(rating)).toBeNull();
-		}
-	);
-});
+import { sortByDifficulty } from '../../src/lib/verses/difficultySort';
 
 describe('sortByDifficulty', () => {
-	type V = { no: number; level: number | null };
+	type V = { no: number; start: number | null; full: number | null };
 	const order = (vs: V[]) =>
-		sortByDifficulty(vs, (v) => ({ start: v.level as never, full: null })).map((v) => v.no);
+		sortByDifficulty(vs, (v) => ({
+			start: v.start as never,
+			full: v.full as never
+		})).map((v) => v.no);
 
-	it('puts the hardest first', () => {
-		expect(order([{ no: 1, level: 5 }, { no: 2, level: 1 }, { no: 3, level: 3 }])).toEqual([2, 3, 1]);
+	// The scale runs 0 Impossible → 5 xEasy, so "hardest first" is ascending.
+	it('leads with the hardest 시작 난이도', () => {
+		expect(
+			order([
+				{ no: 1, start: 5, full: 5 },
+				{ no: 2, start: 1, full: 5 },
+				{ no: 3, start: 3, full: 5 }
+			])
+		).toEqual([2, 3, 1]);
 	});
 
-	// Unrated verses carry no signal. On a package where most have never been
-	// rated, sorting them to the top would bury the handful the reader marked
-	// as hard — which is the entire point of the ordering.
-	it('sends unrated verses to the bottom', () => {
-		expect(order([{ no: 1, level: null }, { no: 2, level: 4 }, { no: 3, level: null }])).toEqual([
-			2, 1, 3
-		]);
+	it('breaks a 시작 tie with the hardest 전체 난이도', () => {
+		expect(
+			order([
+				{ no: 1, start: 3, full: 5 },
+				{ no: 2, start: 3, full: 1 },
+				{ no: 3, start: 3, full: 3 }
+			])
+		).toEqual([2, 3, 1]);
+	});
+
+	// The whole point of the two keys. Collapsing them to whichever is harder
+	// would tie these two verses, leaving the 시작 column reading 5, 1 — which
+	// is what made the exported sheet look unsorted.
+	it('does not let a brutal 전체 outrank a harder 시작', () => {
+		expect(
+			order([
+				{ no: 1, start: 5, full: 1 },
+				{ no: 2, start: 1, full: 5 }
+			])
+		).toEqual([2, 1]);
+	});
+
+	// An unrated 시작 carries no signal. On a package where most verses have
+	// never been rated, sorting them to the top would bury the handful the
+	// reader actually marked as hard — which is the entire point of the order.
+	it('sends a verse with no 시작 rating below every rated one', () => {
+		expect(
+			order([
+				{ no: 1, start: null, full: 1 },
+				{ no: 2, start: 5, full: 5 }
+			])
+		).toEqual([2, 1]);
+	});
+
+	it('still ranks the unrated-시작 verses against each other by 전체', () => {
+		expect(
+			order([
+				{ no: 1, start: null, full: 4 },
+				{ no: 2, start: null, full: null },
+				{ no: 3, start: null, full: 2 }
+			])
+		).toEqual([3, 1, 2]);
+	});
+
+	it('leaves the wholly unrated at the bottom', () => {
+		expect(
+			order([
+				{ no: 1, start: null, full: null },
+				{ no: 2, start: 4, full: 4 },
+				{ no: 3, start: null, full: null }
+			])
+		).toEqual([2, 1, 3]);
 	});
 
 	// This sorts a list already in scripture or booklet order; scrambling ties
 	// would make the result look arbitrary.
-	it('keeps equal verses in the order they arrived', () => {
+	it('keeps verses rated alike in the order they arrived', () => {
 		expect(
 			order([
-				{ no: 7, level: 2 },
-				{ no: 3, level: 2 },
-				{ no: 9, level: 2 }
+				{ no: 7, start: 2, full: 3 },
+				{ no: 3, start: 2, full: 3 },
+				{ no: 9, start: 2, full: 3 }
 			])
 		).toEqual([7, 3, 9]);
 	});
@@ -63,7 +91,10 @@ describe('sortByDifficulty', () => {
 	});
 
 	it('does not mutate its input', () => {
-		const input = [{ no: 1, level: 5 }, { no: 2, level: 1 }];
+		const input: V[] = [
+			{ no: 1, start: 5, full: 5 },
+			{ no: 2, start: 1, full: 1 }
+		];
 		order(input);
 		expect(input.map((v) => v.no)).toEqual([1, 2]);
 	});

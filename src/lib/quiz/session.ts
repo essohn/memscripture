@@ -31,7 +31,7 @@ export interface RoundResult {
 	typed?: string;
 }
 
-/** The rating shape hardestLevel takes — the display-side one from
+/** The rating shape sortByDifficulty takes — the display-side VerseRating from
  *  verses/difficultySort, not the VerseRating row in db/local. */
 export type ItemRating = { start: DifficultyLevel | null; full: DifficultyLevel | null };
 
