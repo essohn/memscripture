@@ -24,6 +24,9 @@ export type ExportSort = 'booklet' | 'scripture' | 'difficulty';
 
 export interface ExportOptions {
 	includeDifficulty: boolean;
+	/** Whether to carry 구분 · 번호 · 제목. Off leaves the scripture alone on
+	 *  the sheet, which is what a printed reading list wants. */
+	includeCatalog: boolean;
 	sort: ExportSort;
 }
 
@@ -81,10 +84,20 @@ const DIFFICULTY_COLUMNS: ColumnDef[] = [
 	{ header: '전체 일치', width: 7, align: 'center' }
 ];
 
-const BASE_COLUMNS: ColumnDef[] = [
+// Where the verse sits in the 구절집: which package, which number, what it is
+// called. Useful for finding it again in the book, and dead weight on a sheet
+// meant to be read rather than looked up — so it is the group that can go.
+const CATALOG_COLUMNS: ColumnDef[] = [
 	{ header: '구분', width: 10 },
 	{ header: '번호', width: 6, align: 'center' },
-	{ header: '제목', width: 14 },
+	{ header: '제목', width: 14 }
+];
+
+// The verse itself. Not optional, and deliberately not offered as a choice:
+// every other column describes this one, and a sheet without it would be an
+// export of nothing — the same thing collectEventVerses already refuses to
+// produce when no verse resolves.
+const SCRIPTURE_COLUMNS: ColumnDef[] = [
 	{ header: '장절', width: 18 },
 	{ header: '본문', width: 60 }
 ];
@@ -178,9 +191,11 @@ export function buildEventSheet(
 	verses: ExportVerse[],
 	options: ExportOptions
 ): Sheet {
-	const columns = options.includeDifficulty
-		? [...DIFFICULTY_COLUMNS, ...BASE_COLUMNS]
-		: BASE_COLUMNS;
+	const columns = [
+		...(options.includeDifficulty ? DIFFICULTY_COLUMNS : []),
+		...(options.includeCatalog ? CATALOG_COLUMNS : []),
+		...SCRIPTURE_COLUMNS
+	];
 
 	// One cell, not one per column: a lone string spills across the empty
 	// neighbours to its right in both Excel and Sheets, which is what a caption
@@ -197,18 +212,19 @@ export function buildEventSheet(
 
 	const ordered = orderVerses(verses, options.sort);
 
-	const body = ordered.map((v) => {
-		const base: SheetCell[] = [
-			text(v.packageAbbreviation),
-			{ v: v.no, align: 'center' },
-			text(v.title),
-			text(v.cite),
-			text(v.body)
-		];
-		return options.includeDifficulty
-			? [difficultyCell(v.startDifficulty), difficultyCell(v.fullDifficulty), ...base]
-			: base;
-	});
+	// Assembled group by group in the same order as `columns` above, so the two
+	// cannot drift: a header list and a cell list built by different-shaped
+	// conditionals is how a column ends up over the wrong values.
+	const body = ordered.map((v) => [
+		...(options.includeDifficulty
+			? [difficultyCell(v.startDifficulty), difficultyCell(v.fullDifficulty)]
+			: []),
+		...(options.includeCatalog
+			? [text(v.packageAbbreviation), { v: v.no, align: 'center' as const }, text(v.title)]
+			: []),
+		text(v.cite),
+		text(v.body)
+	]);
 
 	return {
 		name: event.title,

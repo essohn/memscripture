@@ -21,8 +21,8 @@ function verse(over: Partial<ExportVerse> = {}): ExportVerse {
 	};
 }
 
-const BOTH_OFF = { includeDifficulty: false, sort: 'booklet' as const };
-const DIFF_ON = { includeDifficulty: true, sort: 'booklet' as const };
+const DIFF_OFF = { includeDifficulty: false, includeCatalog: true, sort: 'booklet' as const };
+const DIFF_ON = { includeDifficulty: true, includeCatalog: true, sort: 'booklet' as const };
 
 describe('buildEventSheet columns', () => {
 	it('leads with the two difficulty columns when they are on', () => {
@@ -43,15 +43,56 @@ describe('buildEventSheet columns', () => {
 	});
 
 	it('omits them entirely when they are off', () => {
-		const s = buildEventSheet({ ...EVENT, title: 't' }, [verse()], BOTH_OFF);
+		const s = buildEventSheet({ ...EVENT, title: 't' }, [verse()], DIFF_OFF);
 		expect(s.rows[1].map((c) => c.v)).toEqual(['구분', '번호', '제목', '장절', '본문']);
 		expect(s.cols).toHaveLength(5);
 	});
 
 	it('freezes the caption and the header, and names the sheet after the event', () => {
-		const s = buildEventSheet(EVENT, [verse()], BOTH_OFF);
+		const s = buildEventSheet(EVENT, [verse()], DIFF_OFF);
 		expect(s.freezeRows).toBe(2);
 		expect(s.name).toBe('2026 여름 암송 DAY');
+	});
+});
+
+describe('catalog columns', () => {
+	const NO_CATALOG = { ...DIFF_ON, includeCatalog: false };
+
+	// 구분 · 번호 · 제목 say where a verse sits in the 구절집; 장절 · 본문 are the
+	// verse itself. Only the first three can be switched off — a sheet with no
+	// scripture on it would not be an export of anything, so there is no state
+	// in which this function returns a body of empty rows.
+	it('drops 구분 · 번호 · 제목 and keeps 장절 · 본문', () => {
+		const s = buildEventSheet(EVENT, [verse()], NO_CATALOG);
+		expect(s.rows[1].map((c) => c.v)).toEqual(['암송 시작', '전체 일치', '장절', '본문']);
+		expect(s.cols.map((c) => c.width)).toEqual([7, 7, 18, 60]);
+	});
+
+	it('writes body cells in the same shape as the header', () => {
+		const s = buildEventSheet(EVENT, [verse({ startDifficulty: 2, fullDifficulty: 4 })], NO_CATALOG);
+		expect(s.rows[2].map((c) => c.v)).toEqual([
+			2,
+			4,
+			'출애굽기 18 : 20',
+			'그들에게 율례와 법도를 가르쳐서'
+		]);
+	});
+
+	it('is down to the verse alone when both groups are off', () => {
+		const s = buildEventSheet(EVENT, [verse()], { ...DIFF_OFF, includeCatalog: false });
+		expect(s.rows[1].map((c) => c.v)).toEqual(['장절', '본문']);
+		expect(s.rows[2].map((c) => c.v)).toEqual([
+			'출애굽기 18 : 20',
+			'그들에게 율례와 법도를 가르쳐서'
+		]);
+	});
+
+	// The conditional rules address the difficulty columns by letter. Nothing
+	// is removed from in front of them, so they stay A and B — but that is a
+	// positional coupling worth pinning down rather than trusting.
+	it('leaves the difficulty rules on A and B', () => {
+		const s = buildEventSheet(EVENT, [verse(), verse({ no: 128 })], NO_CATALOG);
+		expect(s.conditionalFills![0].range).toBe('A3:B4');
 	});
 });
 
@@ -99,7 +140,7 @@ describe('difficulty cells', () => {
 	});
 
 	it('emits no rules when the difficulty columns are off', () => {
-		const s = buildEventSheet({ ...EVENT, title: 't' }, [verse()], BOTH_OFF);
+		const s = buildEventSheet({ ...EVENT, title: 't' }, [verse()], DIFF_OFF);
 		expect(s.conditionalFills).toEqual([]);
 	});
 
@@ -132,18 +173,18 @@ describe('sorting', () => {
 	];
 
 	it('keeps input order by default', () => {
-		const s = buildEventSheet({ ...EVENT, title: 't' }, rows, BOTH_OFF);
+		const s = buildEventSheet({ ...EVENT, title: 't' }, rows, DIFF_OFF);
 		expect(s.rows.slice(2).map((r) => r[1].v)).toEqual([1, 2, 3, 4]);
 	});
 
 	it('orders by book, chapter, then verse when asked', () => {
-		const s = buildEventSheet({ ...EVENT, title: 't' }, rows, { includeDifficulty: false, sort: 'scripture' as const });
+		const s = buildEventSheet({ ...EVENT, title: 't' }, rows, { includeDifficulty: false, includeCatalog: true, sort: 'scripture' as const });
 		// 창세기 1:1, 창세기 1:27, 요한복음 3:16, then the unreadable one.
 		expect(s.rows.slice(2).map((r) => r[1].v)).toEqual([2, 3, 1, 4]);
 	});
 
 	it('appends citations it cannot read rather than dropping them', () => {
-		const s = buildEventSheet({ ...EVENT, title: 't' }, rows, { includeDifficulty: false, sort: 'scripture' as const });
+		const s = buildEventSheet({ ...EVENT, title: 't' }, rows, { includeDifficulty: false, includeCatalog: true, sort: 'scripture' as const });
 		expect(s.rows).toHaveLength(6);
 		expect(s.rows.at(-1)![3].v).toBe('알수없는책 2 : 2');
 	});
@@ -159,7 +200,7 @@ describe('difficulty order', () => {
 		verse({ no: 4, startDifficulty: 3, fullDifficulty: 3 })
 	];
 	const nos = (o: 'booklet' | 'scripture' | 'difficulty') =>
-		buildEventSheet(EVENT, rows, { includeDifficulty: true, sort: o })
+		buildEventSheet(EVENT, rows, { includeDifficulty: true, includeCatalog: true, sort: o })
 			.rows.slice(2)
 			.map((r) => r[3].v);
 
@@ -188,6 +229,7 @@ describe('difficulty order', () => {
 		];
 		const body = buildEventSheet(EVENT, mixed, {
 			includeDifficulty: true,
+			includeCatalog: true,
 			sort: 'difficulty' as const
 		}).rows.slice(2);
 		expect(body.map((r) => [r[0].v, r[1].v])).toEqual([
@@ -201,7 +243,7 @@ describe('difficulty order', () => {
 
 describe('body rows', () => {
 	it('writes the verse fields in column order', () => {
-		const s = buildEventSheet({ ...EVENT, title: 't' }, [verse()], BOTH_OFF);
+		const s = buildEventSheet({ ...EVENT, title: 't' }, [verse()], DIFF_OFF);
 		expect(s.rows[2].map((c) => c.v)).toEqual([
 			'900구절',
 			127,
@@ -216,7 +258,7 @@ describe('the 암송 DAY caption', () => {
 	// The export is a document someone keeps and passes around; "D-11" is only
 	// true on the day it was made, so the row states the date itself.
 	it('heads the sheet with the date', () => {
-		const s = buildEventSheet(EVENT, [verse()], BOTH_OFF);
+		const s = buildEventSheet(EVENT, [verse()], DIFF_OFF);
 		expect(s.rows[0][0].v).toBe('암송 DAY · 2026년 8월 31일');
 		expect(s.rows[0][0].bold).toBe(true);
 	});
@@ -228,7 +270,7 @@ describe('the 암송 DAY caption', () => {
 	});
 
 	it('sits above the header, which still leads the table', () => {
-		const s = buildEventSheet(EVENT, [verse()], BOTH_OFF);
+		const s = buildEventSheet(EVENT, [verse()], DIFF_OFF);
 		expect(s.rows[1].map((c) => c.v)).toEqual(['구분', '번호', '제목', '장절', '본문']);
 	});
 });
@@ -252,7 +294,7 @@ describe('stray whitespace', () => {
 	// 241 shipped verses begin with a space. Invisible on a card, kept by a
 	// spreadsheet — the column reads ragged and an exact-match lookup misses.
 	it('trims the body', () => {
-		const s = buildEventSheet(EVENT, [verse({ body: ' 그들에게 율례와 ' })], BOTH_OFF);
+		const s = buildEventSheet(EVENT, [verse({ body: ' 그들에게 율례와 ' })], DIFF_OFF);
 		expect(s.rows[2][4].v).toBe('그들에게 율례와');
 	});
 
@@ -260,7 +302,7 @@ describe('stray whitespace', () => {
 		const s = buildEventSheet(
 			EVENT,
 			[verse({ title: ' 양  육 ', cite: '출애굽기 18 : 20 ', packageAbbreviation: ' 900구절' })],
-			BOTH_OFF
+			DIFF_OFF
 		);
 		expect(s.rows[2][0].v).toBe('900구절');
 		expect(s.rows[2][2].v).toBe('양  육');
@@ -270,7 +312,7 @@ describe('stray whitespace', () => {
 	// Only the ends. The double space in 양  육 is how the title is laid out,
 	// and rewriting the inside of a verse is not whitespace cleanup.
 	it('leaves the inside of the text alone', () => {
-		const s = buildEventSheet(EVENT, [verse({ body: '갈  길과\n할 일을' })], BOTH_OFF);
+		const s = buildEventSheet(EVENT, [verse({ body: '갈  길과\n할 일을' })], DIFF_OFF);
 		expect(s.rows[2][4].v).toBe('갈  길과\n할 일을');
 	});
 });

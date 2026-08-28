@@ -19,7 +19,7 @@ const { db } = await import('../../src/lib/db/local');
 
 const EVENT = { title: '여름 DAY', dueAt: '2026-08-31' };
 const RANGES = [] as RangeCardVM[];
-const OPTIONS = { includeDifficulty: true, sort: 'scripture' as const };
+const OPTIONS = { includeDifficulty: true, includeCatalog: true, sort: 'scripture' as const };
 const VERSE = {
 	packageAbbreviation: '100',
 	no: 1,

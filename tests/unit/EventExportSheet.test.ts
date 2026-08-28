@@ -25,12 +25,47 @@ describe('EventExportSheet', () => {
 		expect(screen.getByRole('radio', { name: '장절 순' })).toBeChecked();
 	});
 
+	// On by default because that is the sheet almost everyone wants; the reader
+	// who does not is the one printing the scripture on its own.
+	it('defaults to carrying 구분 · 번호 · 제목', () => {
+		render(EventExportSheet, { ...props, ...handlers() });
+		expect(screen.getByLabelText(/구분 · 번호 · 제목/)).toBeChecked();
+	});
+
+	it('drops 구분 · 번호 · 제목 when it is unchecked', async () => {
+		const onConfirm = vi.fn();
+		render(EventExportSheet, { ...props, ...handlers(), onConfirm });
+		await fireEvent.click(screen.getByLabelText(/구분 · 번호 · 제목/));
+		await fireEvent.click(screen.getByRole('button', { name: '엑셀 다운로드' }));
+		expect(onConfirm).toHaveBeenCalledWith({
+			includeDifficulty: true,
+			includeCatalog: false,
+			sort: 'scripture' as const
+		});
+	});
+
+	// The two checkboxes are independent: turning one off must not disturb the
+	// other, and nothing stops both going off — 장절 · 본문 always remain.
+	it('lets both column groups go at once', async () => {
+		const onSheets = vi.fn();
+		render(EventExportSheet, { ...props, ...handlers(), onSheets });
+		await fireEvent.click(screen.getByLabelText(/난이도 열 포함/));
+		await fireEvent.click(screen.getByLabelText(/구분 · 번호 · 제목/));
+		await fireEvent.click(screen.getByRole('button', { name: 'Google Sheets' }));
+		expect(onSheets).toHaveBeenCalledWith({
+			includeDifficulty: false,
+			includeCatalog: false,
+			sort: 'scripture' as const
+		});
+	});
+
 	it('confirms the defaults untouched', async () => {
 		const onConfirm = vi.fn();
 		render(EventExportSheet, { ...props, ...handlers(), onConfirm });
 		await fireEvent.click(screen.getByRole('button', { name: '엑셀 다운로드' }));
 		expect(onConfirm).toHaveBeenCalledWith({
 			includeDifficulty: true,
+			includeCatalog: true,
 			sort: 'scripture' as const
 		});
 	});
@@ -44,6 +79,7 @@ describe('EventExportSheet', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '엑셀 다운로드' }));
 		expect(onConfirm).toHaveBeenLastCalledWith({
 			includeDifficulty: true,
+			includeCatalog: true,
 			sort: 'difficulty'
 		});
 
@@ -52,6 +88,7 @@ describe('EventExportSheet', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '엑셀 다운로드' }));
 		expect(onConfirm).toHaveBeenLastCalledWith({
 			includeDifficulty: false,
+			includeCatalog: true,
 			sort: 'booklet'
 		});
 	});
@@ -74,7 +111,11 @@ describe('EventExportSheet', () => {
 		render(EventExportSheet, { ...props, ...handlers(), onSheets });
 		await fireEvent.click(screen.getByRole('radio', { name: '어려운 순' }));
 		await fireEvent.click(screen.getByRole('button', { name: 'Google Sheets' }));
-		expect(onSheets).toHaveBeenCalledWith({ includeDifficulty: true, sort: 'difficulty' });
+		expect(onSheets).toHaveBeenCalledWith({
+			includeDifficulty: true,
+			includeCatalog: true,
+			sort: 'difficulty'
+		});
 	});
 
 	it('disables the confirm button while a download is running', () => {
@@ -105,6 +146,7 @@ describe('EventExportSheet — Google Sheets', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Google Sheets' }));
 		expect(onSheets).toHaveBeenCalledWith({
 			includeDifficulty: false,
+			includeCatalog: true,
 			sort: 'scripture' as const
 		});
 	});

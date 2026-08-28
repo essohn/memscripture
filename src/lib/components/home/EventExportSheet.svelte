@@ -35,6 +35,10 @@
 	// default because a printed list is easier to work through that way — the
 	// app's own order exists to match the printed 구절집, which the file is not.
 	let includeDifficulty = $state(true);
+	// On by default: 구분 · 번호 · 제목 are how a verse is found again in the
+	// printed 구절집, and the sheet is usually read next to it. Off is for the
+	// one case they get in the way — printing the scripture on its own.
+	let includeCatalog = $state(true);
 	let sort = $state<ExportSort>('scripture');
 
 	const SORTS: { id: ExportSort; label: string }[] = [
@@ -43,7 +47,7 @@
 		{ id: 'booklet', label: '구절집 순' }
 	];
 
-	const options = $derived({ includeDifficulty, sort });
+	const options = $derived({ includeDifficulty, includeCatalog, sort });
 </script>
 
 <!-- z-[55]/z-[60], matching ConfirmDialog: the TabBar is fixed at z-50, and at
@@ -72,6 +76,18 @@
 				class="h-4 w-4 accent-[var(--color-accent)]"
 			/>
 			난이도 열 포함 (시작 · 전체)
+		</label>
+		<!-- Tighter to the checkbox above than that one is to the title: the two
+		     answer one question — which columns — and the 정렬 group below is a
+		     different one. Both can be off; 장절 · 본문 are not offered as a
+		     choice, so the sheet always carries the verse. -->
+		<label class="mt-2 flex items-center gap-2.5 text-[14px] text-[var(--color-text)]">
+			<input
+				type="checkbox"
+				bind:checked={includeCatalog}
+				class="h-4 w-4 accent-[var(--color-accent)]"
+			/>
+			구분 · 번호 · 제목 열 포함
 		</label>
 		<!-- Three orders, so a radiogroup rather than the checkbox this was when
 		     there were two. Each one is a whole answer to "what order", which a
