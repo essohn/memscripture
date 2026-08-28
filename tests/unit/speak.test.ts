@@ -495,3 +495,54 @@ describe('createPlayer keepalive', () => {
 		expect(synth.resume).not.toHaveBeenCalled();
 	});
 });
+
+describe('createPlayer speaks one segment at a time', () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	// The whole remainder used to go to the platform as one utterance. On the
+	// shipped 암송 DAY that is 149 verses and ~12,000 characters, and Chrome
+	// simply never starts one that size — no start, no error, `speaking` stuck
+	// true — so 전체 듣기 was silent and the engine was left wedged for
+	// everything after it. iOS happened to tolerate it, which is luck, not a
+	// contract. speak() has always chained per segment; so does this now.
+	it('does not hand the platform the whole script at once', () => {
+		const { spoken } = installFakeSynth();
+		createPlayer(['가나다', '라마바', '사아자'], {});
+		expect(spoken).toHaveLength(1);
+		expect(spoken[0].text).toBe('가나다');
+	});
+
+	it('chains to the next segment when one ends', () => {
+		const { spoken } = installFakeSynth();
+		createPlayer(['가나다', '라마바'], {});
+		spoken[0].onend?.();
+		expect(spoken.map((u) => u.text)).toEqual(['가나다', '라마바']);
+	});
+
+	it('reports the end of the script only after the last segment', () => {
+		const onEnd = vi.fn();
+		const { spoken } = installFakeSynth();
+		createPlayer(['가나다', '라마바'], { onEnd });
+		spoken[0].onend?.();
+		expect(onEnd).not.toHaveBeenCalled();
+		spoken[1].onend?.();
+		expect(onEnd).toHaveBeenCalledTimes(1);
+	});
+
+	// Repeat has to mean the whole script again, not the segment that just
+	// ended — the bug that made a dying engine loop verse one forever.
+	it('repeats from the first segment', () => {
+		const { spoken } = installFakeSynth();
+		createPlayer(['가나다', '라마바'], { repeat: true });
+		spoken[0].onend?.();
+		spoken[1].onend?.();
+		expect(spoken[2].text).toBe('가나다');
+	});
+
+	it('starts a seek in the segment the fraction lands in', () => {
+		const { spoken } = installFakeSynth();
+		const player = createPlayer(['가나다', '라마바'], {});
+		player?.seek(0.5);
+		expect(spoken[spoken.length - 1].text).toBe('라마바');
+	});
+});

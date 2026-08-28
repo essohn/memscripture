@@ -173,7 +173,7 @@ describe('PlaylistPlayer', () => {
 
 	it('resumes from where it was after losing the queue', () => {
 		player.start('event:e1', VERSES);
-		const fullText = spoken[0].text;
+		const opening = spoken[0].text;
 		// Drives progress to roughly the midpoint before the queue is lost, so
 		// the restart below has somewhere other than 0 to prove it returned to.
 		player.seek(0.5);
@@ -181,10 +181,13 @@ describe('PlaylistPlayer', () => {
 		other?.stop();
 		player.toggle();
 		expect(player.playing).toBe(true);
-		// A restart from the top would re-speak the whole script; resuming from
-		// where it was speaks only the tail from the scrubbed position.
+		// A restart from the top would speak the opening again; resuming picks
+		// up in whatever the scrubbed position landed in. Asserted against the
+		// opening rather than against a length: every utterance is one segment
+		// now, so two of them can be the same size and still be different
+		// places in the script.
 		const resumed = spoken[spoken.length - 1];
-		expect(resumed.text.length).toBeLessThan(fullText.length);
+		expect(resumed.text).not.toBe(opening);
 	});
 
 	// start() kicks off an unawaited options read on its way out. A toggle made

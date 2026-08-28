@@ -397,6 +397,25 @@ export function sliceFrom(segments: string[], offset: number): string[] {
 	return [];
 }
 
+/**
+ * Where the segment containing `offset` ends, as a character offset.
+ *
+ * The companion to sliceFrom: that one says what is left to speak from here,
+ * this one says how far the next utterance should advance the cursor. Read off
+ * the segment boundaries rather than off the utterance that was spoken,
+ * because sliceFrom trims a mid-segment start back to a word boundary — adding
+ * the spoken text's length would leave the cursor short of the boundary and
+ * replay the tail of a verse already read.
+ */
+export function segmentEnd(segments: string[], offset: number): number {
+	let seen = 0;
+	for (const seg of segments) {
+		seen += seg.length;
+		if (offset < seen) return seen;
+	}
+	return seen;
+}
+
 export interface PlayerProgress {
 	/** 0..1 through the whole script. */
 	fraction: number;
@@ -476,7 +495,7 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		current.onerror = null;
 	}
 
-	function playFrom(offset: number) {
+	function playFrom(offset: number, { chained = false }: { chained?: boolean } = {}) {
 		if (stopped) return;
 		const rest = sliceFrom(segments, offset);
 		if (rest.length === 0) {
@@ -485,9 +504,24 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		}
 		baseOffset = offset;
 		charInUtterance = 0;
-		// One utterance for the remainder: boundary charIndex is per utterance,
-		// so keeping it whole keeps the offset arithmetic in one place.
-		const u = new SpeechSynthesisUtterance(rest.join(' '));
+		// One utterance per segment, not one for the whole remainder.
+		//
+		// Handing the platform the entire script was simpler arithmetic —
+		// boundary charIndex is per utterance, so a single utterance kept the
+		// offset in one place — but Chrome will not speak one that size. The
+		// shipped 암송 DAY is 149 verses and ~12,000 characters, and Chrome
+		// accepts it, reports `speaking` true, then never fires start, end or
+		// error: 전체 듣기 was silent, and the engine stayed wedged for
+		// everything that came after it, per-verse playback included. iOS
+		// happened to tolerate it, which is one platform's luck rather than a
+		// promise any of them make.
+		//
+		// The cursor advances by segment boundaries instead (segmentEnd), so
+		// charIndex stays per utterance exactly as before — it is just a
+		// smaller utterance now. This is what speak() has always done.
+		const head = rest[0];
+		const end = segmentEnd(segments, offset);
+		const u = new SpeechSynthesisUtterance(head);
 		u.lang = 'ko-KR';
 		const chosen = pickKoreanVoice(synth.getVoices(), {
 			wanted: opts.voice,
@@ -501,10 +535,17 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		};
 		u.onend = () => {
 			if (stopped || paused) return;
+			// More script left: straight on to the next verse. Chained rather
+			// than queued for the reason speak() chains — a queue leaves the
+			// tail playing after a stop on some platforms.
+			if (end < chars) {
+				playFrom(end, { chained: true });
+				return;
+			}
 			if (opts.repeat) {
 				elapsedBefore = 0;
 				startedAt = Date.now();
-				playFrom(0);
+				playFrom(0, { chained: true });
 				return;
 			}
 			finish();
@@ -512,7 +553,11 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		u.onerror = () => finish();
 		detachCurrent();
 		current = u;
-		if (synth.speaking || synth.pending) synth.cancel();
+		// Not when chaining. The utterance that just ended left the queue empty,
+		// and a cancel() immediately followed by speak() in the same tick is
+		// swallowed on iOS — which would end the script at verse one on the
+		// platform that was working before this change.
+		if (!chained && (synth.speaking || synth.pending)) synth.cancel();
 		synth.speak(u);
 	}
 
@@ -545,21 +590,22 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 	}, 200);
 
 	// Same platform fact speak()'s keepalive above is for — Chrome drops
-	// synthesis after roughly 15 seconds unless resume() is called — but the
-	// odds of hitting it are two orders of magnitude higher here. speak() only
-	// ever reads one verse; this engine now also carries 전체 듣기's whole
-	// script as a single utterance (playFrom joins the entire remainder), and
-	// the shipped fixture alone runs to 149 verses, ~15,000 characters, tens of
-	// minutes of audio — all of it past the 15-second cliff. Worse, because
-	// speakListRepeat defaults on, the death does not go quiet: playFrom's
-	// onend reads it as "the script finished" and restarts from offset 0, so
-	// what a reader hears is the first verse looping forever while the bar's
-	// clock keeps climbing toward a runtime it will never reach. resume() on a
-	// synth that is not paused is a no-op, so this is inert if the platform
-	// ever stops needing it. A second interval rather than folding into the
-	// 200ms ticker above: the nudge cadence is a platform constant, not a UI
-	// refresh rate, and tying the two together would make a future change to
-	// report()'s frequency silently change this too.
+	// synthesis after roughly 15 seconds unless resume() is called — and a
+	// 전체 듣기 script runs to tens of minutes, so it is crossed many times
+	// over even now that each utterance is a single verse. A long verse alone
+	// can reach the cliff.
+	//
+	// It matters more here than it does for speak() because speakListRepeat
+	// defaults on, so a synthesis that dies mid-script does not go quiet: the
+	// onend below reads the silence as "that verse finished" and moves on, and
+	// at the end of the script it starts over. What a reader would hear is the
+	// list marching on without sound while the bar's clock keeps climbing.
+	//
+	// resume() on a synth that is not paused is a no-op, so this is inert if
+	// the platform ever stops needing it. A second interval rather than folding
+	// into the 200ms ticker above: the nudge cadence is a platform constant,
+	// not a UI refresh rate, and tying the two together would make a future
+	// change to report()'s frequency silently change this too.
 	keepalive = setInterval(() => {
 		if (stopped || paused) return;
 		if (synth.speaking && !synth.paused) synth.resume();
