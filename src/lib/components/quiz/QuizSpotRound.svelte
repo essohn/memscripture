@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { markMismatchedWords } from '$lib/memorize/grade';
+	import { findSpotFlaws } from '$lib/quiz/spot';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
 
 	interface Props {
@@ -14,35 +15,55 @@
 	}
 	let { item, shown, index, total, onDone }: Props = $props();
 
-	/** The reader's answer: a word index, or null for 이상 없음. Undefined
-	 *  while they are still deciding. */
-	let answer = $state<number | null | undefined>(undefined);
+	/**
+	 * The reader's verdict.
+	 *
+	 * Three shapes rather than "a word index or null", because a sentence can
+	 * be wrong in a way that has nothing on screen to point at. 'flawed' is
+	 * what the reader presses then — 이상 있음 — and undefined is still
+	 * deciding.
+	 */
+	type Answer = { kind: 'word'; index: number } | { kind: 'flawed' } | { kind: 'clean' };
+	let answer = $state<Answer | undefined>(undefined);
 	let reported = $state(false);
 
 	const startedAt = Date.now();
 
 	const words = $derived(shown.trim().split(/\s+/).filter(Boolean));
 
-	/** Which words of the shown text do not belong. Recomputed rather than
-	 *  stored: a second copy of a fact can disagree with the first, and the
-	 *  verse is right here to compare against. */
-	const wrong = $derived(
-		markMismatchedWords(shown, item.w).flatMap((m, i) => (m.ok ? [] : [i]))
-	);
+	/** How the sentence differs from the verse, both ways. Recomputed rather
+	 *  than stored: a second copy of a fact can disagree with the first, and
+	 *  the verse is right here to compare against. */
+	const flaws = $derived(findSpotFlaws(shown, item.w));
+
+	/** The verse's own words, marked with the ones the sentence dropped. Shown
+	 *  only when the sentence has nothing to underline — underlining teaches
+	 *  the reader where the mistake was, and an omission has no there. */
+	const verseWords = $derived(markMismatchedWords(item.w, shown));
+	const showDropped = $derived(flaws.wrong.length === 0 && flaws.flawed);
 
 	const answered = $derived(answer !== undefined);
-	const correct = $derived(answer === null ? wrong.length === 0 : wrong.includes(answer as number));
+	const correct = $derived(
+		answer === undefined
+			? false
+			: answer.kind === 'clean'
+				? !flaws.flawed
+				: answer.kind === 'flawed'
+					? flaws.flawed
+					: flaws.wrong.includes(answer.index)
+	);
 
 	/** The 다음 button, once the answer is in. */
 	let nextButton = $state<HTMLButtonElement | undefined>();
 
-	function choose(a: number | null) {
+	function choose(a: Answer) {
 		if (answered) return;
 		answer = a;
-		// Answering takes role and tabindex off every word, so whatever the
-		// reader was standing on stops being focusable and the browser drops
-		// focus to <body> — from there a keyboard reader has to tab in from the
-		// top of the page to reach the only control left. Hand it over instead.
+		// Answering takes role and tabindex off every word, and removes the
+		// button that was just pressed, so whatever the reader was standing on
+		// stops being focusable and the browser drops focus to <body> — from
+		// there a keyboard reader has to tab in from the top of the page to
+		// reach the only control left. Hand it over instead.
 		tick().then(() => nextButton?.focus());
 	}
 
@@ -78,16 +99,16 @@
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex --><span
 			class="word"
 			class:tappable={!answered}
-			class:wrong={answered && wrong.includes(i)}
-			class:picked={answer === i}
+			class:wrong={answered && flaws.wrong.includes(i)}
+			class:picked={answer?.kind === 'word' && answer.index === i}
 			role={!answered ? 'button' : undefined}
 			tabindex={!answered ? 0 : undefined}
-			onclick={!answered ? () => choose(i) : undefined}
+			onclick={!answered ? () => choose({ kind: 'word', index: i }) : undefined}
 			onkeydown={!answered
 				? (e) => {
 						if (e.key === 'Enter' || e.key === ' ') {
 							e.preventDefault();
-							choose(i);
+							choose({ kind: 'word', index: i });
 						}
 					}
 				: undefined}>{word}</span
@@ -95,18 +116,37 @@
 	</p>
 
 	{#if !answered}
-		<!-- The words are the other half of the answer, and nothing said so. They
-		     carry role="button" and a hover tint; neither exists on a touch
-		     screen, so a reader arriving cold saw a verse and one button reading
-		     이상 없음 — and the only verdict they could express was that nothing
-		     was wrong. VerseCard's marking mode has the same invisible-target
-		     problem and answers it with a hint line rather than a per-word
-		     marker; dotted styling already means "자주 틀린 곳" elsewhere in the
-		     app, so borrowing it here would say something else. -->
-		<p class="mt-3 text-[11px] text-[var(--color-text-tertiary)]">틀린 단어를 누르세요</p>
+		<!-- The words are one half of the answer and nothing said so: they carry
+		     role="button" and a hover tint, neither of which exists on a touch
+		     screen. The second sentence is the other half — a dropped word has
+		     nothing on screen to press, so the reader needs telling that 이상
+		     있음 is how to say it. -->
+		<p class="mt-3 text-[11px] text-[var(--color-text-tertiary)]">
+			틀린 단어를 누르세요. 빠진 단어가 있으면 이상 있음.
+		</p>
 	{/if}
 
 	{#if answered}
+		{#if showDropped}
+			<!-- Nothing on screen was wrong, so nothing on screen can be marked.
+			     What the reader has to see is the sentence they should have
+			     written, with the dropped words called out in it. -->
+			<p class="mt-3 text-[10.5px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
+				빠진 단어
+			</p>
+			<p
+				data-testid="dropped-words"
+				class="mt-1 text-[calc(15px*var(--vfs))] leading-[1.8] break-keep"
+			>
+				{#each verseWords as m, i (i)}<span
+						class={m.ok
+							? 'text-[var(--color-text-secondary)]'
+							: 'rounded bg-[var(--color-ribbon-green)]/25 px-0.5 font-semibold text-[var(--color-text)]'}
+						>{m.word}</span
+					>{' '}{/each}
+			</p>
+		{/if}
+
 		<p class="mt-3 text-[calc(13px*var(--vfs))] font-medium">
 			{correct ? '맞았습니다' : '다시 볼 구절'}
 		</p>
@@ -119,13 +159,22 @@
 			다음
 		</button>
 	{:else}
-		<button
-			type="button"
-			onclick={() => choose(null)}
-			class="mt-3 w-full rounded-xl bg-[var(--color-elevated)] py-2.5 font-medium text-[var(--color-text)]"
-		>
-			이상 없음
-		</button>
+		<div class="mt-3 flex gap-2">
+			<button
+				type="button"
+				onclick={() => choose({ kind: 'flawed' })}
+				class="flex-1 rounded-xl bg-[var(--color-elevated)] py-2.5 font-medium text-[var(--color-text)]"
+			>
+				이상 있음
+			</button>
+			<button
+				type="button"
+				onclick={() => choose({ kind: 'clean' })}
+				class="flex-1 rounded-xl bg-[var(--color-elevated)] py-2.5 font-medium text-[var(--color-text)]"
+			>
+				이상 없음
+			</button>
+		</div>
 	{/if}
 </div>
 

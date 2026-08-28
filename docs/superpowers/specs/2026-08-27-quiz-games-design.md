@@ -97,7 +97,8 @@ if so where.
   that attempt — the sentence they actually typed.
 - If not, it shows the **correct verse**, and 이상 없음 is the right answer.
 
-The reader taps a word, or presses 이상 없음. Either ends the round.
+The reader taps a word, or presses 이상 있음 or 이상 없음. Any of the three
+ends the round.
 
 **The picker says how many real questions a scope holds** — `12구절 중 5개에
 내 오답 기록이 있습니다` — because early on most verses have none, and without
@@ -119,14 +120,31 @@ are 이상 없음, and the picker's count says so rather than hiding it.
 
 ### Three consequences worth stating here
 
+*(The first has since been reversed; it is kept, struck through, with the
+reasoning that replaced it.)*
+
 Accepted along with the design above, and better read here than discovered
 later in the code:
 
-- **An omitted word is a question 틀린 곳 찾기 cannot ask.** A word that is
-  missing has no "does not belong" to tap — there is nothing there to find.
-  A reader whose attempt dropped a word gets 이상 없음 graded correct on a
-  sentence they did, in fact, get wrong. This is a gap in what the game
-  knows how to ask, not a grading error in what it does ask.
+- **~~An omitted word is a question 틀린 곳 찾기 cannot ask.~~** *Reversed
+  after release — see below.* A word that is missing has no "does not
+  belong" to tap, and this spec accepted that as a gap in what the game
+  knows how to ask rather than a grading error in what it does ask. That
+  was the wrong call: the round still asked "is anything wrong", and still
+  answered "no" about a sentence that was wrong. Grading a reader correct
+  for missing the flaw is a grading error whatever the flaw's shape.
+
+  The fix adds 이상 있음 beside 이상 없음, and asks the difference in both
+  directions (`findSpotFlaws` in `src/lib/quiz/spot.ts`): which shown words
+  do not belong, *and* which of the verse's words the sentence dropped.
+  Tapping stays the precise answer; 이상 있음 is the one available when
+  there is nothing on screen to tap. Since the reader cannot know in
+  advance which kind of flaw they are looking at, 이상 있음 is accepted for
+  either — refusing it on a tappable flaw would punish them for seeing the
+  mistake without knowing its shape. After the answer, a round whose flaw
+  was an omission shows the verse with the dropped words marked, because
+  underlining the mistake in place is impossible when the mistake is an
+  absence.
 
 - **`typed` carries more into every sync snapshot than the alternative this
   spec turned down.** "What is stored, and what is not" rejected storing
