@@ -30,3 +30,7 @@ test-results/
 
 .dev.vars*
 !.dev.vars.example
+
+# Throwaway worktrees for concurrent sessions. Committing one embeds a
+# second git repository in this one, which is never what was meant.
+.claude/worktrees/
