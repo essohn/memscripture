@@ -137,6 +137,31 @@ describe('QuizScopePicker — 난이도 rows', () => {
 	});
 });
 
+	// Seven chips a row is a lot of tapping to say "this dimension only".
+	it('clears a whole row in one press, then selects it back', async () => {
+		setup();
+		const row = '시작 난이도' as const;
+
+		// Not everything is on to begin with, so the button offers the fill.
+		await fireEvent.click(chip(row, '전체 선택'));
+		for (const label of ['Impossible', 'xHard', 'Hard', 'Normal', 'Easy', 'xEasy', '미평가']) {
+			expect(chip(row, label)).toHaveAttribute('aria-pressed', 'true');
+		}
+
+		// Now that it is full, the same button offers the clear.
+		await fireEvent.click(chip(row, '전체 해제'));
+		for (const label of ['Impossible', 'xHard', 'Hard', 'Normal', 'Easy', 'xEasy', '미평가']) {
+			expect(chip(row, label)).toHaveAttribute('aria-pressed', 'false');
+		}
+	});
+
+	it('moves one row without touching the other', async () => {
+		setup();
+		await fireEvent.click(chip('시작 난이도', '전체 선택'));
+		expect(chip('시작 난이도', 'xEasy')).toHaveAttribute('aria-pressed', 'true');
+		expect(chip('전체 난이도', 'xEasy')).toHaveAttribute('aria-pressed', 'false');
+	});
+
 describe('QuizScopePicker — 범위', () => {
 	// Arriving from a 암송 DAY, the scope was decided on the way in. Re-asking
 	// would invite an answer that disagrees with the screen they came from.

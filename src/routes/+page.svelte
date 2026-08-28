@@ -202,12 +202,18 @@
 		onPlayerOpenChange={(open) => (playerOpen = open)}
 	/>
 
+	<!-- Carries the DAY the reader is looking at, the same way each DAY card's
+	     own quiz button does. Without it the most obvious target on the screen
+	     was the one that arrived at the quiz knowing nothing, and the scope
+	     they had already chosen came back as a list. -->
 	<a
-		href="/quiz"
+		href={eventCards[0] ? `/quiz?event=${encodeURIComponent(eventCards[0].eventId)}` : '/quiz'}
 		class="mb-8 flex items-center justify-between rounded-2xl bg-[var(--color-card)] px-4 py-3 shadow-[var(--shadow-card)]"
 	>
 		<span class="text-[15px] font-medium text-[var(--color-text)]">퀴즈</span>
-		<span class="text-[12px] text-[var(--color-text-tertiary)]">범위를 골라 한 바퀴</span>
+		<span class="text-[12px] text-[var(--color-text-tertiary)]"
+			>{eventCards[0]?.eventTitle ?? '범위를 골라 한 바퀴'}</span
+		>
 	</a>
 
 	<section class="flex items-center justify-between gap-3 px-1">

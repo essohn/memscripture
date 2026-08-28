@@ -103,13 +103,27 @@
 					: undefined
 	);
 
+	/** Every chip a row can hold, 미평가 included. */
+	const ALL_TIERS: Tier[] = [...DIFFICULTY_LEVELS, null];
+
+	function setRow(row: 'start' | 'full', next: Set<Tier>) {
+		if (row === 'start') startTiers = next;
+		else fullTiers = next;
+	}
+
 	function toggle(row: 'start' | 'full', t: Tier) {
 		const current = row === 'start' ? startTiers : fullTiers;
 		const next = new Set(current);
 		if (next.has(t)) next.delete(t);
 		else next.add(t);
-		if (row === 'start') startTiers = next;
-		else fullTiers = next;
+		setRow(row, next);
+	}
+
+	/** One press instead of seven. Clearing a row is the more useful half —
+	 *  it is how you say "this dimension only" without tapping every chip off
+	 *  — so the button offers whichever of the two the row is not already at. */
+	function toggleAll(row: 'start' | 'full', chosen: Set<Tier>) {
+		setRow(row, chosen.size === ALL_TIERS.length ? new Set<Tier>() : new Set<Tier>(ALL_TIERS));
 	}
 </script>
 
@@ -140,6 +154,13 @@
 					: 'bg-[var(--color-elevated)] text-[var(--color-text-secondary)]'}"
 			>
 				미평가
+			</button>
+			<button
+				type="button"
+				onclick={() => toggleAll(row, chosen)}
+				class="ml-auto rounded-full border border-[var(--color-border)] px-2.5 py-1 text-[12px] text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-text)]"
+			>
+				{chosen.size === ALL_TIERS.length ? '전체 해제' : '전체 선택'}
 			</button>
 		</div>
 	</div>

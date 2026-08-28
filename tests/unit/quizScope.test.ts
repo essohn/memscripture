@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../../src/lib/db/local';
-import { listTargets, newestAttempt, resolveTarget, type Target } from '../../src/lib/quiz/scope';
+import { listTargets, offerableTargets, newestAttempt, resolveTarget, type Target } from '../../src/lib/quiz/scope';
 
 // listRecentChecks defaults to the real implementation below, so every test
 // but the one that overrides it reads through fake-indexeddb like normal.
@@ -212,5 +212,33 @@ describe('newestAttempt', () => {
 
 	it('does not offer a collapsed attempt as a question', () => {
 		expect(newestAttempt([{ typed: '앞부분만', accuracy: 0.3 }])).toBeUndefined();
+	});
+});
+
+describe('offerableTargets', () => {
+	const ev = (id: string, label: string) => ({ kind: 'event' as const, id, label, ranges: [] });
+	const pkg = (id: string, label: string) => ({ kind: 'package' as const, id, label });
+
+	// The reader reaches the quiz from a 암송 DAY. Offering every installed
+	// package beside it turns a decision they already made back into a list.
+	it('offers only the 암송 DAYs when there is at least one', () => {
+		const out = offerableTargets([ev('e1', '11월 암송 데이'), pkg('a_krv', 'A구절'), pkg('b_krv', 'B구절')]);
+		expect(out.map((t) => t.id)).toEqual(['e1']);
+	});
+
+	it('keeps every DAY when there are several', () => {
+		const out = offerableTargets([ev('e1', '1월'), ev('e2', '2월'), pkg('a_krv', 'A구절')]);
+		expect(out.map((t) => t.id)).toEqual(['e1', 'e2']);
+	});
+
+	// Without this a reader with no DAY would meet an empty picker and no way
+	// to quiz anything at all.
+	it('falls back to packages when there is no DAY', () => {
+		const out = offerableTargets([pkg('a_krv', 'A구절'), pkg('b_krv', 'B구절')]);
+		expect(out.map((t) => t.id)).toEqual(['a_krv', 'b_krv']);
+	});
+
+	it('has nothing to offer from nothing', () => {
+		expect(offerableTargets([])).toEqual([]);
 	});
 });

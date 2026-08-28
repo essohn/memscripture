@@ -5,7 +5,7 @@
 	import QuizOpeningRound from '$lib/components/quiz/QuizOpeningRound.svelte';
 	import QuizSpotRound from '$lib/components/quiz/QuizSpotRound.svelte';
 	import QuizSummary from '$lib/components/quiz/QuizSummary.svelte';
-	import { listTargets, resolveTarget, type Target } from '$lib/quiz/scope';
+	import { listTargets, offerableTargets, resolveTarget, type Target } from '$lib/quiz/scope';
 	import type { VerseSignal } from '$lib/quiz/priority';
 	import { GAME_SOURCE, type Game } from '$lib/quiz/games';
 	import { summarize, type ItemRating, type QuizItem, type RoundResult } from '$lib/quiz/session';
@@ -89,15 +89,22 @@
 			typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('event');
 		listTargets(todayLocalKey())
 			.then((t) => {
-				targets = t;
+				const offered = offerableTargets(t);
+				targets = offered;
 				if (selected !== null) return;
 				// An event id that no longer resolves — a stale bookmark, a DAY
-				// that has passed — falls back to the full list rather than
-				// locking the reader to a scope that is not there.
-				const asked = wanted ? t.find((x) => x.kind === 'event' && x.id === wanted) : undefined;
-				if (asked) lockedLabel = asked.label;
-				const first = asked ?? t[0];
-				if (first) pick(first);
+				// that has passed — falls back to whatever is on offer rather
+				// than locking the reader to a scope that is not there.
+				const asked = wanted
+					? offered.find((x) => x.kind === 'event' && x.id === wanted)
+					: undefined;
+				const chosen = asked ?? offered[0];
+				if (!chosen) return;
+				// Locked when the reader named the DAY on the way in, and also
+				// when there is only one thing to name: a list of one is not a
+				// choice, it is a button that cannot be pressed wrong.
+				if (asked || offered.length === 1) lockedLabel = chosen.label;
+				pick(chosen);
 			})
 			.catch(() => {});
 	});

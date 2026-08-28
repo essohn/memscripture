@@ -6,10 +6,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import QuizPage from '../../src/routes/quiz/+page.svelte';
 import { db } from '../../src/lib/db/local';
 import { listChecks } from '../../src/lib/db/checkHistory';
-import type { Target } from '../../src/lib/quiz/scope';
+import { listTargets, type Target } from '../../src/lib/quiz/scope';
 import type { ItemRating, QuizItem } from '../../src/lib/quiz/session';
 
 const target: Target = { kind: 'package', id: 'a_krv', label: 'A구절' };
+/** A second 대상 so the picker still renders a list: one target on its own is
+ *  locked, and the race test below needs a button to press. */
+const other: Target = { kind: 'package', id: 'b_krv', label: 'B구절' };
 
 function item(packageId: string, verseNo: number, w: string): QuizItem {
 	return {
@@ -41,7 +44,7 @@ const { resolveTargetMock } = vi.hoisted(() => ({ resolveTargetMock: vi.fn() }))
 
 vi.mock('../../src/lib/quiz/scope', async (importOriginal) => ({
 	...(await importOriginal<typeof import('../../src/lib/quiz/scope')>()),
-	listTargets: vi.fn(async () => [target]),
+	listTargets: vi.fn(async () => [target, other]),
 	resolveTarget: resolveTargetMock
 }));
 
@@ -252,5 +255,50 @@ describe('quiz/+page.svelte — closing re-resolves the 대상', () => {
 		await waitFor(() =>
 			expect(resolveTargetMock.mock.calls.length).toBeGreaterThan(callsBeforeClose)
 		);
+	});
+});
+
+// The reader reaches the quiz having already chosen a 암송 DAY, so the quiz
+// must not hand that choice back as a list. Two ways in: the DAY named on the
+// URL, and a single 대상 that is the only thing there is to name.
+describe('quiz/+page.svelte — a scope decided before this screen', () => {
+	const day: Target = { kind: 'event', id: 'e-summer', label: '2026 여름 암송 Day', ranges: [] };
+
+	// Two DAYs, so a lone-대상 lock cannot be what makes this pass: without the
+	// URL being read, both would be listed as buttons.
+	const otherDay: Target = { kind: 'event', id: 'e-winter', label: '2026 겨울 암송 Day', ranges: [] };
+
+	it('states the DAY named on the URL and offers no other scope', async () => {
+		vi.mocked(listTargets).mockResolvedValueOnce([day, otherDay, target]);
+		history.replaceState({}, '', '/quiz?event=e-summer');
+
+		render(QuizPage);
+
+		await waitFor(() => expect(screen.getByText('2026 여름 암송 Day')).toBeInTheDocument());
+		expect(screen.queryByRole('button', { name: '2026 여름 암송 Day' })).toBeNull();
+		expect(screen.queryByRole('button', { name: '2026 겨울 암송 Day' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'A구절' })).toBeNull();
+		history.replaceState({}, '', '/quiz');
+	});
+
+	// A list of one is not a choice.
+	it('states a lone 대상 rather than listing it', async () => {
+		vi.mocked(listTargets).mockResolvedValueOnce([day]);
+
+		render(QuizPage);
+
+		await waitFor(() => expect(screen.getByText('2026 여름 암송 Day')).toBeInTheDocument());
+		expect(screen.queryByRole('button', { name: '2026 여름 암송 Day' })).toBeNull();
+	});
+
+	// Packages are the fallback for a reader with no DAY at all — without them
+	// that reader meets an empty picker.
+	it('drops the packages once a DAY exists', async () => {
+		vi.mocked(listTargets).mockResolvedValueOnce([day, target, other]);
+
+		render(QuizPage);
+
+		await waitFor(() => expect(screen.getByText('2026 여름 암송 Day')).toBeInTheDocument());
+		expect(screen.queryByRole('button', { name: 'A구절' })).toBeNull();
 	});
 });

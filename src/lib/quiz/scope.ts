@@ -39,6 +39,20 @@ export async function listTargets(today: string): Promise<Target[]> {
 	return [...events, ...installed];
 }
 
+/**
+ * What the picker should offer, given everything that resolved.
+ *
+ * A reader reaches the quiz from a 암송 DAY, so the DAY is the context they
+ * are already in — offering every installed package beside it turns a decision
+ * they have already made back into a list. Packages stay as the fallback for
+ * someone who has no DAY at all, because without them that reader would face
+ * an empty picker and no way to quiz anything.
+ */
+export function offerableTargets(targets: Target[]): Target[] {
+	const events = targets.filter((t) => t.kind === 'event');
+	return events.length > 0 ? events : targets;
+}
+
 function toItem(v: { package_id: string; no: number; title: string; cite: string; w: string }): QuizItem {
 	return {
 		id: `${v.package_id}:${v.no}`,
