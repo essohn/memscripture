@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
 import QuizScopePicker from '../../src/lib/components/quiz/QuizScopePicker.svelte';
 import type { Target } from '../../src/lib/quiz/scope';
 import type { ItemRating, QuizItem } from '../../src/lib/quiz/session';
@@ -19,6 +19,12 @@ const item = (no: number): QuizItem => ({
 	w: `본문 ${no}`
 });
 
+/** The picker opens on Impossible/xHard/Hard, so a fixture that wants its
+ *  verses in the default pool has to rate them there. An unrated verse is
+ *  미평가, which is off by default. */
+const hard = (n: number): Map<string, ItemRating> =>
+	new Map(Array.from({ length: n }, (_, i) => [`a_krv:${i + 1}`, { start: 2, full: 2 }]));
+
 function setup(over: Record<string, unknown> = {}) {
 	const props = {
 		targets,
@@ -26,7 +32,7 @@ function setup(over: Record<string, unknown> = {}) {
 		items: [item(1), item(2)],
 		ratings: new Map<string, ItemRating>([
 			['a_krv:1', { start: 2, full: 2 }],
-			['a_krv:2', { start: 5, full: 5 }]
+			['a_krv:2', { start: 1, full: 1 }]
 		]),
 		signals: new Map<string, VerseSignal>(),
 		attempts: new Map([['a_krv:1', '거의 맞은 문장']]),
@@ -39,6 +45,13 @@ function setup(over: Record<string, unknown> = {}) {
 	return props;
 }
 
+/** The two difficulty rows carry the same chip labels, so a chip has to be
+ *  reached through the row that owns it. */
+const chip = (row: '시작 난이도' | '전체 난이도', label: string) =>
+	within(screen.getByRole('group', { name: row })).getByRole('button', { name: label });
+
+const goButton = () => screen.getByRole('button', { name: 'Quiz!' });
+
 describe('QuizScopePicker', () => {
 	it('offers every 대상 it was given', () => {
 		setup();
@@ -47,7 +60,7 @@ describe('QuizScopePicker', () => {
 	});
 
 	// The count is the whole guard against starting a 900-verse session: the
-	// reader sees the number before pressing 시작.
+	// reader sees the number before pressing Quiz!.
 	it('shows how many verses the current scope resolves to', () => {
 		setup();
 		expect(screen.getByText('2구절')).toBeInTheDocument();
@@ -55,22 +68,22 @@ describe('QuizScopePicker', () => {
 
 	it('moves the count when a difficulty chip is turned off', async () => {
 		setup();
-		await fireEvent.click(screen.getByRole('button', { name: 'xEasy' }));
+		await fireEvent.click(chip('시작 난이도', 'xHard'));
 		expect(screen.getByText('1구절')).toBeInTheDocument();
 	});
 
 	// Nothing selected is a scope of nothing, and starting it would open a
 	// session with no rounds in it.
-	it('disables 시작 when the scope is empty, and says why', async () => {
+	it('disables Quiz! when the scope is empty, and says why', async () => {
 		setup({ items: [] });
-		expect(screen.getByRole('button', { name: '시작' })).toBeDisabled();
+		expect(goButton()).toBeDisabled();
 		expect(screen.getByText('고른 범위에 구절이 없습니다')).toBeInTheDocument();
 	});
 
 	it('hands the filtered queue to onStart', async () => {
 		const { onStart } = setup();
-		await fireEvent.click(screen.getByRole('button', { name: 'xEasy' }));
-		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+		await fireEvent.click(chip('시작 난이도', 'xHard'));
+		await fireEvent.click(goButton());
 		expect(onStart).toHaveBeenCalledTimes(1);
 		expect(onStart.mock.calls[0][0].map((i: QuizItem) => i.id)).toEqual(['a_krv:1']);
 	});
@@ -82,29 +95,108 @@ describe('QuizScopePicker', () => {
 	});
 });
 
-describe('QuizScopePicker — games', () => {
-	it('offers the three games and starts on 전체 타이핑', () => {
+describe('QuizScopePicker — 난이도 rows', () => {
+	// The quiz is where a reader goes to work on what they keep losing, so it
+	// opens pointed at the hard end rather than at everything.
+	it('opens with Impossible, xHard and Hard on in both rows', () => {
 		setup();
-		expect(screen.getByRole('button', { name: '전체 타이핑' })).toHaveAttribute(
+		for (const row of ['시작 난이도', '전체 난이도'] as const) {
+			for (const on of ['Impossible', 'xHard', 'Hard']) {
+				expect(chip(row, on)).toHaveAttribute('aria-pressed', 'true');
+			}
+			for (const off of ['Normal', 'Easy', 'xEasy', '미평가']) {
+				expect(chip(row, off)).toHaveAttribute('aria-pressed', 'false');
+			}
+		}
+	});
+
+	// 시작 난이도 and 전체 난이도 are rated separately, and the two rows
+	// intersect. A verse hard to begin but easy once running clears the 시작
+	// row and fails the 전체 row, so it does not make the session — under a
+	// union it would, which is what the old single collapsed row did.
+	it('needs a verse to clear both rows', async () => {
+		setup({
+			items: [item(1)],
+			ratings: new Map<string, ItemRating>([['a_krv:1', { start: 2, full: 5 }]])
+		});
+		expect(screen.getByText('고른 난이도 그룹에 해당하는 구절이 없습니다')).toBeInTheDocument();
+
+		await fireEvent.click(chip('전체 난이도', 'xEasy'));
+		expect(screen.getByText('1구절')).toBeInTheDocument();
+	});
+
+	it('files each dimension separately under 미평가', async () => {
+		setup({
+			items: [item(1)],
+			ratings: new Map<string, ItemRating>([['a_krv:1', { start: 2, full: null }]])
+		});
+		expect(screen.getByText('고른 난이도 그룹에 해당하는 구절이 없습니다')).toBeInTheDocument();
+
+		await fireEvent.click(chip('전체 난이도', '미평가'));
+		expect(screen.getByText('1구절')).toBeInTheDocument();
+	});
+});
+
+describe('QuizScopePicker — 범위', () => {
+	// Arriving from a 암송 DAY, the scope was decided on the way in. Re-asking
+	// would invite an answer that disagrees with the screen they came from.
+	it('states a locked scope instead of offering the list', () => {
+		setup({ lockedLabel: '2026 여름 암송 Day' });
+		expect(screen.getByText('2026 여름 암송 Day')).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: '11월 암송 데이' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'A구절' })).toBeNull();
+	});
+
+	// Two different empty states with two different fixes: an empty range needs
+	// a different scope, a range emptied by the chips needs different chips. A
+	// freshly installed package is 미평가 throughout and the rows open on the
+	// hard end, so the second is what a reader meets first.
+	it('separates an empty range from one the chips emptied', async () => {
+		setup({ items: [] });
+		expect(screen.getByText('고른 범위에 구절이 없습니다')).toBeInTheDocument();
+		expect(screen.queryByText('고른 난이도 그룹에 해당하는 구절이 없습니다')).toBeNull();
+	});
+
+	it('says it was the chips when the range itself has verses', () => {
+		setup({ items: [item(1)], ratings: new Map() });
+		expect(screen.getByText('고른 난이도 그룹에 해당하는 구절이 없습니다')).toBeInTheDocument();
+		expect(screen.queryByText('고른 범위에 구절이 없습니다')).toBeNull();
+
+		const describedBy = goButton().getAttribute('aria-describedby');
+		expect(document.getElementById(describedBy as string)?.textContent?.trim()).toBe(
+			'고른 난이도 그룹에 해당하는 구절이 없습니다'
+		);
+	});
+
+	it('offers the list when no scope was handed in', () => {
+		setup();
+		expect(screen.getByRole('group', { name: '범위' })).toBeInTheDocument();
+	});
+});
+
+describe('QuizScopePicker — games', () => {
+	it('offers the three games and starts on 퍼펙트 게임', () => {
+		setup();
+		expect(screen.getByRole('button', { name: '퍼펙트 게임' })).toHaveAttribute(
 			'aria-pressed',
 			'true'
 		);
-		expect(screen.getByRole('button', { name: '첫 단어' })).toBeInTheDocument();
-		expect(screen.getByRole('button', { name: '틀린 곳 찾기' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: '시작 3단어 맞추기 게임' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: '자주 틀리는 곳 찾기 게임' })).toBeInTheDocument();
 	});
 
 	it('tells onStart which game was chosen', async () => {
 		const { onStart } = setup();
-		await fireEvent.click(screen.getByRole('button', { name: '첫 단어' }));
-		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+		await fireEvent.click(screen.getByRole('button', { name: '시작 3단어 맞추기 게임' }));
+		await fireEvent.click(goButton());
 		expect(onStart.mock.calls[0][1]).toBe('opening');
 	});
 
 	// Early on most verses have no recorded attempt, and without this line the
 	// winning strategy is to press 이상 없음 every round.
-	it('says how many real questions 틀린 곳 찾기 has', async () => {
+	it('says how many real questions 자주 틀리는 곳 찾기 has', async () => {
 		setup();
-		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
+		await fireEvent.click(screen.getByRole('button', { name: '자주 틀리는 곳 찾기 게임' }));
 		await waitFor(() =>
 			expect(screen.getByText('2구절 중 1개에 내 오답 기록이 있습니다')).toBeInTheDocument()
 		);
@@ -122,8 +214,8 @@ describe('QuizScopePicker — games', () => {
 				['a_krv:2', '또 다른 문장']
 			])
 		});
-		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
-		await fireEvent.click(screen.getByRole('button', { name: 'xEasy' }));
+		await fireEvent.click(screen.getByRole('button', { name: '자주 틀리는 곳 찾기 게임' }));
+		await fireEvent.click(chip('시작 난이도', 'xHard'));
 		await waitFor(() =>
 			expect(screen.getByText('1구절 중 1개에 내 오답 기록이 있습니다')).toBeInTheDocument()
 		);
@@ -139,25 +231,24 @@ describe('QuizScopePicker — games', () => {
 	it('heads the difficulty chips 난이도 그룹 선택', () => {
 		setup();
 		expect(screen.getByText('난이도 그룹 선택')).toBeInTheDocument();
-		expect(screen.queryByText('난이도')).toBeNull();
 	});
 
-	// A 틀린 곳 찾기 session over a scope with nothing to ask is a row of
+	// A 자주 틀리는 곳 찾기 session over a scope with nothing to ask is a row of
 	// rubber stamps — every round shows the intact verse and 이상 없음 is
 	// always right — that then writes accuracy-1 quiz-spot rows competing for
 	// the per-verse history budget for no reason.
-	it('disables 시작 when 틀린 곳 찾기 has nothing to ask, and says why', async () => {
+	it('disables Quiz! when 자주 틀리는 곳 찾기 has nothing to ask, and says why', async () => {
 		setup({ attempts: new Map() });
-		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
-		await waitFor(() => expect(screen.getByRole('button', { name: '시작' })).toBeDisabled());
+		await fireEvent.click(screen.getByRole('button', { name: '자주 틀리는 곳 찾기 게임' }));
+		await waitFor(() => expect(goButton()).toBeDisabled());
 		expect(
 			screen.getByText('아직 내 오답 기록이 없어 출제할 문제가 없습니다')
 		).toBeInTheDocument();
 	});
 });
 
-// Three strips of buttons with no announced boundary between them read as one
-// long run of controls. The app already names its other strips this way —
+// Strips of buttons with no announced boundary between them read as one long
+// run of controls. The app already names its other strips this way —
 // SeriesSubTabStrip carries role="group" with a label — and each of these has
 // a visible heading, so the heading is the name rather than a second string
 // that can drift away from it.
@@ -165,8 +256,9 @@ describe('QuizScopePicker — announced structure', () => {
 	it('names each group of controls after its own visible heading', () => {
 		setup();
 		expect(screen.getByRole('group', { name: '범위' })).toBeInTheDocument();
-		expect(screen.getByRole('group', { name: '난이도 그룹 선택' })).toBeInTheDocument();
 		expect(screen.getByRole('group', { name: '게임' })).toBeInTheDocument();
+		expect(screen.getByRole('group', { name: '시작 난이도' })).toBeInTheDocument();
+		expect(screen.getByRole('group', { name: '전체 난이도' })).toBeInTheDocument();
 	});
 
 	// A live region has to exist before the text inside it changes, or the
@@ -181,19 +273,16 @@ describe('QuizScopePicker — announced structure', () => {
 		expect(empty.length).toBeGreaterThan(0);
 	});
 
-	// The count is the line that actually changes on its own — as the read
-	// resolves, and as the tier chips move the total under it. It was the one
-	// named in the finding, and the one first fixed everywhere but here.
 	it('announces the attempts count', async () => {
 		setup();
-		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
+		await fireEvent.click(screen.getByRole('button', { name: '자주 틀리는 곳 찾기 게임' }));
 		const line = await screen.findByText(/내 오답 기록이 있습니다/);
 		expect(line.closest('[aria-live="polite"]')).not.toBeNull();
 	});
 
-	it('tells a disabled 시작 why it is disabled', async () => {
+	it('tells a disabled Quiz! why it is disabled', async () => {
 		setup({ items: [] });
-		const start = screen.getByRole('button', { name: '시작' });
+		const start = goButton();
 		expect(start).toBeDisabled();
 		const describedBy = start.getAttribute('aria-describedby');
 		expect(describedBy).toBeTruthy();
@@ -202,38 +291,39 @@ describe('QuizScopePicker — announced structure', () => {
 		);
 	});
 
-	it('leaves an enabled 시작 undescribed', () => {
+	it('leaves an enabled Quiz! undescribed', () => {
 		setup();
-		const start = screen.getByRole('button', { name: '시작' });
+		const start = goButton();
 		expect(start).not.toBeDisabled();
 		expect(start.getAttribute('aria-describedby')).toBeNull();
+	});
+
+	// The pile is decoration for a number the sentence beside it already
+	// states, so it must not be read out twice.
+	it('hides the card pile from the accessibility tree', () => {
+		setup();
+		const stack = document.querySelector('.stack');
+		expect(stack).not.toBeNull();
+		expect(stack).toHaveAttribute('aria-hidden', 'true');
 	});
 });
 
 describe('QuizScopePicker — session size', () => {
-	const many = (n: number) =>
-		Array.from({ length: n }, (_, i) => ({
-			id: `a_krv:${i + 1}`,
-			packageId: 'a_krv',
-			verseNo: i + 1,
-			title: `제목 ${i + 1}`,
-			cite: `창세기 1 : ${i + 1}`,
-			w: `본문 ${i + 1}`
-		}));
+	const many = (n: number) => Array.from({ length: n }, (_, i) => item(i + 1));
 
 	it('says only the count when the whole scope fits in one session', () => {
-		setup({ items: many(7), ratings: new Map(), attempts: new Map() });
+		setup({ items: many(7), ratings: hard(7), attempts: new Map() });
 		expect(screen.getByText('7구절')).toBeInTheDocument();
 	});
 
 	it("says how much of a larger scope today's session covers", () => {
-		setup({ items: many(48), ratings: new Map(), attempts: new Map() });
+		setup({ items: many(48), ratings: hard(48), attempts: new Map() });
 		expect(screen.getByText('48구절 중 오늘 10구절')).toBeInTheDocument();
 	});
 
 	it('hands onStart only the capped session', async () => {
-		const props = setup({ items: many(48), ratings: new Map(), attempts: new Map() });
-		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+		const props = setup({ items: many(48), ratings: hard(48), attempts: new Map() });
+		await fireEvent.click(goButton());
 		expect(vi.mocked(props.onStart).mock.calls[0]?.[0]).toHaveLength(10);
 	});
 
@@ -241,7 +331,7 @@ describe('QuizScopePicker — session size', () => {
 		const now = 1_700_000_000_000;
 		const props = setup({
 			items: many(2),
-			ratings: new Map(),
+			ratings: hard(2),
 			attempts: new Map(),
 			now,
 			signals: new Map<string, VerseSignal>([
@@ -249,25 +339,38 @@ describe('QuizScopePicker — session size', () => {
 				['a_krv:2', { fails: 3, lastAskedAt: now }]
 			])
 		});
-		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+		await fireEvent.click(goButton());
 		expect(vi.mocked(props.onStart).mock.calls[0]?.[0]?.[0]?.id).toBe('a_krv:2');
 	});
 
 	it('shows the attempt count without waiting for a read', () => {
 		setup();
-		fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
-		// No waitFor: attempts arrived with the scope.
+		fireEvent.click(screen.getByRole('button', { name: '자주 틀리는 곳 찾기 게임' }));
+		// No waitFor on a read: attempts arrived with the scope.
 		return waitFor(() =>
 			expect(screen.getByText('2구절 중 1개에 내 오답 기록이 있습니다')).toBeInTheDocument()
 		);
 	});
 
-	it('starts 틀린 곳 찾기 only on verses it has a question for', async () => {
+	it('starts 자주 틀리는 곳 찾기 only on verses it has a question for', async () => {
 		const props = setup();
-		await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
-		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+		await fireEvent.click(screen.getByRole('button', { name: '자주 틀리는 곳 찾기 게임' }));
+		await fireEvent.click(goButton());
 		expect(vi.mocked(props.onStart).mock.calls[0]?.[0]?.map((i: QuizItem) => i.id)).toEqual([
 			'a_krv:1'
 		]);
+	});
+
+	// One card per verse the sitting will ask about, so the count has a shape
+	// before it has a number — capped, because past a handful the pile stops
+	// reading as "a few more" and starts reading as noise.
+	it('draws one card per verse in the session, capped', () => {
+		setup({ items: many(3), ratings: hard(3), attempts: new Map() });
+		expect(document.querySelectorAll('.card-layer')).toHaveLength(3);
+	});
+
+	it('stops growing the pile past its cap', () => {
+		setup({ items: many(48), ratings: hard(48), attempts: new Map() });
+		expect(document.querySelectorAll('.card-layer')).toHaveLength(6);
 	});
 });

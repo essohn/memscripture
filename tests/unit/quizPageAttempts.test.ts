@@ -7,7 +7,7 @@ import QuizPage from '../../src/routes/quiz/+page.svelte';
 import { db } from '../../src/lib/db/local';
 import { listChecks } from '../../src/lib/db/checkHistory';
 import type { Target } from '../../src/lib/quiz/scope';
-import type { QuizItem } from '../../src/lib/quiz/session';
+import type { ItemRating, QuizItem } from '../../src/lib/quiz/session';
 
 const target: Target = { kind: 'package', id: 'a_krv', label: 'A구절' };
 
@@ -21,6 +21,17 @@ function item(packageId: string, verseNo: number, w: string): QuizItem {
 		w
 	};
 }
+
+/**
+ * Every verse these tests use, rated Hard in both dimensions.
+ *
+ * The picker opens with only Impossible/xHard/Hard on, so a fixture that left
+ * its verses 미평가 would resolve to an empty session and a disabled Quiz! —
+ * which is correct behaviour and useless as a fixture.
+ */
+const HARD: Map<string, ItemRating> = new Map(
+	Array.from({ length: 60 }, (_, i) => [`a_krv:${i + 1}`, { start: 2, full: 2 }])
+);
 
 const verse = item('a_krv', 1, '또 증거는 이것이니 하나님이 우리에게 영생을 주신 것이라');
 
@@ -38,7 +49,7 @@ beforeEach(async () => {
 	resolveTargetMock.mockReset();
 	resolveTargetMock.mockResolvedValue({
 		items: [verse],
-		ratings: new Map(),
+		ratings: HARD,
 		signals: new Map(),
 		attempts: new Map()
 	});
@@ -51,9 +62,9 @@ beforeEach(async () => {
  *  button is disabled until then), chooses the game, then starts. */
 async function startSpotRun() {
 	render(QuizPage);
-	await waitFor(() => expect(screen.getByRole('button', { name: '시작' })).not.toBeDisabled());
-	await fireEvent.click(screen.getByRole('button', { name: '틀린 곳 찾기' }));
-	await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+	await waitFor(() => expect(screen.getByRole('button', { name: 'Quiz!' })).not.toBeDisabled());
+	await fireEvent.click(screen.getByRole('button', { name: '자주 틀리는 곳 찾기 게임' }));
+	await fireEvent.click(screen.getByRole('button', { name: 'Quiz!' }));
 }
 
 describe('quiz/+page.svelte — 틀린 곳 찾기 attempts', () => {
@@ -64,7 +75,7 @@ describe('quiz/+page.svelte — 틀린 곳 찾기 attempts', () => {
 	it('shows the recorded attempt rather than the intact verse', async () => {
 		resolveTargetMock.mockResolvedValue({
 			items: [verse],
-			ratings: new Map(),
+			ratings: HARD,
 			signals: new Map(),
 			attempts: new Map([
 				['a_krv:1', '또 증거는 이것이니 하나님이 우리에게 영생은 주신 것이라']
@@ -85,15 +96,15 @@ describe('quiz/+page.svelte — session size and order', () => {
 	it('asks about at most SESSION_SIZE verses from a larger scope', async () => {
 		resolveTargetMock.mockResolvedValue({
 			items: many(48),
-			ratings: new Map(),
+			ratings: HARD,
 			signals: new Map(),
 			attempts: new Map()
 		});
 
 		render(QuizPage);
-		await waitFor(() => expect(screen.getByRole('button', { name: '시작' })).not.toBeDisabled());
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Quiz!' })).not.toBeDisabled());
 		expect(screen.getByText('48구절 중 오늘 10구절')).toBeInTheDocument();
-		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Quiz!' }));
 
 		// The round header counts the session, not the scope. QuizTypingRound
 		// renders `{index + 1} / {total}`.
@@ -104,7 +115,7 @@ describe('quiz/+page.svelte — session size and order', () => {
 		const now = Date.now();
 		resolveTargetMock.mockResolvedValue({
 			items: [item('a_krv', 1, '첫째 구절'), item('a_krv', 2, '둘째 구절')],
-			ratings: new Map(),
+			ratings: HARD,
 			signals: new Map([
 				['a_krv:1', { fails: 0, lastAskedAt: now }],
 				['a_krv:2', { fails: 3, lastAskedAt: now }]
@@ -113,8 +124,8 @@ describe('quiz/+page.svelte — session size and order', () => {
 		});
 
 		render(QuizPage);
-		await waitFor(() => expect(screen.getByRole('button', { name: '시작' })).not.toBeDisabled());
-		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Quiz!' })).not.toBeDisabled());
+		await fireEvent.click(screen.getByRole('button', { name: 'Quiz!' }));
 
 		await waitFor(() => expect(screen.getByText('제목 2')).toBeInTheDocument());
 	});
@@ -130,7 +141,7 @@ describe('quiz/+page.svelte — session size and order', () => {
 		);
 		resolveTargetMock.mockResolvedValueOnce({
 			items: [item('a_krv', 2, '둘째 구절')],
-			ratings: new Map(),
+			ratings: HARD,
 			signals: new Map(),
 			attempts: new Map()
 		});
@@ -144,7 +155,7 @@ describe('quiz/+page.svelte — session size and order', () => {
 
 		resolveFirst?.({
 			items: many(48),
-			ratings: new Map(),
+			ratings: HARD,
 			signals: new Map(),
 			attempts: new Map()
 		});
@@ -159,8 +170,8 @@ describe('quiz/+page.svelte — session size and order', () => {
 describe('quiz/+page.svelte — source recording', () => {
 	it('records source "quiz" for a completed typing round', async () => {
 		render(QuizPage);
-		await waitFor(() => expect(screen.getByRole('button', { name: '시작' })).not.toBeDisabled());
-		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Quiz!' })).not.toBeDisabled());
+		await fireEvent.click(screen.getByRole('button', { name: 'Quiz!' }));
 
 		await fireEvent.input(screen.getByRole('textbox', { name: '암송 구절 입력' }), {
 			target: { value: verse.w }
@@ -176,9 +187,9 @@ describe('quiz/+page.svelte — source recording', () => {
 
 	it('records source "quiz-opening" for a completed opening round', async () => {
 		render(QuizPage);
-		await waitFor(() => expect(screen.getByRole('button', { name: '시작' })).not.toBeDisabled());
-		await fireEvent.click(screen.getByRole('button', { name: '첫 단어' }));
-		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Quiz!' })).not.toBeDisabled());
+		await fireEvent.click(screen.getByRole('button', { name: '시작 3단어 맞추기 게임' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Quiz!' }));
 
 		await fireEvent.input(screen.getByRole('textbox', { name: '구절 첫머리 입력' }), {
 			target: { value: '또 증거는 이것이니' }
@@ -196,7 +207,7 @@ describe('quiz/+page.svelte — source recording', () => {
 		// the scope needs one to have anything to start.
 		resolveTargetMock.mockResolvedValue({
 			items: [verse],
-			ratings: new Map(),
+			ratings: HARD,
 			signals: new Map(),
 			attempts: new Map([['a_krv:1', verse.w]])
 		});
@@ -222,8 +233,8 @@ describe('quiz/+page.svelte — source recording', () => {
 describe('quiz/+page.svelte — closing re-resolves the 대상', () => {
 	it('re-resolves the 대상 on 끝내기, not just on the initial pick', async () => {
 		render(QuizPage);
-		await waitFor(() => expect(screen.getByRole('button', { name: '시작' })).not.toBeDisabled());
-		await fireEvent.click(screen.getByRole('button', { name: '시작' }));
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Quiz!' })).not.toBeDisabled());
+		await fireEvent.click(screen.getByRole('button', { name: 'Quiz!' }));
 
 		await fireEvent.input(screen.getByRole('textbox', { name: '암송 구절 입력' }), {
 			target: { value: verse.w }

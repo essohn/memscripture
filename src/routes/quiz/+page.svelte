@@ -71,13 +71,33 @@
 	 *  refetch on every pick. */
 	let loaded = false;
 
+	/**
+	 * The 암송 DAY this screen was opened for, when it was opened from one.
+	 *
+	 * Read off the URL rather than through $app/state: nothing else in this
+	 * codebase imports $app, which is what keeps its routes renderable under
+	 * vitest, and the app is ssr:false everywhere so `location` is always
+	 * there. Absent — a bookmark, or the tab bar — and the reader picks a
+	 * scope here as before.
+	 */
+	let lockedLabel = $state<string | undefined>(undefined);
+
 	$effect(() => {
 		if (loaded) return;
 		loaded = true;
+		const wanted =
+			typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('event');
 		listTargets(todayLocalKey())
 			.then((t) => {
 				targets = t;
-				if (selected === null && t.length > 0) pick(t[0]);
+				if (selected !== null) return;
+				// An event id that no longer resolves — a stale bookmark, a DAY
+				// that has passed — falls back to the full list rather than
+				// locking the reader to a scope that is not there.
+				const asked = wanted ? t.find((x) => x.kind === 'event' && x.id === wanted) : undefined;
+				if (asked) lockedLabel = asked.label;
+				const first = asked ?? t[0];
+				if (first) pick(first);
 			})
 			.catch(() => {});
 	});
@@ -157,7 +177,18 @@
 
 <main class="mx-auto w-full max-w-2xl px-4 py-4">
 	{#if queue === null}
-		<QuizScopePicker {targets} {selected} {items} {ratings} {signals} {attempts} {now} onPick={pick} onStart={start} />
+		<QuizScopePicker
+			{targets}
+			{selected}
+			{items}
+			{ratings}
+			{signals}
+			{attempts}
+			{now}
+			{lockedLabel}
+			onPick={pick}
+			onStart={start}
+		/>
 	{:else if done}
 		<QuizSummary
 			passed={summary.passed}

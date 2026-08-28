@@ -1,5 +1,4 @@
 import type { DifficultyLevel } from '$lib/db/verseRatings';
-import { hardestLevel } from '$lib/verses/difficultySort';
 import { SESSION_SIZE, priorityOf, type VerseSignal } from './priority';
 
 /** A difficulty chip. 1–5 is a rated tier; null is 미평가. */
@@ -37,21 +36,34 @@ export interface RoundResult {
 export type ItemRating = { start: DifficultyLevel | null; full: DifficultyLevel | null };
 
 /**
- * The scope narrowed to the chosen 난이도 그룹, unranked and uncapped.
+ * The scope narrowed to the chosen 난이도 그룹s, unranked and uncapped.
+ *
+ * Two independent filters, not one: 시작 난이도 and 전체 난이도 are rated
+ * separately and a verse can be brutal to begin and easy once running. They
+ * intersect — a verse has to clear both rows — which is what makes each row
+ * mean its own dimension. Under a union, turning a chip *on* could only ever
+ * widen the result, and the second row could never narrow the first.
+ *
+ * A row with every chip on therefore reads as "this dimension does not
+ * constrain", and an empty row as "nothing qualifies" — which falls out of
+ * `has` without a special case.
  *
  * The order is whatever the scope produced — for an 암송 DAY, the order its
  * ranges are written in. buildQueue replaces that order; this function does
  * not, because two callers want the unranked set: the picker counts it to
- * say how large the chosen scope is, and 틀린 곳 찾기 counts how much of it
- * it has a question for.
+ * say how large the chosen scope is, and 자주 틀리는 곳 찾기 counts how much
+ * of it it has a question for.
  */
 export function filterByTier(
 	items: QuizItem[],
-	tiers: Set<Tier>,
+	startTiers: Set<Tier>,
+	fullTiers: Set<Tier>,
 	ratings: Map<string, ItemRating>
 ): QuizItem[] {
-	if (tiers.size === 0) return [];
-	return items.filter((i) => tiers.has(hardestLevel(ratings.get(i.id)) as Tier));
+	return items.filter((i) => {
+		const r = ratings.get(i.id);
+		return startTiers.has(r?.start ?? null) && fullTiers.has(r?.full ?? null);
+	});
 }
 
 /** A verse nothing is known about — never asked, never failed. */

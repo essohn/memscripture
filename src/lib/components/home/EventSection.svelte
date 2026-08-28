@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CalendarCheck, Download, Play, Square } from 'lucide-svelte';
+	import { CalendarCheck, Download, Play, Square, Swords } from 'lucide-svelte';
 	import { hasEventStats, type EventCardVM } from '$lib/db/events';
 	import EventExportSheet, { type SheetNotice } from './EventExportSheet.svelte';
 	import EventStats from './EventStats.svelte';
@@ -171,6 +171,17 @@
 								{/if}
 							</button>
 						{/if}
+						<!-- The quiz opens on this DAY, so the link carries which one.
+						     Same shape as statsVersesHref: the URL names the question
+						     and /quiz resolves it, rather than spelling out verse
+						     numbers that would rot the moment a rating changed. -->
+						<a
+							href="/quiz?event={encodeURIComponent(ev.eventId)}"
+							aria-label="{ev.eventTitle} 퀴즈"
+							class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
+						>
+							<Swords size={15} strokeWidth={1.75} />
+						</a>
 						<button
 							type="button"
 							onclick={() => openSheet(ev)}

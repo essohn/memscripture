@@ -5,9 +5,9 @@ export type Game = 'typing' | 'opening' | 'spot';
 export const GAMES = ['typing', 'opening', 'spot'] as const satisfies readonly Game[];
 
 export const GAME_LABELS: Record<Game, string> = {
-	typing: '전체 타이핑',
-	opening: '첫 단어',
-	spot: '틀린 곳 찾기'
+	typing: '퍼펙트 게임',
+	opening: '시작 3단어 맞추기 게임',
+	spot: '자주 틀리는 곳 찾기 게임'
 };
 
 /**
