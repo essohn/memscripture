@@ -19,18 +19,21 @@ const item = (packageId: string, verseNo: number): QuizItem => ({
 });
 
 const rating = (start: DifficultyLevel | null, full: DifficultyLevel | null) => ({ start, full });
-const ALL: Set<Tier> = new Set([1, 2, 3, 4, 5, null]);
+const ALL: Set<Tier> = new Set([0, 1, 2, 3, 4, 5, null]);
 
 describe('filterByTier', () => {
 	it('serves nothing from an empty scope', () => {
-		expect(filterByTier([], ALL, new Map())).toEqual([]);
+		expect(filterByTier([], ALL, ALL, new Map())).toEqual([]);
 	});
 
 	// No chip selected is a scope of nothing, not a scope of everything —
-	// "all" and "none" must not be the same gesture.
-	it('serves nothing when no tier is selected', () => {
+	// "all" and "none" must not be the same gesture. True of either row on its
+	// own, because the rows intersect.
+	it('serves nothing when a row has no tier selected', () => {
 		const items = [item('a', 1)];
-		expect(filterByTier(items, new Set(), new Map([['a:1', rating(3, 3)]]))).toEqual([]);
+		const ratings = new Map([['a:1', rating(3, 3)]]);
+		expect(filterByTier(items, new Set(), ALL, ratings)).toEqual([]);
+		expect(filterByTier(items, ALL, new Set(), ratings)).toEqual([]);
 	});
 
 	it('keeps a verse in a selected tier and drops one outside it', () => {
@@ -39,24 +42,46 @@ describe('filterByTier', () => {
 			['a:1', rating(2, 2)],
 			['a:2', rating(5, 5)]
 		]);
-		expect(filterByTier(items, new Set<Tier>([2]), ratings).map((i) => i.id)).toEqual(['a:1']);
+		expect(filterByTier(items, new Set<Tier>([2]), ALL, ratings).map((i) => i.id)).toEqual(['a:1']);
 	});
 
-	// hardestLevel takes the harder of the two ratings: they answer different
-	// questions, and a comfortable start must not hide a body nobody finishes.
-	it('files a verse by its harder rating, not its easier one', () => {
+	// The whole point of splitting the row in two: 시작 난이도 and 전체 난이도
+	// are rated separately, and this verse is hard to begin but easy once
+	// running. Each row judges its own dimension and both have to agree — a
+	// union would let the easy half carry the hard one, which is what the
+	// single collapsed row used to do.
+	it('requires both rows to accept the verse, not either one', () => {
 		const items = [item('a', 1)];
 		const ratings = new Map([['a:1', rating(2, 5)]]);
-		expect(filterByTier(items, new Set<Tier>([2]), ratings)).toHaveLength(1);
-		expect(filterByTier(items, new Set<Tier>([5]), ratings)).toHaveLength(0);
+		expect(filterByTier(items, new Set<Tier>([2]), new Set<Tier>([5]), ratings)).toHaveLength(1);
+		expect(filterByTier(items, new Set<Tier>([2]), new Set<Tier>([2]), ratings)).toHaveLength(0);
+		expect(filterByTier(items, new Set<Tier>([5]), new Set<Tier>([5]), ratings)).toHaveLength(0);
 	});
 
-	// An unrated verse is usually the one that has had the least attention,
-	// so it gets a chip of its own rather than being silently dropped.
-	it('files an unrated verse under 미평가', () => {
+	// Which is what makes a row usable as a single-dimension filter: leave the
+	// other one wide open and it stops having an opinion.
+	it('lets a row with every chip on stop constraining', () => {
+		const items = [item('a', 1), item('a', 2)];
+		const ratings = new Map([
+			['a:1', rating(0, 5)],
+			['a:2', rating(4, 5)]
+		]);
+		expect(filterByTier(items, new Set<Tier>([0]), ALL, ratings).map((i) => i.id)).toEqual(['a:1']);
+	});
+
+	// An unrated verse is usually the one that has had the least attention, so
+	// it gets a chip of its own rather than being silently dropped — per
+	// dimension, since a verse can be rated for one and not the other.
+	it('files an unrated dimension under 미평가', () => {
 		const items = [item('a', 1)];
-		expect(filterByTier(items, new Set<Tier>([null]), new Map())).toHaveLength(1);
-		expect(filterByTier(items, new Set<Tier>([1, 2, 3, 4, 5]), new Map())).toHaveLength(0);
+		expect(filterByTier(items, new Set<Tier>([null]), new Set<Tier>([null]), new Map())).toHaveLength(1);
+		expect(filterByTier(items, new Set<Tier>([1, 2, 3, 4, 5]), ALL, new Map())).toHaveLength(0);
+
+		const halfRated = new Map([['a:1', rating(2, null)]]);
+		expect(
+			filterByTier(items, new Set<Tier>([2]), new Set<Tier>([null]), halfRated)
+		).toHaveLength(1);
+		expect(filterByTier(items, new Set<Tier>([2]), new Set<Tier>([2]), halfRated)).toHaveLength(0);
 	});
 
 	// One 암송 DAY can span packages, so verse 1 of two packages can meet in
@@ -68,7 +93,7 @@ describe('filterByTier', () => {
 			['a:1', rating(1, 1)],
 			['b:1', rating(5, 5)]
 		]);
-		expect(filterByTier(items, new Set<Tier>([1]), ratings).map((i) => i.id)).toEqual(['a:1']);
+		expect(filterByTier(items, new Set<Tier>([1]), ALL, ratings).map((i) => i.id)).toEqual(['a:1']);
 	});
 
 	// The items arrive in the order the scope produced them — for an 암송 DAY,
@@ -76,7 +101,7 @@ describe('filterByTier', () => {
 	// day. Sorting by verse number would scramble a two-package day.
 	it('does not reorder what it was given', () => {
 		const items = [item('b', 9), item('a', 2), item('a', 1)];
-		expect(filterByTier(items, ALL, new Map()).map((i) => i.id)).toEqual(['b:9', 'a:2', 'a:1']);
+		expect(filterByTier(items, ALL, ALL, new Map()).map((i) => i.id)).toEqual(['b:9', 'a:2', 'a:1']);
 	});
 });
 

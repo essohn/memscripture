@@ -13,9 +13,9 @@ describe('games', () => {
 	});
 
 	it('labels each game in Korean', () => {
-		expect(GAME_LABELS.typing).toBe('전체 타이핑');
-		expect(GAME_LABELS.opening).toBe('첫 단어');
-		expect(GAME_LABELS.spot).toBe('틀린 곳 찾기');
+		expect(GAME_LABELS.typing).toBe('퍼펙트 게임');
+		expect(GAME_LABELS.opening).toBe('시작 3단어 맞추기 게임');
+		expect(GAME_LABELS.spot).toBe('자주 틀리는 곳 찾기 게임');
 	});
 
 	// Each game proves something different: passing on two words is not
