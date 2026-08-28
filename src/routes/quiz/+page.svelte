@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import Header from '$lib/components/nav/Header.svelte';
 	import QuizScopePicker from '$lib/components/quiz/QuizScopePicker.svelte';
 	import QuizTypingRound from '$lib/components/quiz/QuizTypingRound.svelte';
@@ -74,19 +75,16 @@
 	/**
 	 * The 암송 DAY this screen was opened for, when it was opened from one.
 	 *
-	 * Read off the URL rather than through $app/state: nothing else in this
-	 * codebase imports $app, which is what keeps its routes renderable under
-	 * vitest, and the app is ssr:false everywhere so `location` is always
-	 * there. Absent — a bookmark, or the tab bar — and the reader picks a
-	 * scope here as before.
+	 * Read through $app/state, the same way the library detail page reads its
+	 * own ?v= deep link. Absent — a bookmark, or the tab bar — and the reader
+	 * picks a scope here as before.
 	 */
 	let lockedLabel = $state<string | undefined>(undefined);
 
 	$effect(() => {
 		if (loaded) return;
 		loaded = true;
-		const wanted =
-			typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('event');
+		const wanted = page.url.searchParams.get('event');
 		listTargets(todayLocalKey())
 			.then((t) => {
 				const offered = offerableTargets(t);

@@ -158,3 +158,28 @@ describe('QuizSpotRound — 빠진 단어', () => {
 		expect(screen.queryByTestId('dropped-words')).toBeNull();
 	});
 });
+
+// Whatever the round put on screen — a marked-up diff, three words, or a
+// sentence that is wrong on purpose — none of them is the verse. Every round
+// ends by showing it plainly, passed or failed, because a mark tells you where
+// you slipped and not what to learn.
+describe('QuizSpotRound — the verse itself', () => {
+	// What this round shows is wrong on purpose, so the verse has to arrive
+	// separately or the reader leaves having read only the flawed sentence.
+	it('shows the intact verse after the answer, not the flawed sentence', async () => {
+		setup(FLAWED);
+		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
+		expect(screen.getByTestId('quiz-answer')).toHaveTextContent(VERSE);
+	});
+
+	it('shows it after a wrong answer too', async () => {
+		setup(FLAWED);
+		await fireEvent.click(screen.getByRole('button', { name: '이상 없음' }));
+		expect(screen.getByTestId('quiz-answer')).toHaveTextContent(VERSE);
+	});
+
+	it('does not give it away before the answer is in', () => {
+		setup(FLAWED);
+		expect(screen.queryByTestId('quiz-answer')).toBeNull();
+	});
+});

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ChevronRight } from 'lucide-svelte';
 	import type { QuizItem } from '$lib/quiz/session';
 
 	interface Props {
@@ -24,11 +25,27 @@
 	{#if failed.length > 0}
 		<div class="text-left">
 			<h2 class="text-[13px] font-semibold text-[var(--color-text-secondary)]">다시 볼 구절</h2>
+			<!-- Each one goes to the verse itself. ?v= is the library page's own
+			     deep link — it scrolls the card into view and flashes it — which
+			     is exactly what the reader would otherwise do by hand after
+			     reading a list of citations and then having to go find them. -->
 			<ul class="mt-2 space-y-1">
 				{#each failed as f, i (i)}
-					<li class="text-[13px] text-[var(--color-text)]">
-						{f.title}
-						<span class="text-[var(--color-text-tertiary)]">{f.cite}</span>
+					<li>
+						<a
+							href="/library/{f.packageId}?v={f.verseNo}"
+							class="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-[13px] text-[var(--color-text)] transition-colors hover:bg-[var(--color-elevated)]"
+						>
+							<span class="truncate">
+								{f.title}
+								<span class="text-[var(--color-text-tertiary)]">{f.cite}</span>
+							</span>
+							<ChevronRight
+								size={15}
+								strokeWidth={1.75}
+								class="shrink-0 text-[var(--color-text-tertiary)]"
+							/>
+						</a>
 					</li>
 				{/each}
 			</ul>

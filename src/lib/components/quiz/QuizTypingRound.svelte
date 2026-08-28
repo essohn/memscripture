@@ -2,6 +2,7 @@
 	import { accuracyOf, markMismatchedWords } from '$lib/memorize/grade';
 	import { submitsOnEnter } from '$lib/memorize/typing';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
+	import QuizAnswer from './QuizAnswer.svelte';
 
 	interface Props {
 		item: QuizItem;
@@ -89,6 +90,7 @@
 		<p class="mt-3 text-[calc(16px*var(--vfs))] leading-[1.9] break-keep">
 			{#each marks as m, i (i)}<span class:wrong={!m.ok}>{m.word}</span>{' '}{/each}
 		</p>
+		<QuizAnswer w={item.w} />
 		<p class="mt-3 text-[calc(13px*var(--vfs))] font-medium">
 			{verdict.passed ? '통과' : '다시 볼 구절'}
 		</p>

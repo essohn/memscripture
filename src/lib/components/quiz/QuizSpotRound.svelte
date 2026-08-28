@@ -3,6 +3,7 @@
 	import { markMismatchedWords } from '$lib/memorize/grade';
 	import { findSpotFlaws } from '$lib/quiz/spot';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
+	import QuizAnswer from './QuizAnswer.svelte';
 
 	interface Props {
 		item: QuizItem;
@@ -116,6 +117,7 @@
 			</p>
 		{/if}
 
+		<QuizAnswer w={item.w} />
 		<p class="mt-3 text-[calc(13px*var(--vfs))] font-medium">
 			{correct ? '맞았습니다' : '다시 볼 구절'}
 		</p>

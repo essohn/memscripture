@@ -118,3 +118,32 @@ describe('QuizTypingRound', () => {
 		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ typed: attempt }));
 	});
 });
+
+// Whatever the round put on screen — a marked-up diff, three words, or a
+// sentence that is wrong on purpose — none of them is the verse. Every round
+// ends by showing it plainly, passed or failed, because a mark tells you where
+// you slipped and not what to learn.
+describe('QuizTypingRound — the verse itself', () => {
+	it('shows the whole verse after a wrong answer', async () => {
+		setup();
+		await fireEvent.input(screen.getByRole('textbox', { name: '암송 구절 입력' }), {
+			target: { value: '전혀 다른 문장' }
+		});
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(screen.getByTestId('quiz-answer')).toHaveTextContent(VERSE);
+	});
+
+	it('shows it after a right answer too', async () => {
+		setup();
+		await fireEvent.input(screen.getByRole('textbox', { name: '암송 구절 입력' }), {
+			target: { value: VERSE }
+		});
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(screen.getByTestId('quiz-answer')).toHaveTextContent(VERSE);
+	});
+
+	it('does not give it away before the answer is in', () => {
+		setup();
+		expect(screen.queryByTestId('quiz-answer')).toBeNull();
+	});
+});

@@ -4,6 +4,7 @@
 	import { submitsOnEnter } from '$lib/memorize/typing';
 	import { OPENING_GAME_WORDS } from '$lib/quiz/games';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
+	import QuizAnswer from './QuizAnswer.svelte';
 
 	interface Props {
 		item: QuizItem;
@@ -117,6 +118,7 @@
 	{/if}
 
 	{#if done}
+		<QuizAnswer w={item.w} />
 		<p class="mt-3 text-[calc(13px*var(--vfs))] font-medium">
 			{gaveUp ? '다시 볼 구절' : '통과'}
 		</p>

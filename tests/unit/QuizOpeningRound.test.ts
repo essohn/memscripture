@@ -175,3 +175,22 @@ describe('QuizOpeningRound', () => {
 		expect(document.activeElement).toBe(screen.getByRole('button', { name: '다음' }));
 	});
 });
+
+// Whatever the round put on screen — a marked-up diff, three words, or a
+// sentence that is wrong on purpose — none of them is the verse. Every round
+// ends by showing it plainly, passed or failed, because a mark tells you where
+// you slipped and not what to learn.
+describe('QuizOpeningRound — the verse itself', () => {
+	// The sharpest case: this round only ever showed three words, so the rest
+	// of the verse never appeared at all.
+	it('shows the whole verse once the round is done', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
+		expect(screen.getByTestId('quiz-answer')).toHaveTextContent(VERSE);
+	});
+
+	it('does not give it away while the reader is still typing', () => {
+		setup();
+		expect(screen.queryByTestId('quiz-answer')).toBeNull();
+	});
+});
