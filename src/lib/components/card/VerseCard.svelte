@@ -9,6 +9,7 @@
 	import MemorizeCheckPanel from './MemorizeCheckPanel.svelte';
 	import CheckHistorySheet from './CheckHistorySheet.svelte';
 	import { relativeTimeKo } from '$lib/utils/relativeTime';
+	import { perfectLabelKo, perfectOpacity } from '$lib/utils/perfectFreshness';
 	import type { DifficultyLevel } from '$lib/db/verseRatings';
 	import { normalizeForGrading } from '$lib/memorize/grade';
 	import { activeMarks, tokenizeVerse, type StoredMark } from '$lib/memorize/marks';
@@ -72,8 +73,10 @@
 		/** Toggles one word's underline. Marking is offered only when this is
 		 *  wired, so pages that cannot persist do not show the control. */
 		onToggleMark?: (index: number, word: string) => void;
-		/** This verse has been recited flawlessly at least once. */
-		perfect?: boolean;
+		/** When this verse was last recited flawlessly, or null if its most
+		 *  recent check was not. The moment rather than a flag, because the
+		 *  badge fades as it ages — see perfectOpacity. */
+		perfectAt?: number | null;
 		/** When this verse was last 점검'd, or null if never. Passed in rather
 		 *  than read per card, the same way `marks` and `perfect` are: a
 		 *  900-verse list must not issue 900 queries for a line most cards do
@@ -106,7 +109,7 @@
 		packageHref,
 		marks = [],
 		onToggleMark,
-		perfect = false,
+		perfectAt = null,
 		lastCheckedAt = null
 	}: Props = $props();
 
@@ -349,18 +352,41 @@
 	 *  word that was dotted, nothing on screen is dotted any more, and a line
 	 *  still telling them to press the dots describes a screen that is gone. */
 	const hasOpenSuggestion = $derived([...suggested].some((i) => !marked.has(i)));
-	/** Set by a perfect check in this session, so the badge appears with the
-	 *  confetti rather than only after the page is next loaded. */
 	/**
 	 * How the check that just happened went, or null when none has this
-	 * session.
+	 * session. Set by a perfect check so the badge appears with the confetti
+	 * rather than only after the page is next loaded.
 	 *
-	 * Overrides the `perfect` prop rather than adding to it: that prop was
+	 * Overrides the `perfectAt` prop rather than adding to it: that prop was
 	 * loaded when the page did, so after a slip it still says the verse was
 	 * flawless and would keep the popper lit on a verse the reader just got
 	 * wrong.
+	 *
+	 * Still a boolean beside `lastCheckedLocal`, rather than folded into one
+	 * timestamp: `false` here means "slipped just now", and a timestamp has no
+	 * way to say that — null would read as "no check yet" and re-light the
+	 * badge from the prop.
 	 */
 	let lastCheckPerfect = $state<boolean | null>(null);
+
+	/** When the badge on this card was earned, preferring a check finished in
+	 *  this session. Null when it has no claim: never earned, or taken back by
+	 *  a slip a moment ago. */
+	const shownPerfectAt = $derived(
+		lastCheckPerfect === null ? perfectAt : lastCheckPerfect ? lastCheckedLocal : null
+	);
+
+	/**
+	 * How lit the popper is, or null once it has faded out and should not be
+	 * rendered at all.
+	 *
+	 * Read at render, with no timer behind it. A step turns over every eight
+	 * hours — far longer than a card stays on screen — so a ticking clock would
+	 * buy a re-render nobody is waiting for.
+	 */
+	const perfectGlow = $derived(
+		shownPerfectAt === null ? null : perfectOpacity(shownPerfectAt)
+	);
 
 	/** The verse has been played aloud since this card was last idle. Hearing
 	 *  it and then reciting it tests recognition, so the grading treats it the
@@ -691,15 +717,23 @@
 			     button cluster leaves the title barely a third of the row, and
 			     most titles take two lines — left it floating in the margin
 			     beside neither line. It joins the heading's accessible name,
-			     which is the truth about the verse rather than noise. -->
+			     which is the truth about the verse rather than noise.
+
+			     It dims with age. The opacity is an inline style, not a class:
+			     a class built from a value is not in the source for Tailwind to
+			     find, and gets dropped from the production stylesheet — the
+			     card would fade in dev and not in the shipped app. The
+			     accessible name carries the recency too, because opacity states
+			     it only to readers who can see it. -->
 			<h2
 				class="min-w-[7rem] flex-1 text-[calc(19px*var(--vfs))] font-bold leading-tight text-[var(--color-text)]"
-			>{heading}{#if mode === 'read' && (lastCheckPerfect ?? perfect)}<PartyPopper
-					size={15}
-					strokeWidth={2}
-					class="ml-1.5 inline align-middle text-[var(--color-accent)]"
-					aria-label="완벽하게 암송한 구절"
-				/>{/if}</h2>
+			>{heading}{#if mode === 'read' && perfectGlow !== null && shownPerfectAt !== null}<span
+					class="ml-1.5 inline-block align-middle text-[var(--color-accent)]"
+					style="opacity: {perfectGlow}"
+					role="img"
+					aria-label="완벽하게 암송한 구절 · {perfectLabelKo(shownPerfectAt)}"
+				><PartyPopper size={15} strokeWidth={2} class="inline align-middle" aria-hidden="true" /></span
+				>{/if}</h2>
 			<!-- gap-2 rather than gap-1: these are four separate targets on a
 			     phone, each smaller than a fingertip, and 4px between them made
 			     난이도 and 암송 trade taps. -->
@@ -884,9 +918,13 @@
 					revealAll();
 					// Assigned, not just raised: a flawed attempt takes the popper back.
 					lastCheckPerfect = outcome.accuracy >= 1;
-					if (!packageId) return;
+					// Stamped before the packageId guard, not after: this is the
+					// card's own state, and the badge is dated from it. Behind the
+					// guard, a card with nowhere to persist would light a popper
+					// with no moment attached and render nothing.
 					const checkedAt = Date.now();
 					lastCheckedLocal = checkedAt;
+					if (!packageId) return;
 					recordCheck(packageId, verse.no, outcome, checkedAt)
 						.then(loadCheckHistory)
 						.catch(() => {});

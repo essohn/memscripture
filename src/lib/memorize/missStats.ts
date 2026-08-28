@@ -25,7 +25,7 @@ export const SUGGEST_MAX_PER_VERSE = 3;
  * schema version, a merge rule, a decay policy and an answer for what happens
  * when an OYO verse is edited under it; computing it from the records that
  * already exist removes all four, and it cannot disagree with the history it
- * came from. The same reasoning listPerfectVerseNos states.
+ * came from. The same reasoning listPerfectCheckedAt states.
  *
  * `history` is most-recent-first, as listChecks() returns it.
  */

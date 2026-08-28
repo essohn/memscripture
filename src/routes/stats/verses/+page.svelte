@@ -132,7 +132,7 @@
 					onBookmarkClear={() => removeBookmark(row.packageId, row.verse.no)}
 					marks={marks[verseKeyOf(row.packageId, row.verse.no)] ?? []}
 					onToggleMark={(i, word) => onToggleMark(row.packageId, row.verse.no, i, word)}
-					perfect={row.perfect}
+					perfectAt={row.perfectAt}
 					startDifficulty={startDifficulties[verseKeyOf(row.packageId, row.verse.no)] ?? null}
 					fullDifficulty={fullDifficulties[verseKeyOf(row.packageId, row.verse.no)] ?? null}
 					onPickStartDifficulty={(l) => pickStart(row.packageId, row.verse.no, l)}

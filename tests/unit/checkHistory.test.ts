@@ -6,7 +6,7 @@ import {
 	countsAsRecall,
 	listChecks,
 	listLastCheckedAt,
-	listPerfectVerseNos,
+	listPerfectCheckedAt,
 	recordCheck,
 	TYPED_LIMIT
 } from '../../src/lib/db/checkHistory';
@@ -18,6 +18,11 @@ beforeEach(async () => {
 });
 
 const entry = (over = {}) => ({ start: 4, full: 5, accuracy: 1, elapsedMs: 30_000, ...over }) as never;
+
+/** Which verses are lit, without the moments — the question most of these
+ *  specs are asking. The moments have their own describe below. */
+const perfectNos = async (packageId: string) =>
+	new Set((await listPerfectCheckedAt(packageId)).keys());
 
 describe('checkHistory', () => {
 	it('records a check and reads it back', async () => {
@@ -150,7 +155,7 @@ describe('prune protects recall-bearing rows from non-recall churn', () => {
 		const rows = await listChecks('900_krv', 30);
 		expect(rows.length).toBeLessThanOrEqual(HISTORY_LIMIT);
 		expect(rows.some((r) => r.checkedAt === 1000)).toBe(true);
-		expect(await listPerfectVerseNos('900_krv')).toEqual(new Set([30]));
+		expect(await perfectNos('900_krv')).toEqual(new Set([30]));
 	});
 
 	it('keeps the typed sentence 틀린 곳 찾기 hands back, through ten opening rounds', async () => {
@@ -190,16 +195,16 @@ describe('countsAsRecall', () => {
 	});
 });
 
-describe('listPerfectVerseNos with games', () => {
+describe('listPerfectCheckedAt with games', () => {
 	it('does not light the badge from an opening round', async () => {
 		await recordCheck('900_krv', 20, entry({ accuracy: 1, source: 'quiz-opening' }), 1000);
-		expect(await listPerfectVerseNos('900_krv')).toEqual(new Set());
+		expect(await perfectNos('900_krv')).toEqual(new Set());
 	});
 
 	it('still lights it from a 점검 and from a full typing round', async () => {
 		await recordCheck('900_krv', 21, entry({ accuracy: 1 }), 1000);
 		await recordCheck('900_krv', 22, entry({ accuracy: 1, source: 'quiz' }), 1000);
-		expect(await listPerfectVerseNos('900_krv')).toEqual(new Set([21, 22]));
+		expect(await perfectNos('900_krv')).toEqual(new Set([21, 22]));
 	});
 
 	// The latest *counted* record decides. A spot round landing after a
@@ -208,7 +213,7 @@ describe('listPerfectVerseNos with games', () => {
 		await recordCheck('900_krv', 23, entry({ accuracy: 1 }), 1000);
 		await recordCheck('900_krv', 23, entry({ accuracy: 0.5 }), 2000);
 		await recordCheck('900_krv', 23, entry({ accuracy: 1, source: 'quiz-spot' }), 3000);
-		expect(await listPerfectVerseNos('900_krv')).toEqual(new Set());
+		expect(await perfectNos('900_krv')).toEqual(new Set());
 	});
 
 	// The most recent *counted* check decides, so a later spot round is
@@ -218,15 +223,45 @@ describe('listPerfectVerseNos with games', () => {
 	it('keeps a badge that a later spot round cannot speak to', async () => {
 		await recordCheck('900_krv', 24, entry({ accuracy: 1 }), 1000);
 		await recordCheck('900_krv', 24, entry({ accuracy: 0.4, source: 'quiz-spot' }), 2000);
-		expect(await listPerfectVerseNos('900_krv')).toEqual(new Set([24]));
+		expect(await perfectNos('900_krv')).toEqual(new Set([24]));
 	});
 });
 
-describe('listPerfectVerseNos', () => {
+// The badge fades with age, so the card needs to know when the 만점 was
+// earned, not merely that it was. The timestamp is already on the row; the
+// Set was throwing it away.
+describe('listPerfectCheckedAt moments', () => {
+	it('carries the moment the badge was earned', async () => {
+		await recordCheck('900_krv', 40, entry({ accuracy: 1 }), 1000);
+		expect(await listPerfectCheckedAt('900_krv')).toEqual(new Map([[40, 1000]]));
+	});
+
+	it('carries the latest 만점 when several are recorded', async () => {
+		await recordCheck('900_krv', 41, entry({ accuracy: 1 }), 1000);
+		await recordCheck('900_krv', 41, entry({ accuracy: 1 }), 5000);
+		expect((await listPerfectCheckedAt('900_krv')).get(41)).toBe(5000);
+	});
+
+	// Rows come back in index order, not chronological order, so the newest
+	// has to win by comparison rather than by whichever landed last.
+	it('carries the latest even when the rows arrive out of order', async () => {
+		await recordCheck('900_krv', 42, entry({ accuracy: 1 }), 5000);
+		await recordCheck('900_krv', 42, entry({ accuracy: 1 }), 1000);
+		expect((await listPerfectCheckedAt('900_krv')).get(42)).toBe(5000);
+	});
+
+	it('drops a verse whose most recent check was flawed', async () => {
+		await recordCheck('900_krv', 43, entry({ accuracy: 1 }), 1000);
+		await recordCheck('900_krv', 43, entry({ accuracy: 0.5 }), 2000);
+		expect((await listPerfectCheckedAt('900_krv')).has(43)).toBe(false);
+	});
+});
+
+describe('listPerfectCheckedAt membership', () => {
 	it('lists the verses recited flawlessly', async () => {
 		await recordCheck('900_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 9000 });
 		await recordCheck('900_krv', 2, { start: 2, full: 2, accuracy: 0.8, elapsedMs: 9000 });
-		expect([...(await listPerfectVerseNos('900_krv'))]).toEqual([1]);
+		expect([...(await perfectNos('900_krv'))]).toEqual([1]);
 	});
 
 	// The most recent check decides, not the best one ever recorded. The badge
@@ -236,13 +271,13 @@ describe('listPerfectVerseNos', () => {
 	it('drops a verse whose latest check was flawed', async () => {
 		await recordCheck('900_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 9000 }, 1000);
 		await recordCheck('900_krv', 1, { start: 2, full: 2, accuracy: 0.6, elapsedMs: 9000 }, 2000);
-		expect([...(await listPerfectVerseNos('900_krv'))]).toEqual([]);
+		expect([...(await perfectNos('900_krv'))]).toEqual([]);
 	});
 
 	it('earns it back when the next check is flawless again', async () => {
 		await recordCheck('900_krv', 1, { start: 2, full: 2, accuracy: 0.6, elapsedMs: 9000 }, 1000);
 		await recordCheck('900_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 9000 }, 2000);
-		expect([...(await listPerfectVerseNos('900_krv'))]).toEqual([1]);
+		expect([...(await perfectNos('900_krv'))]).toEqual([1]);
 	});
 
 	// Rows come back in index order, not chronological order, so "latest" has
@@ -250,7 +285,7 @@ describe('listPerfectVerseNos', () => {
 	it('uses the newest check even when it was recorded out of order', async () => {
 		await recordCheck('900_krv', 1, { start: 5, full: 5, accuracy: 1, elapsedMs: 9000 }, 5000);
 		await recordCheck('900_krv', 1, { start: 2, full: 2, accuracy: 0.6, elapsedMs: 9000 }, 1000);
-		expect([...(await listPerfectVerseNos('900_krv'))]).toEqual([1]);
+		expect([...(await perfectNos('900_krv'))]).toEqual([1]);
 	});
 
 	// The verseKey index is prefixed by the package id, so a scan must not
@@ -258,12 +293,12 @@ describe('listPerfectVerseNos', () => {
 	it('does not leak across packages', async () => {
 		await recordCheck('900_krv', 7, { start: 5, full: 5, accuracy: 1, elapsedMs: 1000 });
 		await recordCheck('100_krv', 9, { start: 5, full: 5, accuracy: 1, elapsedMs: 1000 });
-		expect([...(await listPerfectVerseNos('900_krv'))]).toEqual([7]);
-		expect([...(await listPerfectVerseNos('100_krv'))]).toEqual([9]);
+		expect([...(await perfectNos('900_krv'))]).toEqual([7]);
+		expect([...(await perfectNos('100_krv'))]).toEqual([9]);
 	});
 
 	it('is empty for a package with no checks', async () => {
-		expect((await listPerfectVerseNos('5_krv')).size).toBe(0);
+		expect((await perfectNos('5_krv')).size).toBe(0);
 	});
 });
 

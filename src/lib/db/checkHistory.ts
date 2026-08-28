@@ -150,7 +150,7 @@ export function countsAsRecall(r: Pick<CheckRecord, 'source'>): boolean {
  * One scan for a whole list rather than a query per card: a 900-verse package
  * would otherwise issue 900 round-trips for a line most cards do not even
  * show. The same reason 점검 history itself loads lazily, and the same shape
- * listPerfectVerseNos uses.
+ * listPerfectCheckedAt uses.
  *
  * Stricter than countsAsRecall, deliberately: that asks whether a row is
  * evidence of recall, and a full quiz round is. This asks what the card's line
@@ -179,17 +179,23 @@ export async function listLastCheckedAt(packageId?: string): Promise<Map<string,
 }
 
 /**
- * Verse numbers in a package that have ever been recited flawlessly.
+ * When each verse in a package was recited flawlessly, keyed by verseNo.
  *
  * Read from the history rather than stored as a flag on the verse: the record
  * of a perfect check already exists, and a second copy could disagree with it.
  * The most recent check decides, so a later slip does take the badge back —
  * it says "this verse is solid right now", not "I have ever done this".
  *
+ * The moment comes back with it because the badge fades with age (see
+ * perfectOpacity). A Map rather than a Set for that reason alone: callers that
+ * only ask whether the badge is lit still read `.has(verseNo)` unchanged, but
+ * one iterating it must take `.keys()` — a bare `for…of` over a Map yields
+ * entry pairs.
+ *
  * One range scan on the verseKey index, which is prefixed by the package id,
  * rather than a query per verse.
  */
-export async function listPerfectVerseNos(packageId: string): Promise<Set<number>> {
+export async function listPerfectCheckedAt(packageId: string): Promise<Map<number, number>> {
 	const rows = await db.checkHistory.where('verseKey').startsWith(`${packageId}:`).toArray();
 
 	// The most recent check decides, not the best one ever recorded. The badge
@@ -203,7 +209,7 @@ export async function listPerfectVerseNos(packageId: string): Promise<Set<number
 		if (!seen || r.checkedAt > seen.checkedAt) latest.set(r.verseNo, r);
 	}
 
-	const out = new Set<number>();
-	for (const [verseNo, r] of latest) if (r.accuracy >= 1) out.add(verseNo);
+	const out = new Map<number, number>();
+	for (const [verseNo, r] of latest) if (r.accuracy >= 1) out.set(verseNo, r.checkedAt);
 	return out;
 }

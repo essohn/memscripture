@@ -3,7 +3,7 @@ import type { VerseRating } from './local';
 import type { PlaylistVerse } from '$lib/memorize/playlist';
 import { db } from './local';
 import { loadPackageData, filterVerses, isPackageInstalled } from './verses';
-import { listPerfectVerseNos } from './checkHistory';
+import { listPerfectCheckedAt } from './checkHistory';
 import { DIFFICULTY_LABELS, type DifficultyLevel } from './verseRatings';
 import { getJoinedGroups } from './groups';
 import { visibleTo } from '$lib/groups/visibility';
@@ -290,7 +290,7 @@ export async function versesByPerfection(
 	const out: EventVerseRef[] = [];
 
 	for (const [packageId, verseNos] of groupVerseNos(ranges)) {
-		const perfectNos = await listPerfectVerseNos(packageId).catch(() => new Set<number>());
+		const perfectNos = await listPerfectCheckedAt(packageId).catch(() => new Map<number, number>());
 		for (const verseNo of [...verseNos].sort((a, b) => a - b)) {
 			if (perfectNos.has(verseNo) === perfect) out.push({ packageId, verseNo });
 		}
@@ -348,14 +348,17 @@ export async function eventStats(ranges: RangeCardVM[]): Promise<EventStats> {
 	for (const [packageId, verseNos] of versesByPackage) {
 		const [ratings, perfectNos] = await Promise.all([
 			db.verseRatings.where('packageId').equals(packageId).toArray(),
-			listPerfectVerseNos(packageId).catch(() => new Set<number>())
+			listPerfectCheckedAt(packageId).catch(() => new Map<number, number>())
 		]);
 		for (const r of ratings) {
 			if (!verseNos.has(r.verseNo)) continue;
 			tally(start, r.startDifficulty);
 			tally(full, r.fullDifficulty);
 		}
-		for (const no of perfectNos) if (verseNos.has(no)) perfect++;
+		// .keys(): the source is a Map of verseNo → when it was earned, and a
+		// bare for…of over one yields [key, value] pairs. Set.has of a pair is
+		// false every time, which shows up as 만점 0 rather than as an error.
+		for (const no of perfectNos.keys()) if (verseNos.has(no)) perfect++;
 	}
 
 	return { total, perfect, start, full };

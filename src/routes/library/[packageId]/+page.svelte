@@ -16,7 +16,7 @@
 		import { db } from '$lib/db/local';
 	import { setBookmark, clearBookmark } from '$lib/db/bookmarks';
 	import { listMarksForPackage, toggleVerseMark } from '$lib/db/verseMarks';
-	import { listLastCheckedAt, listPerfectVerseNos, verseKeyOf } from '$lib/db/checkHistory';
+	import { listLastCheckedAt, listPerfectCheckedAt, verseKeyOf } from '$lib/db/checkHistory';
 	import type { StoredMark } from '$lib/memorize/marks';
 	import {
 		setStartDifficulty,
@@ -41,7 +41,7 @@
 	const showVerseText = $derived(verseVisibility.shown);
 	let ratingsByVerseNo = $state<Map<number, VerseRowRating>>(new Map());
 	let marksByVerseNo = $state<Map<number, StoredMark[]>>(new Map());
-	let perfectVerseNos = $state<Set<number>>(new Set());
+	let perfectCheckedAt = $state<Map<number, number>>(new Map());
 	let lastCheckedByKey = $state<Map<string, number>>(new Map());
 	let bookmarksByVerseNo = $state<Map<number, BookmarkColor>>(new Map());
 
@@ -236,7 +236,7 @@
 					db.verseRatings.where('packageId').equals(currentPackageId).toArray(),
 					db.bookmarks.where('packageId').equals(currentPackageId).toArray(),
 					listMarksForPackage(currentPackageId),
-					listPerfectVerseNos(currentPackageId),
+					listPerfectCheckedAt(currentPackageId),
 					listLastCheckedAt(currentPackageId)
 				]);
 			if (!active) return;
@@ -252,7 +252,7 @@
 			for (const b of bookmarkRows) nextBookmarks.set(b.verseNo, b.color);
 			bookmarksByVerseNo = nextBookmarks;
 			marksByVerseNo = markRows;
-			perfectVerseNos = perfectRows;
+			perfectCheckedAt = perfectRows;
 			lastCheckedByKey = lastCheckedRows;
 		})().catch(() => {});
 		return () => {
@@ -449,7 +449,7 @@
 					startDifficulty={rating?.start ?? null}
 					fullDifficulty={rating?.full ?? null}
 					marks={marksByVerseNo.get(v.no) ?? []}
-					perfect={perfectVerseNos.has(v.no)}
+					perfectAt={perfectCheckedAt.get(v.no) ?? null}
 					lastCheckedAt={lastCheckedByKey.get(verseKeyOf(packageId, v.no)) ?? null}
 					onToggleMark={(i, word) => onToggleMark(v.no, i, word)}
 					onPickStartDifficulty={(l) => pickStart(v.no, l)}

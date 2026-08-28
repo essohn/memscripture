@@ -292,7 +292,11 @@ describe('읽어주기 reaches the synthesizer from the tap itself', () => {
 })
 
 describe('완벽 배지', () => {
-	const badge = () => screen.queryByLabelText('완벽하게 암송한 구절');
+	const badge = () => screen.queryByLabelText(/^완벽하게 암송한 구절/);
+	const HOUR = 60 * 60 * 1000;
+	/** Relative to the real clock, because the card reads Date.now() itself.
+	 *  Only the gap matters, so the assertions stay exact. */
+	const earnedAgo = (delta: number) => ({ perfectAt: Date.now() - delta });
 
 	it('is absent on a verse never recited flawlessly', () => {
 		setup();
@@ -300,8 +304,40 @@ describe('완벽 배지', () => {
 	});
 
 	it('marks a verse that has been', () => {
-		setup({ perfect: true });
+		setup(earnedAgo(0));
 		expect(badge()).toBeInTheDocument();
+	});
+
+	it('lights a badge just earned at full strength', () => {
+		setup(earnedAgo(0));
+		expect(badge()).toHaveStyle({ opacity: '1' });
+	});
+
+	// Three steps a day, so a check from yesterday morning is visibly weaker
+	// than one from this morning without having gone.
+	it('fades a badge as the hours pass', () => {
+		setup(earnedAgo(20 * HOUR));
+		expect(badge()).toHaveStyle({ opacity: '0.7' });
+	});
+
+	it('drops a badge that has run past the last step', () => {
+		setup(earnedAgo(50 * HOUR));
+		expect(badge()).toBeNull();
+	});
+
+	// Opacity is invisible to a screen reader and to anyone who cannot pick
+	// 0.4 apart from 0.55. The recency has to be in the name too, or the
+	// fading carries information only some readers receive.
+	it('says how long ago in the accessible name', () => {
+		setup(earnedAgo(3 * HOUR));
+		expect(badge()).toHaveAttribute('aria-label', '완벽하게 암송한 구절 · 3시간 전');
+	});
+
+	// The day scale would call both of these 1일 전, leaving the last three
+	// steps indistinguishable to anyone reading the name rather than the fade.
+	it('separates two steps on the far side of the first day', () => {
+		setup(earnedAgo(34 * HOUR));
+		expect(badge()).toHaveAttribute('aria-label', '완벽하게 암송한 구절 · 34시간 전');
 	});
 
 	// It sits beside the title, which the header only renders in read mode,
@@ -322,7 +358,7 @@ describe('완벽 배지', () => {
 	// The reported gap: the card was told at load that this verse was flawless,
 	// and kept saying so through a check that just proved otherwise.
 	it('takes the badge back when a later check is flawed', async () => {
-		setup({ perfect: true });
+		setup({ perfectAt: Date.now() });
 		expect(badge()).toBeInTheDocument();
 		await fireEvent.click(screen.getByRole('button', { name: '점검' }));
 		await fireEvent.input(screen.getByLabelText('암송 구절 입력'), {

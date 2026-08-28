@@ -9,7 +9,7 @@ import { todayLocalKey } from '$lib/db/activity';
 import { installPackage, listPackages, listVerses, loadPackageData } from '$lib/db/verses';
 import { listAllBookmarks } from '$lib/db/bookmarks';
 import { listMarksForPackage } from '$lib/db/verseMarks';
-import { listPerfectVerseNos } from '$lib/db/checkHistory';
+import { listPerfectCheckedAt } from '$lib/db/checkHistory';
 import type { StoredMark } from '$lib/memorize/marks';
 import type { VerseTag } from '$lib/db/verses';
 import type { BookmarkColor } from '$lib/types';
@@ -29,7 +29,7 @@ export interface StatsVerseRow {
 	 *  which door they came through. */
 	bookmark: BookmarkColor | null;
 	marks: StoredMark[];
-	perfect: boolean;
+	perfectAt: number | null;
 	tags: VerseTag[];
 }
 
@@ -88,7 +88,7 @@ export const load: PageLoad = async ({ url }): Promise<StatsVersesLoadData> => {
 			Promise.all(packageIds.map((id) => listVerses(id))),
 			listAllBookmarks().catch(() => []),
 			Promise.all(packageIds.map((id) => listMarksForPackage(id).catch(() => new Map()))),
-			Promise.all(packageIds.map((id) => listPerfectVerseNos(id).catch(() => new Set<number>()))),
+			Promise.all(packageIds.map((id) => listPerfectCheckedAt(id).catch(() => new Map<number, number>()))),
 			// Tags come from the package's own group index, so they are per
 			// package even though this list spans several.
 			Promise.all(packageIds.map((id) => loadPackageData(id).catch(() => null)))
@@ -115,7 +115,7 @@ export const load: PageLoad = async ({ url }): Promise<StatsVersesLoadData> => {
 			packageName: nameById.get(ref.packageId) ?? ref.packageId,
 			bookmark: bookmarkByKey.get(`${ref.packageId}:${ref.verseNo}`) ?? null,
 			marks: marksByPackage.get(ref.packageId)?.get(ref.verseNo) ?? [],
-			perfect: perfectByPackage.get(ref.packageId)?.has(ref.verseNo) ?? false,
+			perfectAt: perfectByPackage.get(ref.packageId)?.get(ref.verseNo) ?? null,
 			tags: tagsByPackage.get(ref.packageId)?.get(ref.verseNo) ?? []
 		});
 	}

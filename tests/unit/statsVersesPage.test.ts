@@ -12,7 +12,7 @@ function data(over: Partial<StatsVersesLoadData> = {}): StatsVersesLoadData {
 		dim: 'start',
 		level: 2,
 		perfect: false,
-		rows: [{ verse, packageId: '5_krv', packageName: '샘플', bookmark: null, marks: [], perfect: false, tags: [] }],
+		rows: [{ verse, packageId: '5_krv', packageName: '샘플', bookmark: null, marks: [], perfectAt: null, tags: [] }],
 		...over
 	} as StatsVersesLoadData;
 }
@@ -29,9 +29,9 @@ describe('stats verse list', () => {
 	it('shows the flawless badge when the verse has earned one', () => {
 		render(Page, {
 			data: data({
-				rows: [{ verse, packageId: '5_krv', packageName: '샘플', bookmark: null, marks: [], perfect: true, tags: [] }]
+				rows: [{ verse, packageId: '5_krv', packageName: '샘플', bookmark: null, marks: [], perfectAt: Date.now(), tags: [] }]
 			}) as StatsVersesLoadData
 		});
-		expect(screen.getByLabelText('완벽하게 암송한 구절')).toBeInTheDocument();
+		expect(screen.getByLabelText(/^완벽하게 암송한 구절/)).toBeInTheDocument();
 	});
 });
