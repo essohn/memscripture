@@ -3,6 +3,7 @@ import { tick } from 'svelte';
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import QuizOpeningRound from '../../src/lib/components/quiz/QuizOpeningRound.svelte';
 import type { QuizItem } from '../../src/lib/quiz/session';
+import { RAID_HIT_POINTS, RAID_LIMIT_MS } from '../../src/lib/arcade/raid';
 
 // 그들에게(0) 율례와(1) 법도를(2) — three words is the opening this game asks for.
 const VERSE = '그들에게 율례와 법도를 가르쳐서 마땅히 갈 길과 할 일을 그들에게 보이고';
@@ -192,5 +193,111 @@ describe('QuizOpeningRound — the verse itself', () => {
 	it('does not give it away while the reader is still typing', () => {
 		setup();
 		expect(screen.queryByTestId('quiz-answer')).toBeNull();
+	});
+});
+
+// The round already asked for three words. The raider gives that ask a shape:
+// it closes while the reader types, and the opening shoots it down. Running
+// out of time is the verdict 모르겠어요 already writes, reached by the clock.
+describe('QuizOpeningRound — 요격', () => {
+	it('puts the raider on screen', () => {
+		setup();
+		expect(screen.getByTestId('raid-stage')).toBeInTheDocument();
+	});
+
+	it('fails the round when the raider arrives', async () => {
+		vi.useFakeTimers();
+		try {
+			const { onDone } = setup();
+			await vi.advanceTimersByTimeAsync(RAID_LIMIT_MS + 200);
+			// Same shape as 모르겠어요: the opening is shown and the round is lost.
+			expect(screen.getByText(OPENING)).toBeInTheDocument();
+			await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+			expect(onDone).toHaveBeenCalledWith(
+				expect.objectContaining({ passed: false, accuracy: 0 })
+			);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	// The clock is the raider's, not the reader's. Once it has been shot down
+	// there is nothing left to arrive, and a reader reading the answer must not
+	// have the round fail underneath them.
+	it('stops the clock once the opening is produced', async () => {
+		vi.useFakeTimers();
+		try {
+			const { onDone } = setup();
+			await type(OPENING);
+			await vi.advanceTimersByTimeAsync(RAID_LIMIT_MS * 2);
+			await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+			expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: true }));
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('shows the raider destroyed, not arriving, when the answer lands', async () => {
+		setup();
+		await type(OPENING);
+		expect(screen.getByTestId('raid-stage')).toHaveAttribute('data-outcome', 'destroyed');
+	});
+
+	it('shows the raider through when the clock runs out', async () => {
+		vi.useFakeTimers();
+		try {
+			setup();
+			await vi.advanceTimersByTimeAsync(RAID_LIMIT_MS + 200);
+			expect(screen.getByTestId('raid-stage')).toHaveAttribute('data-outcome', 'impact');
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	// Points are the arcade's own currency and never touch the verdict, but the
+	// summary adds them up, so a round has to hand them over.
+	it('pays for the interception, and pays more for a fast one', async () => {
+		const { onDone } = setup();
+		await type(OPENING);
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		const paid = onDone.mock.calls[0][0].points;
+		expect(paid).toBeGreaterThan(RAID_HIT_POINTS);
+	});
+
+	// Shooting the raider down *is* beating the clock — the round has no other
+	// one — so a hit has to say so, or the session's chain can never start.
+	it('counts an interception as beating the clock', async () => {
+		const { onDone } = setup();
+		await type(OPENING);
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ inTime: true }));
+	});
+
+	it('counts a round the raider won as beaten by it', async () => {
+		const { onDone } = setup();
+		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ inTime: false }));
+	});
+
+	it('pays nothing for a round the raider won', async () => {
+		const { onDone } = setup();
+		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ points: 0 }));
+	});
+});
+
+// The chain spans the session, so every game has to show it. One the reader
+// only learns about on the summary is not one they can play for.
+describe('QuizOpeningRound — 콤보 표시', () => {
+	it('shows the chain it was handed', () => {
+		render(QuizOpeningRound, { item, index: 0, total: 3, streak: 4, onDone: vi.fn() });
+		expect(screen.getByTestId('combo-readout')).toHaveTextContent('4 COMBO');
+	});
+
+	it('says nothing about a chain that has not started', () => {
+		setup();
+		expect(screen.queryByTestId('combo-readout')).toBeNull();
 	});
 });

@@ -92,3 +92,30 @@ describe('QuizSummary — getting to the verse', () => {
 		expect(screen.queryAllByRole('link')).toHaveLength(0);
 	});
 });
+
+const onAgain = vi.fn();
+const onClose = vi.fn();
+
+describe('QuizSummary — 점수', () => {
+	it('gives the session a letter', () => {
+		render(QuizSummary, { passed: 10, total: 10, points: 0, bestCombo: 0, failed: [], onAgain, onClose });
+		expect(screen.getByTestId('quiz-rank')).toHaveTextContent('S');
+	});
+
+	it('shows what the session scored', () => {
+		render(QuizSummary, { passed: 8, total: 10, points: 4200, bestCombo: 0, failed: [], onAgain, onClose });
+		expect(screen.getByTestId('quiz-points')).toHaveTextContent('4,200');
+	});
+
+	it('shows the longest chain it managed', () => {
+		render(QuizSummary, { passed: 8, total: 10, points: 100, bestCombo: 6, failed: [], onAgain, onClose });
+		expect(screen.getByTestId('quiz-best-combo')).toHaveTextContent('6');
+	});
+
+	// A run that never chained has no chain to report, and a zero there reads
+	// as a score of nothing rather than as an absence.
+	it('says nothing about a chain that never started', () => {
+		render(QuizSummary, { passed: 1, total: 10, points: 100, bestCombo: 0, failed: [], onAgain, onClose });
+		expect(screen.queryByTestId('quiz-best-combo')).toBeNull();
+	});
+});

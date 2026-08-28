@@ -4,7 +4,8 @@
 	import ConfirmDialog from '$lib/components/feedback/ConfirmDialog.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Cloud, CloudOff, RotateCcw, Volume2, Users } from 'lucide-svelte';
+	import { Cloud, CloudOff, Gamepad2, RotateCcw, Volume2, Users } from 'lucide-svelte';
+	import { arcade } from '$lib/state/arcade.svelte';
 	import {
 		getJoinedGroups,
 		joinGroup,
@@ -113,6 +114,12 @@
 		load();
 		speechSynthesis?.addEventListener?.('voiceschanged', load);
 		return () => speechSynthesis?.removeEventListener?.('voiceschanged', load);
+	});
+	// The switch has to show what is stored, not the optimistic default the
+	// state module starts on. load() is a no-op after the first call, so
+	// arriving here from the quiz costs nothing.
+	$effect(() => {
+		void arcade.load();
 	});
 	$effect(() => {
 		getSpeakOptions()
@@ -421,6 +428,34 @@
 		<p class="mt-2 text-[11px] leading-[1.6] text-[var(--color-text-tertiary)]">
 			나가더라도 이미 받은 구절과 암송 기록은 그대로 남습니다.
 		</p>
+	</section>
+
+	<section
+		class="mt-4 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] px-6 py-5"
+	>
+		<h2 class="flex items-center gap-2 text-[15px] font-semibold text-[var(--color-text)]">
+			<Gamepad2 size={18} strokeWidth={1.75} />
+			퀴즈 게임
+		</h2>
+		<p class="mt-2 text-[12px] text-[var(--color-text-secondary)]">
+			요격, 콤보, 벽이 부서지는 효과에 소리가 붙습니다. 앱의 다른 곳은 소리를 내지 않습니다.
+		</p>
+
+		<label class="mt-4 flex items-center justify-between gap-3">
+			<span class="text-[13px] text-[var(--color-text)]">
+				효과음
+				<span class="block text-[11px] text-[var(--color-text-tertiary)]">
+					화면 움직임은 기기의 &lsquo;동작 줄이기&rsquo; 설정을 따릅니다
+				</span>
+			</span>
+			<input
+				type="checkbox"
+				checked={arcade.sound}
+				onchange={(e) => arcade.setSound(e.currentTarget.checked)}
+				class="h-4 w-4 shrink-0 accent-[var(--color-accent)]"
+				aria-label="퀴즈 게임 효과음"
+			/>
+		</label>
 	</section>
 
 	<section

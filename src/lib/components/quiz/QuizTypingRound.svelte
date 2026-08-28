@@ -3,16 +3,22 @@
 	import { submitsOnEnter } from '$lib/memorize/typing';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
 	import QuizAnswer from './QuizAnswer.svelte';
+	import ShatterReveal from '$lib/components/arcade/ShatterReveal.svelte';
+	import ComboBadge from '$lib/components/arcade/ComboBadge.svelte';
+	import { arcade } from '$lib/state/arcade.svelte';
+	import { PERFECT_POINTS } from '$lib/arcade/combo';
 
 	interface Props {
 		item: QuizItem;
 		/** 0-based; shown to the reader 1-based. */
 		index: number;
 		total: number;
+		/** The chain the session is carrying into this round. */
+		streak?: number;
 		/** Fired once, when the reader leaves this round. */
 		onDone: (result: RoundResult) => void;
 	}
-	let { item, index, total, onDone }: Props = $props();
+	let { item, index, total, streak = 0, onDone }: Props = $props();
 
 	let typed = $state('');
 	/** The verdict, or null while the reader is still answering. */
@@ -28,15 +34,35 @@
 	function submit() {
 		if (typed.trim().length === 0 || verdict) return;
 		const accuracy = accuracyOf(item.w, typed);
+		const passed = accuracy >= 1;
 		verdict = {
 			id: item.id,
-			passed: accuracy >= 1,
+			passed,
 			accuracy,
 			missed: markMismatchedWords(item.w, typed).flatMap((m, i) => (m.ok ? [] : [i])),
 			elapsedMs: Date.now() - startedAt,
-			typed
+			typed,
+			// The round's own worth, before the session's chain multiplies it.
+			points: passed ? PERFECT_POINTS : 0,
+			// This game runs no clock of its own — a whole verse under a timer
+			// would be measuring thumbs — so a pass always extends the chain.
+			inTime: true
 		};
+		arcade.play(passed ? 'explode' : 'fail');
 	}
+
+	/** The answer arrives behind a wall, which comes down a beat later. The
+	 *  beat is the point: a wall already in pieces on the frame it appears was
+	 *  never a wall. */
+	let revealed = $state(false);
+	$effect(() => {
+		if (verdict === null || revealed) return;
+		const id = setTimeout(() => {
+			revealed = true;
+			arcade.play('shatter');
+		}, 260);
+		return () => clearTimeout(id);
+	});
 
 	function onKeydown(e: KeyboardEvent) {
 		if (!submitsOnEnter(e)) return;
@@ -66,7 +92,10 @@
 		<h2 class="text-[calc(16px*var(--vfs))] font-semibold text-[var(--color-text)]">
 			{item.title}
 		</h2>
-		<span class="text-[11px] text-[var(--color-text-tertiary)]">{index + 1} / {total}</span>
+		<span class="flex items-center gap-2 text-[11px] text-[var(--color-text-tertiary)]">
+			<ComboBadge {streak} />
+			{index + 1} / {total}
+		</span>
 	</div>
 	<p class="mt-0.5 text-[calc(14px*var(--vfs))] text-[var(--color-text-secondary)]">{item.cite}</p>
 
@@ -90,7 +119,9 @@
 		<p class="mt-3 text-[calc(16px*var(--vfs))] leading-[1.9] break-keep">
 			{#each marks as m, i (i)}<span class:wrong={!m.ok}>{m.word}</span>{' '}{/each}
 		</p>
-		<QuizAnswer w={item.w} />
+		<ShatterReveal broken={revealed} label="정답">
+			<QuizAnswer w={item.w} />
+		</ShatterReveal>
 		<p class="mt-3 text-[calc(13px*var(--vfs))] font-medium">
 			{verdict.passed ? '통과' : '다시 볼 구절'}
 		</p>
