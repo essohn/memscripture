@@ -6,6 +6,9 @@ import type { QuizItem } from '../../src/lib/quiz/session';
 // 그들에게(0) 율례와(1) 법도를(2) 가르쳐서(3) …
 const VERSE = '그들에게 율례와 법도를 가르쳐서 마땅히 갈 길과 할 일을 그들에게 보이고';
 const FLAWED = VERSE.replace('법도를', '법을');
+// The reader's attempt simply dropped 법도를. Nothing on screen is wrong —
+// what is wrong is not on screen.
+const MISSING = VERSE.replace('법도를 ', '');
 
 const item: QuizItem = {
 	id: '900_krv:127',
@@ -87,13 +90,13 @@ describe('QuizSpotRound', () => {
 	// hint line; this is that line.
 	it('tells the reader the words are how they point at the mistake', () => {
 		setup(FLAWED);
-		expect(screen.getByText('틀린 단어를 누르세요')).toBeInTheDocument();
+		expect(screen.getByText(/틀린 단어를 누르세요/)).toBeInTheDocument();
 	});
 
 	it('stops offering the hint once the answer is in', async () => {
 		const { container } = setup(FLAWED);
 		await fireEvent.click(wordAt(container, 2));
-		expect(screen.queryByText('틀린 단어를 누르세요')).toBeNull();
+		expect(screen.queryByText(/틀린 단어를 누르세요/)).toBeNull();
 	});
 
 	it('says which round this is', () => {
@@ -122,5 +125,78 @@ describe('QuizSpotRound', () => {
 		word.focus();
 		await fireEvent.click(word);
 		expect(document.activeElement).toBe(screen.getByRole('button', { name: '다음' }));
+	});
+});
+
+// A dropped word has no "does not belong" to tap: every word on screen is a
+// word of the verse. Asked only in that direction the round had no right
+// answer, and 이상 없음 — the claim that nothing is wrong — was graded correct
+// on a sentence the reader had got wrong.
+describe('QuizSpotRound — 빠진 단어', () => {
+	it('offers 이상 있음 alongside 이상 없음', () => {
+		setup(FLAWED);
+		expect(screen.getByRole('button', { name: '이상 있음' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: '이상 없음' })).toBeInTheDocument();
+	});
+
+	it('accepts 이상 있음 when the sentence dropped a word', async () => {
+		const { onDone } = setup(MISSING);
+		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: true, accuracy: 1 }));
+	});
+
+	// The defect itself.
+	it('rejects 이상 없음 when the sentence dropped a word', async () => {
+		const { onDone } = setup(MISSING);
+		await fireEvent.click(screen.getByRole('button', { name: '이상 없음' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: false, accuracy: 0 }));
+	});
+
+	it('rejects 이상 있음 when the verse is shown intact', async () => {
+		const { onDone } = setup(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: false }));
+	});
+
+	// 이상 있음 is the general answer and tapping is the precise one. Refusing
+	// the general answer on a verse that happens to have a tappable word would
+	// punish a reader who saw the flaw for not knowing which kind it was.
+	it('accepts 이상 있음 when a word is wrong rather than missing', async () => {
+		const { onDone } = setup(FLAWED);
+		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: true }));
+	});
+
+	// Underlining the wrong word teaches nothing when there is no wrong word.
+	// The reader has to be shown what the sentence should have said.
+	it('shows what the sentence dropped, once the answer is in', async () => {
+		setup(MISSING);
+		expect(screen.queryByTestId('dropped-words')).toBeNull();
+		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
+		expect(screen.getByTestId('dropped-words')).toHaveTextContent('법도를');
+	});
+
+	// Nothing to show: the flaw is on screen, underlined where it stands.
+	it('does not show the verse when the flaw was tappable', async () => {
+		setup(FLAWED);
+		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
+		expect(screen.queryByTestId('dropped-words')).toBeNull();
+	});
+
+	// Same hole the tap path had: answering removes the button that was
+	// pressed, and focus falls to <body>.
+	it('hands focus to 다음 after 이상 있음', async () => {
+		setup(MISSING);
+		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
+		expect(document.activeElement).toBe(screen.getByRole('button', { name: '다음' }));
+	});
+
+	it('says a dropped word is how to use 이상 있음', () => {
+		setup(FLAWED);
+		expect(screen.getByText(/빠진 단어가 있으면/)).toBeInTheDocument();
 	});
 });
