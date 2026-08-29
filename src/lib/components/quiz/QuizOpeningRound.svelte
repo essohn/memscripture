@@ -5,6 +5,7 @@
 	import { OPENING_GAME_WORDS } from '$lib/quiz/games';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
 	import QuizAnswer from './QuizAnswer.svelte';
+	import QuizVerdict from './QuizVerdict.svelte';
 	import RaidStage from '$lib/components/arcade/RaidStage.svelte';
 	import ComboBadge from '$lib/components/arcade/ComboBadge.svelte';
 	import AnswerReveal from '$lib/components/arcade/AnswerReveal.svelte';
@@ -208,13 +209,7 @@
 		<AnswerReveal reveal={done} outcome={gaveUp ? 'fail' : 'pass'} label="정답">
 			<QuizAnswer w={item.w} />
 		</AnswerReveal>
-		<p
-			class="mt-3 text-[calc(13px*var(--vfs))] font-medium {gaveUp
-				? 'text-[var(--color-danger)]'
-				: ''}"
-		>
-			{gaveUp ? '다시 볼 구절' : '격추'}
-		</p>
+		<QuizVerdict passed={!gaveUp} />
 		<button
 			bind:this={nextButton}
 			type="button"

@@ -238,3 +238,17 @@ describe('QuizSpotRound — 콤보', () => {
 		expect(screen.queryByTestId('combo-readout')).toBeNull();
 	});
 });
+
+describe('QuizSpotRound — 판정', () => {
+	it('calls a right call 정답', async () => {
+		setup(FLAWED);
+		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
+		expect(screen.getByTestId('quiz-verdict')).toHaveTextContent('정답!');
+	});
+
+	it('sends a wrong call back to the list', async () => {
+		setup(FLAWED);
+		await fireEvent.click(screen.getByRole('button', { name: '이상 없음' }));
+		expect(screen.getByTestId('quiz-verdict')).toHaveTextContent('다시 볼 구절');
+	});
+});

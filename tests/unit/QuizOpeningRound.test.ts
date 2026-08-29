@@ -334,3 +334,39 @@ describe('QuizOpeningRound — 맞고 틀림', () => {
 		expect(screen.queryByTestId('quiz-attempt')).toBeNull();
 	});
 });
+
+describe('QuizOpeningRound — 판정', () => {
+	it('calls an interception 정답', async () => {
+		setup();
+		await type(OPENING);
+		expect(screen.getByTestId('quiz-verdict')).toHaveTextContent('정답!');
+	});
+
+	it('sends a round the raider won back to the list', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
+		expect(screen.getByTestId('quiz-verdict')).toHaveTextContent('다시 볼 구절');
+	});
+});
+
+// The stage is a canvas and cannot be asserted on pixel by pixel, but the word
+// it puts up when the bomb lands is DOM, and that is the part the reader is
+// actually told the round by.
+describe('QuizOpeningRound — 폭탄', () => {
+	it('says Fail on the stage when the bomb lands', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
+		expect(screen.getByTestId('raid-fail')).toHaveTextContent('Fail');
+	});
+
+	it('says nothing on the stage while the bomb is still falling', () => {
+		setup();
+		expect(screen.queryByTestId('raid-fail')).toBeNull();
+	});
+
+	it('says nothing on the stage when the bomb is shot down', async () => {
+		setup();
+		await type(OPENING);
+		expect(screen.queryByTestId('raid-fail')).toBeNull();
+	});
+});
