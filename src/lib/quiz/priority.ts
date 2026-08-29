@@ -12,6 +12,22 @@ export const PRIORITY_WINDOW = 5;
 export const FAIL_WEIGHT = 7;
 
 /**
+ * What one recent pass is worth, in days of neglect cancelled.
+ *
+ * Answers 잘 맞추는 구절/최근에 체크한 ok구절은 우선순위를 뒤로. Only
+ * failures used to count, so a verse answered right five times running sat
+ * level with one the reader had never been asked — and the quiz kept spending
+ * its ten questions on what was already known.
+ *
+ * Smaller than FAIL_WEIGHT on purpose: getting a verse wrong says more about
+ * what to do next than getting it right does, and five passes must not be
+ * able to bury a verse deeper than staleness can dig it back out. Five times
+ * the window's five records is 25, under STALE_CAP, so a rested verse always
+ * resurfaces before it is forgotten.
+ */
+export const PASS_WEIGHT = 5;
+
+/**
  * The most staleness alone may contribute.
  *
  * A month untouched and three months untouched are not different in any way
@@ -25,10 +41,19 @@ export const SESSION_SIZE = 10;
 
 const DAY_MS = 86_400_000;
 
+/** PASS_WEIGHT as a length of time, for the orderings that sort on the clock
+ *  rather than on a score. One pass makes a verse read as though it were
+ *  checked this many days later than it was. */
+export const PASS_GRACE_MS = PASS_WEIGHT * DAY_MS;
+
 /** What the rule needs to know about one verse. */
 export interface VerseSignal {
 	/** Failures among the recent unassisted records. */
 	fails: number;
+	/** Passes among the same records. Optional because a caller written before
+	 *  passes were counted means "no evidence", which is not the same as
+	 *  "answered right zero times". */
+	passes?: number;
 	/** When anything last asked about this verse. Absent if nothing ever has. */
 	lastAskedAt?: number;
 }
@@ -92,7 +117,11 @@ export function signalOf(
 		.sort((a, b) => b.checkedAt - a.checkedAt)
 		.slice(0, PRIORITY_WINDOW);
 
-	return { fails: window.filter((r) => !passed(r)).length, lastAskedAt };
+	return {
+		fails: window.filter((r) => !passed(r)).length,
+		passes: window.filter(passed).length,
+		lastAskedAt
+	};
 }
 
 /**
@@ -115,5 +144,5 @@ export function priorityOf(signal: VerseSignal, now: number): number {
 				// subtract from a score built on failures it knows nothing about.
 				Math.min(Math.max(0, Math.floor((now - signal.lastAskedAt) / DAY_MS)), STALE_CAP);
 
-	return signal.fails * FAIL_WEIGHT + stale;
+	return signal.fails * FAIL_WEIGHT + stale - (signal.passes ?? 0) * PASS_WEIGHT;
 }

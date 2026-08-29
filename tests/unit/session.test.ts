@@ -155,13 +155,16 @@ describe('buildQueue', () => {
 		expect(buildQueue(pool, { signals, now: NOW })[0]?.id).toBe('a_krv:2');
 	});
 
-	it('breaks ties by id, so a fresh scope starts at the beginning', () => {
+	// Ties used to break by id. On a scope nothing has been checked in that
+	// tie-break *was* the ranking, so every session opened on the same verse in
+	// the same order — which is what the reader reported. The rotation it was
+	// there to provide survives without it: a verse sinks the moment it is
+	// asked about, so the pool of never-asked verses still empties.
+	it('draws between verses the rule cannot separate, rather than sorting them by id', () => {
 		const pool = [item('a_krv', 3), item('a_krv', 1), item('a_krv', 2)];
-		expect(buildQueue(pool, { signals: noSignals, now: NOW }).map((i) => i.id)).toEqual([
-			'a_krv:1',
-			'a_krv:2',
-			'a_krv:3'
-		]);
+		const ids = buildQueue(pool, { signals: noSignals, now: NOW, rng: seeded(5) }).map((i) => i.id);
+		expect([...ids].sort()).toEqual(['a_krv:1', 'a_krv:2', 'a_krv:3']);
+		expect(ids).not.toEqual(['a_krv:1', 'a_krv:2', 'a_krv:3']);
 	});
 
 	// The two eligible verses are the lowest-priority in the pool: everything
@@ -175,10 +178,10 @@ describe('buildQueue', () => {
 		const signals = new Map<string, VerseSignal>(
 			[...eligible].map((id) => [id, { fails: 0, lastAskedAt: NOW }])
 		);
-		expect(buildQueue(pool, { signals, now: NOW, eligible }).map((i) => i.id)).toEqual([
-			'a_krv:11',
-			'a_krv:12'
-		]);
+		// Sorted: which of the two comes first is now a draw, and this test is
+		// about the filter running before the slice, not about their order.
+		const ids = buildQueue(pool, { signals, now: NOW, eligible }).map((i) => i.id);
+		expect([...ids].sort()).toEqual(['a_krv:11', 'a_krv:12']);
 	});
 
 	it('asks about everything when no eligibility is given', () => {
@@ -303,16 +306,14 @@ describe('buildQueue — 오래된 순', () => {
 		]);
 	});
 
-	it('breaks a same-day tie by id', () => {
+	it('draws a same-day tie rather than settling it alphabetically', () => {
 		const pool = [item('a_krv', 3), item('a_krv', 1), item('a_krv', 2)];
 		const signals = new Map<string, VerseSignal>(
 			[1, 2, 3].map((n) => [`a_krv:${n}`, { fails: 0, lastAskedAt: NOW }])
 		);
-		expect(buildQueue(pool, { ...stale, signals }).map((i) => i.id)).toEqual([
-			'a_krv:1',
-			'a_krv:2',
-			'a_krv:3'
-		]);
+		const ids = buildQueue(pool, { ...stale, signals, rng: seeded(5) }).map((i) => i.id);
+		expect([...ids].sort()).toEqual(['a_krv:1', 'a_krv:2', 'a_krv:3']);
+		expect(ids).not.toEqual(['a_krv:1', 'a_krv:2', 'a_krv:3']);
 	});
 });
 
@@ -380,5 +381,93 @@ describe('buildQueue — 문항 수', () => {
 		expect(
 			buildQueue(many(40), { signals: noSignals, now: NOW, size: 5, order: 'random', rng: () => 0 })
 		).toHaveLength(5);
+	});
+});
+
+/** A deterministic stand-in for Math.random: distinct values, fixed sequence.
+ *  A shuffle or a tie-break tested against real randomness is a test that
+ *  fails occasionally for no reason. */
+function seeded(seed = 1): () => number {
+	let s = seed;
+	return () => {
+		s = (s * 9301 + 49297) % 233280;
+		return s / 233280;
+	};
+}
+
+// The reader's report: "매번 마태복음 11:28-29 부터 똑같은 순서로 진행되는데
+// 순서는 전혀 랜덤이 없네." On a library nothing has been checked in, every
+// verse scored the same and the id tie-break handed back the same alphabetical
+// ten every single session.
+describe('buildQueue — a fresh scope is not the same ten every time', () => {
+	const many = (n: number) => Array.from({ length: n }, (_, i) => item('a_krv', i + 1));
+
+	it('does not open an untouched scope in id order', () => {
+		const pool = many(20);
+		// The order the old id tie-break produced, spelled out rather than
+		// assumed: these ids sort as strings, so it is 1, 10, 11, 12 … not 1,
+		// 2, 3. Comparing against a guessed 1..10 passed without the shuffle.
+		const idOrder = [...pool]
+			.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+			.slice(0, 10)
+			.map((i) => i.id);
+		const ids = buildQueue(pool, { signals: noSignals, now: NOW, rng: seeded(7) }).map((i) => i.id);
+		expect(ids).not.toEqual(idOrder);
+	});
+
+	it('draws a different ten on a second sitting', () => {
+		const pool = many(40);
+		const first = buildQueue(pool, { signals: noSignals, now: NOW, rng: seeded(1) }).map((i) => i.id);
+		const second = buildQueue(pool, { signals: noSignals, now: NOW, rng: seeded(2) }).map((i) => i.id);
+		expect(first).not.toEqual(second);
+	});
+
+	// The draw is a tie-break, not the ranking. A verse that is genuinely
+	// older still has to come first, or the shuffle has eaten the rule.
+	it('still lets a real signal beat the draw', () => {
+		const pool = many(20);
+		const signals = new Map<string, VerseSignal>(
+			pool.map((i) => [i.id, { fails: 0, lastAskedAt: NOW }])
+		);
+		signals.set('a_krv:17', { fails: 0, lastAskedAt: NOW - 90 * DAY });
+		expect(buildQueue(pool, { signals, now: NOW, rng: seeded(3) })[0]?.id).toBe('a_krv:17');
+	});
+});
+
+describe('buildQueue — 오래된 순 puts the well-known verses back', () => {
+	// Both were last checked nine days ago. One the reader got right three
+	// times running; the other they have never landed. 오래된 순 alone cannot
+	// tell them apart, which is what the reader noticed.
+	it('sinks a verse the reader keeps getting right', () => {
+		const pool = [item('a_krv', 1), item('a_krv', 2)];
+		const signals = new Map<string, VerseSignal>([
+			['a_krv:1', { fails: 0, passes: 3, lastAskedAt: NOW - 9 * DAY }],
+			['a_krv:2', { fails: 3, passes: 0, lastAskedAt: NOW - 9 * DAY }]
+		]);
+		expect(buildQueue(pool, { signals, now: NOW, rng: seeded(1) }).map((i) => i.id)).toEqual([
+			'a_krv:2',
+			'a_krv:1'
+		]);
+	});
+
+	// A pass buys time, it does not buy an exemption: left alone long enough,
+	// even a verse answered right five times comes back round.
+	it('brings a rested verse back ahead of one checked today', () => {
+		const pool = [item('a_krv', 1), item('a_krv', 2)];
+		const signals = new Map<string, VerseSignal>([
+			['a_krv:1', { fails: 0, passes: 5, lastAskedAt: NOW - 200 * DAY }],
+			['a_krv:2', { fails: 0, passes: 0, lastAskedAt: NOW }]
+		]);
+		expect(buildQueue(pool, { signals, now: NOW, rng: seeded(1) })[0]?.id).toBe('a_krv:1');
+	});
+
+	// Never checked stays the front of the queue: a pass cannot be subtracted
+	// from evidence that does not exist.
+	it('still opens on a verse nothing is known about', () => {
+		const pool = [item('a_krv', 1), item('a_krv', 2)];
+		const signals = new Map<string, VerseSignal>([
+			['a_krv:1', { fails: 0, passes: 0, lastAskedAt: NOW - 500 * DAY }]
+		]);
+		expect(buildQueue(pool, { signals, now: NOW, rng: seeded(1) })[0]?.id).toBe('a_krv:2');
 	});
 });

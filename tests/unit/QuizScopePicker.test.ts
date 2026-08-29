@@ -469,58 +469,62 @@ describe('QuizScopePicker opening word count', () => {
 
 describe('QuizScopePicker — 문항 수', () => {
 	const many = (n: number) => Array.from({ length: n }, (_, i) => item(i + 1));
-	const sizes = () => screen.getAllByRole('radio', { name: /구절$/ }).map((r) => r.textContent?.trim());
-	const sizeChip = (name: string) => screen.getByRole('radio', { name });
+	const dial = () => screen.getByRole('slider', { name: '문항 수' });
+	const value = () => screen.getByTestId('session-size-value').textContent?.trim();
 
-	it('offers round steps the scope can fill, ending on 전체', () => {
+	// A slider, matching 시작 단어 수 right above it: this is one dial with a
+	// range, and a range is a thing you slide. The stops are round numbers
+	// rather than every integer — 23 questions against 24 is not a decision
+	// anyone makes — so the dial runs over their positions.
+	it('offers the count as a slider over the round steps', () => {
 		setup({ items: many(48), ratings: hard(48), attempts: new Map() });
-		expect(sizes()).toEqual(['5구절', '10구절', '20구절', '30구절', '전체 48구절']);
+		expect(dial()).toHaveAttribute('min', '0');
+		// 5 · 10 · 20 · 30 · 전체 48
+		expect(dial()).toHaveAttribute('max', '4');
 	});
 
-	// Ten is what this screen has always asked, so it stays the opening answer
-	// wherever the scope is big enough to give it.
 	it('opens on 10 when the scope is larger than one session', () => {
 		setup({ items: many(48), ratings: hard(48), attempts: new Map() });
-		expect(sizeChip('10구절')).toBeChecked();
+		expect(value()).toBe('10구절');
 	});
 
 	// Ten is not on offer here, and falling back to the smallest step would
-	// hide three of the seven verses behind a chip the reader never pressed.
+	// hide three of the seven verses behind a stop the reader never moved to.
 	it('opens on 전체 when the scope is smaller than one session', () => {
 		setup({ items: many(7), ratings: hard(7), attempts: new Map() });
-		expect(sizeChip('전체 7구절')).toBeChecked();
+		expect(value()).toBe('전체 7구절');
 	});
 
-	// One choice is not a choice, and a radiogroup of one is a control that
-	// cannot be pressed wrong — the same reason a lone 대상 is stated rather
-	// than offered.
+	// One stop is not a range, and a dial that cannot be moved is a control
+	// that cannot be pressed wrong — the same reason a lone 대상 is stated
+	// rather than offered.
 	it('says nothing when the scope leaves only one honest answer', () => {
 		setup();
-		expect(screen.queryByRole('radiogroup', { name: '문항 수' })).toBeNull();
+		expect(screen.queryByRole('slider', { name: '문항 수' })).toBeNull();
 	});
 
-	it('hands onStart the number of verses that was chosen', async () => {
+	it('hands onStart the number of verses the dial was moved to', async () => {
 		const { onStart } = setup({ items: many(48), ratings: hard(48), attempts: new Map() });
-		await fireEvent.click(sizeChip('20구절'));
+		await fireEvent.input(dial(), { target: { value: '2' } });
 		await fireEvent.click(goButton());
 		expect(onStart.mock.calls[0][0]).toHaveLength(20);
 	});
 
-	it('moves the count line with the chosen size', async () => {
+	it('moves the count line with the dial', async () => {
 		setup({ items: many(48), ratings: hard(48), attempts: new Map() });
-		await fireEvent.click(sizeChip('20구절'));
+		await fireEvent.input(dial(), { target: { value: '2' } });
 		expect(screen.getByText('48구절 중 오늘 20구절')).toBeInTheDocument();
 	});
 
 	it('drops the 중 오늘 half once the whole scope is the session', async () => {
 		setup({ items: many(48), ratings: hard(48), attempts: new Map() });
-		await fireEvent.click(sizeChip('전체 48구절'));
+		await fireEvent.input(dial(), { target: { value: '4' } });
 		expect(screen.getByText('48구절')).toBeInTheDocument();
 	});
 
 	// 전체 is a standing answer, not the number it happened to be worth when
-	// it was pressed. A chip that silently fell back to 10 the moment the
-	// reader narrowed the difficulty would be the opposite of what they said.
+	// the dial was dropped there. Narrowing the difficulty must not quietly
+	// turn "all of them" into "ten of them".
 	it('keeps 전체 meaning 전체 after the scope shrinks', async () => {
 		setup({
 			items: many(52),
@@ -532,10 +536,22 @@ describe('QuizScopePicker — 문항 수', () => {
 			),
 			attempts: new Map()
 		});
-		await fireEvent.click(sizeChip('전체 52구절'));
+		await fireEvent.input(dial(), { target: { value: '5' } });
+		expect(value()).toBe('전체 52구절');
+
 		await fireEvent.click(chip('시작 난이도', 'xHard'));
-		expect(sizeChip('전체 40구절')).toBeChecked();
+		expect(value()).toBe('전체 40구절');
 		expect(screen.getByText('40구절')).toBeInTheDocument();
+	});
+
+	// The stops, printed under the track, so the range is legible before it is
+	// touched — the same affordance 시작 단어 수 has.
+	it('prints the stops under the track', () => {
+		setup({ items: many(48), ratings: hard(48), attempts: new Map() });
+		const ticks = [...screen.getByTestId('session-size-ticks').children].map((el) =>
+			el.textContent?.trim()
+		);
+		expect(ticks).toEqual(['5', '10', '20', '30', '전체']);
 	});
 });
 

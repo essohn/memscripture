@@ -3,6 +3,7 @@ import {
 	FAIL_WEIGHT,
 	PRIORITY_WINDOW,
 	STALE_CAP,
+	PASS_WEIGHT,
 	priorityOf,
 	signalOf,
 	type VerseSignal
@@ -22,7 +23,7 @@ function rec(
 
 describe('signalOf', () => {
 	it('reports nothing for a verse with no records', () => {
-		expect(signalOf([])).toEqual({ fails: 0, lastAskedAt: undefined });
+		expect(signalOf([])).toEqual({ fails: 0, passes: 0, lastAskedAt: undefined });
 	});
 
 	it('counts a check that missed a word as a failure', () => {
@@ -103,5 +104,57 @@ describe('priorityOf', () => {
 
 		const scores = cases.map(([, s]) => priorityOf(s, NOW));
 		expect(scores).toEqual([...scores].sort((a, b) => b - a));
+	});
+});
+
+// A verse the reader keeps getting right is the one they least need asked
+// about, and until now nothing in the score said so: only failures counted,
+// so a verse passed five times running sat level with one never tried.
+describe('signalOf — passes', () => {
+	it('counts a flawless check as a pass', () => {
+		expect(signalOf([rec(1, 1)]).passes).toBe(1);
+	});
+
+	it('does not count a check that missed a word as a pass', () => {
+		expect(signalOf([rec(0.98, 1)]).passes).toBe(0);
+	});
+
+	// Same rule the failures follow: a check leaned on 힌트 is not evidence in
+	// either direction, so it must not earn the verse a rest either.
+	it('drops assisted records from the passes too', () => {
+		expect(signalOf([rec(1, 1, 3)]).passes).toBe(0);
+	});
+
+	it('counts passes only inside the window', () => {
+		const history = Array.from({ length: PRIORITY_WINDOW + 4 }, (_, i) => rec(1, i + 1));
+		expect(signalOf(history).passes).toBe(PRIORITY_WINDOW);
+	});
+});
+
+describe('priorityOf — 잘 맞추는 구절은 뒤로', () => {
+	it('takes PASS_WEIGHT off the score per recent pass', () => {
+		expect(priorityOf({ fails: 0, passes: 2, lastAskedAt: NOW }, NOW)).toBe(-2 * PASS_WEIGHT);
+	});
+
+	// The point of the whole change: a verse answered right every time has to
+	// end up behind one the reader has never been asked, or the quiz keeps
+	// spending its ten questions on what is already known.
+	it('sinks a well-known verse below one never asked about', () => {
+		const known = priorityOf({ fails: 0, passes: 3, lastAskedAt: NOW - 10 * DAY }, NOW);
+		expect(known).toBeLessThan(priorityOf({ fails: 0 }, NOW));
+	});
+
+	// Passes buy a rest, not an exemption. Without staleness still counting,
+	// a verse answered right five times would never be asked again.
+	it('lets a long-neglected verse resurface despite its passes', () => {
+		const rested = priorityOf({ fails: 0, passes: 5, lastAskedAt: NOW - 400 * DAY }, NOW);
+		const fresh = priorityOf({ fails: 0, passes: 5, lastAskedAt: NOW }, NOW);
+		expect(rested).toBeGreaterThan(fresh);
+	});
+
+	// An absent field is a record written before passes were counted, and it
+	// must not be read as "answered right zero times out of zero".
+	it('treats an absent passes field as no evidence rather than as a penalty', () => {
+		expect(priorityOf({ fails: 0, lastAskedAt: NOW }, NOW)).toBe(0);
 	});
 });

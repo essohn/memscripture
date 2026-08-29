@@ -1,5 +1,5 @@
 import type { DifficultyLevel } from '$lib/db/verseRatings';
-import { SESSION_SIZE, priorityOf, type VerseSignal } from './priority';
+import { PASS_GRACE_MS, SESSION_SIZE, priorityOf, type VerseSignal } from './priority';
 
 /** A difficulty chip. 1–5 is a rated tier; null is 미평가. */
 export type Tier = DifficultyLevel | null;
@@ -115,14 +115,36 @@ export function sessionSizeChoices(poolSize: number): number[] {
 }
 
 /**
- * Ties break by id, which is what lets a fresh scope advance: every verse in
- * an untouched package sorts the same, so the first session takes the first
- * ten — and having been asked, those ten drop to the bottom and the next
- * session takes the next ten. Being asked is itself the rotation, so no
- * shuffle or rotation hash is needed.
+ * One draw per verse, used to break ties.
+ *
+ * Ties used to break by id, on the reasoning that a fresh scope would then
+ * take its first ten, sink them, and take the next ten next time — the walk
+ * being its own rotation. The walk works; the order it walks in was the
+ * problem. On a library nothing has been checked in *every* verse ties, so
+ * the id tie-break was the entire ranking, and the reader got the same
+ * alphabetical ten opening on the same verse every single session.
+ *
+ * Drawing instead keeps the rotation — a verse still sinks the moment it is
+ * asked about, so the pool of never-asked verses still empties — and takes
+ * the alphabet out of it. Ranked *after* the real key, so this only ever
+ * decides between verses the rule itself cannot separate.
  */
-function byId(a: QuizItem, b: QuizItem): number {
-	return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+function drawFor(items: QuizItem[], rng: () => number): Map<string, number> {
+	return new Map(items.map((i) => [i.id, rng()]));
+}
+
+/**
+ * When this verse should be treated as last seen.
+ *
+ * Not simply lastAskedAt: a pass buys the verse PASS_GRACE_MS of quiet, so a
+ * verse the reader keeps getting right reads as more recently checked than it
+ * was and sinks accordingly. Undefined stays undefined — never checked is the
+ * front of the queue, and a pass cannot be subtracted from evidence that does
+ * not exist.
+ */
+function seenAt(signal: VerseSignal | undefined): number {
+	if (signal?.lastAskedAt === undefined) return -Infinity;
+	return signal.lastAskedAt + (signal.passes ?? 0) * PASS_GRACE_MS;
 }
 
 /**
@@ -188,10 +210,13 @@ export function buildQueue(
 
 	if (order === 'random') return shuffled(asked, rng).slice(0, size);
 
+	const draw = drawFor(asked, rng);
+	const tie = (a: QuizItem, b: QuizItem) => (draw.get(a.id) ?? 0) - (draw.get(b.id) ?? 0);
+
 	if (order === 'fails') {
 		return asked
 			.map((item) => ({ item, score: priorityOf(signals.get(item.id) ?? UNPROVEN, now) }))
-			.sort((a, b) => b.score - a.score || byId(a.item, b.item))
+			.sort((a, b) => b.score - a.score || tie(a.item, b.item))
 			.slice(0, size)
 			.map((x) => x.item);
 	}
@@ -199,8 +224,8 @@ export function buildQueue(
 	// Never checked sorts as infinitely old: the reader has no evidence about
 	// it at all, which is the thing 오래된 순 exists to surface.
 	return asked
-		.map((item) => ({ item, at: signals.get(item.id)?.lastAskedAt ?? -Infinity }))
-		.sort((a, b) => a.at - b.at || byId(a.item, b.item))
+		.map((item) => ({ item, at: seenAt(signals.get(item.id)) }))
+		.sort((a, b) => a.at - b.at || tie(a.item, b.item))
 		.slice(0, size)
 		.map((x) => x.item);
 }

@@ -132,6 +132,13 @@
 					: pool.length
 	);
 
+	/** Where the dial's thumb sits. Derived from `size` rather than stored, so
+	 *  the stops can move under it — a narrowed scope offers fewer of them —
+	 *  without the thumb pointing at a stop that is no longer there. */
+	const sizeIndex = $derived(Math.max(0, sizeChoices.indexOf(size)));
+
+	const sizeLabel = $derived(size === pool.length ? `전체 ${size}구절` : `${size}구절`);
+
 	const queue = $derived(buildQueue(pool, { signals, now, eligible, order, size }));
 
 	/** How many of the chosen scope have a sentence to ask about. */
@@ -355,41 +362,58 @@
 		</div>
 	</div>
 
-	<!-- Only when there is more than one honest answer. A radiogroup of one is
-	     a control that cannot be pressed wrong, the same reason a lone 대상 is
-	     stated rather than offered. -->
+	<!-- Only when there is more than one honest answer. One stop is not a
+	     range, and a dial that cannot be moved is a control that cannot be
+	     pressed wrong — the same reason a lone 대상 is stated rather than
+	     offered.
+
+	     A slider, matching 시작 단어 수 above it: one dial with a range, read
+	     at a glance and moved with a thumb, which on a phone is the difference
+	     between a decision and a gesture. It runs over the stops' positions
+	     rather than over the counts themselves, because the stops are round
+	     numbers — 23 questions against 24 is not a decision anyone makes. -->
 	{#if sizeChoices.length > 1}
 		<div>
-			<h2
-				id="quiz-size-heading"
-				class="text-[13px] font-semibold text-[var(--color-text-secondary)]"
-			>
-				문항 수
-			</h2>
-			<!-- Round steps rather than a slider: the difference between 23 and 24
-			     questions is not a decision anyone makes, and the strip can be read
-			     at a glance where a handle's position has to be measured. It bleeds
-			     to both edges so a scrollable row looks scrollable. -->
-			<div
-				role="radiogroup"
+			<div class="flex items-baseline justify-between">
+				<h2
+					id="quiz-size-heading"
+					class="text-[13px] font-semibold text-[var(--color-text-secondary)]"
+				>
+					문항 수
+				</h2>
+				<span
+					data-testid="session-size-value"
+					class="text-[13px] font-semibold tabular-nums text-[var(--color-accent)]"
+				>
+					{sizeLabel}
+				</span>
+			</div>
+			<input
+				type="range"
+				class="dial mt-2 w-full"
+				style="--fill: {sizeChoices.length > 1
+					? (sizeIndex / (sizeChoices.length - 1)) * 100
+					: 100}%"
 				aria-labelledby="quiz-size-heading"
-				class="-mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 py-1"
-				style="overscroll-behavior-x: contain;"
+				min="0"
+				max={sizeChoices.length - 1}
+				step="1"
+				value={sizeIndex}
+				aria-valuetext={sizeLabel}
+				oninput={(e) => {
+					const i = Number(e.currentTarget.value);
+					chosenSize = i === sizeChoices.length - 1 ? 'all' : sizeChoices[i];
+				}}
+			/>
+			<!-- The stops, under the track, so the range is legible before it is
+			     touched. -->
+			<div
+				aria-hidden="true"
+				data-testid="session-size-ticks"
+				class="mt-1 flex justify-between px-0.5 text-[10px] tabular-nums text-[var(--color-text-tertiary)]"
 			>
 				{#each sizeChoices as n, i (n)}
-					{@const whole = i === sizeChoices.length - 1}
-					<button
-						type="button"
-						role="radio"
-						aria-checked={size === n}
-						onclick={() => (chosenSize = whole ? 'all' : n)}
-						class="shrink-0 rounded-full border px-3 py-1 text-[12px] font-medium whitespace-nowrap tabular-nums transition-colors {size ===
-						n
-							? 'border-transparent bg-[var(--color-accent)] text-white'
-							: 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-elevated)]'}"
-					>
-						{whole ? `전체 ${n}구절` : `${n}구절`}
-					</button>
+					<span>{i === sizeChoices.length - 1 ? '전체' : n}</span>
 				{/each}
 			</div>
 		</div>

@@ -102,8 +102,8 @@ describe('resolveTarget', () => {
 	// beforeEach already installs a_krv with verses 1 and 2 and no history.
 	it('returns a signal for every verse, including one never checked', async () => {
 		const { signals } = await resolveTarget({ kind: 'package', id: 'a_krv', label: 'A구절' });
-		expect(signals.get('a_krv:1')).toEqual({ fails: 0, lastAskedAt: undefined });
-		expect(signals.get('a_krv:2')).toEqual({ fails: 0, lastAskedAt: undefined });
+		expect(signals.get('a_krv:1')).toEqual({ fails: 0, passes: 0, lastAskedAt: undefined });
+		expect(signals.get('a_krv:2')).toEqual({ fails: 0, passes: 0, lastAskedAt: undefined });
 	});
 
 	it("counts a failed check into the verse's signal", async () => {
