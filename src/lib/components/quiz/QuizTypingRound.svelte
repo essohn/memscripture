@@ -3,6 +3,8 @@
 	import { ownsEnter, submitsOnEnter } from '$lib/memorize/typing';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
 	import QuizTicker from './QuizTicker.svelte';
+	import QuizRatingDrop from './QuizRatingDrop.svelte';
+	import type { DifficultyLevel } from '$lib/db/verseRatings';
 	import OutcomeStamp from '$lib/components/arcade/OutcomeStamp.svelte';
 	import ComboBadge from '$lib/components/arcade/ComboBadge.svelte';
 	import DefuseStage from '$lib/components/arcade/DefuseStage.svelte';
@@ -18,10 +20,13 @@
 		total: number;
 		/** The chain the session is carrying into this round. */
 		streak?: number;
+		/** This verse's rating in the dimension this game tests, before the
+		 *  round. A miss takes it down a step; the page does the writing. */
+		rating?: DifficultyLevel | null;
 		/** Fired once, when the reader leaves this round. */
 		onDone: (result: RoundResult) => void;
 	}
-	let { item, index, total, streak = 0, onDone }: Props = $props();
+	let { item, index, total, streak = 0, rating = null, onDone }: Props = $props();
 
 	let typed = $state('');
 	/** The verdict, or null while the reader is still answering. */
@@ -190,6 +195,10 @@
 	<!-- The verdict in words, for a reader who has neither the board nor the
 	     stamp. The only place the result is spoken now that the card has
 	     gone. -->
+	{#if verdict !== null && !verdict.passed}
+		<QuizRatingDrop label="전체 난이도" from={rating} />
+	{/if}
+
 	<p class="sr-only" role="status" aria-live="polite">
 		{verdict === null
 			? `${secondsLeft}초 남았습니다`

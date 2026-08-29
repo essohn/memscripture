@@ -18,6 +18,8 @@
 	import { recordCheck } from '$lib/db/checkHistory';
 	import { NO_COMBO, comboHit, comboMiss, type ComboState } from '$lib/arcade/combo';
 	import { spotShown } from '$lib/quiz/spot';
+	import { GAME_DIMENSION, droppedRating, ratingWouldChange } from '$lib/quiz/rating';
+	import { setFullDifficulty, setStartDifficulty } from '$lib/db/verseRatings';
 	import { arcade } from '$lib/state/arcade.svelte';
 	import { fontScale } from '$lib/state/fontScale.svelte';
 	import { todayLocalKey } from '$lib/db/activity';
@@ -187,6 +189,36 @@
 		arcade.play('select');
 	}
 
+	/**
+	 * A missed round takes the verse's rating down a step.
+	 *
+	 * The quiz was gathering evidence and throwing it away: ratings only moved
+	 * when the reader graded themselves in the check panel, so a verse could be
+	 * missed here every day and go on being filed as xEasy. Which rating moves
+	 * is the one the game tested — see GAME_DIMENSION.
+	 *
+	 * The local map is updated alongside the write, not from it: the picker and
+	 * the summary read this map, and 다시 하기 re-ranks off it. Waiting for
+	 * IndexedDB would leave both looking at the rating the round just disproved.
+	 */
+	function dropRating(item: QuizItem) {
+		const dimension = GAME_DIMENSION[game];
+		const before = ratings.get(item.id) ?? { start: null, full: null };
+		const current = before[dimension];
+		if (!ratingWouldChange(current)) return;
+
+		const next = droppedRating(current);
+		ratings = new Map(ratings).set(item.id, { ...before, [dimension]: next });
+		const write =
+			dimension === 'start'
+				? setStartDifficulty(item.packageId, item.verseNo, next)
+				: setFullDifficulty(item.packageId, item.verseNo, next);
+		// Same bargain as the check record: the reader is mid-quiz, and a
+		// storage failure costs one step of future evidence rather than the
+		// session. close() waits on these before it re-resolves the 대상.
+		writes = Promise.all([writes, write.catch(() => {})]);
+	}
+
 	function finishRound(result: RoundResult) {
 		results = [...results, result];
 		combo = result.passed
@@ -197,6 +229,7 @@
 		if (result.passed && result.inTime) arcade.playCombo(combo.streak);
 		const item = queue?.[index];
 		if (item) {
+			if (!result.passed) dropRating(item);
 			// The reader is mid-quiz. A storage failure costs one record's worth
 			// of future evidence; stopping them to report it costs the session.
 			const write = recordCheck(item.packageId, item.verseNo, {
@@ -299,6 +332,7 @@
 					{index}
 					total={queue.length}
 					streak={combo.streak}
+					rating={ratings.get(queue[index].id)?.[GAME_DIMENSION[game]] ?? null}
 					words={openingWords}
 					onDone={finishRound}
 				/>
@@ -309,6 +343,7 @@
 					{index}
 					total={queue.length}
 					streak={combo.streak}
+					rating={ratings.get(queue[index].id)?.[GAME_DIMENSION[game]] ?? null}
 					onDone={finishRound}
 				/>
 			{:else}
@@ -317,6 +352,7 @@
 					{index}
 					total={queue.length}
 					streak={combo.streak}
+					rating={ratings.get(queue[index].id)?.[GAME_DIMENSION[game]] ?? null}
 					onDone={finishRound}
 				/>
 			{/if}
