@@ -51,23 +51,25 @@ export const OPENING_GAME_WORDS = 3;
 export const OPENING_WORD_CHOICES = [2, 3, 4, 5] as const;
 export type OpeningWords = (typeof OPENING_WORD_CHOICES)[number];
 
-/** How close an attempt must land to be worth keeping as a future question. */
-export const RECALLABLE_MIN_ACCURACY = 0.6;
-
 /**
- * Is this attempt worth keeping as a future 틀린 곳 찾기 question?
+ * Is this attempt worth keeping as a future 자주 틀리는 곳 찾기 question?
  *
- * A perfect attempt has nothing wrong in it to find, and a verse abandoned
- * after its opening words is a different sentence rather than a wrong one —
- * handing that back and asking what is wrong with it is not a question, it is
- * a blank.
+ * Anything the confetti did not fire on. A perfect recitation has nothing
+ * wrong in it to find and is the only thing excluded.
  *
- * Between those, though, the bar was far too high. At 0.9 only the very
- * nearest misses counted, and a reader who had genuinely got a verse wrong —
- * the exact case this game exists for — had it thrown away. Every attempt is
- * stored either way, so lowering this reaches back through the history that is
- * already there rather than only helping from now on.
+ * There was a floor under this — 0.9 at first, then 0.6 — on the reasoning
+ * that an attempt abandoned after a few words is a different sentence rather
+ * than a wrong one, and handing it back to ask what is wrong with it is closer
+ * to a blank than a question. That reasoning is not wrong, but it was being
+ * paid for with the game itself: the reader had recorded twenty-one checks and
+ * the game could ask about two of them. A thin question the reader can answer
+ * beats a game with nothing in it, and the sentence is theirs either way —
+ * seeing how little of a verse they once managed is its own kind of useful.
+ *
+ * A check that produced no text at all is still nothing to ask about, and that
+ * is filtered where the text is read rather than here, which only sees the
+ * score.
  */
 export function isRecallableAttempt(accuracy: number): boolean {
-	return accuracy >= RECALLABLE_MIN_ACCURACY && accuracy < 1;
+	return accuracy < 1;
 }

@@ -95,7 +95,11 @@ describe('quiz/+page.svelte — 틀린 곳 찾기 attempts', () => {
 		vi.spyOn(Math, 'random').mockReturnValue(0.99);
 		try {
 			await startSpotRun();
-			await waitFor(() => expect(screen.getByText('영생은')).toBeInTheDocument());
+			// Generous: the round mounts behind two resolved promises, and under
+			// a full-suite run this has timed out at the default second.
+			await waitFor(() => expect(screen.getByText('영생은')).toBeInTheDocument(), {
+				timeout: 5000
+			});
 			expect(screen.queryByText('영생을')).toBeNull();
 		} finally {
 			vi.mocked(Math.random).mockRestore();
@@ -109,7 +113,9 @@ describe('quiz/+page.svelte — 틀린 곳 찾기 attempts', () => {
 		vi.spyOn(Math, 'random').mockReturnValue(0.01);
 		try {
 			await startSpotRun();
-			await waitFor(() => expect(screen.getByText('영생을')).toBeInTheDocument());
+			await waitFor(() => expect(screen.getByText('영생을')).toBeInTheDocument(), {
+				timeout: 5000
+			});
 			expect(screen.queryByText('영생은')).toBeNull();
 		} finally {
 			vi.mocked(Math.random).mockRestore();

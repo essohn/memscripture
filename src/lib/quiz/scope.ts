@@ -174,7 +174,10 @@ export function newestAttempt(
 	rows: Pick<CheckRecord, 'typed' | 'accuracy'>[]
 ): string | undefined {
 	for (const r of rows) {
-		if (r.typed === undefined) continue;
+		// Blank as well as absent: a reader who pressed 포기 without typing
+		// leaves an empty string, and an empty sentence is not something to ask
+		// what is wrong with.
+		if (r.typed === undefined || r.typed.trim().length === 0) continue;
 		if (!isRecallableAttempt(r.accuracy)) continue;
 		return r.typed;
 	}
