@@ -31,7 +31,15 @@ const mountDeletable = (records: CheckRecord[]) => {
 	const onDelete = vi.fn();
 	const onRestore = vi.fn();
 	render(CheckHistorySheet, {
-		props: { heading: '히브리서 4:12', records, now: NOW, onClose: () => {}, onDelete, onRestore }
+		props: {
+			heading: '히브리서 4:12',
+			records,
+			words: WORDS,
+			now: NOW,
+			onClose: () => {},
+			onDelete,
+			onRestore
+		}
 	});
 	return { onDelete, onRestore };
 };
@@ -170,6 +178,26 @@ describe('deleting a record', () => {
 
 		expect(screen.getAllByTestId('check-history-row')).toHaveLength(2);
 		expect(screen.getByRole('button', { name: '실행 취소' })).toBeInTheDocument();
+	});
+
+	// The summary reads the same snapshot the list does. A deleted row is still
+	// on screen offering its undo, so the count above it must not move either —
+	// "최근 2회" standing over three visible rows is exactly the disagreement
+	// this block was built never to have. Both go back to the store's truth the
+	// next time the sheet is opened.
+	it('keeps describing a deleted row while its undo is still on screen', async () => {
+		const typed = WORDS.join(' ');
+		mountDeletable([
+			record({ id: 'a', typed, missed: [2] }),
+			record({ id: 'b', checkedAt: NOW - 2 * DAY, typed, missed: [2] }),
+			record({ id: 'c', checkedAt: NOW - 3 * DAY, typed, missed: [2] })
+		]);
+		expect(screen.getByTestId('diagnosis-effort')).toHaveTextContent('최근 3회');
+
+		await fireEvent.click(screen.getAllByRole('button', { name: /점검 기록 삭제/ })[0]);
+
+		expect(screen.getByRole('button', { name: '실행 취소' })).toBeInTheDocument();
+		expect(screen.getByTestId('diagnosis-effort')).toHaveTextContent('최근 3회');
 	});
 
 	it('restores the record through the caller', async () => {

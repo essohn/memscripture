@@ -214,6 +214,37 @@ describe('wordHeat', () => {
 		expect(wordHeat([record({ typed: '하나 둘', missed: [9] })], 2)).toHaveLength(2);
 	});
 
+	// suggestedMarks drops assisted checks before taking its window, on the
+	// grounds that a check made with the words on screen is not evidence that
+	// the reader knows the verse. Two features reading these same records with
+	// two different rules about 힌트 would dot one set of words and tint
+	// another.
+	it('ignores a check the reader took hints on', () => {
+		const full = '하나 둘 셋 넷 다섯 여섯 일곱 여덟';
+		const heat = wordHeat(
+			[
+				record({ id: 'clean', typed: full, missed: [] }),
+				record({ id: 'assisted', typed: full, missed: [1], hints: 3 })
+			],
+			WORDS
+		);
+		expect(heat[1]).toMatchObject({ reached: 1, missed: 0 });
+	});
+
+	// Truthy, not defined: an absent field predates the feature and a zero is a
+	// check that spent none. Both are unassisted and both must still count.
+	it('still counts a check that pressed 힌트 zero times', () => {
+		const full = '하나 둘 셋 넷 다섯 여섯 일곱 여덟';
+		const heat = wordHeat(
+			[
+				record({ id: 'zero', typed: full, missed: [1], hints: 0 }),
+				record({ id: 'absent', typed: full, missed: [1] })
+			],
+			WORDS
+		);
+		expect(heat[1]).toMatchObject({ reached: 2, missed: 2, tier: 'often' });
+	});
+
 	it('has nothing to say about a verse with no words', () => {
 		expect(wordHeat([record({ typed: '하나', missed: [0] })], 0)).toEqual([]);
 	});
