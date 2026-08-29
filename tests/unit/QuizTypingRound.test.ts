@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/svelte';
 import QuizTypingRound from '../../src/lib/components/quiz/QuizTypingRound.svelte';
 import type { QuizItem } from '../../src/lib/quiz/session';
 import { PERFECT_POINTS } from '../../src/lib/arcade/combo';
+import { defuseLimitMs } from '../../src/lib/arcade/defuse';
 
 // Word indices: 0 그들에게 · 1 율례와 · 2 법도를 · 3 가르쳐서 · 4 마땅히 · 5 갈
 //               6 길과 · 7 할 · 8 일을 · 9 그들에게 · 10 보이고
@@ -66,12 +67,16 @@ describe('QuizTypingRound', () => {
 		);
 	});
 
+	// The reader's own word, not the verse's. 입력한 내용 is the one block that
+	// is supposed to be their hand, and marking 법도를 there would be marking a
+	// word they never wrote — 정답 sits directly above it and says what the
+	// verse actually reads.
 	it('marks the word that went wrong before moving on', async () => {
 		setup();
 		await type(VERSE.replace('법도를', '법을'));
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		const wrong = document.querySelector('.wrong');
-		expect(wrong?.textContent?.trim()).toBe('법도를');
+		const wrong = screen.getByTestId('quiz-attempt').querySelector('.wrong');
+		expect(wrong?.textContent?.trim()).toBe('법을');
 	});
 
 	it('will not submit an empty attempt', async () => {
@@ -195,10 +200,16 @@ describe('QuizTypingRound — 맞고 틀림', () => {
 		expect(screen.getByTestId('wrong-stamp')).toBeInTheDocument();
 	});
 
-	it('breaks the wall, unstamped, on a flawless one', async () => {
+	it('stamps a flawless one Correct and then breaks the wall', async () => {
 		await answerWith(VERSE);
 		expect(screen.getByTestId('answer-wall')).toHaveAttribute('data-outcome', 'pass');
+		expect(screen.getByTestId('correct-stamp')).toHaveTextContent('Correct!');
 		expect(screen.queryByTestId('wrong-stamp')).toBeNull();
+	});
+
+	it('stamps only the one that happened', async () => {
+		await answerWith('아무말');
+		expect(screen.queryByTestId('correct-stamp')).toBeNull();
 	});
 
 	// Two paragraphs of verse with only one of them named leaves the reader
@@ -206,7 +217,34 @@ describe('QuizTypingRound — 맞고 틀림', () => {
 	it('names the reader own words', async () => {
 		await answerWith('그들에게 율례와');
 		expect(screen.getByText('입력한 내용')).toBeInTheDocument();
-		expect(screen.getByTestId('quiz-attempt')).toHaveTextContent('그들에게 율례와');
+		// Exactly, not merely containing: the block was rendering the verse's
+		// own words — every word of the verse, marked — which contains any
+		// prefix of it and so passed a substring check while showing the reader
+		// text they never wrote.
+		expect(screen.getByTestId('quiz-attempt').textContent?.trim()).toBe('그들에게 율례와');
+	});
+
+	// The reported defect. markMismatchedWords only asks whether each *verse*
+	// word turns up in the attempt, so a word the reader added is not something
+	// it can mark — while accuracyOf, which is a character diff, takes it off
+	// the score. The round failed with nothing on screen marked wrong, and the
+	// reader was left holding a verse they could see was right.
+	it('marks a word the verse cannot account for', async () => {
+		const { onDone } = await answerWith(VERSE + ' 아멘');
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: false }));
+
+		const wrong = screen.getByTestId('quiz-attempt').querySelectorAll('.wrong');
+		expect([...wrong].map((w) => w.textContent)).toEqual(['아멘']);
+	});
+
+	// 야고보서 1:18 opens 그가 그 조물, and a doubled 그 is the easiest slip
+	// there is to make in it — and was the hardest to see, because nothing
+	// about it was marked.
+	it('marks a word the reader typed twice', async () => {
+		await answerWith(VERSE.replace('그들에게 율례와', '그들에게 그들에게 율례와'));
+		const wrong = screen.getByTestId('quiz-attempt').querySelectorAll('.wrong');
+		expect(wrong.length).toBeGreaterThan(0);
 	});
 });
 
@@ -230,5 +268,65 @@ describe('QuizTypingRound — 판정', () => {
 		await type('아무말');
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		expect(screen.getByTestId('quiz-verdict')).toHaveTextContent('다시 볼 구절');
+	});
+});
+
+// The round asks for a whole verse, so its bomb sits and counts rather than
+// falling: a falling one would have to fall for two minutes.
+describe('QuizTypingRound — 시한폭탄', () => {
+	it('puts a bomb on the desk', () => {
+		setup();
+		expect(screen.getByTestId('defuse-stage')).toBeInTheDocument();
+	});
+
+	it('defuses it on a flawless recitation', async () => {
+		setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(screen.getByTestId('defuse-stage')).toHaveAttribute('data-outcome', 'defused');
+		expect(screen.queryByTestId('stage-fail')).toBeNull();
+	});
+
+	it('blows it on a flawed one', async () => {
+		setup();
+		await type('아무말');
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(screen.getByTestId('defuse-stage')).toHaveAttribute('data-outcome', 'blown');
+		expect(screen.getByTestId('stage-fail')).toHaveTextContent('Fail');
+	});
+
+	// Running out submits what is there rather than inventing a verdict: the
+	// grade is then the real grade of what the reader actually wrote, and the
+	// check history never has to learn that a clock can mark a verse wrong.
+	it('submits what is written when the clock runs out', async () => {
+		vi.useFakeTimers();
+		try {
+			const { onDone } = setup();
+			await type('그들에게 율례와');
+			await vi.advanceTimersByTimeAsync(defuseLimitMs(VERSE.length) + 300);
+			expect(screen.getByTestId('defuse-stage')).toHaveAttribute('data-outcome', 'blown');
+			await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+			expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: false }));
+			// What they had is still theirs, and still on screen.
+			expect(screen.getByTestId('quiz-attempt').textContent?.trim()).toBe('그들에게 율례와');
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	// A reader who finished has nothing left to lose to the clock.
+	it('stops the clock once the answer is in', async () => {
+		vi.useFakeTimers();
+		try {
+			const { onDone } = setup();
+			await type(VERSE);
+			await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+			await vi.advanceTimersByTimeAsync(defuseLimitMs(VERSE.length) * 2);
+			expect(screen.getByTestId('defuse-stage')).toHaveAttribute('data-outcome', 'defused');
+			await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+			expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: true }));
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });

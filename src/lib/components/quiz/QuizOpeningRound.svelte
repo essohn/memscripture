@@ -205,10 +205,10 @@
 	{/if}
 
 	{#if done}
-		<QuizAttempt {typed} />
 		<AnswerReveal reveal={done} outcome={gaveUp ? 'fail' : 'pass'} label="정답">
 			<QuizAnswer w={item.w} />
 		</AnswerReveal>
+		<QuizAttempt {typed} />
 		<QuizVerdict passed={!gaveUp} />
 		<button
 			bind:this={nextButton}

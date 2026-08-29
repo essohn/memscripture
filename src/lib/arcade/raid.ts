@@ -1,3 +1,5 @@
+import { elapsedShare, remainingMs } from './clock';
+
 /**
  * The clock behind 시작 3단어 맞추기 게임's interception round.
  *
@@ -30,19 +32,18 @@ export const RAID_ALARM_MS = 10_000;
 
 export type RaidPhase = 'inbound' | 'alarm' | 'impact';
 
-/** 0 at the horizon, 1 overhead. */
+/** 0 at the top of the board, 1 on the ground. */
 export function raidApproach(elapsedMs: number, limitMs: number): number {
-	if (limitMs <= 0) return 1;
-	return Math.min(1, Math.max(0, elapsedMs / limitMs));
+	return elapsedShare(elapsedMs, limitMs);
 }
 
 export function raidPhase(elapsedMs: number, limitMs: number): RaidPhase {
 	if (elapsedMs >= limitMs) return 'impact';
-	return limitMs - elapsedMs <= RAID_ALARM_MS ? 'alarm' : 'inbound';
+	return remainingMs(elapsedMs, limitMs) <= RAID_ALARM_MS ? 'alarm' : 'inbound';
 }
 
 export function raidRemainingMs(elapsedMs: number, limitMs: number): number {
-	return Math.max(0, limitMs - elapsedMs);
+	return remainingMs(elapsedMs, limitMs);
 }
 
 /** Points for the hit itself, before any speed is counted. */

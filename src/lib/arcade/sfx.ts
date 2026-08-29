@@ -36,6 +36,8 @@ export const SFX_NAMES = [
 	'select',
 	/** The reader's answer leaves the gun. */
 	'shot',
+	/** The answer was right. */
+	'correct',
 	/** The raider comes apart. */
 	'explode',
 	/** The wall of text breaks. */
@@ -52,6 +54,24 @@ export type SfxName = (typeof SFX_NAMES)[number];
 
 export const VOICES: Record<SfxName, Tone[]> = {
 	select: [{ type: 'square', from: 880, to: 1180, ms: 60, gain: 0.16 }],
+	/**
+	 * 딩동댕 — do, mi, sol.
+	 *
+	 * A right answer used to be an explosion with masonry under it, which is a
+	 * sound for a wall coming down rather than for an answer being right: it
+	 * landed as a thud where the reader was expecting to be told well done. A
+	 * major triad going up is the sound that means yes in every quiz show there
+	 * has ever been, and it is three oscillators.
+	 *
+	 * The triangle under it holds the root an octave down for body, so the
+	 * chime has somewhere to sit rather than sounding like three beeps.
+	 */
+	correct: [
+		{ type: 'square', from: 523, to: 523, ms: 95, gain: 0.17 },
+		{ type: 'square', from: 659, to: 659, ms: 95, gain: 0.17, afterMs: 95 },
+		{ type: 'square', from: 784, to: 784, ms: 230, gain: 0.18, afterMs: 95 },
+		{ type: 'triangle', from: 392, to: 392, ms: 230, gain: 0.09, afterMs: 0 }
+	],
 	// Falling, fast, and thin — a pew rather than a thud.
 	shot: [
 		{ type: 'square', from: 1600, to: 340, ms: 110, gain: 0.18 },

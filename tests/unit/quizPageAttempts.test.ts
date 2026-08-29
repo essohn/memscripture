@@ -302,3 +302,37 @@ describe('quiz/+page.svelte — a scope decided before this screen', () => {
 		expect(screen.queryByRole('button', { name: 'A구절' })).toBeNull();
 	});
 });
+
+// A run had no way out of it. The only exits were answering every round or
+// leaving the page, which on a ten-verse session is a long way to go for a
+// scope picked by mistake.
+describe('quiz/+page.svelte — 나가기와 다시', () => {
+	async function startRun() {
+		render(QuizPage);
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Quiz!' })).not.toBeDisabled());
+		await fireEvent.click(screen.getByRole('button', { name: '시작 3단어 맞추기 게임' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Quiz!' }));
+	}
+
+	it('offers both while a run is on', async () => {
+		await startRun();
+		expect(screen.getByRole('button', { name: '나가기' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: '다시' })).toBeInTheDocument();
+	});
+
+	it('goes back to the picker on 나가기', async () => {
+		await startRun();
+		await fireEvent.click(screen.getByRole('button', { name: '나가기' }));
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Quiz!' })).toBeInTheDocument());
+	});
+
+	// 다시 restarts the run rather than leaving it: the same verses, from the
+	// first, with the chain and the score back to nothing.
+	it('returns to the first verse on 다시', async () => {
+		await startRun();
+		expect(screen.getByText('1 / 1')).toBeInTheDocument();
+		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
+		expect(screen.getByText('1 / 1')).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: 'Quiz!' })).toBeNull();
+	});
+});
