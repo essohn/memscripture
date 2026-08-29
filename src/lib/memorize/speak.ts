@@ -521,6 +521,11 @@ export interface PlayerProgress {
 	 *  The bar has no characters to follow through one, so it says so instead
 	 *  of looking stuck. */
 	waiting: boolean;
+	/** 0..1 through that silence, and 0 whenever there is not one. The script
+	 *  has not moved, so this is its own measure rather than part of
+	 *  `fraction` — but something has to be seen moving, or a silence is
+	 *  indistinguishable from a player that has died. */
+	waitFraction: number;
 	elapsedMs: number;
 	totalMs: number;
 }
@@ -580,6 +585,8 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 	/** Whether the utterance on the queue has actually made a sound. */
 	let speaking = false;
 	let waiting = false;
+	let gapStartedAt = 0;
+	let gapMs = 0;
 	let watchdog: ReturnType<typeof setTimeout> | null = null;
 	let gapTimer: ReturnType<typeof setTimeout> | null = null;
 	let ticker: ReturnType<typeof setInterval> | null = null;
@@ -610,6 +617,8 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		opts.onProgress?.({
 			fraction: Math.min(reach, Math.max(byChars, byClock)),
 			waiting,
+			waitFraction:
+				waiting && gapMs > 0 ? Math.min(1, (Date.now() - gapStartedAt) / gapMs) : 0,
 			elapsedMs: elapsed(),
 			totalMs
 		});
@@ -638,6 +647,7 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 	}
 	function cancelGap() {
 		waiting = false;
+		gapMs = 0;
 		if (gapTimer === null) return;
 		clearTimeout(gapTimer);
 		gapTimer = null;
@@ -681,6 +691,8 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		const gap = waited ? 0 : (opts.gapBefore?.(head, offset) ?? 0);
 		if (gap > 0) {
 			waiting = true;
+			gapStartedAt = Date.now();
+			gapMs = gap;
 			report();
 			gapTimer = setTimeout(() => {
 				gapTimer = null;
@@ -690,6 +702,7 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 			return;
 		}
 		waiting = false;
+		gapMs = 0;
 		const end = segmentEnd(segments, offset);
 		const u = new SpeechSynthesisUtterance(head);
 		u.lang = 'ko-KR';
@@ -788,7 +801,13 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		if (ticker !== null) clearInterval(ticker);
 		if (keepalive !== null) clearInterval(keepalive);
 		releaseSynth(stop);
-		opts.onProgress?.({ fraction: 1, waiting: false, elapsedMs: totalMs, totalMs });
+		opts.onProgress?.({
+			fraction: 1,
+			waiting: false,
+			waitFraction: 0,
+			elapsedMs: totalMs,
+			totalMs
+		});
 		opts.onEnd?.();
 	}
 

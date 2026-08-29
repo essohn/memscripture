@@ -126,12 +126,13 @@ describe('reciteGap', () => {
 
 	/*
 	 * 따라 읽기: the citation, then room to say the verse from memory, then the
-	 * verse. A fifth longer than the reading takes, because recalling is slower
-	 * than reading — at exactly the spoken length the last words are still
-	 * being found when the voice comes back over them.
+	 * verse. The room is the estimate itself — measured against the real voice
+	 * in production, estimateDurationMs runs about 9% long, which is the margin
+	 * recall needs and no more. Multiplying on top of that put the silence at
+	 * 1.3× what the verse actually took, which reads as the app having stopped.
 	 */
-	it('leaves a fifth longer than the verse takes to read', () => {
-		expect(reciteGap([5], 1)(BODY, 5)).toBe(Math.round(estimateDurationMs(BODY, 1) * 1.2));
+	it('leaves the verse its estimated reading time, and no more', () => {
+		expect(reciteGap([5], 1)(BODY, 5)).toBe(estimateDurationMs(BODY, 1));
 	});
 
 	it('says nothing about an offset that is not a body', () => {

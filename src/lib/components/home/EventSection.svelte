@@ -257,6 +257,7 @@
 				playing={player.playing}
 				failed={player.failed}
 				label={player.waiting ? '따라 해보세요' : (player.nowPlaying?.cite ?? '')}
+				waitFraction={player.waitFraction}
 				index={player.index}
 				count={player.count}
 				fraction={player.progress.fraction}

@@ -80,3 +80,21 @@ describe('PlaylistBar when the device will not speak', () => {
 		expect(screen.queryByRole('status')).toBeNull();
 	});
 });
+
+describe('PlaylistBar during 따라 읽기\'s silence', () => {
+	// The script has not moved, so the scrub track cannot show this — and it is
+	// a drag control besides, which is no place for a second meaning. The
+	// countdown fills behind the label instead: no layout shift, and nothing to
+	// mistake for the playback position.
+	it('fills behind the label as the silence runs out', () => {
+		render(PlaylistBar, {
+			props: { ...props, label: '따라 해보세요', waitFraction: 0.4 }
+		});
+		expect(screen.getByTestId('recite-countdown')).toHaveStyle({ width: '40%' });
+	});
+
+	it('shows nothing while a verse is actually being read', () => {
+		render(PlaylistBar, { props });
+		expect(screen.queryByTestId('recite-countdown')).toBeNull();
+	});
+});

@@ -25,6 +25,8 @@
 		/** No voice on this device would speak. The bar stops where the sound
 		 *  stopped and says why, rather than filling itself in. */
 		failed?: boolean;
+		/** 0..1 through 따라 읽기's silence. 0 while a verse is being read. */
+		waitFraction?: number;
 		onToggle: () => void;
 		onSeek: (fraction: number) => void;
 		onToggleRepeat: () => void;
@@ -40,6 +42,7 @@
 		totalMs,
 		repeat,
 		failed = false,
+		waitFraction = 0,
 		onToggle,
 		onSeek,
 		onToggleRepeat,
@@ -83,9 +86,25 @@
 				{/if}
 			</button>
 
-			<p class="min-w-0 flex-1 truncate text-[13px] font-medium text-[var(--color-text)]">
-				{label}
-			</p>
+			<!-- The countdown fills behind the label rather than on the scrub
+			     track: the script has not moved during a silence, and the track is
+			     a drag control besides — no place for a second meaning. Behind
+			     the text there is no layout shift either, so the bar does not
+			     twitch on every verse. -->
+			<div class="relative min-w-0 flex-1">
+				{#if waitFraction > 0}
+					<div
+						data-testid="recite-countdown"
+						class="absolute inset-y-0 left-0 rounded bg-[var(--color-accent-soft)]"
+						style="width: {Math.min(1, waitFraction) * 100}%"
+					></div>
+				{/if}
+				<p
+					class="relative truncate text-[13px] font-medium text-[var(--color-text)]"
+				>
+					{label}
+				</p>
+			</div>
 			<!-- Never truncates: which verse of how many is the one thing this
 			     bar exists to say that the card player could not. -->
 			<span class="shrink-0 text-[12px] tabular-nums text-[var(--color-text-tertiary)]">

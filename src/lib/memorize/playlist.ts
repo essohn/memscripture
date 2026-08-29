@@ -92,29 +92,24 @@ export function trackAt(
 }
 
 /**
- * How much longer than the reading the silence runs.
- *
- * Recalling a verse is slower than reading one off a page: the first words
- * come at once and the last are still being found. At exactly the spoken
- * length the voice comes back over the reader mid-sentence, which teaches them
- * to rush. A fifth is enough to finish on and short enough that the wait never
- * feels like the app has stopped.
- */
-const RECITE_GAP_RATIO = 1.2;
-
-/**
  * The silence 따라 읽기 leaves in front of each verse.
  *
  * Shaped for createPlayer's `gapBefore`: it is asked about every segment and
  * answers only for the ones a body starts at, so citations and titles play
  * straight through. Measured in the reader's own reading speed — slowing the
  * voice lengthens the room to recite along with it.
+ *
+ * The room is the estimate itself, with nothing added. Recall is slower than
+ * reading and wants a margin, but the estimate already is one: timed against
+ * the real voice on four verses in production, estimateDurationMs's 5.5
+ * characters a second ran about 9% longer than the engine actually took. A
+ * further fifth on top of that put the silence at 1.3× the spoken verse, which
+ * stops reading as room to think and starts reading as an app that has hung.
  */
 export function reciteGap(
 	bodyStarts: number[],
 	rate: number
 ): (text: string, offset: number) => number {
 	const starts = new Set(bodyStarts);
-	return (text, offset) =>
-		starts.has(offset) ? Math.round(estimateDurationMs(text, rate) * RECITE_GAP_RATIO) : 0;
+	return (text, offset) => (starts.has(offset) ? estimateDurationMs(text, rate) : 0);
 }

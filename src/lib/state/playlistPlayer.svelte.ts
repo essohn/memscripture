@@ -25,6 +25,7 @@ import {
 const IDLE: PlayerProgress = Object.freeze({
 	fraction: 0,
 	waiting: false,
+	waitFraction: 0,
 	elapsedMs: 0,
 	totalMs: 0
 });
@@ -76,6 +77,11 @@ export class PlaylistPlayer {
 	 *  has no characters to follow through one. */
 	get waiting(): boolean {
 		return this.#progress.waiting;
+	}
+	/** How far through that silence, so the bar can show it running rather than
+	 *  looking like a player that has stopped. */
+	get waitFraction(): number {
+		return this.#progress.waitFraction;
 	}
 	get playing(): boolean {
 		return this.#playing;

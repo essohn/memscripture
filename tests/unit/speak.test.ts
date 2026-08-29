@@ -493,6 +493,32 @@ describe('a silence before a segment', () => {
 		expect(onProgress.mock.calls.at(-1)?.[0].waiting).toBe(false);
 	});
 
+	/*
+	 * A silence with nothing moving on screen is indistinguishable from a
+	 * player that has died — which is exactly the reading this app gave an
+	 * Android user this morning. The bar cannot advance through it, because the
+	 * script has not moved, so the countdown is its own measure.
+	 */
+	it('counts the silence down while it runs', () => {
+		const { spoken } = installVoiceSynth([]);
+		const onProgress = vi.fn();
+		createPlayer(['장절', '본문'], { onProgress, gapBefore: gapOnBody });
+		spoken[0].onend?.();
+		vi.advanceTimersByTime(400);
+		expect(onProgress.mock.calls.at(-1)?.[0].waitFraction).toBeCloseTo(0.4, 1);
+		vi.advanceTimersByTime(400);
+		expect(onProgress.mock.calls.at(-1)?.[0].waitFraction).toBeCloseTo(0.8, 1);
+	});
+
+	it('has nothing to count once the verse begins', () => {
+		const { spoken } = installVoiceSynth([]);
+		const onProgress = vi.fn();
+		createPlayer(['장절', '본문'], { onProgress, gapBefore: gapOnBody });
+		spoken[0].onend?.();
+		vi.advanceTimersByTime(1400);
+		expect(onProgress.mock.calls.at(-1)?.[0].waitFraction).toBe(0);
+	});
+
 	it('leaves a segment with no gap alone', () => {
 		const { spoken } = installVoiceSynth([]);
 		createPlayer(['장절', '본문'], {});
