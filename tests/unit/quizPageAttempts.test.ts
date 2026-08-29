@@ -216,7 +216,7 @@ describe('quiz/+page.svelte — source recording', () => {
 	it('records source "quiz-opening" for a completed opening round', async () => {
 		render(QuizPage);
 		await waitFor(() => expect(screen.getByRole('button', { name: 'Quiz!' })).not.toBeDisabled());
-		await fireEvent.click(screen.getByRole('button', { name: '시작 3단어 맞추기 게임' }));
+		await fireEvent.click(screen.getByRole('button', { name: '시작 단어 맞추기 게임' }));
 		await fireEvent.click(screen.getByRole('button', { name: 'Quiz!' }));
 
 		await fireEvent.input(screen.getByRole('textbox', { name: '구절 첫머리 입력' }), {
@@ -335,7 +335,7 @@ describe('quiz/+page.svelte — 나가기와 다시', () => {
 	async function startRun() {
 		render(QuizPage);
 		await waitFor(() => expect(screen.getByRole('button', { name: 'Quiz!' })).not.toBeDisabled());
-		await fireEvent.click(screen.getByRole('button', { name: '시작 3단어 맞추기 게임' }));
+		await fireEvent.click(screen.getByRole('button', { name: '시작 단어 맞추기 게임' }));
 		await fireEvent.click(screen.getByRole('button', { name: 'Quiz!' }));
 	}
 

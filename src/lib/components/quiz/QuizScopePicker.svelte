@@ -10,7 +10,14 @@
 	} from '$lib/quiz/session';
 	import type { Target } from '$lib/quiz/scope';
 	import type { VerseSignal } from '$lib/quiz/priority';
-	import { GAMES, GAME_LABELS, type Game } from '$lib/quiz/games';
+	import {
+		GAMES,
+		GAME_LABELS,
+		OPENING_GAME_WORDS,
+		OPENING_WORD_CHOICES,
+		type Game,
+		type OpeningWords
+	} from '$lib/quiz/games';
 
 	interface Props {
 		targets: Target[];
@@ -33,7 +40,7 @@
 		 */
 		lockedLabel?: string;
 		onPick: (t: Target) => void;
-		onStart: (queue: QuizItem[], game: Game) => void;
+		onStart: (queue: QuizItem[], game: Game, openingWords: OpeningWords) => void;
 	}
 	let {
 		targets,
@@ -67,6 +74,10 @@
 	/** One game for the whole session. 퍼펙트 게임 is the default because it is
 	 *  the one that works on every verse from the first day. */
 	let game = $state<Game>('typing');
+	/** How many opening words 시작 단어 asks for. Fixed here rather than in the
+	 *  round, so every verse in a run is asked the same way and the score means
+	 *  one thing. */
+	let openingWords = $state<OpeningWords>(OPENING_GAME_WORDS);
 
 	/** The chosen scope, unranked. The denominator of both counts below. */
 	const pool = $derived(filterByTier(items, startTiers, fullTiers, ratings));
@@ -198,6 +209,37 @@
 					>
 				</button>
 			{/each}
+		<!-- Only for the game that has an opening to ask about. A radiogroup
+		     rather than tiles: this is one dial with four settings, not a
+		     fourth thing to play. -->
+		{#if game === 'opening'}
+			<h3
+				id="quiz-opening-words-heading"
+				class="mt-4 text-[13px] font-semibold text-[var(--color-text-secondary)]"
+			>
+				시작 단어 수
+			</h3>
+			<div
+				role="radiogroup"
+				aria-labelledby="quiz-opening-words-heading"
+				class="mt-2 flex flex-wrap gap-1.5"
+			>
+				{#each OPENING_WORD_CHOICES as n (n)}
+					<button
+						type="button"
+						role="radio"
+						aria-checked={openingWords === n}
+						onclick={() => (openingWords = n)}
+						class="rounded-full border px-3 py-1 text-[12px] font-medium tabular-nums transition-colors {openingWords ===
+						n
+							? 'border-transparent bg-[var(--color-accent)] text-white'
+							: 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-elevated)]'}"
+					>
+						{n}단어
+					</button>
+				{/each}
+			</div>
+		{/if}
 		</div>
 	</div>
 
@@ -275,7 +317,7 @@
 		</div>
 		<button
 			type="button"
-			onclick={() => onStart(queue, game)}
+			onclick={() => onStart(queue, game, openingWords)}
 			disabled={queue.length === 0}
 			aria-describedby={describedBy}
 			class="quiz-go inline-flex items-center gap-1.5 rounded-2xl px-6 py-3 text-[16px] font-bold text-white disabled:opacity-40 disabled:shadow-none"

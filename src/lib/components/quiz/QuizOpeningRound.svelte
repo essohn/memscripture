@@ -18,10 +18,14 @@
 		total: number;
 		/** The chain the session is carrying into this round. */
 		streak?: number;
+		/** How many opening words count as having started the verse. The
+		 *  reader's choice, made on the start screen — a round cannot change it
+		 *  under itself, or the bar would move mid-answer. */
+		words?: number;
 		/** Fired once, when the reader leaves this round. */
 		onDone: (result: RoundResult) => void;
 	}
-	let { item, index, total, streak = 0, onDone }: Props = $props();
+	let { item, index, total, streak = 0, words = OPENING_GAME_WORDS, onDone }: Props = $props();
 
 	let typed = $state('');
 	/** Set by 모르겠어요. A revealed opening is a failure however the reader
@@ -36,7 +40,7 @@
 	/** The words that count as having started. Shown only after 모르겠어요.
 	 *  Sliced by timing.ts rather than here — the count lives in one place or
 	 *  it is two definitions of the same thing. */
-	const opening = $derived(openingOf(item.w, OPENING_GAME_WORDS));
+	const opening = $derived(openingOf(item.w, words));
 
 	/** Graded continuously — there is no 제출. Leaving is still a separate
 	 *  step, so the reader sees the verdict before the round is swapped out.
@@ -52,7 +56,7 @@
 	let decidedAt = $state<number | null>(null);
 	$effect(() => {
 		if (done) return;
-		if (gaveUp || hasTypedOpening(item.w, typed, OPENING_GAME_WORDS)) {
+		if (gaveUp || hasTypedOpening(item.w, typed, words)) {
 			decidedAt = Date.now() - startedAt;
 			done = true;
 			if (gaveUp) {
@@ -67,6 +71,15 @@
 			// it, so whatever focus was on stops existing. Hand it to the only
 			// control left rather than letting it fall to <body>.
 			tick().then(() => nextButton?.focus());
+			// A solved verse moves on by itself. Sitting on 통과 waiting to be
+			// told to continue is the reader doing the app's bookkeeping, and
+			// this game is a rally — the whole appeal is the next one arriving.
+			//
+			// After a beat, not at once: the shot, the blast and the stamp all
+			// land inside it, and cutting them off would take the hit away.
+			// Only on a pass — 모르겠어요 has just revealed the opening, and a
+			// reader who has been shown the answer is reading it.
+			if (!gaveUp) advanceTimer = setTimeout(next, ADVANCE_MS);
 		}
 	});
 
@@ -106,6 +119,16 @@
 	/** The 다음 button, once the round is graded. */
 	let nextButton = $state<HTMLButtonElement | undefined>();
 
+	/** Long enough for the hit to read, short enough not to be a wait. */
+	const ADVANCE_MS = 700;
+	let advanceTimer: ReturnType<typeof setTimeout> | null = null;
+	// A round can be left before its timer fires — 다음 pressed, or the session
+	// ended — and a timer outliving its component would report a round that is
+	// no longer on screen.
+	$effect(() => () => {
+		if (advanceTimer !== null) clearTimeout(advanceTimer);
+	});
+
 	// The route keys each round, so this component is new for every card and
 	// this runs once per verse: 다음 leaves the reader on the next one ready to
 	// type — keyboard already up on a phone — rather than one tap short of it.
@@ -137,6 +160,10 @@
 
 	function next() {
 		if (!done || reported) return;
+		if (advanceTimer !== null) {
+			clearTimeout(advanceTimer);
+			advanceTimer = null;
+		}
 		reported = true;
 		onDone({
 			id: item.id,
@@ -195,7 +222,7 @@
 		{done ? (gaveUp ? '다시 볼 구절입니다' : '정답입니다') : `${secondsLeft}초 남았습니다`}
 	</p>
 
-	<!-- One line, because the answer is three words. A textarea also spends
+	<!-- One line, because the answer is a handful of words. A textarea also spends
 	     Enter on a newline, and here Enter is 다음.
 	     Kept in the layout once the round is graded rather than removed: the
 	     button under it is where the reader's thumb already is, and taking the
@@ -229,7 +256,7 @@
 	</button>
 
 	{#if gaveUp}
-		<!-- The three words the round actually asked for. 정답 above has the
+		<!-- The opening the round actually asked for. 정답 above has the
 		     whole verse, which is more than the question was. -->
 		<p class="mt-2 text-[calc(12px*var(--vfs))] text-[var(--color-text-secondary)]">
 			첫 세 단어 · <span class="font-semibold text-[var(--color-text)]">{opening}</span>

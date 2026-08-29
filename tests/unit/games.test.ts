@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
 	GAMES,
 	GAME_LABELS,
+	OPENING_GAME_WORDS,
+	OPENING_WORD_CHOICES,
 	GAME_SOURCE,
 	RECALLABLE_MIN_ACCURACY,
 	isRecallableAttempt
@@ -14,7 +16,7 @@ describe('games', () => {
 
 	it('labels each game in Korean', () => {
 		expect(GAME_LABELS.typing).toBe('퍼펙트 게임');
-		expect(GAME_LABELS.opening).toBe('시작 3단어 맞추기 게임');
+		expect(GAME_LABELS.opening).toBe('시작 단어 맞추기 게임');
 		expect(GAME_LABELS.spot).toBe('자주 틀리는 곳 찾기 게임');
 	});
 
@@ -48,5 +50,18 @@ describe('isRecallableAttempt', () => {
 	// A perfect attempt has nothing wrong to find, so it is not a question.
 	it('rejects a perfect attempt', () => {
 		expect(isRecallableAttempt(1)).toBe(false);
+	});
+});
+
+describe('opening word counts', () => {
+	// The count is the game's difficulty dial, so it is a list of offered steps
+	// rather than a constant — but three stays the default it always was.
+	it('offers two through five, defaulting to three', () => {
+		expect(OPENING_WORD_CHOICES).toEqual([2, 3, 4, 5]);
+		expect(OPENING_GAME_WORDS).toBe(3);
+	});
+
+	it('has the default among the choices it offers', () => {
+		expect(OPENING_WORD_CHOICES).toContain(OPENING_GAME_WORDS);
 	});
 });

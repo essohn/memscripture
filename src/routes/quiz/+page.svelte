@@ -8,7 +8,12 @@
 	import QuizSummary from '$lib/components/quiz/QuizSummary.svelte';
 	import { listTargets, offerableTargets, resolveTarget, type Target } from '$lib/quiz/scope';
 	import type { VerseSignal } from '$lib/quiz/priority';
-	import { GAME_SOURCE, type Game } from '$lib/quiz/games';
+	import {
+		GAME_SOURCE,
+		OPENING_GAME_WORDS,
+		type Game,
+		type OpeningWords
+	} from '$lib/quiz/games';
 	import { summarize, type ItemRating, type QuizItem, type RoundResult } from '$lib/quiz/session';
 	import { recordCheck } from '$lib/db/checkHistory';
 	import { NO_COMBO, comboHit, comboMiss, type ComboState } from '$lib/arcade/combo';
@@ -35,6 +40,9 @@
 
 	let queue = $state<QuizItem[] | null>(null);
 	let game = $state<Game>('typing');
+	/** Fixed for the whole run by the start screen, so every verse in a session
+	 *  is asked the same way and the score means one thing. */
+	let openingWords = $state<OpeningWords>(OPENING_GAME_WORDS);
 	/** Recorded attempts for the verses in play, keyed by QuizItem.id. Empty
 	 *  for the other two games, and for verses the reader has never nearly
 	 *  landed. */
@@ -165,8 +173,9 @@
 			});
 	}
 
-	function start(picked: QuizItem[], chosen: Game) {
+	function start(picked: QuizItem[], chosen: Game, words: OpeningWords) {
 		game = chosen;
+		openingWords = words;
 		queue = picked;
 		index = 0;
 		results = [];
@@ -207,7 +216,9 @@
 	}
 
 	function again() {
-		if (queue) start(queue, game);
+		// The same count as the run just played: 다시 하기 is that run again,
+		// not a differently-graded one.
+		if (queue) start(queue, game, openingWords);
 	}
 
 	async function close() {
@@ -288,6 +299,7 @@
 					{index}
 					total={queue.length}
 					streak={combo.streak}
+					words={openingWords}
 					onDone={finishRound}
 				/>
 			{:else if game === 'spot'}

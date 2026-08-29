@@ -18,9 +18,9 @@ const item: QuizItem = {
 	w: VERSE
 };
 
-function setup() {
+function setup(props: { words?: number } = {}) {
 	const onDone = vi.fn();
-	render(QuizOpeningRound, { item, index: 0, total: 3, onDone });
+	render(QuizOpeningRound, { item, index: 0, total: 3, onDone, ...props });
 	return { onDone };
 }
 
@@ -373,5 +373,64 @@ describe('QuizOpeningRound — 폭탄', () => {
 		setup();
 		await type(OPENING);
 		expect(screen.queryByTestId('stage-fail')).toBeNull();
+	});
+});
+
+describe('QuizOpeningRound word count', () => {
+	// The bar the reader has to clear is the game's difficulty, and it is now
+	// theirs to set. Two words is a thin bar — plenty of verses open on the
+	// same 그러므로 내가 — and five is most of a clause.
+	it('grades against the count it was given', async () => {
+		const { onDone } = setup({ words: 2 });
+		await type('그들에게 율례와');
+		await tick();
+		await pressEnter();
+		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: true }));
+	});
+
+	it('does not pass two words when it was told four', async () => {
+		const { onDone } = setup({ words: 4 });
+		await type('그들에게 율례와');
+		await tick();
+		expect(onDone).not.toHaveBeenCalled();
+	});
+
+	it('reveals the count it asked for when the reader gives up', async () => {
+		setup({ words: 5 });
+		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
+		expect(screen.getByText('그들에게 율례와 법도를 가르쳐서 마땅히')).toBeInTheDocument();
+	});
+});
+
+describe('QuizOpeningRound moving on', () => {
+	// Sitting on a solved verse waiting to be told to continue is the reader
+	// doing the app's bookkeeping. It goes by itself — after a beat, so the
+	// hit lands and the stamp is seen rather than flashing past.
+	it('goes to the next verse on its own once the opening is right', async () => {
+		vi.useFakeTimers();
+		try {
+			const { onDone } = setup();
+			await type(OPENING);
+			await tick();
+			expect(onDone).not.toHaveBeenCalled();
+			await vi.advanceTimersByTimeAsync(1200);
+			expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: true }));
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	// 모르겠어요 reveals the opening, and a reader who has just been shown the
+	// answer is reading it. Moving off that by itself would take it away.
+	it('waits for the reader after 모르겠어요', async () => {
+		vi.useFakeTimers();
+		try {
+			const { onDone } = setup();
+			await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
+			await vi.advanceTimersByTimeAsync(5000);
+			expect(onDone).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });

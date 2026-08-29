@@ -206,13 +206,13 @@ describe('QuizScopePicker — games', () => {
 			'aria-pressed',
 			'true'
 		);
-		expect(screen.getByRole('button', { name: '시작 3단어 맞추기 게임' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: '시작 단어 맞추기 게임' })).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: '자주 틀리는 곳 찾기 게임' })).toBeInTheDocument();
 	});
 
 	it('tells onStart which game was chosen', async () => {
 		const { onStart } = setup();
-		await fireEvent.click(screen.getByRole('button', { name: '시작 3단어 맞추기 게임' }));
+		await fireEvent.click(screen.getByRole('button', { name: '시작 단어 맞추기 게임' }));
 		await fireEvent.click(goButton());
 		expect(onStart.mock.calls[0][1]).toBe('opening');
 	});
@@ -397,5 +397,41 @@ describe('QuizScopePicker — session size', () => {
 	it('stops growing the pile past its cap', () => {
 		setup({ items: many(48), ratings: hard(48), attempts: new Map() });
 		expect(document.querySelectorAll('.card-layer')).toHaveLength(6);
+	});
+});
+
+describe('QuizScopePicker opening word count', () => {
+	const pickOpening = async () =>
+		fireEvent.click(screen.getByRole('button', { name: '시작 단어 맞추기 게임' }));
+
+	// The bar belongs to the run, not to the round: fixed before the first
+	// question so every verse in a session is asked the same way and the score
+	// means one thing.
+	it('offers the four counts once 시작 단어 is chosen', async () => {
+		setup();
+		await pickOpening();
+		const steps = screen.getAllByRole('radio', { name: /^[2-5]단어$/ });
+		expect(steps.map((s) => s.textContent?.trim())).toEqual([
+			'2단어',
+			'3단어',
+			'4단어',
+			'5단어'
+		]);
+		expect(screen.getByRole('radio', { name: '3단어' })).toBeChecked();
+	});
+
+	// The other two games do not ask for an opening, so the dial would be a
+	// control with nothing to turn.
+	it('keeps it out of the way for the other games', () => {
+		setup();
+		expect(screen.queryByRole('radio', { name: '3단어' })).toBeNull();
+	});
+
+	it('tells onStart the count that was chosen', async () => {
+		const { onStart } = setup();
+		await pickOpening();
+		await fireEvent.click(screen.getByRole('radio', { name: '5단어' }));
+		await fireEvent.click(goButton());
+		expect(onStart.mock.calls[0][2]).toBe(5);
 	});
 });

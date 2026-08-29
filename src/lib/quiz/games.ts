@@ -6,7 +6,7 @@ export const GAMES = ['typing', 'opening', 'spot'] as const satisfies readonly G
 
 export const GAME_LABELS: Record<Game, string> = {
 	typing: '퍼펙트 게임',
-	opening: '시작 3단어 맞추기 게임',
+	opening: '시작 단어 맞추기 게임',
 	spot: '자주 틀리는 곳 찾기 게임'
 };
 
@@ -14,9 +14,9 @@ export const GAME_LABELS: Record<Game, string> = {
  * What a round of each game writes as its record's source.
  *
  * Three values rather than one because the games prove different things.
- * Passing on the first three words does not mean the verse is known, and
+ * Passing on a verse's opening words does not mean the verse is known, and
  * spotting a planted error is recognition rather than recall — written as one
- * 'quiz', the 만점 badge would light for typing three words.
+ * 'quiz', the 만점 badge would light for typing three words of it.
  */
 export const GAME_SOURCE: Record<Game, 'quiz' | 'quiz-opening' | 'quiz-spot'> = {
 	typing: 'quiz',
@@ -37,6 +37,19 @@ export const GAME_SOURCE: Record<Game, 'quiz' | 'quiz-opening' | 'quiz-spot'> = 
  * property of the verse.
  */
 export const OPENING_GAME_WORDS = 3;
+
+/**
+ * The counts the reader can ask for instead.
+ *
+ * The bar is the game's difficulty, and how high it should be is a fact about
+ * the reader rather than about the verse. Two is thin evidence for the reason
+ * above and is offered anyway — someone working a set for the first time is
+ * asking a different question than someone on their tenth pass. Five is most
+ * of an opening clause and about as far as this game can go before it becomes
+ * 퍼펙트 게임 with a shorter verse.
+ */
+export const OPENING_WORD_CHOICES = [2, 3, 4, 5] as const;
+export type OpeningWords = (typeof OPENING_WORD_CHOICES)[number];
 
 /** How close an attempt must land to be worth keeping as a future question. */
 export const RECALLABLE_MIN_ACCURACY = 0.9;
