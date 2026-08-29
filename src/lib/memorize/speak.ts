@@ -502,6 +502,10 @@ export function segmentEnd(segments: string[], offset: number): number {
 export interface PlayerProgress {
 	/** 0..1 through the whole script. */
 	fraction: number;
+	/** In a deliberate silence before the next segment rather than speaking.
+	 *  The bar has no characters to follow through one, so it says so instead
+	 *  of looking stuck. */
+	waiting: boolean;
 	elapsedMs: number;
 	totalMs: number;
 }
@@ -519,6 +523,15 @@ export interface PlayerOptions extends SpeakOptions {
 	/** No voice on this device would speak. Fired instead of a completed run,
 	 *  so the caller can say so rather than showing a finished bar. */
 	onFailure?: () => void;
+	/**
+	 * Milliseconds of silence to leave before the segment starting at `offset`.
+	 *
+	 * The engine only knows how to wait; what is worth waiting for is the
+	 * caller's business — 따라 읽기 asks for a pause in front of each verse
+	 * body, long enough to say it from memory first. Returning 0, or leaving
+	 * this out, plays straight through.
+	 */
+	gapBefore?: (text: string, offset: number) => number;
 }
 
 /**
@@ -547,7 +560,9 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 	let paused = false;
 	/** Whether the utterance on the queue has actually made a sound. */
 	let speaking = false;
+	let waiting = false;
 	let watchdog: ReturnType<typeof setTimeout> | null = null;
+	let gapTimer: ReturnType<typeof setTimeout> | null = null;
 	let ticker: ReturnType<typeof setInterval> | null = null;
 	let keepalive: ReturnType<typeof setInterval> | null = null;
 	let current: SpeechSynthesisUtterance | null = null;
@@ -570,6 +585,7 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		const byClock = speaking && totalMs > 0 ? elapsed() / totalMs : 0;
 		opts.onProgress?.({
 			fraction: Math.min(1, Math.max(byChars, byClock)),
+			waiting,
 			elapsedMs: elapsed(),
 			totalMs
 		});
@@ -596,10 +612,20 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		clearTimeout(watchdog);
 		watchdog = null;
 	}
+	function cancelGap() {
+		waiting = false;
+		if (gapTimer === null) return;
+		clearTimeout(gapTimer);
+		gapTimer = null;
+	}
 
 	function playFrom(
 		offset: number,
-		{ chained = false, attempt = 0 }: { chained?: boolean; attempt?: number } = {}
+		{
+			chained = false,
+			attempt = 0,
+			waited = false
+		}: { chained?: boolean; attempt?: number; waited?: boolean } = {}
 	) {
 		if (stopped) return;
 		const rest = sliceFrom(segments, offset);
@@ -625,6 +651,21 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		// charIndex stays per utterance exactly as before — it is just a
 		// smaller utterance now. This is what speak() has always done.
 		const head = rest[0];
+		// Asked once per arrival at a segment, not again after the wait. A seek
+		// that lands mid-body arrives at an offset no gap is registered for, so
+		// scrubbing into a verse plays it rather than pausing first.
+		const gap = waited ? 0 : (opts.gapBefore?.(head, offset) ?? 0);
+		if (gap > 0) {
+			waiting = true;
+			report();
+			gapTimer = setTimeout(() => {
+				gapTimer = null;
+				if (stopped || paused) return;
+				playFrom(offset, { chained, attempt, waited: true });
+			}, gap);
+			return;
+		}
+		waiting = false;
 		const end = segmentEnd(segments, offset);
 		const u = new SpeechSynthesisUtterance(head);
 		u.lang = 'ko-KR';
@@ -707,6 +748,7 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		if (stopped) return;
 		stopped = true;
 		disarmWatchdog();
+		cancelGap();
 		if (ticker !== null) clearInterval(ticker);
 		if (keepalive !== null) clearInterval(keepalive);
 		releaseSynth(stop);
@@ -718,10 +760,11 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		if (stopped) return;
 		stopped = true;
 		disarmWatchdog();
+		cancelGap();
 		if (ticker !== null) clearInterval(ticker);
 		if (keepalive !== null) clearInterval(keepalive);
 		releaseSynth(stop);
-		opts.onProgress?.({ fraction: 1, elapsedMs: totalMs, totalMs });
+		opts.onProgress?.({ fraction: 1, waiting: false, elapsedMs: totalMs, totalMs });
 		opts.onEnd?.();
 	}
 
@@ -731,6 +774,7 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		if (stopped) return;
 		stopped = true;
 		disarmWatchdog();
+		cancelGap();
 		if (ticker !== null) clearInterval(ticker);
 		if (keepalive !== null) clearInterval(keepalive);
 		releaseSynth(stop);

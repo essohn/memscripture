@@ -225,3 +225,60 @@ describe('EventSection — 전체 듣기', () => {
 		expect(screen.queryByText('창세기 28 : 14')).toBeNull();
 	});
 });
+
+describe('EventSection header players', () => {
+	const withVerses: EventCardVM = {
+		...card,
+		verses: [{ cite: '창세기 28 : 14', w: '네 자손이 땅의 티끌 같이 되어' }]
+	};
+
+	beforeEach(async () => {
+		await db.delete();
+		await db.open();
+		// The buttons only exist where speech does.
+		vi.stubGlobal('speechSynthesis', {
+			speaking: false,
+			pending: false,
+			paused: false,
+			getVoices: () => [],
+			speak() {},
+			cancel() {},
+			resume() {}
+		});
+		vi.stubGlobal(
+			'SpeechSynthesisUtterance',
+			class {
+				text: string;
+				constructor(text: string) {
+					this.text = text;
+				}
+			}
+		);
+	});
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('offers 따라 읽기 beside 전체 듣기', () => {
+		render(EventSection, { props: { events: [withVerses] } });
+		expect(screen.getByLabelText(/전체 듣기/)).toBeInTheDocument();
+		expect(screen.getByLabelText(/따라 읽기/)).toBeInTheDocument();
+	});
+
+	/*
+	 * The quiz kept its full-width button under the stats on the home page.
+	 * What went is the unnamed sword icon in this header, which reached the
+	 * same screen and which nobody could have guessed at.
+	 */
+	it('no longer carries the quiz in the header', () => {
+		render(EventSection, { props: { events: [withVerses] } });
+		expect(screen.queryByLabelText(/퀴즈/)).toBeNull();
+	});
+
+	// One synthesizer, so one list at a time: the two buttons must not both
+	// read as running.
+	it('lights only the player that is actually going', async () => {
+		render(EventSection, { props: { events: [withVerses] } });
+		await fireEvent.click(screen.getByLabelText(/따라 읽기$/));
+		expect(screen.getByLabelText(/따라 읽기 정지/)).toBeInTheDocument();
+		expect(screen.queryByLabelText(/듣기 정지/)).toBeNull();
+	});
+});

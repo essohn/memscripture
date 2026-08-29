@@ -1,5 +1,6 @@
 import {
 	buildPlaylist,
+	reciteGap,
 	trackAt,
 	type Playlist,
 	type PlaylistTrack,
@@ -21,7 +22,12 @@ import {
 // Frozen: $state skips proxying a frozen object rather than wrapping it, and
 // freezing turns an accidental `player.progress.fraction = x` from silent
 // corruption of every future instance's idle state into a thrown error.
-const IDLE: PlayerProgress = Object.freeze({ fraction: 0, elapsedMs: 0, totalMs: 0 });
+const IDLE: PlayerProgress = Object.freeze({
+	fraction: 0,
+	waiting: false,
+	elapsedMs: 0,
+	totalMs: 0
+});
 
 /**
  * One reading of one list.
@@ -50,6 +56,10 @@ export class PlaylistPlayer {
 	#opts = $state<SpeakOptionsStored>({ ...SPEAK_DEFAULTS });
 
 	#openId = $state<string | null>(null);
+	/** 따라 읽기: a silence before each verse, long enough to say it first.
+	 *  Kept on the player because seeking and resuming rebuild the engine and
+	 *  have to rebuild it in the same mode. */
+	#recite = false;
 	#playing = $state(false);
 	/** The device would not speak at all. Kept so the bar can say so instead of
 	 *  sitting there having quietly given up. */
@@ -61,6 +71,11 @@ export class PlaylistPlayer {
 
 	get failed(): boolean {
 		return this.#failed;
+	}
+	/** In 따라 읽기's silence rather than reading. The bar says so, because it
+	 *  has no characters to follow through one. */
+	get waiting(): boolean {
+		return this.#progress.waiting;
 	}
 	get playing(): boolean {
 		return this.#playing;
@@ -123,9 +138,10 @@ export class PlaylistPlayer {
 	 * Do NOT make this async. Everything it needs is already in memory
 	 * precisely so that the path from tap to speak() has no await in it.
 	 */
-	start(id: string, verses: PlaylistVerse[]): void {
+	start(id: string, verses: PlaylistVerse[], opts: { recite?: boolean } = {}): void {
 		const list = buildPlaylist(verses, { includeTitle: this.#opts.speakTitle });
 		if (list.tracks.length === 0) return;
+		this.#recite = opts.recite ?? false;
 		this.#handle?.stop();
 		this.#progress = IDLE;
 		if (!this.#play(list, 0)) return;
@@ -223,6 +239,7 @@ export class PlaylistPlayer {
 			repeat: this.#opts.speakListRepeat,
 			onProgress: (p) => (this.#progress = p),
 			onFailure: () => (this.#failed = true),
+			gapBefore: this.#recite ? reciteGap(list.bodyStarts, this.#opts.speakRate) : undefined,
 			onEnd: () => {
 				// Reached both when the list finishes and when another playback
 				// relieves this one. Either way the bar stays open, showing where

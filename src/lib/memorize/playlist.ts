@@ -9,7 +9,7 @@
  * one is being read.
  */
 
-import { speechSegments } from './speak';
+import { bodyToSpeech, estimateDurationMs, speechSegments } from './speak';
 
 export interface PlaylistVerse {
 	title?: string;
@@ -29,6 +29,10 @@ export interface PlaylistTrack {
 export interface Playlist {
 	/** Handed to createPlayer() unchanged. */
 	segments: string[];
+	/** The character each verse's body starts at, for a mode that wants to
+	 *  leave a silence in front of it. Empty for verses that are citation
+	 *  only — there is nothing to recite, so there is nothing to wait for. */
+	bodyStarts: number[];
 	tracks: PlaylistTrack[];
 	/** Sum of segment lengths — the denominator a progress fraction is of.
 	 *  Deliberately the same unit createPlayer's totalChars() computes, so an
@@ -42,6 +46,7 @@ export function buildPlaylist(
 ): Playlist {
 	const segments: string[] = [];
 	const tracks: PlaylistTrack[] = [];
+	const bodyStarts: number[] = [];
 	let start = 0;
 
 	for (const verse of verses) {
@@ -52,11 +57,17 @@ export function buildPlaylist(
 		// which would show as a blank label mid-playback.
 		if (length === 0) continue;
 		segments.push(...segs);
+		// The body is always the last segment when there is one — speechSegments
+		// pushes it after the title and the citation — so everything before it
+		// is what stands between the track's start and the body's.
+		if (bodyToSpeech(verse.w)) {
+			bodyStarts.push(start + segs.slice(0, -1).reduce((n, seg) => n + seg.length, 0));
+		}
 		tracks.push({ cite: verse.cite, title: verse.title, start, length });
 		start += length;
 	}
 
-	return { segments, tracks, chars: start };
+	return { segments, tracks, bodyStarts, chars: start };
 }
 
 /**
@@ -78,4 +89,32 @@ export function trackAt(
 		if (offset >= list.tracks[i].start) return { index: i, track: list.tracks[i] };
 	}
 	return { index: 0, track: list.tracks[0] };
+}
+
+/**
+ * How much longer than the reading the silence runs.
+ *
+ * Recalling a verse is slower than reading one off a page: the first words
+ * come at once and the last are still being found. At exactly the spoken
+ * length the voice comes back over the reader mid-sentence, which teaches them
+ * to rush. A fifth is enough to finish on and short enough that the wait never
+ * feels like the app has stopped.
+ */
+const RECITE_GAP_RATIO = 1.2;
+
+/**
+ * The silence 따라 읽기 leaves in front of each verse.
+ *
+ * Shaped for createPlayer's `gapBefore`: it is asked about every segment and
+ * answers only for the ones a body starts at, so citations and titles play
+ * straight through. Measured in the reader's own reading speed — slowing the
+ * voice lengthens the room to recite along with it.
+ */
+export function reciteGap(
+	bodyStarts: number[],
+	rate: number
+): (text: string, offset: number) => number {
+	const starts = new Set(bodyStarts);
+	return (text, offset) =>
+		starts.has(offset) ? Math.round(estimateDurationMs(text, rate) * RECITE_GAP_RATIO) : 0;
 }

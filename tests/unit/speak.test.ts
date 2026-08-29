@@ -458,6 +458,60 @@ describe('a voice that takes an utterance and never speaks it', () => {
 	});
 });
 
+describe('a silence before a segment', () => {
+	beforeEach(() => vi.useFakeTimers());
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		vi.useRealTimers();
+		forgetDeadVoices();
+	});
+
+	// '장절' is two characters, so the body begins at offset 2.
+	const gapOnBody = (_text: string, offset: number) => (offset === 2 ? 1000 : 0);
+
+	it('holds the segment back for as long as it was asked to', () => {
+		const { spoken } = installVoiceSynth([]);
+		createPlayer(['장절', '본문'], { gapBefore: gapOnBody });
+		expect(spoken.map((u) => u.text)).toEqual(['장절']);
+		spoken[0].onend?.();
+		expect(spoken.map((u) => u.text)).toEqual(['장절']);
+		vi.advanceTimersByTime(1000);
+		expect(spoken.map((u) => u.text)).toEqual(['장절', '본문']);
+	});
+
+	// The bar has no characters to follow through a silence, so it says what is
+	// happening instead of looking stuck.
+	it('reports that it is waiting, and stops when the verse begins', () => {
+		const { spoken } = installVoiceSynth([]);
+		const onProgress = vi.fn();
+		createPlayer(['장절', '본문'], { onProgress, gapBefore: gapOnBody });
+		spoken[0].onend?.();
+		onProgress.mockClear();
+		vi.advanceTimersByTime(400);
+		expect(onProgress.mock.calls.at(-1)?.[0].waiting).toBe(true);
+		vi.advanceTimersByTime(1000);
+		expect(onProgress.mock.calls.at(-1)?.[0].waiting).toBe(false);
+	});
+
+	it('leaves a segment with no gap alone', () => {
+		const { spoken } = installVoiceSynth([]);
+		createPlayer(['장절', '본문'], {});
+		spoken[0].onend?.();
+		expect(spoken.map((u) => u.text)).toEqual(['장절', '본문']);
+	});
+
+	// A silence is a stretch of playback like any other: closing the bar during
+	// one must not have the verse arrive a second later out of nowhere.
+	it('does not speak after being stopped mid-silence', () => {
+		const { spoken } = installVoiceSynth([]);
+		const player = createPlayer(['장절', '본문'], { gapBefore: gapOnBody });
+		spoken[0].onend?.();
+		player?.stop();
+		vi.advanceTimersByTime(3000);
+		expect(spoken.map((u) => u.text)).toEqual(['장절']);
+	});
+});
+
 describe('pickKoreanVoice exclusions', () => {
 	const VOICES = [
 		{ name: 'Google 한국의', lang: 'ko-KR' },

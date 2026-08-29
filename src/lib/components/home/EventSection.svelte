@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CalendarCheck, Download, Play, Square, Swords } from 'lucide-svelte';
+	import { CalendarCheck, CirclePlay, Download, Play, Square } from 'lucide-svelte';
 	import { hasEventStats, type EventCardVM } from '$lib/db/events';
 	import EventExportSheet, { type SheetNotice } from './EventExportSheet.svelte';
 	import EventStats from './EventStats.svelte';
@@ -171,17 +171,36 @@
 								{/if}
 							</button>
 						{/if}
-						<!-- The quiz opens on this DAY, so the link carries which one.
-						     Same shape as statsVersesHref: the URL names the question
-						     and /quiz resolves it, rather than spelling out verse
-						     numbers that would rot the moment a rating changed. -->
-						<a
-							href="/quiz?event={encodeURIComponent(ev.eventId)}"
-							aria-label="{ev.eventTitle} 퀴즈"
-							class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
-						>
-							<Swords size={15} strokeWidth={1.75} />
-						</a>
+						{#if player.supported && ev.verses.length > 0}
+							{@const reciting = player.openId === `event:${ev.eventId}:recite`}
+							<!--
+								따라 읽기: the citation, then a silence long enough to say
+								the verse from memory, then the verse. Its own openId, so
+								the two players show which one is running rather than
+								both lighting up for one list.
+
+								This is where the quiz button used to be. The quiz already
+								has a full-width button under the stats — two ways into the
+								same screen, and the one nobody could name was this one.
+							-->
+							<button
+								type="button"
+								onclick={() =>
+									reciting
+										? player.close()
+										: player.start(`event:${ev.eventId}:recite`, ev.verses, { recite: true })}
+								aria-label="{ev.eventTitle} {reciting ? '따라 읽기 정지' : '따라 읽기'}"
+								class="inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors {reciting
+									? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+									: 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]'}"
+							>
+								{#if reciting}
+									<Square size={14} strokeWidth={2} fill="currentColor" />
+								{:else}
+									<CirclePlay size={15} strokeWidth={1.75} />
+								{/if}
+							</button>
+						{/if}
 						<button
 							type="button"
 							onclick={() => openSheet(ev)}
@@ -237,7 +256,7 @@
 			<PlaylistBar
 				playing={player.playing}
 				failed={player.failed}
-				label={player.nowPlaying?.cite ?? ''}
+				label={player.waiting ? '따라 해보세요' : (player.nowPlaying?.cite ?? '')}
 				index={player.index}
 				count={player.count}
 				fraction={player.progress.fraction}
