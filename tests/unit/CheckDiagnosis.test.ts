@@ -151,4 +151,31 @@ describe('CheckDiagnosis', () => {
 		expect(bars[0]).toHaveStyle({ height: '0%' });
 		expect(bars[1]).toHaveStyle({ height: '12%' });
 	});
+
+	// The block reads a window now, and says so. 50 bars at 3px apiece is not a
+	// sparkline, and 50 pips wrap down the sheet.
+	it('summarises its own window and names it', () => {
+		const many = Array.from({ length: 14 }, (_, i) =>
+			record({ id: `r${i}`, checkedAt: 1_000_000 - i * 1000 })
+		);
+		mount(many);
+
+		expect(screen.getByTestId('diagnosis-effort')).toHaveTextContent('최근 10회');
+		expect(screen.getAllByTestId('accuracy-bar')).toHaveLength(10);
+	});
+
+	// Newest first in, so the window is the ten most recent — not the ten
+	// oldest, which is the mistake a bare slice at the wrong end would make.
+	it('takes the newest ten, not the oldest', () => {
+		const many = [
+			...Array.from({ length: 10 }, (_, i) =>
+				record({ id: `new${i}`, checkedAt: 2_000_000 - i, accuracy: 1 })
+			),
+			record({ id: 'ancient', checkedAt: 1, accuracy: 0.42 })
+		];
+		mount(many);
+
+		const label = screen.getByLabelText(/정확도 변화:/).getAttribute('aria-label');
+		expect(label).not.toContain('42%');
+	});
 });

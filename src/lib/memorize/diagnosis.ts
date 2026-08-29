@@ -11,6 +11,18 @@ import type { CheckRecord } from '$lib/db/local';
 export const MIN_RECORDS = 2;
 
 /**
+ * How many of the records it is handed the diagnosis actually reads.
+ *
+ * The block used to read exactly the rows the list showed, with no window of
+ * its own, so a summary could never disagree with the list beneath it. That
+ * rule still holds — what changed is that HISTORY_LIMIT is 50, and fifty
+ * sparkline bars at three pixels apiece is not a chart. The block opens by
+ * naming its own scope, so 최근 10회 over a fifty-row list is a true sentence,
+ * where 최근 8회 over a five-row list would not have been.
+ */
+export const DIAGNOSIS_WINDOW = 10;
+
+/**
  * What this verse has cost so far, across the records the sheet is showing.
  *
  * `hints` floors an absent count at 0. That is a real loss of meaning —

@@ -3,6 +3,7 @@
 	import type { DifficultyLevel } from '$lib/db/verseRatings';
 	import DifficultyDot from './DifficultyDot.svelte';
 	import {
+		DIAGNOSIS_WINDOW,
 		MIN_RECORDS,
 		accuracySeries,
 		difficultyTrend,
@@ -15,7 +16,11 @@
 	interface Props {
 		/** 점검 records, newest first — the same array the sheet lists below.
 		 *  Deliberately the same, not a wider window: a summary that disagreed
-		 *  with what it summarises is worse than no summary. */
+		 *  with what it summarises is worse than no summary.
+		 *
+		 *  The block reads only the newest DIAGNOSIS_WINDOW of them and says how
+		 *  many in its first line, so a fifty-row sheet gets a ten-check summary
+		 *  that is honest about being one. */
 		records: CheckRecord[];
 		/** The verse's words, split exactly as markMismatchedWords indexes
 		 *  them, so a tint lands on the word it describes. */
@@ -23,9 +28,14 @@
 	}
 	let { records, words }: Props = $props();
 
-	const shown = $derived(records.length >= MIN_RECORDS);
-	const effort = $derived(effortTotals(records));
-	const series = $derived(accuracySeries(records));
+	/** The records this block speaks for. Newest first, as the sheet hands them
+	 *  over, so the slice takes the most recent — and the effort line names the
+	 *  count, which is what keeps the summary honest about a longer list. */
+	const shownRecords = $derived(records.slice(0, DIAGNOSIS_WINDOW));
+
+	const shown = $derived(shownRecords.length >= MIN_RECORDS);
+	const effort = $derived(effortTotals(shownRecords));
+	const series = $derived(accuracySeries(shownRecords));
 	/** `reachOf` (diagnosis.ts) approximates how far an attempt went by
 	 *  counting whitespace-delimited tokens, but `normalizeForGrading`
 	 *  (grade.ts) strips whitespace before comparing — so a correct recital
@@ -36,7 +46,7 @@
 	 *  a surrender reached the end. Making the two agree would mean feeding
 	 *  `reachOf` normalized tokens, at the cost of a word count that no
 	 *  longer matches what the reader actually typed. */
-	const heat = $derived(wordHeat(records, words.length));
+	const heat = $derived(wordHeat(shownRecords, words.length));
 
 	/** Whether the heat map actually has anything to show. A history written
 	 *  entirely before `missed` existed can still speak about effort and
@@ -49,7 +59,7 @@
 
 	/** Oldest first, so a row of pips reads the same direction as the bars
 	 *  above it and as time itself. */
-	const chronological = $derived([...records].reverse());
+	const chronological = $derived([...shownRecords].reverse());
 
 	const DIMS = [
 		{ dim: 'start' as const, label: '첫 시작' },
@@ -157,7 +167,7 @@
 		</div>
 
 		{#each DIMS as d (d.dim)}
-			{@const trend = difficultyTrend(records, d.dim)}
+			{@const trend = difficultyTrend(shownRecords, d.dim)}
 			<div class="mt-2 flex items-center gap-2">
 				<span class="w-9 shrink-0 text-[11px] text-[var(--color-text-tertiary)]">{d.label}</span>
 				<span

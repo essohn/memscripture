@@ -3,10 +3,20 @@ import type { DifficultyLevel } from './verseRatings';
 import { touchDataModified } from './touchData';
 import { todayLocalKey } from './activity';
 
-/** Entries kept per verse. Older ones are pruned as new checks land — this is
- *  a "how has it been going" glance, not an audit trail, and 900 verses times
- *  an unbounded log is not worth carrying in every sync snapshot. */
-export const HISTORY_LIMIT = 10;
+/** Entries kept per verse. Older ones are pruned as new checks land.
+ *
+ *  A cap costs nothing to a verse that has not reached it: a reader with two
+ *  hundred verses checked six times each carries the same rows at 10 as at 50.
+ *  What it costs is paid only by the verses that go past it — which are the
+ *  ones the reader has worked hardest on, and whose history is worth the most.
+ *
+ *  Measured rather than guessed at: one row with a full Korean verse in
+ *  `typed` and a 21-entry `missed` array is 455 bytes, so a 1147-verse library
+ *  with every verse at the cap would carry about 25MB. That is the ceiling
+ *  nobody reaches, and it is paid on every sync in both directions — syncFlow
+ *  downloads the whole remote snapshot and uploads the whole merged one, with
+ *  no delta. */
+export const HISTORY_LIMIT = 50;
 
 /** Characters of the attempt kept. Generous next to any real verse, so an
  *  honest attempt is never clipped — it exists so that one pathological paste
