@@ -209,3 +209,23 @@ describe('QuizTypingRound — 맞고 틀림', () => {
 		expect(screen.getByTestId('quiz-attempt')).toHaveTextContent('그들에게 율례와');
 	});
 });
+
+// The verdict was a line of small text at the foot of the card, the same size
+// as the labels above it, and it is the one thing the reader looks for.
+describe('QuizTypingRound — 판정', () => {
+	it('calls a flawless answer 정답 in a card of its own', async () => {
+		setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		const verdict = screen.getByTestId('quiz-verdict');
+		expect(verdict).toHaveTextContent('정답!');
+		expect(verdict.className).toContain('text-center');
+	});
+
+	it('sends a flawed one back to the list', async () => {
+		setup();
+		await type('아무말');
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		expect(screen.getByTestId('quiz-verdict')).toHaveTextContent('다시 볼 구절');
+	});
+});

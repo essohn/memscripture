@@ -8,6 +8,7 @@
 	import { arcade } from '$lib/state/arcade.svelte';
 	import { SPOT_HIT_POINTS, comboLimitMs } from '$lib/arcade/combo';
 	import QuizAnswer from './QuizAnswer.svelte';
+	import QuizVerdict from './QuizVerdict.svelte';
 
 	interface Props {
 		item: QuizItem;
@@ -146,13 +147,7 @@
 		<AnswerReveal reveal={answered} outcome={correct ? 'pass' : 'fail'} label="정답">
 			<QuizAnswer w={item.w} />
 		</AnswerReveal>
-		<p
-			class="mt-3 text-[calc(13px*var(--vfs))] font-medium {correct
-				? ''
-				: 'text-[var(--color-danger)]'}"
-		>
-			{correct ? '맞았습니다' : '다시 볼 구절'}
-		</p>
+		<QuizVerdict passed={correct} />
 		<button
 			bind:this={nextButton}
 			type="button"

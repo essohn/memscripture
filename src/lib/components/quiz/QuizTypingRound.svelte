@@ -3,6 +3,7 @@
 	import { submitsOnEnter } from '$lib/memorize/typing';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
 	import QuizAnswer from './QuizAnswer.svelte';
+	import QuizVerdict from './QuizVerdict.svelte';
 	import AnswerReveal from '$lib/components/arcade/AnswerReveal.svelte';
 	import QuizAttempt from './QuizAttempt.svelte';
 	import ComboBadge from '$lib/components/arcade/ComboBadge.svelte';
@@ -109,13 +110,7 @@
 		<AnswerReveal reveal={verdict !== null} outcome={verdict.passed ? 'pass' : 'fail'} label="정답">
 			<QuizAnswer w={item.w} />
 		</AnswerReveal>
-		<p
-			class="mt-3 text-[calc(13px*var(--vfs))] font-medium {verdict.passed
-				? ''
-				: 'text-[var(--color-danger)]'}"
-		>
-			{verdict.passed ? '통과' : '다시 볼 구절'}
-		</p>
+		<QuizVerdict passed={verdict.passed} />
 		<button
 			type="button"
 			onclick={next}
