@@ -12,6 +12,7 @@
 	import { summarize, type ItemRating, type QuizItem, type RoundResult } from '$lib/quiz/session';
 	import { recordCheck } from '$lib/db/checkHistory';
 	import { NO_COMBO, comboHit, comboMiss, type ComboState } from '$lib/arcade/combo';
+	import { spotShown } from '$lib/quiz/spot';
 	import { arcade } from '$lib/state/arcade.svelte';
 	import { todayLocalKey } from '$lib/db/activity';
 
@@ -49,6 +50,21 @@
 	 * this game" and never mixes two scales.
 	 */
 	let combo = $state<ComboState>(NO_COMBO);
+
+	/**
+	 * The sentence each 자주 틀리는 곳 찾기 round shows, drawn once when the run
+	 * starts.
+	 *
+	 * The queue only picks verses it has a recorded attempt for, so showing the
+	 * attempt every time made 이상 있음 right in every round — a reader who
+	 * noticed could clear a session without reading a word. Half of them now
+	 * show the verse intact.
+	 *
+	 * Drawn here rather than in the round because a component would roll again
+	 * on every re-render, and the sentence would change under the reader while
+	 * they were deciding about it.
+	 */
+	let shownById = $state<Map<string, string>>(new Map());
 
 	/** Rounds whose result could not be stored. The run continues either way —
 	 *  the reader is mid-quiz — but a silent total failure is how this feature
@@ -150,6 +166,9 @@
 		results = [];
 		unsaved = 0;
 		combo = NO_COMBO;
+		// Re-drawn per run, so 다시 하기 is a different set of questions rather
+		// than the same ones with the answers already known.
+		shownById = new Map(picked.map((i) => [i.id, spotShown(i.w, attempts.get(i.id))]));
 		arcade.play('select');
 	}
 
@@ -233,18 +252,21 @@
 		     or leaving the page. Kept small and above the card so they are
 		     reachable without being in the way of the game — 나가기 goes back to
 		     the picker, 다시 starts these same verses over. -->
-		<div class="mb-2 flex justify-end gap-1">
+		<div class="mb-2 flex justify-end gap-2">
+			<!-- Surfaced rather than left as bare text: they were 12px labels in
+			     the secondary colour, which is what this app uses for captions,
+			     and a way out of a run should not have to be looked for. -->
 			<button
 				type="button"
 				onclick={again}
-				class="rounded-lg px-2.5 py-1 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)]"
+				class="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 text-[14px] font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-elevated)]"
 			>
 				다시
 			</button>
 			<button
 				type="button"
 				onclick={close}
-				class="rounded-lg px-2.5 py-1 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)]"
+				class="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 text-[14px] font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-elevated)]"
 			>
 				나가기
 			</button>
@@ -265,7 +287,7 @@
 			{:else if game === 'spot'}
 				<QuizSpotRound
 					item={queue[index]}
-					shown={attempts.get(queue[index].id) ?? queue[index].w}
+					shown={shownById.get(queue[index].id) ?? queue[index].w}
 					{index}
 					total={queue.length}
 					streak={combo.streak}

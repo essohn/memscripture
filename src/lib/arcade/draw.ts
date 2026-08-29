@@ -29,14 +29,21 @@ export function drawSprite(
 	px: number,
 	cx: number,
 	cy: number,
-	colour: string
+	colour: string | Record<string, string>
 ) {
 	const w = (rows[0]?.length ?? 0) * px;
 	const h = rows.length * px;
-	ctx.fillStyle = colour;
+	// A single colour paints every set block, which is all a silhouette needs.
+	// A map paints each character its own — a fuse, a cap and a lit highlight
+	// are what stop a round body from reading as a blob.
+	const paint = typeof colour === 'string' ? null : colour;
 	for (let r = 0; r < rows.length; r++) {
 		for (let c = 0; c < rows[r].length; c++) {
-			if (rows[r][c] !== 'X') continue;
+			const ch = rows[r][c];
+			if (ch === '.') continue;
+			const fill = paint ? paint[ch] : ch === 'X' ? (colour as string) : undefined;
+			if (!fill) continue;
+			ctx.fillStyle = fill;
 			ctx.fillRect(Math.round(cx - w / 2 + c * px), Math.round(cy - h / 2 + r * px), px, px);
 		}
 	}

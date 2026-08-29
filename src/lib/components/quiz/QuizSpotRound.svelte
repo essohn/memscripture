@@ -123,17 +123,36 @@
 			>{' '}{/each}
 	</p>
 
+	<!-- One control row, in one place: two choices while the round is live, 다음
+	     once it is answered, all the same height. Everything the answer adds
+	     goes below it, so nothing the reader is about to press moves. -->
 	{#if answered}
+		<button
+			bind:this={nextButton}
+			type="button"
+			onclick={next}
+			class="mt-3 w-full rounded-xl bg-[var(--color-accent)] py-2.5 font-medium text-white"
+		>
+			다음
+		</button>
+
+		<QuizVerdict passed={correct} />
+		<AnswerReveal reveal={answered} outcome={correct ? 'pass' : 'fail'} label="정답">
+			<QuizAnswer w={item.w} />
+		</AnswerReveal>
+
 		{#if showDropped}
 			<!-- Nothing on screen was wrong, so nothing on screen can be marked.
 			     What the reader has to see is the sentence they should have
 			     written, with the dropped words called out in it. -->
-			<p class="mt-3 text-[10.5px] font-medium uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
+			<p
+				class="mt-3 text-[10.5px] font-medium tracking-[0.16em] text-[var(--color-text-tertiary)] uppercase"
+			>
 				빠진 단어
 			</p>
 			<p
 				data-testid="dropped-words"
-				class="mt-1 text-[calc(15px*var(--vfs))] leading-[1.8] break-keep"
+				class="mt-1 text-[calc(12px*var(--vfs))] leading-[1.55] break-keep"
 			>
 				{#each verseWords as m, i (i)}<span
 						class={m.ok
@@ -143,19 +162,6 @@
 					>{' '}{/each}
 			</p>
 		{/if}
-
-		<AnswerReveal reveal={answered} outcome={correct ? 'pass' : 'fail'} label="정답">
-			<QuizAnswer w={item.w} />
-		</AnswerReveal>
-		<QuizVerdict passed={correct} />
-		<button
-			bind:this={nextButton}
-			type="button"
-			onclick={next}
-			class="mt-2 w-full rounded-xl bg-[var(--color-accent)] py-2.5 font-medium text-white"
-		>
-			다음
-		</button>
 	{:else}
 		<div class="mt-3 flex gap-2">
 			<button

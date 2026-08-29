@@ -71,11 +71,7 @@ async function startSpotRun() {
 }
 
 describe('quiz/+page.svelte — 틀린 곳 찾기 attempts', () => {
-	// The round used to mount immediately on 시작 and have `shown` swapped
-	// underneath it once the attempts read resolved. Now attempts arrive with
-	// the scope, before 시작 is even enabled, so the round mounts once,
-	// already holding the right text.
-	it('shows the recorded attempt rather than the intact verse', async () => {
+	function withAttempt() {
 		resolveTargetMock.mockResolvedValue({
 			items: [verse],
 			ratings: HARD,
@@ -84,11 +80,40 @@ describe('quiz/+page.svelte — 틀린 곳 찾기 attempts', () => {
 				['a_krv:1', '또 증거는 이것이니 하나님이 우리에게 영생은 주신 것이라']
 			])
 		});
+	}
 
-		await startSpotRun();
+	// The round used to mount immediately on 시작 and have `shown` swapped
+	// underneath it once the attempts read resolved. Now attempts arrive with
+	// the scope, before 시작 is even enabled, so the round mounts once,
+	// already holding the right text.
+	//
+	// Which of the two texts it holds is a coin, so the coin is held still
+	// here: a test that let it fall would pass about half the time, which is
+	// worse than no test.
+	it('shows the recorded attempt when the draw calls for it', async () => {
+		withAttempt();
+		vi.spyOn(Math, 'random').mockReturnValue(0.99);
+		try {
+			await startSpotRun();
+			await waitFor(() => expect(screen.getByText('영생은')).toBeInTheDocument());
+			expect(screen.queryByText('영생을')).toBeNull();
+		} finally {
+			vi.mocked(Math.random).mockRestore();
+		}
+	});
 
-		await waitFor(() => expect(screen.getByText('영생은')).toBeInTheDocument());
-		expect(screen.queryByText('영생을')).toBeNull();
+	// The queue only picks verses it has an attempt for, so showing the attempt
+	// every time made 이상 있음 the right answer in every round.
+	it('shows the verse intact when the draw calls for that', async () => {
+		withAttempt();
+		vi.spyOn(Math, 'random').mockReturnValue(0.01);
+		try {
+			await startSpotRun();
+			await waitFor(() => expect(screen.getByText('영생을')).toBeInTheDocument());
+			expect(screen.queryByText('영생은')).toBeNull();
+		} finally {
+			vi.mocked(Math.random).mockRestore();
+		}
 	});
 });
 
