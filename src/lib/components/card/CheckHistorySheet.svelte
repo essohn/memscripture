@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { X } from 'lucide-svelte';
 	import type { CheckRecord } from '$lib/db/local';
-	import { DIFFICULTY_COLORS, type DifficultyLevel } from '$lib/db/verseRatings';
+	import type { DifficultyLevel } from '$lib/db/verseRatings';
 	import { relativeTimeKo, shortDateKo } from '$lib/utils/relativeTime';
+	import DifficultyDot from './DifficultyDot.svelte';
 
 	interface Props {
 		/** The verse this history belongs to, for the sheet's own title. */
@@ -71,8 +72,8 @@
 						>{relativeTimeKo(h.checkedAt, now)}</span
 					>
 					<span class="ml-auto flex items-center gap-1.5">
-						{@render level('첫 시작 난이도', h.start as DifficultyLevel | null)}
-						{@render level('전체 암송 난이도', h.full as DifficultyLevel | null)}
+						<DifficultyDot label="첫 시작 난이도" value={h.start as DifficultyLevel | null} />
+						<DifficultyDot label="전체 암송 난이도" value={h.full as DifficultyLevel | null} />
 					</span>
 				</div>
 
@@ -108,19 +109,3 @@
 		{/each}
 	</ul>
 </div>
-
-<!-- role="img" rather than a bare span: the colour and the digit together are
-     the whole message, and a span's aria-label is not guaranteed to be read.
-     Not a button — this is what the rating *was*, not a control to change it. -->
-{#snippet level(label: string, value: DifficultyLevel | null)}
-	<span
-		role="img"
-		aria-label="{label} {value ?? '없음'}"
-		style={value === null
-			? 'border: 1.5px dashed var(--color-border); color: var(--color-text-tertiary);'
-			: `background-color: ${DIFFICULTY_COLORS[value]}; color: white;`}
-		class="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold tabular-nums"
-	>
-		{value ?? '—'}
-	</span>
-{/snippet}
