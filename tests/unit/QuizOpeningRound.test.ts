@@ -434,3 +434,37 @@ describe('QuizOpeningRound moving on', () => {
 		}
 	});
 });
+
+// A rating that changes in the background is one the reader has to go and look
+// up to trust. The round says so where it happened.
+describe('QuizOpeningRound — 난이도 하락', () => {
+	it('shows the step it just cost the verse', async () => {
+		render(QuizOpeningRound, { item, index: 0, total: 3, rating: 3, onDone: vi.fn() });
+		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
+		expect(screen.getByTestId('rating-drop')).toBeInTheDocument();
+		expect(screen.getByTestId('rating-drop-to')).toHaveTextContent('2');
+	});
+
+	it('says nothing when the round was passed', async () => {
+		render(QuizOpeningRound, { item, index: 0, total: 3, rating: 3, onDone: vi.fn() });
+		await fireEvent.input(screen.getByRole('textbox'), { target: { value: OPENING } });
+		expect(screen.queryByTestId('rating-drop')).toBeNull();
+	});
+
+	// Impossible is the bottom of the scale: there is nothing to show and
+	// nothing to write.
+	it('says nothing when the verse is already at the bottom', async () => {
+		render(QuizOpeningRound, { item, index: 0, total: 3, rating: 0, onDone: vi.fn() });
+		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
+		expect(screen.queryByTestId('rating-drop')).toBeNull();
+	});
+
+	// An unrated verse has no step to come down from, so it starts where the
+	// scale says nothing either way.
+	it('moves an unrated verse off 미평가', async () => {
+		render(QuizOpeningRound, { item, index: 0, total: 3, rating: null, onDone: vi.fn() });
+		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
+		expect(screen.getByTestId('rating-drop')).toHaveTextContent('미평가');
+		expect(screen.getByTestId('rating-drop-to')).toHaveTextContent('2');
+	});
+});
