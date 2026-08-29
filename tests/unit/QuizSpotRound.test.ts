@@ -181,7 +181,9 @@ describe('QuizSpotRound — the verse itself', () => {
 
 	it('does not give it away before the answer is in', () => {
 		setup(FLAWED);
-		expect(screen.queryByTestId('quiz-answer')).toBeNull();
+		// The rail is always in the layout so the round's height never changes;
+		// what must not be there yet is the line in it.
+		expect(screen.queryByTestId('quiz-answer-line')).toBeNull();
 	});
 });
 
@@ -240,15 +242,19 @@ describe('QuizSpotRound — 콤보', () => {
 });
 
 describe('QuizSpotRound — 판정', () => {
-	it('calls a right call 정답', async () => {
+	// This game has no board of its own, so the sentence is the board and the
+	// stamp lands on it. The words are the only place the result is spoken.
+	it('speaks a right call as 정답, and stamps the sentence', async () => {
 		setup(FLAWED);
 		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
-		expect(screen.getByTestId('quiz-verdict')).toHaveTextContent('정답!');
+		expect(screen.getByRole('status')).toHaveTextContent('정답입니다');
+		expect(screen.getByTestId('correct-stamp')).toBeInTheDocument();
 	});
 
-	it('sends a wrong call back to the list', async () => {
+	it('speaks a wrong call as one to come back to', async () => {
 		setup(FLAWED);
 		await fireEvent.click(screen.getByRole('button', { name: '이상 없음' }));
-		expect(screen.getByTestId('quiz-verdict')).toHaveTextContent('다시 볼 구절');
+		expect(screen.getByRole('status')).toHaveTextContent('다시 볼 구절입니다');
+		expect(screen.getByTestId('wrong-stamp')).toBeInTheDocument();
 	});
 });

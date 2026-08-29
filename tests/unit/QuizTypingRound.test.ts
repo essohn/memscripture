@@ -75,7 +75,7 @@ describe('QuizTypingRound', () => {
 		setup();
 		await type(VERSE.replace('법도를', '법을'));
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		const wrong = screen.getByTestId('quiz-attempt').querySelector('.wrong');
+		const wrong = screen.getByTestId('quiz-attempt-line').querySelector('.wrong');
 		expect(wrong?.textContent?.trim()).toBe('법을');
 	});
 
@@ -150,18 +150,13 @@ describe('QuizTypingRound — the verse itself', () => {
 
 	it('does not give it away before the answer is in', () => {
 		setup();
-		expect(screen.queryByTestId('quiz-answer')).toBeNull();
+		// The rail is always in the layout so the round's height never changes;
+		// what must not be there yet is the line in it.
+		expect(screen.queryByTestId('quiz-answer-line')).toBeNull();
 	});
 });
 
 describe('QuizTypingRound — 점수', () => {
-	it('puts a wall over the answer', async () => {
-		setup();
-		await type('틀린 답');
-		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		expect(screen.getByTestId('answer-wall')).toBeInTheDocument();
-	});
-
 	// Reciting a whole verse without a slip is the hardest thing the quiz asks,
 	// so it is the biggest thing it pays.
 	it('pays for a flawless recitation', async () => {
@@ -194,15 +189,18 @@ describe('QuizTypingRound — 맞고 틀림', () => {
 		return handles;
 	}
 
-	it('holds the wall and stamps it on a miss', async () => {
+	// The stamp used to land on a wall over 정답, whose job was to hide that
+	// answer until the round was over. 정답 is a ticker now and nothing is
+	// hidden, so the stamp moved onto the board — where the reader is already
+	// looking, and where the bomb has just gone off or been made safe.
+	it('stamps the board Wrong on a miss', async () => {
 		await answerWith('아무말');
-		expect(screen.getByTestId('answer-wall')).toHaveAttribute('data-outcome', 'fail');
 		expect(screen.getByTestId('wrong-stamp')).toBeInTheDocument();
+		expect(screen.queryByTestId('correct-stamp')).toBeNull();
 	});
 
-	it('stamps a flawless one Correct and then breaks the wall', async () => {
+	it('stamps it Correct on a flawless one', async () => {
 		await answerWith(VERSE);
-		expect(screen.getByTestId('answer-wall')).toHaveAttribute('data-outcome', 'pass');
 		expect(screen.getByTestId('correct-stamp')).toHaveTextContent('Correct!');
 		expect(screen.queryByTestId('wrong-stamp')).toBeNull();
 	});
@@ -221,7 +219,7 @@ describe('QuizTypingRound — 맞고 틀림', () => {
 		// own words — every word of the verse, marked — which contains any
 		// prefix of it and so passed a substring check while showing the reader
 		// text they never wrote.
-		expect(screen.getByTestId('quiz-attempt').textContent?.trim()).toBe('그들에게 율례와');
+		expect(screen.getByTestId('quiz-attempt-line').textContent?.trim()).toBe('그들에게 율례와');
 	});
 
 	// The reported defect. markMismatchedWords only asks whether each *verse*
@@ -234,7 +232,7 @@ describe('QuizTypingRound — 맞고 틀림', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
 		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: false }));
 
-		const wrong = screen.getByTestId('quiz-attempt').querySelectorAll('.wrong');
+		const wrong = screen.getByTestId('quiz-attempt-line').querySelectorAll('.wrong');
 		expect([...wrong].map((w) => w.textContent)).toEqual(['아멘']);
 	});
 
@@ -243,7 +241,7 @@ describe('QuizTypingRound — 맞고 틀림', () => {
 	// about it was marked.
 	it('marks a word the reader typed twice', async () => {
 		await answerWith(VERSE.replace('그들에게 율례와', '그들에게 그들에게 율례와'));
-		const wrong = screen.getByTestId('quiz-attempt').querySelectorAll('.wrong');
+		const wrong = screen.getByTestId('quiz-attempt-line').querySelectorAll('.wrong');
 		expect(wrong.length).toBeGreaterThan(0);
 	});
 });
@@ -251,23 +249,22 @@ describe('QuizTypingRound — 맞고 틀림', () => {
 // The verdict was a line of small text at the foot of the card, the same size
 // as the labels above it, and it is the one thing the reader looks for.
 describe('QuizTypingRound — 판정', () => {
-	it('calls a flawless answer 정답 in a card of its own', async () => {
+	// The card that said 정답! is gone — the board and the stamp say it, and a
+	// rectangle above the button was one more thing between the reader and it.
+	// The words remain for anyone who has neither: this is now the only place
+	// the result is spoken.
+	it('speaks the verdict for a reader who cannot see the board', async () => {
 		setup();
 		await type(VERSE);
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		const verdict = screen.getByTestId('quiz-verdict');
-		expect(verdict).toHaveTextContent('정답!');
-		expect(verdict.className).toContain('text-center');
-		// Square, so it is not mistaken for the button under it: the eye sorts a
-		// card from a control by its corners before it reads either.
-		expect(verdict.className).not.toContain('rounded');
+		expect(screen.getByRole('status')).toHaveTextContent('정답입니다');
 	});
 
-	it('sends a flawed one back to the list', async () => {
+	it('speaks a miss as one', async () => {
 		setup();
 		await type('아무말');
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		expect(screen.getByTestId('quiz-verdict')).toHaveTextContent('다시 볼 구절');
+		expect(screen.getByRole('status')).toHaveTextContent('다시 볼 구절입니다');
 	});
 });
 
@@ -308,7 +305,7 @@ describe('QuizTypingRound — 시한폭탄', () => {
 			await fireEvent.click(screen.getByRole('button', { name: '다음' }));
 			expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: false }));
 			// What they had is still theirs, and still on screen.
-			expect(screen.getByTestId('quiz-attempt').textContent?.trim()).toBe('그들에게 율례와');
+			expect(screen.getByTestId('quiz-attempt-line').textContent?.trim()).toBe('그들에게 율례와');
 		} finally {
 			vi.useRealTimers();
 		}

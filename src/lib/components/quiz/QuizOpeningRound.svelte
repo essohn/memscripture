@@ -4,12 +4,10 @@
 	import { submitsOnEnter } from '$lib/memorize/typing';
 	import { OPENING_GAME_WORDS } from '$lib/quiz/games';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
-	import QuizAnswer from './QuizAnswer.svelte';
-	import QuizVerdict from './QuizVerdict.svelte';
+	import QuizTicker from './QuizTicker.svelte';
 	import RaidStage from '$lib/components/arcade/RaidStage.svelte';
 	import ComboBadge from '$lib/components/arcade/ComboBadge.svelte';
-	import AnswerReveal from '$lib/components/arcade/AnswerReveal.svelte';
-	import QuizAttempt from './QuizAttempt.svelte';
+	import OutcomeStamp from '$lib/components/arcade/OutcomeStamp.svelte';
 	import { arcade } from '$lib/state/arcade.svelte';
 	import { RAID_LIMIT_MS, raidPhase, raidRemainingMs, raidScore } from '$lib/arcade/raid';
 
@@ -173,22 +171,32 @@
 	</div>
 	<p class="mt-0.5 text-[calc(14px*var(--vfs))] text-[var(--color-text-secondary)]">{item.cite}</p>
 
-	<RaidStage {startedAt} {outcome} />
+	<!-- 정답 above the board and 입력한 내용 below it, each one line high
+	     whatever the verse is. Both rails are always here, empty while the
+	     round runs, so the answer landing changes nothing about the layout. -->
+	<QuizTicker testid="quiz-answer" label="정답" text={done ? item.w : ''} />
 
-	<!-- The clock in words, for a reader who cannot see the raider. Polite
-	     rather than assertive: it changes every second, and an assertive
-	     region would talk over the reader's own typing. -->
+	<div class="relative">
+		<RaidStage {startedAt} {outcome} />
+		{#if done}
+			<OutcomeStamp outcome={gaveUp ? 'fail' : 'pass'} />
+		{/if}
+	</div>
+
+	<QuizTicker testid="quiz-attempt" label="입력한 내용" text={done ? typed : ''} />
+
+	<!-- The verdict in words. The board and the stamp say it on screen; this is
+	     for a reader who has neither, and it is the only place the result is
+	     spoken now that the card has gone. -->
 	<p class="sr-only" role="status" aria-live="polite">
-		{done ? '' : `${secondsLeft}초 남았습니다`}
+		{done ? (gaveUp ? '다시 볼 구절입니다' : '정답입니다') : `${secondsLeft}초 남았습니다`}
 	</p>
 
 	<!-- One line, because the answer is three words. A textarea also spends
 	     Enter on a newline, and here Enter is 다음.
 	     Kept in the layout once the round is graded rather than removed: the
 	     button under it is where the reader's thumb already is, and taking the
-	     box away moved that button up under their finger. Hidden, disabled and
-	     out of the tab order — what was typed in it is shown back below, and an
-	     editable box under a verdict invites an edit that changes nothing. -->
+	     box away moved that button up under their finger. -->
 	<input
 		bind:this={inputEl}
 		bind:value={typed}
@@ -201,13 +209,11 @@
 		autocapitalize="off"
 		spellcheck="false"
 		class="mt-3 w-full rounded-xl bg-[var(--color-elevated)] px-3 py-2.5 text-[calc(16px*var(--vfs))] text-[var(--color-text)] {done
-				? 'invisible'
+			? 'invisible'
 			: ''}"
 	/>
 
-	<!-- One control, in one place. Two buttons swapped in and out were the same
-	     size but not the same element, and everything the answer added pushed
-	     the second one down the card. -->
+	<!-- One control, in one place. -->
 	<button
 		bind:this={nextButton}
 		type="button"
@@ -219,23 +225,11 @@
 		{done ? '다음' : '모르겠어요'}
 	</button>
 
-	{#if done}
-		<QuizVerdict passed={!gaveUp} />
-		{#if gaveUp}
-			<!-- The three words the round actually asked for. 정답 below has the
-			     whole verse, which is more than the question was. -->
-			<p
-				class="mt-3 text-[10.5px] font-medium tracking-[0.16em] text-[var(--color-text-tertiary)] uppercase"
-			>
-				첫 세 단어
-			</p>
-			<p class="mt-1 text-[calc(13px*var(--vfs))] font-medium text-[var(--color-text)]">
-				{opening}
-			</p>
-		{/if}
-		<AnswerReveal reveal={done} outcome={gaveUp ? 'fail' : 'pass'} label="정답">
-			<QuizAnswer w={item.w} />
-		</AnswerReveal>
-		<QuizAttempt {typed} />
+	{#if gaveUp}
+		<!-- The three words the round actually asked for. 정답 above has the
+		     whole verse, which is more than the question was. -->
+		<p class="mt-2 text-[calc(12px*var(--vfs))] text-[var(--color-text-secondary)]">
+			첫 세 단어 · <span class="font-semibold text-[var(--color-text)]">{opening}</span>
+		</p>
 	{/if}
 </div>

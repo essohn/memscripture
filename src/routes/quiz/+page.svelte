@@ -14,6 +14,7 @@
 	import { NO_COMBO, comboHit, comboMiss, type ComboState } from '$lib/arcade/combo';
 	import { spotShown } from '$lib/quiz/spot';
 	import { arcade } from '$lib/state/arcade.svelte';
+	import { fontScale } from '$lib/state/fontScale.svelte';
 	import { todayLocalKey } from '$lib/db/activity';
 
 	let targets = $state<Target[]>([]);
@@ -115,6 +116,11 @@
 		// The sound preference, read once for the whole run. A round that had to
 		// wait on storage before it could make a noise would make it late.
 		void arcade.load();
+		// --vfs is what every size in these rounds is written against, and it was
+		// only ever set on VerseCard — so inside the quiz each calc() was invalid
+		// and every one of those sizes silently fell back to whatever it
+		// inherited. The reader's text-size setting reaches the games now.
+		void fontScale.load();
 		const wanted = page.url.searchParams.get('event');
 		listTargets(todayLocalKey())
 			.then((t) => {
@@ -222,7 +228,7 @@
 
 <Header title="퀴즈" showVerseToggle={false} />
 
-<main class="mx-auto w-full max-w-2xl px-4 py-4">
+<main class="mx-auto w-full max-w-2xl px-4 py-4" style="--vfs: {fontScale.value};">
 	{#if queue === null}
 		<QuizScopePicker
 			{targets}
