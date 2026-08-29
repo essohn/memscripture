@@ -200,11 +200,19 @@ function voiceRank(v: VoiceLike): number {
 }
 
 /**
- * The Korean voice to read with.
+ * The voice to read Korean with.
  *
  * `wanted` is the reader's explicit choice and wins whenever it is still
  * installed — voices come and go with OS updates, so a stale name falls back
  * to the ranking rather than to silence.
+ *
+ * It is searched across *every* installed voice, not only the ones whose lang
+ * says Korean. That filter is a heuristic, and on Android it is one that
+ * fails: engines there report Korean voices with a lang this cannot read — or
+ * with none at all — and a reader with 한국어 properly installed was handed an
+ * empty picker and silence. They can read the names on their own device. An
+ * explicit choice is an instruction, and a heuristic does not get to overrule
+ * one.
  */
 export function pickKoreanVoice<T extends VoiceLike>(
 	voices: T[],
@@ -212,12 +220,13 @@ export function pickKoreanVoice<T extends VoiceLike>(
 ): T | null {
 	// Excluded before anything else, `wanted` included: a stale explicit choice
 	// must not resurrect a voice already known to be silent.
-	const korean = voices.filter((v) => /^ko/i.test(v.lang) && !opts.exclude?.has(v.name));
-	if (korean.length === 0) return null;
+	const usable = voices.filter((v) => !opts.exclude?.has(v.name));
 	if (opts.wanted) {
-		const exact = korean.find((v) => v.name === opts.wanted);
+		const exact = usable.find((v) => v.name === opts.wanted);
 		if (exact) return exact;
 	}
+	const korean = usable.filter((v) => /^ko/i.test(v.lang));
+	if (korean.length === 0) return null;
 	// A gender preference narrows the field only when that field is not empty.
 	// Not every platform ships both, and no voice at all is worse than the
 	// wrong one.
@@ -892,16 +901,20 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 }
 
 /**
- * How many voices this device reports at all, Korean or not.
+ * Every voice this device reports, Korean or not.
  *
- * Only ever shown as a diagnostic. "No Korean voice" and "no voices at all"
- * are different faults with different fixes — the first is a missing language
- * pack, the second is a device whose speech engine never woke up — and the
- * settings screen cannot tell the reader which one they have without this.
+ * Shown when nothing here looks Korean. Two faults hide behind that — a
+ * missing language pack, or an engine that never woke up — and they need
+ * different things from the reader; the list separates them at a glance. It is
+ * also the way out when the lang tagging is wrong rather than absent: the
+ * names are readable, the reader knows which one they installed, and picking
+ * it by hand is honoured.
  */
-export function installedVoiceCount(): number {
-	if (!isTtsSupported()) return 0;
-	return window.speechSynthesis.getVoices().length;
+export function allDeviceVoices(): VoiceLike[] {
+	if (!isTtsSupported()) return [];
+	return window.speechSynthesis
+		.getVoices()
+		.map((v) => ({ name: v.name, lang: v.lang, localService: v.localService }));
 }
 
 /** How long to keep asking for the voice list before giving up. */

@@ -35,7 +35,8 @@ describe('settings — 목소리', () => {
 		withVoices([{ name: 'Daniel', lang: 'en-GB', localService: true }]);
 		render(Settings);
 		await waitFor(() => expect(screen.getByTestId('no-korean-voice')).toBeInTheDocument());
-		expect(screen.queryByLabelText('읽어줄 목소리')).toBeNull();
+		// The gender chips belong to the Korean list and have nothing to narrow.
+		expect(screen.queryByRole('button', { name: '여성' })).toBeNull();
 	});
 
 	// Two different faults with two different fixes: a missing language pack,
@@ -47,6 +48,30 @@ describe('settings — 목소리', () => {
 		]);
 		render(Settings);
 		await waitFor(() => expect(screen.getByTestId('no-korean-voice')).toHaveTextContent('2개'));
+	});
+
+	// A reader with 한국어 installed and working saw nothing, because the lang
+	// the engine reports is not one the filter can read. The names are readable
+	// even when the tags are not, so every voice the device has is offered.
+	it('offers every voice the device has when none of them looks Korean', async () => {
+		withVoices([
+			{ name: 'Korean Korea (South) 1', lang: '', localService: true },
+			{ name: 'Daniel', lang: 'en-GB', localService: true }
+		]);
+		render(Settings);
+		await waitFor(() => expect(screen.getByLabelText('읽어줄 목소리')).toBeInTheDocument());
+		expect(
+			screen.getByRole('option', { name: /Korean Korea \(South\) 1/ })
+		).toBeInTheDocument();
+	});
+
+	// Nothing to offer, so nothing is offered — the panel says where to go
+	// instead.
+	it('offers no picker when the engine reported nothing', async () => {
+		withVoices([]);
+		render(Settings);
+		await waitFor(() => expect(screen.getByTestId('no-korean-voice')).toBeInTheDocument());
+		expect(screen.queryByLabelText('읽어줄 목소리')).toBeNull();
 	});
 
 	it('says so when the engine reported nothing at all', async () => {
