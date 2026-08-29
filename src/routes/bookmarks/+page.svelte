@@ -15,7 +15,8 @@
 	} from '$lib/db/verseRatings';
 		import { BOOKMARK_COLORS, type BookmarkColor } from '$lib/types';
 	import type { BookmarksLoadData, BookmarkedRow } from './+page';
-	import PlaylistBar from '$lib/components/player/PlaylistBar.svelte';
+	import ListenBar from '$lib/components/player/ListenBar.svelte';
+	import ListenButtons from '$lib/components/player/ListenButtons.svelte';
 	import { PlaylistPlayer } from '$lib/state/playlistPlayer.svelte';
 
 	let { data }: { data: BookmarksLoadData } = $props();
@@ -223,28 +224,21 @@
 				총 <span class="font-semibold text-[var(--color-text)]">{visibleRows.length}개</span>
 			</p>
 			<div class="flex items-center gap-3">
-				{#if player.supported}
-					{@const open = player.openId === `bookmark:${selected}`}
-					<button
-						type="button"
-						onclick={() =>
-							open
-								? player.close()
-								: player.start(
-										`bookmark:${selected}`,
-										visibleRows.map((r) => ({
-											title: r.verse.title,
-											cite: r.verse.cite,
-											w: r.verse.w
-										}))
-									)}
-						class="text-[12px] font-medium underline-offset-4 hover:underline {open
-							? 'text-[var(--color-accent)]'
-							: 'text-[var(--color-text-secondary)]'}"
-					>
-						{open ? '듣기 정지' : '전체 듣기'}
-					</button>
-				{/if}
+				<!-- The same pair as every other list in the app. Was a lone text
+				     link that only offered plain playback: a colour's worth of
+				     bookmarks is a list the reader built on purpose, which is exactly
+				     the kind worth reciting along with. Icons rather than a third text
+				     link beside 이 색 전부 지우기, which would not fit a phone. -->
+				<ListenButtons
+					{player}
+					id="bookmark:{selected}"
+					title="{COLOR_LABELS[selected]} 리본"
+					verses={visibleRows.map((r) => ({
+						title: r.verse.title,
+						cite: r.verse.cite,
+						w: r.verse.w
+					}))}
+				/>
 				<button
 					type="button"
 					onclick={clearAllSelected}
@@ -284,23 +278,7 @@
 		</div>
 	{/if}
 
-	{#if player.openId}
-		<PlaylistBar
-			playing={player.playing}
-failed={player.failed}
-			label={player.nowPlaying?.cite ?? ''}
-			index={player.index}
-			count={player.count}
-			fraction={player.progress.fraction}
-			elapsedMs={player.progress.elapsedMs}
-			totalMs={player.progress.totalMs}
-			repeat={player.listRepeat}
-			onToggle={() => player.toggle()}
-			onSeek={(f) => player.seek(f)}
-			onToggleRepeat={() => player.toggleRepeat()}
-			onClose={() => player.close()}
-		/>
-	{/if}
+	<ListenBar {player} />
 </main>
 
 {#if toast}
