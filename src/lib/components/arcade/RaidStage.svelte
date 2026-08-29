@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { arcade } from '$lib/state/arcade.svelte';
-	import { RAID_LIMIT_MS, raidApproach, raidPhase } from '$lib/arcade/raid';
+	import { RAID_LIMIT_MS, raidApproach, raidLane, raidPhase } from '$lib/arcade/raid';
 
 	interface Props {
 		/** Date.now() when the round appeared. */
@@ -12,6 +12,10 @@
 	let { startedAt, limitMs = RAID_LIMIT_MS, outcome = null }: Props = $props();
 
 	let canvas = $state<HTMLCanvasElement | undefined>();
+
+	/** Where this round's bomb comes down. Drawn once, at mount: the component
+	 *  is keyed per verse, so once is once a round. */
+	const lane = raidLane();
 
 	/**
 	 * The bomb, as a bitmap.
@@ -105,7 +109,8 @@
 		 * Columns of flame whose heights ripple against each other rather than
 		 * one solid block: a wall of colour reads as a bug, and the whole point
 		 * of this frame is that the reader can see the round was lost from
-		 * across the room.
+		 * across the room. Kept to the lower half of the board — on a square
+		 * one, flames up to the top stop reading as ground fire.
 		 */
 		function drawFire(t: number) {
 			const cols = Math.max(8, Math.round(w / 12));
@@ -116,7 +121,7 @@
 				// a pattern the eye can follow.
 				const flicker =
 					0.55 + 0.3 * Math.sin(t * 9 + i * 0.9) + 0.15 * Math.sin(t * 17 + i * 2.3);
-				const tall = h * 0.72 * rise * Math.max(0.2, flicker);
+				const tall = h * 0.42 * rise * Math.max(0.2, flicker);
 				const x = Math.round(i * cw);
 				const bw = Math.ceil(cw) + 1;
 				ctx.fillStyle = hot();
@@ -155,7 +160,7 @@
 				ctx.globalAlpha = 1;
 			}
 
-			const cx = w / 2;
+			const cx = w * lane;
 			// Straight down: off the top edge to the ground, at one size.
 			const cy = -spriteH / 2 + (ground() - PX - (-spriteH / 2)) * approach;
 
@@ -165,8 +170,16 @@
 				// The beam first, then the blast: a shot that arrives after the
 				// explosion reads as the bomb having gone off by itself.
 				if (since < 0.14) {
-					ctx.fillStyle = beam();
-					ctx.fillRect(Math.round(cx - PX / 2), Math.round(cy), PX, Math.round(ground() - cy));
+					// From the gun at the foot of the board, up at wherever the bomb
+					// was. Straight up would only ever be right when the bomb came
+					// down the middle, which it no longer does.
+					ctx.strokeStyle = beam();
+					ctx.lineWidth = PX;
+					ctx.lineCap = 'round';
+					ctx.beginPath();
+					ctx.moveTo(w / 2, ground());
+					ctx.lineTo(cx, cy);
+					ctx.stroke();
 				}
 				const t = Math.max(0, since - 0.08);
 				const radius = t * 460;
@@ -225,7 +238,7 @@
 		aria-hidden="true"
 		data-testid="raid-stage"
 		data-outcome={outcome ?? 'live'}
-		class="h-[104px] w-full rounded-xl border-2 border-[var(--color-text)]/15"
+		class="mx-auto aspect-square w-full max-w-[300px] rounded-xl border-2 border-[var(--color-text)]/15"
 	></canvas>
 	{#if outcome === 'impact'}
 		<!-- Drawn as DOM rather than into the fire, so it stays crisp at any
