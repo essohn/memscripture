@@ -85,3 +85,22 @@ export async function fetchLatestVersion(
 		return { kind: 'failed' };
 	}
 }
+
+/**
+ * How often the app may ask the server what it is serving.
+ *
+ * The check is a request, and the events that trigger it — a tab coming back
+ * to the foreground — fire every time the reader switches apps. Once a minute
+ * is often enough to catch a deploy while someone is using the app, and rare
+ * enough that flipping between windows is not a stream of requests.
+ */
+export const RECHECK_AFTER_MS = 60_000;
+
+/** Whether enough time has passed to ask again. Never checked yet is always
+ *  yes; a clock that jumped backwards is treated the same way, because the
+ *  alternative is a tab that stops asking until the clock catches up. */
+export function shouldRecheck(lastCheckedAt: number | null, now: number): boolean {
+	if (lastCheckedAt === null) return true;
+	if (now < lastCheckedAt) return true;
+	return now - lastCheckedAt >= RECHECK_AFTER_MS;
+}

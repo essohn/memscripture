@@ -5,7 +5,9 @@ import {
 	fetchLatestVersion,
 	isArmed,
 	PULL_THRESHOLD,
-	pullOffset
+	pullOffset,
+	RECHECK_AFTER_MS,
+	shouldRecheck
 } from '../../src/lib/update/pullToUpdate';
 
 describe('atBottom', () => {
@@ -114,5 +116,27 @@ describe('fetchLatestVersion', () => {
 		await expect(fetchLatestVersion('0.1.5+abc', impl as never)).resolves.toEqual({
 			kind: 'failed'
 		});
+	});
+});
+
+describe('shouldRecheck', () => {
+	it('always asks the first time', () => {
+		expect(shouldRecheck(null, 0)).toBe(true);
+	});
+
+	// The trigger is a tab coming back to the foreground, which fires every
+	// time the reader switches apps.
+	it('does not ask again straight away', () => {
+		expect(shouldRecheck(1_000, 1_000 + RECHECK_AFTER_MS - 1)).toBe(false);
+	});
+
+	it('asks again once the interval is up', () => {
+		expect(shouldRecheck(1_000, 1_000 + RECHECK_AFTER_MS)).toBe(true);
+	});
+
+	// A device whose clock moved backwards would otherwise stop asking until
+	// the clock caught up, which on a tablet left overnight can be hours.
+	it('asks when the clock has gone backwards', () => {
+		expect(shouldRecheck(10_000, 5_000)).toBe(true);
 	});
 });

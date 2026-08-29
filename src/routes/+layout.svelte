@@ -2,6 +2,7 @@
 	import '../app.css';
 	import { page } from '$app/state';
 	import TabBar from '$lib/components/nav/TabBar.svelte';
+	import UpdateBanner from '$lib/components/feedback/UpdateBanner.svelte';
 	import Splash from '$lib/components/feedback/Splash.svelte';
 	import { currentTab, isContentPage } from '$lib/utils/route';
 	import { joinGroup } from '$lib/db/groups';
@@ -76,6 +77,10 @@
 
 {#if chrome}
 	<TabBar current={tab} />
+
+	<!-- Inside the chrome block: the screens without it are the ones a reader
+	     is passing through, and a banner over a sign-in redirect is noise. -->
+	<UpdateBanner version={__APP_VERSION__} />
 
 	{#if splashVisible}
 		<Splash version={__APP_VERSION__} onClose={() => (splashVisible = false)} />
