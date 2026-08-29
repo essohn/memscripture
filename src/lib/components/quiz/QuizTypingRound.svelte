@@ -99,7 +99,9 @@
 			points: passed ? PERFECT_POINTS : 0,
 			// This game runs no clock of its own — a whole verse under a timer
 			// would be measuring thumbs — so a pass always extends the chain.
-			inTime: true
+			inTime: true,
+			// A miss is this game's evidence that the verse is harder.
+			harder: !passed
 		};
 		// Only the miss speaks here. Being right is announced by the chime that
 		// lands with the Correct! stamp a moment later — an explosion on top of

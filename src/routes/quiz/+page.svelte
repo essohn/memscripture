@@ -229,7 +229,10 @@
 		if (result.passed && result.inTime) arcade.playCombo(combo.streak);
 		const item = queue?.[index];
 		if (item) {
-			if (!result.passed) dropRating(item);
+			// The round says whether it is evidence, not the page: 시작 단어
+			// 맞추기 counts a slow answer as well as a missed one, and only it
+			// knows that.
+			if (result.harder) dropRating(item);
 			// The reader is mid-quiz. A storage failure costs one record's worth
 			// of future evidence; stopping them to report it costs the session.
 			const write = recordCheck(item.packageId, item.verseNo, {

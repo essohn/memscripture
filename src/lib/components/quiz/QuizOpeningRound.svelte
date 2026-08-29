@@ -11,7 +11,7 @@
 	import ComboBadge from '$lib/components/arcade/ComboBadge.svelte';
 	import OutcomeStamp from '$lib/components/arcade/OutcomeStamp.svelte';
 	import { arcade } from '$lib/state/arcade.svelte';
-	import { RAID_LIMIT_MS, raidPhase, raidRemainingMs, raidScore } from '$lib/arcade/raid';
+	import { RAID_LIMIT_MS, raidPhase, raidRemainingMs, raidScore, raidWasSlow } from '$lib/arcade/raid';
 
 	interface Props {
 		item: QuizItem;
@@ -120,6 +120,17 @@
 
 	const secondsLeft = $derived(Math.ceil(raidRemainingMs(elapsedMs, RAID_LIMIT_MS) / 1000));
 
+	/**
+	 * Whether this round is evidence the verse is harder to start than its
+	 * rating says.
+	 *
+	 * This game has no wrong answer to collect: the reader produces the opening
+	 * or gives up. So a miss is not the only thing worth recording — taking
+	 * twenty seconds to remember how a verse begins is exactly what 첫 시작
+	 * 난이도 is a measure of, and the reader watched the alarm start.
+	 */
+	const harder = $derived(done && (gaveUp || raidWasSlow(decidedAt ?? 0, RAID_LIMIT_MS)));
+
 	let inputEl = $state<HTMLInputElement | undefined>();
 	/** The 다음 button, once the round is graded. */
 	let nextButton = $state<HTMLButtonElement | undefined>();
@@ -188,7 +199,8 @@
 				: raidScore(raidRemainingMs(decidedAt ?? RAID_LIMIT_MS, RAID_LIMIT_MS), RAID_LIMIT_MS),
 			// Shooting the raider down is what beating this round's clock means.
 			// There is no second, gentler deadline to miss.
-			inTime: !gaveUp
+			inTime: !gaveUp,
+			harder
 		});
 	}
 </script>
@@ -224,7 +236,7 @@
 	<QuizTicker testid="quiz-answer" label="정답" text={done ? item.w : ''} />
 	<QuizTicker testid="quiz-attempt" label="입력한 내용" text={done ? typed : ''} />
 
-	{#if done && gaveUp}
+	{#if harder}
 		<QuizRatingDrop label="첫 시작 난이도" from={rating} />
 	{/if}
 

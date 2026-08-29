@@ -79,3 +79,28 @@ export function raidLane(rng: () => number = Math.random): number {
 	const draw = Math.min(1, Math.max(0, rng()));
 	return RAID_LANE_MIN + draw * (RAID_LANE_MAX - RAID_LANE_MIN);
 }
+
+/**
+ * How long the opening may take before it counts as slow.
+ *
+ * The moment the alarm starts, which is the same instant the reader sees the
+ * sky turn — so the rule is one they can watch rather than one applied to them
+ * afterwards. It also lands on 20 seconds, which is where the check panel's
+ * own bands stop calling a recall Normal, so 시작 난이도 means the same thing
+ * whichever screen moved it.
+ */
+export function raidSlowAfterMs(limitMs: number = RAID_LIMIT_MS): number {
+	return Math.max(0, limitMs - RAID_ALARM_MS);
+}
+
+/**
+ * Was the opening produced slowly?
+ *
+ * 시작 단어 맞추기 has no wrong answer to collect — the reader either produces
+ * the opening or gives up — so a miss is not the only thing worth recording
+ * about it. Taking twenty seconds to remember how a verse starts is the
+ * evidence this game actually gathers.
+ */
+export function raidWasSlow(elapsedMs: number, limitMs: number = RAID_LIMIT_MS): boolean {
+	return elapsedMs > raidSlowAfterMs(limitMs);
+}
