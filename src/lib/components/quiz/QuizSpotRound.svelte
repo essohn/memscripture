@@ -9,6 +9,8 @@
 	import { ownsEnter, submitsOnEnter } from '$lib/memorize/typing';
 	import { SPOT_HIT_POINTS, comboLimitMs } from '$lib/arcade/combo';
 	import QuizTicker from './QuizTicker.svelte';
+	import QuizRatingDrop from './QuizRatingDrop.svelte';
+	import type { DifficultyLevel } from '$lib/db/verseRatings';
 
 	interface Props {
 		item: QuizItem;
@@ -19,9 +21,12 @@
 		total: number;
 		/** The chain the session is carrying into this round. */
 		streak?: number;
+		/** This verse's rating in the dimension this game tests, before the
+		 *  round. A miss takes it down a step; the page does the writing. */
+		rating?: DifficultyLevel | null;
 		onDone: (result: RoundResult) => void;
 	}
-	let { item, shown, index, total, streak = 0, onDone }: Props = $props();
+	let { item, shown, index, total, streak = 0, rating = null, onDone }: Props = $props();
 
 	/** Scaled to the sentence: a flat limit would be generous for 여호와여 and
 	 *  impossible for sixty characters. */
@@ -115,6 +120,8 @@
 			elapsedMs: Date.now() - startedAt,
 			// The round's own worth, before the session's chain multiplies it.
 			points: correct ? SPOT_HIT_POINTS : 0,
+			// A miss is this game's evidence that the verse is harder.
+			harder: !correct,
 			inTime
 		});
 	}
@@ -149,6 +156,10 @@
 	</div>
 
 	<QuizTicker testid="quiz-answer" label="정답" text={answered ? item.w : ''} />
+
+	{#if answered && !correct}
+		<QuizRatingDrop label="전체 난이도" from={rating} />
+	{/if}
 
 	<p class="sr-only" role="status" aria-live="polite">
 		{answered ? (correct ? '정답입니다' : '다시 볼 구절입니다') : ''}

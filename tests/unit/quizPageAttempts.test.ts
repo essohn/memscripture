@@ -58,6 +58,11 @@ beforeEach(async () => {
 	});
 	await db.delete();
 	await db.open();
+	// The page reads ratings from resolveTarget, which is mocked; the drop
+	// writes through to the real table, so it needs a row to move.
+	await db.verseRatings.bulkPut([
+		{ id: 'a_krv:1', packageId: 'a_krv', verseNo: 1, startDifficulty: 2, fullDifficulty: 2, updatedAt: 1 }
+	] as never);
 });
 
 /** Drives the picker to a running 틀린 곳 찾기 round over the one-verse scope
@@ -96,9 +101,11 @@ describe('quiz/+page.svelte — 틀린 곳 찾기 attempts', () => {
 		try {
 			await startSpotRun();
 			// Generous: the round mounts behind two resolved promises, and under
-			// a full-suite run this has timed out at the default second.
+			// a full-suite run — a hundred and thirty files, on a machine with
+			// other work on it — this has timed out at five seconds. The wait
+			// only costs anything when the assertion is going to fail anyway.
 			await waitFor(() => expect(screen.getByText('영생은')).toBeInTheDocument(), {
-				timeout: 5000
+				timeout: 15_000
 			});
 			expect(screen.queryByText('영생을')).toBeNull();
 		} finally {
@@ -114,7 +121,7 @@ describe('quiz/+page.svelte — 틀린 곳 찾기 attempts', () => {
 		try {
 			await startSpotRun();
 			await waitFor(() => expect(screen.getByText('영생을')).toBeInTheDocument(), {
-				timeout: 5000
+				timeout: 15_000
 			});
 			expect(screen.queryByText('영생은')).toBeNull();
 		} finally {
@@ -430,5 +437,42 @@ describe('quiz/+page.svelte — 오답을 최근에 담기', () => {
 
 		await waitFor(() => expect(screen.getByText('다시 하기')).toBeInTheDocument());
 		expect(screen.queryByRole('button', { name: '최근에 담기' })).toBeNull();
+	});
+});
+
+// The quiz was gathering evidence and throwing it away: ratings only moved
+// when the reader graded themselves in the check panel, so a verse could be
+// missed here every day and go on being filed as xEasy.
+describe('quiz/+page.svelte — 틀린 구절의 난이도', () => {
+	it('takes the tested dimension down a step on a miss', async () => {
+		render(QuizPage);
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Quiz!' })).not.toBeDisabled());
+		await fireEvent.click(screen.getByRole('button', { name: '시작 단어 맞추기 게임' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Quiz!' }));
+
+		await fireEvent.click(await screen.findByRole('button', { name: '모르겠어요' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+
+		// The fixture rates every verse Hard in both. 시작 3단어 tested the
+		// opening, so 시작 falls to xHard and 전체 is left alone.
+		await waitFor(async () => {
+			const row = await db.verseRatings.get('a_krv:1');
+			expect(row?.startDifficulty).toBe(1);
+		});
+		expect((await db.verseRatings.get('a_krv:1'))?.fullDifficulty).toBe(2);
+	});
+
+	it('leaves the rating where it is when the round is passed', async () => {
+		render(QuizPage);
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Quiz!' })).not.toBeDisabled());
+		await fireEvent.click(screen.getByRole('button', { name: '시작 단어 맞추기 게임' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Quiz!' }));
+
+		const box = await screen.findByRole('textbox', { name: '구절 첫머리 입력' });
+		await fireEvent.input(box, { target: { value: '또 증거는 이것이니' } });
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+
+		await new Promise((r) => setTimeout(r, 0));
+		expect((await db.verseRatings.get('a_krv:1'))?.startDifficulty).toBe(2);
 	});
 });

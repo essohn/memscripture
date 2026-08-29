@@ -259,38 +259,57 @@
 					>
 				</button>
 			{/each}
-		<!-- Only for the game that has an opening to ask about. A radiogroup
-		     rather than tiles: this is one dial with four settings, not a
-		     fourth thing to play. -->
+		</div>
+		<!-- Only for the game that has an opening to ask about.
+
+		     A slider rather than a row of pills: this is one dial with a range,
+		     and a range is a thing you slide. Four buttons made the reader read
+		     four labels and choose between them, where a knob is read at a
+		     glance and moved with a thumb — which on a phone is the difference
+		     between a decision and a gesture.
+
+		     Native, so the keyboard, the screen reader and the drag all come
+		     for free and behave the way the reader's own device does. -->
 		{#if game === 'opening'}
-			<h3
-				id="quiz-opening-words-heading"
-				class="mt-4 text-[13px] font-semibold text-[var(--color-text-secondary)]"
-			>
-				시작 단어 수
-			</h3>
-			<div
-				role="radiogroup"
+			<div class="mt-4 flex items-baseline justify-between">
+				<h3
+					id="quiz-opening-words-heading"
+					class="text-[13px] font-semibold text-[var(--color-text-secondary)]"
+				>
+					시작 단어 수
+				</h3>
+				<span
+					data-testid="opening-words-value"
+					class="text-[13px] font-semibold tabular-nums text-[var(--color-accent)]"
+				>
+					{openingWords}단어
+				</span>
+			</div>
+			<input
+				type="range"
+				class="dial mt-2 w-full"
+				style="--fill: {((openingWords - OPENING_WORD_CHOICES[0]) /
+					(OPENING_WORD_CHOICES[OPENING_WORD_CHOICES.length - 1] - OPENING_WORD_CHOICES[0])) *
+					100}%"
 				aria-labelledby="quiz-opening-words-heading"
-				class="mt-2 flex flex-wrap gap-1.5"
+				min={OPENING_WORD_CHOICES[0]}
+				max={OPENING_WORD_CHOICES[OPENING_WORD_CHOICES.length - 1]}
+				step="1"
+				value={openingWords}
+				aria-valuetext="{openingWords}단어"
+				oninput={(e) => (openingWords = Number(e.currentTarget.value) as OpeningWords)}
+			/>
+			<!-- The steps, under the track. Four numbers the thumb lands on,
+			     so the range is legible before it is touched. -->
+			<div
+				aria-hidden="true"
+				class="mt-1 flex justify-between px-0.5 text-[10px] tabular-nums text-[var(--color-text-tertiary)]"
 			>
 				{#each OPENING_WORD_CHOICES as n (n)}
-					<button
-						type="button"
-						role="radio"
-						aria-checked={openingWords === n}
-						onclick={() => (openingWords = n)}
-						class="rounded-full border px-3 py-1 text-[12px] font-medium tabular-nums transition-colors {openingWords ===
-						n
-							? 'border-transparent bg-[var(--color-accent)] text-white'
-							: 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-elevated)]'}"
-					>
-						{n}단어
-					</button>
+					<span>{n}</span>
 				{/each}
 			</div>
 		{/if}
-		</div>
 	</div>
 
 	<div>
@@ -469,6 +488,68 @@
 </section>
 
 <style>
+	/* A native range, dressed to match. The thumb has to be styled per engine —
+	   there is no shared pseudo-element for it — and the track is left to the
+	   browser except for its colour and height, so the drag physics stay the
+	   ones the reader's own device uses. */
+	.dial {
+		-webkit-appearance: none;
+		appearance: none;
+		height: 24px;
+		background: transparent;
+		cursor: pointer;
+	}
+
+	/* The travelled part of the track, filled. A native range gives no
+	   cross-engine way to colour it, so it is a hard-stop gradient at the
+	   knob's own position — which is also why --fill is set on the element
+	   rather than in here. */
+	.dial::-webkit-slider-runnable-track {
+		height: 6px;
+		border-radius: 999px;
+		background: linear-gradient(
+			to right,
+			var(--color-accent) var(--fill, 0%),
+			var(--color-elevated) var(--fill, 0%)
+		);
+	}
+
+	.dial::-moz-range-track {
+		height: 6px;
+		border-radius: 999px;
+		background: linear-gradient(
+			to right,
+			var(--color-accent) var(--fill, 0%),
+			var(--color-elevated) var(--fill, 0%)
+		);
+	}
+
+	.dial::-webkit-slider-thumb {
+		-webkit-appearance: none;
+		appearance: none;
+		width: 22px;
+		height: 22px;
+		margin-top: -8px;
+		border: 3px solid var(--color-card);
+		border-radius: 999px;
+		background: var(--color-accent);
+		box-shadow: var(--shadow-card);
+	}
+
+	.dial::-moz-range-thumb {
+		width: 22px;
+		height: 22px;
+		border: 3px solid var(--color-card);
+		border-radius: 999px;
+		background: var(--color-accent);
+		box-shadow: var(--shadow-card);
+	}
+
+	.dial:focus-visible {
+		outline: 2px solid var(--color-accent);
+		outline-offset: 4px;
+	}
+
 	/* A leaning pile. Each card sits a little higher and further right than the
 	   one under it, so the stack grows visibly with the count without needing
 	   to be counted. */

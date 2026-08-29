@@ -41,6 +41,15 @@ export interface RoundResult {
 	 *  a timer that could mark a verse wrong would put pressure into a record
 	 *  the difficulty ratings read. */
 	inTime?: boolean;
+	/**
+	 * This round is evidence the verse is harder than its rating says.
+	 *
+	 * Reported by the round rather than inferred from `passed`, because what
+	 * counts as evidence differs by game. 시작 단어 맞추기 has no wrong answer
+	 * to give — the reader produces the opening or gives up — so a slow one
+	 * counts there and nowhere else.
+	 */
+	harder?: boolean;
 }
 
 /** The rating shape sortByDifficulty takes — the display-side VerseRating from

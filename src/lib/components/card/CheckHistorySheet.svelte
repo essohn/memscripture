@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { Trash2, X } from 'lucide-svelte';
 	import type { CheckRecord } from '$lib/db/local';
-	import { DIFFICULTY_COLORS, type DifficultyLevel } from '$lib/db/verseRatings';
+	import type { DifficultyLevel } from '$lib/db/verseRatings';
 	import { relativeTimeKo, shortDateKo } from '$lib/utils/relativeTime';
+	import DifficultyDot from './DifficultyDot.svelte';
+	import CheckDiagnosis from './CheckDiagnosis.svelte';
 
 	interface Props {
 		/** The verse this history belongs to, for the sheet's own title. */
@@ -10,6 +12,10 @@
 		/** 점검 records, newest first. Quiz rounds are filtered out upstream —
 		 *  they carry no difficulty, and this sheet is built to show one. */
 		records: CheckRecord[];
+		/** The verse's words, for the diagnosis heat map. Required rather than
+		 *  defaulted: a caller who forgot it would ship a sheet with a silently
+		 *  missing heat map, which is the hardest failure to notice in review. */
+		words: string[];
 		/** Injectable so the relative times can be asserted against a fixed
 		 *  clock rather than against whenever the suite happens to run. */
 		now?: number;
@@ -23,7 +29,8 @@
 		onRestore?: (record: CheckRecord) => void;
 		onClose: () => void;
 	}
-	let { heading, records, now = Date.now(), onDelete, onRestore, onClose }: Props = $props();
+	let { heading, records, words, now = Date.now(), onDelete, onRestore, onClose }: Props =
+		$props();
 
 	/**
 	 * Rows removed in this sitting, by id.
@@ -94,9 +101,18 @@
 	</div>
 
 	<!-- Ten rows of verse-length text do not fit a phone, so the list scrolls
-	     inside the sheet rather than growing it past the screen. -->
-	<ul class="-mx-1 min-h-0 flex-1 space-y-3 overflow-y-auto px-1 pb-2">
-		{#each rows as h (h.id)}
+	     inside the sheet rather than growing it past the screen. The diagnosis
+	     scrolls with it: pinned, it would eat the rows it summarises. -->
+	<div class="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 pb-2">
+		<!-- `rows`, not `records`: the summary must describe exactly the checks
+		     the list underneath it is showing. A deleted row stays on screen as
+		     its own undo, so recomputing the summary the instant it is tapped
+		     would put "최근 2회" above three visible rows — the disagreement this
+		     block was built never to have. Both go back to the store's truth
+		     when the sheet is next opened. -->
+		<CheckDiagnosis records={rows} {words} />
+		<ul class="space-y-3">
+			{#each rows as h (h.id)}
 			<li
 				data-testid="check-history-row"
 				class="rounded-xl border border-[var(--color-border)] bg-[var(--color-canvas)] p-3"
@@ -125,8 +141,8 @@
 						>{relativeTimeKo(h.checkedAt, now)}</span
 					>
 					<span class="ml-auto flex items-center gap-1.5">
-						{@render level('첫 시작 난이도', h.start as DifficultyLevel | null)}
-						{@render level('전체 암송 난이도', h.full as DifficultyLevel | null)}
+						<DifficultyDot label="첫 시작 난이도" value={h.start as DifficultyLevel | null} />
+						<DifficultyDot label="전체 암송 난이도" value={h.full as DifficultyLevel | null} />
 					</span>
 				</div>
 
@@ -178,21 +194,6 @@
 			{/if}
 			</li>
 		{/each}
-	</ul>
+		</ul>
+	</div>
 </div>
-
-<!-- role="img" rather than a bare span: the colour and the digit together are
-     the whole message, and a span's aria-label is not guaranteed to be read.
-     Not a button — this is what the rating *was*, not a control to change it. -->
-{#snippet level(label: string, value: DifficultyLevel | null)}
-	<span
-		role="img"
-		aria-label="{label} {value ?? '없음'}"
-		style={value === null
-			? 'border: 1.5px dashed var(--color-border); color: var(--color-text-tertiary);'
-			: `background-color: ${DIFFICULTY_COLORS[value]}; color: white;`}
-		class="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold tabular-nums"
-	>
-		{value ?? '—'}
-	</span>
-{/snippet}

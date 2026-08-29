@@ -20,16 +20,26 @@ const record = (over: Partial<CheckRecord> = {}): CheckRecord => ({
 	...over
 });
 
+const WORDS = ['하나님의', '말씀은', '살아', '있고', '활력이', '있어'];
+
 const mount = (records: CheckRecord[], onClose = () => {}) =>
 	render(CheckHistorySheet, {
-		props: { heading: '히브리서 4:12', records, now: NOW, onClose }
+		props: { heading: '히브리서 4:12', records, words: WORDS, now: NOW, onClose }
 	});
 
 const mountDeletable = (records: CheckRecord[]) => {
 	const onDelete = vi.fn();
 	const onRestore = vi.fn();
 	render(CheckHistorySheet, {
-		props: { heading: '히브리서 4:12', records, now: NOW, onClose: () => {}, onDelete, onRestore }
+		props: {
+			heading: '히브리서 4:12',
+			records,
+			words: WORDS,
+			now: NOW,
+			onClose: () => {},
+			onDelete,
+			onRestore
+		}
 	});
 	return { onDelete, onRestore };
 };
@@ -113,6 +123,24 @@ describe('CheckHistorySheet', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '닫기' }));
 		expect(onClose).toHaveBeenCalled();
 	});
+
+	// The summary is the reason the sheet is worth opening; the rows are its
+	// evidence. Evidence goes underneath.
+	it('puts the diagnosis above the first row', () => {
+		mount([
+			record({ id: 'a', checkedAt: NOW - DAY, typed: WORDS.join(' '), missed: [2] }),
+			record({ id: 'b', checkedAt: NOW - 2 * DAY, typed: WORDS.join(' '), missed: [2] })
+		]);
+		const diagnosis = screen.getByTestId('check-diagnosis');
+		const firstRow = screen.getAllByTestId('check-history-row')[0];
+		expect(diagnosis.compareDocumentPosition(firstRow)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+	});
+
+	it('shows the rows alone when there is only one check to show', () => {
+		mount([record()]);
+		expect(screen.queryByTestId('check-diagnosis')).not.toBeInTheDocument();
+		expect(screen.getAllByTestId('check-history-row')).toHaveLength(1);
+	});
 });
 
 describe('deleting a record', () => {
@@ -150,6 +178,26 @@ describe('deleting a record', () => {
 
 		expect(screen.getAllByTestId('check-history-row')).toHaveLength(2);
 		expect(screen.getByRole('button', { name: '실행 취소' })).toBeInTheDocument();
+	});
+
+	// The summary reads the same snapshot the list does. A deleted row is still
+	// on screen offering its undo, so the count above it must not move either —
+	// "최근 2회" standing over three visible rows is exactly the disagreement
+	// this block was built never to have. Both go back to the store's truth the
+	// next time the sheet is opened.
+	it('keeps describing a deleted row while its undo is still on screen', async () => {
+		const typed = WORDS.join(' ');
+		mountDeletable([
+			record({ id: 'a', typed, missed: [2] }),
+			record({ id: 'b', checkedAt: NOW - 2 * DAY, typed, missed: [2] }),
+			record({ id: 'c', checkedAt: NOW - 3 * DAY, typed, missed: [2] })
+		]);
+		expect(screen.getByTestId('diagnosis-effort')).toHaveTextContent('최근 3회');
+
+		await fireEvent.click(screen.getAllByRole('button', { name: /점검 기록 삭제/ })[0]);
+
+		expect(screen.getByRole('button', { name: '실행 취소' })).toBeInTheDocument();
+		expect(screen.getByTestId('diagnosis-effort')).toHaveTextContent('최근 3회');
 	});
 
 	it('restores the record through the caller', async () => {

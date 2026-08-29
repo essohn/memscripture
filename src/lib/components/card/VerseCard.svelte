@@ -1069,6 +1069,7 @@
 	<CheckHistorySheet
 		heading={verse.cite}
 		records={checkOnlyHistory}
+		{words}
 		onDelete={removeCheck}
 		onRestore={putCheckBack}
 		onClose={() => (historyOpen = false)}

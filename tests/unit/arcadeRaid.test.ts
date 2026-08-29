@@ -8,7 +8,9 @@ import {
 	raidScore,
 	raidLane,
 	RAID_LANE_MIN,
-	RAID_LANE_MAX
+	RAID_LANE_MAX,
+	raidSlowAfterMs,
+	raidWasSlow
 } from '../../src/lib/arcade/raid';
 
 describe('raidApproach', () => {
@@ -110,5 +112,33 @@ describe('raidLane', () => {
 	// it would look like a rendering wobble rather than a different round.
 	it('is wide enough to read as a different round', () => {
 		expect(RAID_LANE_MAX - RAID_LANE_MIN).toBeGreaterThanOrEqual(0.4);
+	});
+});
+
+describe('raidWasSlow', () => {
+	// The moment the alarm starts, so the rule is one the reader can watch
+	// rather than one applied to them afterwards.
+	it('starts counting as slow when the alarm does', () => {
+		expect(raidSlowAfterMs(RAID_LIMIT_MS)).toBe(RAID_LIMIT_MS - RAID_ALARM_MS);
+		expect(raidWasSlow(raidSlowAfterMs() - 1)).toBe(false);
+		expect(raidWasSlow(raidSlowAfterMs() + 1)).toBe(true);
+	});
+
+	// Twenty seconds, which is where the check panel's own bands stop calling a
+	// recall Normal — so 시작 난이도 means the same thing whichever screen
+	// moved it.
+	it('lands where the check panel stops calling a recall Normal', () => {
+		expect(raidSlowAfterMs()).toBe(20_000);
+	});
+
+	it('calls a prompt answer prompt', () => {
+		expect(raidWasSlow(0)).toBe(false);
+		expect(raidWasSlow(5_000)).toBe(false);
+	});
+
+	// A limit shorter than the alarm would otherwise make every answer slow
+	// before the round had begun.
+	it('never calls an answer slow before any time has passed', () => {
+		expect(raidWasSlow(0, 5_000)).toBe(false);
 	});
 });

@@ -418,32 +418,52 @@ describe('QuizScopePicker opening word count', () => {
 	// The bar belongs to the run, not to the round: fixed before the first
 	// question so every verse in a session is asked the same way and the score
 	// means one thing.
-	it('offers the four counts once 시작 단어 is chosen', async () => {
+	//
+	// A slider rather than a row of pills. It is one dial with a range, and a
+	// range is a thing you slide: four buttons made the reader read four labels
+	// and pick, where a knob is read at a glance and moved by a thumb.
+	it('offers the count as a slider once 시작 단어 is chosen', async () => {
 		setup();
 		await pickOpening();
-		const steps = screen.getAllByRole('radio', { name: /^[2-5]단어$/ });
-		expect(steps.map((s) => s.textContent?.trim())).toEqual([
-			'2단어',
-			'3단어',
-			'4단어',
-			'5단어'
-		]);
-		expect(screen.getByRole('radio', { name: '3단어' })).toBeChecked();
+		const dial = screen.getByRole('slider', { name: '시작 단어 수' });
+		expect(dial).toHaveValue('3');
+		expect(dial).toHaveAttribute('min', '2');
+		expect(dial).toHaveAttribute('max', '5');
+	});
+
+	// The number is the point of the control, so it is on screen beside it
+	// rather than only under the knob.
+	it('says the count in words', async () => {
+		setup();
+		await pickOpening();
+		expect(screen.getByTestId('opening-words-value')).toHaveTextContent('3단어');
 	});
 
 	// The other two games do not ask for an opening, so the dial would be a
 	// control with nothing to turn.
 	it('keeps it out of the way for the other games', () => {
 		setup();
-		expect(screen.queryByRole('radio', { name: '3단어' })).toBeNull();
+		expect(screen.queryByRole('slider', { name: '시작 단어 수' })).toBeNull();
 	});
 
 	it('tells onStart the count that was chosen', async () => {
 		const { onStart } = setup();
 		await pickOpening();
-		await fireEvent.click(screen.getByRole('radio', { name: '5단어' }));
+		const dial = screen.getByRole('slider', { name: '시작 단어 수' });
+		await fireEvent.input(dial, { target: { value: '5' } });
+		expect(screen.getByTestId('opening-words-value')).toHaveTextContent('5단어');
 		await fireEvent.click(goButton());
 		expect(onStart.mock.calls[0][2]).toBe(5);
+	});
+
+	// A screen reader saying "3" alone leaves out what is being counted.
+	it('reads the value as a count of words', async () => {
+		setup();
+		await pickOpening();
+		expect(screen.getByRole('slider', { name: '시작 단어 수' })).toHaveAttribute(
+			'aria-valuetext',
+			'3단어'
+		);
 	});
 });
 
