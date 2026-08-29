@@ -1065,6 +1065,7 @@
 	<CheckHistorySheet
 		heading={verse.cite}
 		records={checkOnlyHistory}
+		{words}
 		onClose={() => (historyOpen = false)}
 	/>
 {/if}
