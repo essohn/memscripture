@@ -70,10 +70,20 @@ export const VOICES: Record<SfxName, Tone[]> = {
 		{ type: 'square', from: 1400, to: 420, ms: 160, gain: 0.14, afterMs: 0 },
 		{ type: 'square', from: 700, to: 220, ms: 220, gain: 0.12, afterMs: 60 }
 	],
-	// Two steps down. Descending is the oldest way to say no.
+	/**
+	 * The buzzer. Low, flat and rough — the sound a game show makes.
+	 *
+	 * It used to be two descending notes, which is the polite way to say no and
+	 * was far too close to the sounds a right answer makes: both were square
+	 * blips in the same register, and a reader glancing away could not tell
+	 * from the audio which had happened. Three detuned tones a couple of hertz
+	 * apart beat against each other into a buzz, and nothing else in the set
+	 * goes near this register.
+	 */
 	fail: [
-		{ type: 'square', from: 340, to: 300, ms: 130, gain: 0.2 },
-		{ type: 'square', from: 240, to: 150, ms: 260, gain: 0.2, afterMs: 130 }
+		{ type: 'square', from: 150, to: 142, ms: 430, gain: 0.22 },
+		{ type: 'sawtooth', from: 147, to: 139, ms: 430, gain: 0.11, afterMs: 0 },
+		{ type: 'square', from: 110, to: 104, ms: 430, gain: 0.14, afterMs: 0 }
 	],
 	alarm: [
 		{ type: 'square', from: 720, to: 720, ms: 90, gain: 0.13 },

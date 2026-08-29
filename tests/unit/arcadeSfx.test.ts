@@ -38,6 +38,35 @@ describe('VOICES', () => {
 	});
 });
 
+describe('the buzzer', () => {
+	// A wrong answer has to be audible as wrong with the screen unwatched. It
+	// used to be two descending square blips in the same register as the sounds
+	// a right answer makes, which is the one thing it could not be.
+	it('sits below everything else in the set', () => {
+		const top = Math.max(...VOICES.fail.map((t) => Math.max(t.from, t.to)));
+		expect(top).toBeLessThan(300);
+		for (const name of SFX_NAMES) {
+			if (name === 'fail' || name === 'explode') continue;
+			const low = Math.min(...VOICES[name].filter((t) => t.type !== 'noise').map((t) => Math.min(t.from, t.to)));
+			expect(low, name).toBeGreaterThan(top);
+		}
+	});
+
+	// A blip reads as a keystroke. A buzz has to last long enough to be a
+	// verdict.
+	it('lasts long enough to read as a buzz', () => {
+		const end = planVoice(VOICES.fail, 0).reduce((max, t) => Math.max(max, t.endAt), 0);
+		expect(end).toBeGreaterThanOrEqual(0.35);
+	});
+
+	// The roughness is the beating between tones a few hertz apart. Tuned to
+	// the same pitch they would sound like one clean note.
+	it('is rough rather than clean', () => {
+		const pitches = VOICES.fail.map((t) => t.from);
+		expect(new Set(pitches).size).toBe(pitches.length);
+	});
+});
+
 describe('planVoice', () => {
 	it('lays the tones out in absolute seconds', () => {
 		expect(planVoice(beep, 10)).toEqual([

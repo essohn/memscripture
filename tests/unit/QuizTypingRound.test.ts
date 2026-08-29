@@ -150,11 +150,11 @@ describe('QuizTypingRound — the verse itself', () => {
 });
 
 describe('QuizTypingRound — 점수', () => {
-	it('breaks a wall to show the answer', async () => {
+	it('puts a wall over the answer', async () => {
 		setup();
 		await type('틀린 답');
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
-		expect(screen.getByTestId('shatter-wall')).toBeInTheDocument();
+		expect(screen.getByTestId('answer-wall')).toBeInTheDocument();
 	});
 
 	// Reciting a whole verse without a slip is the hardest thing the quiz asks,
@@ -175,5 +175,37 @@ describe('QuizTypingRound — 점수', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
 		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
 		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ passed: false, points: 0 }));
+	});
+});
+
+// A right answer and a wrong one used to move the same way: both broke the
+// wall into flying masonry, which is a reward, and a reader glancing back
+// could not tell from the screen which had happened.
+describe('QuizTypingRound — 맞고 틀림', () => {
+	async function answerWith(text: string) {
+		const handles = setup();
+		await type(text);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		return handles;
+	}
+
+	it('holds the wall and stamps it on a miss', async () => {
+		await answerWith('아무말');
+		expect(screen.getByTestId('answer-wall')).toHaveAttribute('data-outcome', 'fail');
+		expect(screen.getByTestId('wrong-stamp')).toBeInTheDocument();
+	});
+
+	it('breaks the wall, unstamped, on a flawless one', async () => {
+		await answerWith(VERSE);
+		expect(screen.getByTestId('answer-wall')).toHaveAttribute('data-outcome', 'pass');
+		expect(screen.queryByTestId('wrong-stamp')).toBeNull();
+	});
+
+	// Two paragraphs of verse with only one of them named leaves the reader
+	// working out which is theirs.
+	it('names the reader own words', async () => {
+		await answerWith('그들에게 율례와');
+		expect(screen.getByText('입력한 내용')).toBeInTheDocument();
+		expect(screen.getByTestId('quiz-attempt')).toHaveTextContent('그들에게 율례와');
 	});
 });

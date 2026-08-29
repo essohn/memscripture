@@ -30,9 +30,11 @@ async function type(text: string) {
 	await fireEvent.input(box(), { target: { value: text } });
 }
 
-/** Enter as the keyboard delivers it once a syllable is already committed. */
+/** Enter as the keyboard delivers it once a syllable is already committed.
+ *  On window, because the box is retired the moment the round is graded and
+ *  Enter still has to reach 다음 from wherever focus ended up. */
 async function pressEnter(init: Partial<KeyboardEventInit> = {}) {
-	await fireEvent.keyDown(box(), { key: 'Enter', ...init });
+	await fireEvent.keyDown(window, { key: 'Enter', ...init });
 }
 
 describe('QuizOpeningRound', () => {
@@ -110,18 +112,16 @@ describe('QuizOpeningRound', () => {
 		expect(screen.getByText('1 / 3')).toBeInTheDocument();
 	});
 
-	// `done` re-derived per keystroke would let backspacing past the opening
-	// un-grade a pass already earned: 통과 and 다음 gone, 모르겠어요 back, and
-	// pressing it would record a failure for a verse just demonstrably
-	// started.
-	it('keeps the pass once the opening is produced, even after a later deletion', async () => {
+	// A pass used to be editable away: the box stayed live after grading, and
+	// backspacing past the opening would take 통과 and 다음 with it and bring
+	// 모르겠어요 back — which then recorded a failure for a verse the reader
+	// had just demonstrably started. `done` is latched against that, and the
+	// box is now retired outright, so the keystroke has nowhere to land.
+	it('retires the box once the opening is produced', async () => {
 		setup();
 		await type(OPENING);
 		expect(screen.getByRole('button', { name: '다음' })).toBeInTheDocument();
-
-		await type('그들에게 율례와 법도');
-
-		expect(screen.getByRole('button', { name: '다음' })).toBeInTheDocument();
+		expect(screen.queryByRole('textbox')).toBeNull();
 		expect(screen.queryByRole('button', { name: '모르겠어요' })).toBeNull();
 	});
 
@@ -299,5 +299,38 @@ describe('QuizOpeningRound — 콤보 표시', () => {
 	it('says nothing about a chain that has not started', () => {
 		setup();
 		expect(screen.queryByTestId('combo-readout')).toBeNull();
+	});
+});
+
+describe('QuizOpeningRound — 맞고 틀림', () => {
+	it('holds the wall and stamps it when the raider wins', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
+		expect(screen.getByTestId('answer-wall')).toHaveAttribute('data-outcome', 'fail');
+		expect(screen.getByTestId('wrong-stamp')).toBeInTheDocument();
+	});
+
+	it('breaks the wall, unstamped, on an interception', async () => {
+		setup();
+		await type(OPENING);
+		expect(screen.getByTestId('answer-wall')).toHaveAttribute('data-outcome', 'pass');
+		expect(screen.queryByTestId('wrong-stamp')).toBeNull();
+	});
+
+	// The box is gone by then, so what was typed in it has to be shown back or
+	// the reader cannot see what they got wrong.
+	it('shows back what was typed', async () => {
+		setup();
+		await type('그들에게 율법과');
+		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
+		expect(screen.getByTestId('quiz-attempt')).toHaveTextContent('그들에게 율법과');
+	});
+
+	// Nothing written is nothing to show, and an empty labelled block claims
+	// they wrote something blank.
+	it('says nothing about an attempt that was never made', async () => {
+		setup();
+		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
+		expect(screen.queryByTestId('quiz-attempt')).toBeNull();
 	});
 });

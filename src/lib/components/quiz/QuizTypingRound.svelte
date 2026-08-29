@@ -3,7 +3,8 @@
 	import { submitsOnEnter } from '$lib/memorize/typing';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
 	import QuizAnswer from './QuizAnswer.svelte';
-	import ShatterReveal from '$lib/components/arcade/ShatterReveal.svelte';
+	import AnswerReveal from '$lib/components/arcade/AnswerReveal.svelte';
+	import QuizAttempt from './QuizAttempt.svelte';
 	import ComboBadge from '$lib/components/arcade/ComboBadge.svelte';
 	import { arcade } from '$lib/state/arcade.svelte';
 	import { PERFECT_POINTS } from '$lib/arcade/combo';
@@ -51,18 +52,6 @@
 		arcade.play(passed ? 'explode' : 'fail');
 	}
 
-	/** The answer arrives behind a wall, which comes down a beat later. The
-	 *  beat is the point: a wall already in pieces on the frame it appears was
-	 *  never a wall. */
-	let revealed = $state(false);
-	$effect(() => {
-		if (verdict === null || revealed) return;
-		const id = setTimeout(() => {
-			revealed = true;
-			arcade.play('shatter');
-		}, 260);
-		return () => clearTimeout(id);
-	});
 
 	function onKeydown(e: KeyboardEvent) {
 		if (!submitsOnEnter(e)) return;
@@ -116,13 +105,15 @@
 			제출
 		</button>
 	{:else}
-		<p class="mt-3 text-[calc(16px*var(--vfs))] leading-[1.9] break-keep">
-			{#each marks as m, i (i)}<span class:wrong={!m.ok}>{m.word}</span>{' '}{/each}
-		</p>
-		<ShatterReveal broken={revealed} label="정답">
+		<QuizAttempt {typed} {marks} />
+		<AnswerReveal reveal={verdict !== null} outcome={verdict.passed ? 'pass' : 'fail'} label="정답">
 			<QuizAnswer w={item.w} />
-		</ShatterReveal>
-		<p class="mt-3 text-[calc(13px*var(--vfs))] font-medium">
+		</AnswerReveal>
+		<p
+			class="mt-3 text-[calc(13px*var(--vfs))] font-medium {verdict.passed
+				? ''
+				: 'text-[var(--color-danger)]'}"
+		>
 			{verdict.passed ? '통과' : '다시 볼 구절'}
 		</p>
 		<button
@@ -134,14 +125,3 @@
 		</button>
 	{/if}
 </div>
-
-<style>
-	/* The words the attempt missed. Red rather than the accent: this is the
-	   result of a test, not a note the reader left themselves. */
-	.wrong {
-		color: var(--color-danger);
-		text-decoration: underline;
-		text-decoration-thickness: 2px;
-		text-underline-offset: 4px;
-	}
-</style>

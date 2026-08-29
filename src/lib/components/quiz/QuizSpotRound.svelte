@@ -4,7 +4,7 @@
 	import { findSpotFlaws } from '$lib/quiz/spot';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
 	import ComboMeter from '$lib/components/arcade/ComboMeter.svelte';
-	import ShatterReveal from '$lib/components/arcade/ShatterReveal.svelte';
+	import AnswerReveal from '$lib/components/arcade/AnswerReveal.svelte';
 	import { arcade } from '$lib/state/arcade.svelte';
 	import { SPOT_HIT_POINTS, comboLimitMs } from '$lib/arcade/combo';
 	import QuizAnswer from './QuizAnswer.svelte';
@@ -62,18 +62,6 @@
 
 	const answered = $derived(answer !== undefined);
 
-	/** The answer arrives behind a wall, which comes down a beat later. The
-	 *  beat is the point: a wall already in pieces on the frame it appears was
-	 *  never a wall. */
-	let revealed = $state(false);
-	$effect(() => {
-		if (!answered || revealed) return;
-		const id = setTimeout(() => {
-			revealed = true;
-			arcade.play('shatter');
-		}, 260);
-		return () => clearTimeout(id);
-	});
 	const correct = $derived(answered && (answer === 'flawed') === flaws.flawed);
 
 	/** The 다음 button, once the answer is in. */
@@ -155,10 +143,14 @@
 			</p>
 		{/if}
 
-		<ShatterReveal broken={revealed} label="정답">
+		<AnswerReveal reveal={answered} outcome={correct ? 'pass' : 'fail'} label="정답">
 			<QuizAnswer w={item.w} />
-		</ShatterReveal>
-		<p class="mt-3 text-[calc(13px*var(--vfs))] font-medium">
+		</AnswerReveal>
+		<p
+			class="mt-3 text-[calc(13px*var(--vfs))] font-medium {correct
+				? ''
+				: 'text-[var(--color-danger)]'}"
+		>
 			{correct ? '맞았습니다' : '다시 볼 구절'}
 		</p>
 		<button
