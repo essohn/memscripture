@@ -42,15 +42,23 @@ export async function listTargets(today: string): Promise<Target[]> {
 /**
  * What the picker should offer, given everything that resolved.
  *
- * A reader reaches the quiz from a 암송 DAY, so the DAY is the context they
- * are already in — offering every installed package beside it turns a decision
- * they have already made back into a list. Packages stay as the fallback for
- * someone who has no DAY at all, because without them that reader would face
- * an empty picker and no way to quiz anything.
+ * Everything, with the 암송 DAYs first.
+ *
+ * They used to be the only thing offered whenever there was one, on the
+ * grounds that a reader arriving from a DAY has already chosen their scope.
+ * That is true of the reader who arrives that way and false of the library:
+ * an active DAY covers a hundred and fifty verses out of eleven hundred, and
+ * hiding the rest meant the quiz could only ever ask about this month's — with
+ * every check recorded against the other nine hundred sitting there unusable.
+ *
+ * The DAY still leads, which is the part of the old reasoning that holds: it
+ * is what the reader is most likely to want, and it is the first thing the
+ * picker preselects.
  */
 export function offerableTargets(targets: Target[]): Target[] {
 	const events = targets.filter((t) => t.kind === 'event');
-	return events.length > 0 ? events : targets;
+	const packages = targets.filter((t) => t.kind !== 'event');
+	return [...events, ...packages];
 }
 
 function toItem(v: { package_id: string; no: number; title: string; cite: string; w: string }): QuizItem {

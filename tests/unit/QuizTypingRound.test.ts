@@ -356,3 +356,36 @@ describe('QuizTypingRound — 엔터로 다음', () => {
 		expect(onDone).not.toHaveBeenCalled();
 	});
 });
+
+// One Enter, one thing. The keystroke that submits reaches the box first and
+// sets the verdict, then carries on up to the window listener — which found a
+// decided round waiting and moved straight on, so the reader never saw whether
+// they had got it right.
+describe('QuizTypingRound — 제출한 엔터는 넘기지 않는다', () => {
+	it('shows the verdict rather than advancing on the Enter that submitted', async () => {
+		const { onDone } = setup();
+		await type(VERSE);
+		await fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
+
+		expect(onDone).not.toHaveBeenCalled();
+		expect(screen.getByTestId('correct-stamp')).toBeInTheDocument();
+	});
+
+	it('does the same for a miss', async () => {
+		const { onDone } = setup();
+		await type('아무말');
+		await fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
+
+		expect(onDone).not.toHaveBeenCalled();
+		expect(screen.getByTestId('wrong-stamp')).toBeInTheDocument();
+	});
+
+	// The next Enter is the reader's, and it moves on.
+	it('advances on the Enter after that', async () => {
+		const { onDone } = setup();
+		await type(VERSE);
+		await fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
+		await fireEvent.keyDown(window, { key: 'Enter' });
+		expect(onDone).toHaveBeenCalledTimes(1);
+	});
+});

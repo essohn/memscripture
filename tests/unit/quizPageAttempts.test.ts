@@ -316,15 +316,16 @@ describe('quiz/+page.svelte — a scope decided before this screen', () => {
 		expect(screen.queryByRole('button', { name: '2026 여름 암송 Day' })).toBeNull();
 	});
 
-	// Packages are the fallback for a reader with no DAY at all — without them
-	// that reader meets an empty picker.
-	it('drops the packages once a DAY exists', async () => {
+	// The packages used to be hidden the moment a DAY existed, which meant the
+	// quiz could only ask about that DAY's verses while every check recorded
+	// against the rest of the library sat there unusable.
+	it('keeps the packages behind the DAY', async () => {
 		vi.mocked(listTargets).mockResolvedValueOnce([day, target, other]);
 
 		render(QuizPage);
 
 		await waitFor(() => expect(screen.getByText('2026 여름 암송 Day')).toBeInTheDocument());
-		expect(screen.queryByRole('button', { name: 'A구절' })).toBeNull();
+		expect(screen.getByRole('button', { name: 'A구절' })).toBeInTheDocument();
 	});
 });
 

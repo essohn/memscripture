@@ -98,14 +98,15 @@ describe('QuizScopePicker', () => {
 describe('QuizScopePicker — 난이도 rows', () => {
 	// The quiz is where a reader goes to work on what they keep losing, so it
 	// opens pointed at the hard end rather than at everything.
-	it('opens with Impossible, xHard and Hard on in both rows', () => {
+	// It used to open on Impossible, xHard and Hard. The rows intersect, and a
+	// verse is only rated by being checked, so on a library that has barely
+	// been checked almost everything is 미평가 and fell out of both — a
+	// 149-verse 암송 DAY offered two. Narrowing is the reader's to do.
+	it('opens with every chip on in both rows', () => {
 		setup();
 		for (const row of ['시작 난이도', '전체 난이도'] as const) {
-			for (const on of ['Impossible', 'xHard', 'Hard']) {
-				expect(chip(row, on)).toHaveAttribute('aria-pressed', 'true');
-			}
-			for (const off of ['Normal', 'Easy', 'xEasy', '미평가']) {
-				expect(chip(row, off)).toHaveAttribute('aria-pressed', 'false');
+			for (const label of ['Impossible', 'xHard', 'Hard', 'Normal', 'Easy', 'xEasy', '미평가']) {
+				expect(chip(row, label), `${row} ${label}`).toHaveAttribute('aria-pressed', 'true');
 			}
 		}
 	});
@@ -119,10 +120,12 @@ describe('QuizScopePicker — 난이도 rows', () => {
 			items: [item(1)],
 			ratings: new Map<string, ItemRating>([['a_krv:1', { start: 2, full: 5 }]])
 		});
-		expect(screen.getByText('고른 난이도 그룹에 해당하는 구절이 없습니다')).toBeInTheDocument();
+		// Everything is on, so it qualifies. Take xEasy off the 전체 row and the
+		// verse fails that row while still clearing the 시작 one.
+		expect(screen.getByText('1구절')).toBeInTheDocument();
 
 		await fireEvent.click(chip('전체 난이도', 'xEasy'));
-		expect(screen.getByText('1구절')).toBeInTheDocument();
+		expect(screen.getByText('고른 난이도 그룹에 해당하는 구절이 없습니다')).toBeInTheDocument();
 	});
 
 	it('files each dimension separately under 미평가', async () => {
@@ -130,10 +133,12 @@ describe('QuizScopePicker — 난이도 rows', () => {
 			items: [item(1)],
 			ratings: new Map<string, ItemRating>([['a_krv:1', { start: 2, full: null }]])
 		});
-		expect(screen.getByText('고른 난이도 그룹에 해당하는 구절이 없습니다')).toBeInTheDocument();
-
-		await fireEvent.click(chip('전체 난이도', '미평가'));
 		expect(screen.getByText('1구절')).toBeInTheDocument();
+
+		// Its 전체 rating is 미평가, so taking that chip off the 전체 row alone
+		// drops it — the 시작 row, where it is rated Hard, never sees 미평가.
+		await fireEvent.click(chip('전체 난이도', '미평가'));
+		expect(screen.getByText('고른 난이도 그룹에 해당하는 구절이 없습니다')).toBeInTheDocument();
 	});
 });
 
@@ -142,24 +147,24 @@ describe('QuizScopePicker — 난이도 rows', () => {
 		setup();
 		const row = '시작 난이도' as const;
 
-		// Not everything is on to begin with, so the button offers the fill.
-		await fireEvent.click(chip(row, '전체 선택'));
-		for (const label of ['Impossible', 'xHard', 'Hard', 'Normal', 'Easy', 'xEasy', '미평가']) {
-			expect(chip(row, label)).toHaveAttribute('aria-pressed', 'true');
-		}
-
-		// Now that it is full, the same button offers the clear.
+		// It opens full, so the button offers the clear first.
 		await fireEvent.click(chip(row, '전체 해제'));
 		for (const label of ['Impossible', 'xHard', 'Hard', 'Normal', 'Easy', 'xEasy', '미평가']) {
 			expect(chip(row, label)).toHaveAttribute('aria-pressed', 'false');
+		}
+
+		// Now that it is empty, the same button offers the fill.
+		await fireEvent.click(chip(row, '전체 선택'));
+		for (const label of ['Impossible', 'xHard', 'Hard', 'Normal', 'Easy', 'xEasy', '미평가']) {
+			expect(chip(row, label)).toHaveAttribute('aria-pressed', 'true');
 		}
 	});
 
 	it('moves one row without touching the other', async () => {
 		setup();
-		await fireEvent.click(chip('시작 난이도', '전체 선택'));
-		expect(chip('시작 난이도', 'xEasy')).toHaveAttribute('aria-pressed', 'true');
-		expect(chip('전체 난이도', 'xEasy')).toHaveAttribute('aria-pressed', 'false');
+		await fireEvent.click(chip('시작 난이도', '전체 해제'));
+		expect(chip('시작 난이도', 'xEasy')).toHaveAttribute('aria-pressed', 'false');
+		expect(chip('전체 난이도', 'xEasy')).toHaveAttribute('aria-pressed', 'true');
 	});
 
 describe('QuizScopePicker — 범위', () => {
@@ -173,17 +178,20 @@ describe('QuizScopePicker — 범위', () => {
 	});
 
 	// Two different empty states with two different fixes: an empty range needs
-	// a different scope, a range emptied by the chips needs different chips. A
-	// freshly installed package is 미평가 throughout and the rows open on the
-	// hard end, so the second is what a reader meets first.
+	// a different scope, a range emptied by the chips needs different chips.
 	it('separates an empty range from one the chips emptied', async () => {
 		setup({ items: [] });
 		expect(screen.getByText('고른 범위에 구절이 없습니다')).toBeInTheDocument();
 		expect(screen.queryByText('고른 난이도 그룹에 해당하는 구절이 없습니다')).toBeNull();
 	});
 
-	it('says it was the chips when the range itself has verses', () => {
+	it('says it was the chips when the range itself has verses', async () => {
+		// The rows open full, so the reader has to take something off before
+		// this state exists at all — which is the point of telling the two
+		// apart: this one is fixed by putting a chip back.
 		setup({ items: [item(1)], ratings: new Map() });
+		await fireEvent.click(chip('시작 난이도', '미평가'));
+
 		expect(screen.getByText('고른 난이도 그룹에 해당하는 구절이 없습니다')).toBeInTheDocument();
 		expect(screen.queryByText('고른 범위에 구절이 없습니다')).toBeNull();
 

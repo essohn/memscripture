@@ -58,18 +58,26 @@
 	/** One tile per game, in picker order. */
 	const GAME_ICONS = { typing: Trophy, opening: Flag, spot: ScanSearch };
 
-	/**
-	 * The chips each row starts on: Impossible, xHard, Hard.
-	 *
-	 * The quiz is where a reader goes to work on what they keep losing, so it
-	 * opens pointed at the hard end rather than at everything. 미평가 is off
-	 * with the rest — an unrated verse is not known to be hard, and including
-	 * it by default would bury the ones that are.
-	 */
-	const HARD_BY_DEFAULT: Tier[] = [0, 1, 2];
+	/** Every chip a row can hold: the six levels, plus 미평가. */
+	const ALL_TIERS: Tier[] = [...DIFFICULTY_LEVELS, null];
 
-	let startTiers = $state<Set<Tier>>(new Set<Tier>(HARD_BY_DEFAULT));
-	let fullTiers = $state<Set<Tier>>(new Set<Tier>(HARD_BY_DEFAULT));
+	/**
+	 * The chips each row starts on: all of them.
+	 *
+	 * It used to open on Impossible, xHard and Hard — the reasoning being that
+	 * the quiz is where a reader goes to work on what they keep losing. The
+	 * reasoning was fine and the effect was not: the two rows *intersect*, and
+	 * a verse is only rated by being checked, so on a library that has barely
+	 * been checked almost everything is 미평가 and falls out of both rows. A
+	 * 149-verse 암송 DAY was offering two.
+	 *
+	 * An unrated verse is not known to be hard, but it is not known to be easy
+	 * either, and a quiz that will not ask about it can never find out. Opening
+	 * on everything and letting the reader narrow is the way round that cannot
+	 * present an empty scope as if it were the whole library.
+	 */
+	let startTiers = $state<Set<Tier>>(new Set<Tier>(ALL_TIERS));
+	let fullTiers = $state<Set<Tier>>(new Set<Tier>(ALL_TIERS));
 
 	/** One game for the whole session. 퍼펙트 게임 is the default because it is
 	 *  the one that works on every verse from the first day. */
@@ -115,7 +123,6 @@
 	);
 
 	/** Every chip a row can hold, 미평가 included. */
-	const ALL_TIERS: Tier[] = [...DIFFICULTY_LEVELS, null];
 
 	function setRow(row: 'start' | 'full', next: Set<Tier>) {
 		if (row === 'start') startTiers = next;
