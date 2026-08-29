@@ -95,3 +95,110 @@ export function difficultyTrend(records: CheckRecord[], dim: 'start' | 'full'): 
 	if (Math.abs(slope) < FLAT_SLOPE) return 'flat';
 	return slope > 0 ? 'improving' : 'worsening';
 }
+
+/**
+ * Attempts that must have reached a word before its colour means anything.
+ *
+ * Carries the same idea as SUGGEST_MIN_MISSES: one incident is an accident,
+ * not a diagnosis. Without it a verse checked once after a long gap would
+ * light up on a single slip.
+ */
+export const MIN_REACH = 2;
+
+/**
+ * Accuracy at or above which a check with no saved `typed` is assumed to have
+ * reached the end of the verse.
+ *
+ * markMismatchedWords reports the whole unreached tail as wrong, so an
+ * attempt abandoned halfway scores around half and an abandoned opening
+ * scores near nothing. Above this line the attempt plausibly went the
+ * distance and its misses are real misses; below it, nothing can be said.
+ *
+ * Deliberately NOT quiz/games' isRecallableAttempt, whose 0.9 threshold and
+ * exclusion of a perfect score answer a different question — whether a
+ * sentence makes a good 틀린 곳 찾기 puzzle. Borrowing it would drop every
+ * flawless check from the heat map and weld this metric to a constant that
+ * will be tuned for the quiz.
+ */
+export const ASSUME_COMPLETE_MIN_ACCURACY = 0.5;
+
+export type HeatTier = 'none' | 'rare' | 'sometimes' | 'often';
+
+export interface WordHeat {
+	/** Attempts that got this far. */
+	reached: number;
+	/** Of those, how many got this word wrong. */
+	missed: number;
+	/** missed / reached, or null when nothing reached this word — which is a
+	 *  different thing from a word nobody ever missed. */
+	rate: number | null;
+	tier: HeatTier;
+}
+
+/**
+ * How many words into the verse this attempt reached.
+ *
+ * Approximated from the attempt's own token count, not recovered exactly.
+ * markMismatchedWords walks a normalized character stream with a cursor, so
+ * "which word did they stop at" is not a thing it reports and not a thing
+ * this can ask it for. What is needed here is the denominator of a
+ * three-step tint, not an audit trail, and the approximation errs in the
+ * honest direction: a reader who typed fewer words than the verse holds did
+ * produce less of it.
+ *
+ * `typed === ''` — saved having typed nothing — falls to the second branch
+ * and yields 0, which is right: it reached no word.
+ */
+function reachOf(r: CheckRecord, wordCount: number): number {
+	if (r.typed === undefined) {
+		return r.accuracy >= ASSUME_COMPLETE_MIN_ACCURACY ? wordCount : 0;
+	}
+	return Math.min(wordCount, r.typed.trim().split(/\s+/).filter(Boolean).length);
+}
+
+function tierOf(reached: number, rate: number | null): HeatTier {
+	if (rate === null || rate <= 0 || reached < MIN_REACH) return 'none';
+	if (rate >= 2 / 3) return 'often';
+	if (rate >= 1 / 3) return 'sometimes';
+	return 'rare';
+}
+
+/**
+ * How often each word of the verse has actually been got wrong.
+ *
+ * A rate rather than a count, because markMismatchedWords reports every word
+ * past where an attempt stopped as missed — so counting raw misses would
+ * paint the tail of the verse red on the strength of one surrender.
+ *
+ * Derived on every read rather than stored, on the terms suggestedMarks set:
+ * a stored map would need a schema version, a merge rule, a decay policy and
+ * an answer for an OYO verse edited under it, and worse, after the reader
+ * fixes a word it would keep pointing at a place that is already fixed.
+ */
+export function wordHeat(records: CheckRecord[], wordCount: number): WordHeat[] {
+	const reached = new Array<number>(Math.max(0, wordCount)).fill(0);
+	const missed = new Array<number>(Math.max(0, wordCount)).fill(0);
+
+	for (const r of records) {
+		// Absent is not an empty array: this check predates the field and
+		// measured nothing about positions, so counting its reach would score
+		// every word as a clean run on evidence that does not exist.
+		if (!r.missed) continue;
+
+		const reach = reachOf(r, wordCount);
+		for (let i = 0; i < reach; i++) reached[i]++;
+
+		// Bounded by `reach`, which does two jobs at once: it drops the tail of
+		// an abandoned attempt, and it drops an index past the end of an OYO
+		// verse edited shorter than its own history.
+		for (const i of new Set(r.missed)) {
+			if (i < 0 || i >= reach) continue;
+			missed[i]++;
+		}
+	}
+
+	return reached.map((n, i) => {
+		const rate = n === 0 ? null : missed[i] / n;
+		return { reached: n, missed: missed[i], rate, tier: tierOf(n, rate) };
+	});
+}
