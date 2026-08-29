@@ -17,7 +17,12 @@
 	import { readerHref } from '$lib/bible/reference';
 	import { createPlayer, isTtsSupported, speechSegments, type PlayerHandle } from '$lib/memorize/speak';
 	import VersePlayer from './VersePlayer.svelte';
-	import { getSpeakOptions, setSpeakOption, type SpeakOptionsStored } from '$lib/db/viewOptions';
+	import {
+		getSpeakOptions,
+		setSpeakOption,
+		SPEAK_DEFAULTS,
+		type SpeakOptionsStored
+	} from '$lib/db/viewOptions';
 	import { countsAsRecall, deleteCheck, listChecks, recordCheck, restoreCheck } from '$lib/db/checkHistory';
 	import type { CheckRecord } from '$lib/db/local';
 	import { tick } from 'svelte';
@@ -194,14 +199,10 @@
 	 * error and no sound. Desktop Chrome has no such rule, which is why this
 	 * only ever failed on the phone.
 	 */
-	let speakOpts = $state<SpeakOptionsStored>({
-		speakTitle: false,
-		speakRate: 0.9,
-		speakRepeat: false,
-		speakListRepeat: true,
-		speakVoice: '',
-		speakGender: 'auto'
-	});
+	// SPEAK_DEFAULTS rather than the same six values written out again: this
+	// was a copy, and a copy of a shape is a thing that goes stale the next
+	// time the shape grows — which it just did.
+	let speakOpts = $state<SpeakOptionsStored>({ ...SPEAK_DEFAULTS });
 	let player: PlayerHandle | null = null;
 	/** Shown while the player bar is open, which outlives a pause — closing it
 	 *  is a separate act from pausing, the same as any player. */

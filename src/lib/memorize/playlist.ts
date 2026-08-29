@@ -99,17 +99,24 @@ export function trackAt(
  * straight through. Measured in the reader's own reading speed — slowing the
  * voice lengthens the room to recite along with it.
  *
- * The room is the estimate itself, with nothing added. Recall is slower than
- * reading and wants a margin, but the estimate already is one: timed against
- * the real voice on four verses in production, estimateDurationMs's 5.5
- * characters a second ran about 9% longer than the engine actually took. A
- * further fifth on top of that put the silence at 1.3× the spoken verse, which
- * stops reading as room to think and starts reading as an app that has hung.
+ * At scale 1 the room is the estimate itself, with nothing added. Recall is
+ * slower than reading and wants a margin, but the estimate already is one:
+ * timed against the real voice on four verses in production,
+ * estimateDurationMs's 5.5 characters a second ran about 9% longer than the
+ * engine actually took. A further fifth on top of that put the silence at 1.3×
+ * the spoken verse, which stops reading as room to think and starts reading as
+ * an app that has hung.
+ *
+ * `scale` is the reader's own dial on that, because how long a verse takes to
+ * recall is a fact about the reader and not about the verse: the same set is a
+ * glance for someone on their tenth pass and a struggle on their first.
  */
 export function reciteGap(
 	bodyStarts: number[],
-	rate: number
+	rate: number,
+	scale: number
 ): (text: string, offset: number) => number {
 	const starts = new Set(bodyStarts);
-	return (text, offset) => (starts.has(offset) ? estimateDurationMs(text, rate) : 0);
+	return (text, offset) =>
+		starts.has(offset) ? Math.round(estimateDurationMs(text, rate) * scale) : 0;
 }

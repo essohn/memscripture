@@ -132,20 +132,37 @@ describe('reciteGap', () => {
 	 * 1.3× what the verse actually took, which reads as the app having stopped.
 	 */
 	it('leaves the verse its estimated reading time, and no more', () => {
-		expect(reciteGap([5], 1)(BODY, 5)).toBe(estimateDurationMs(BODY, 1));
+		expect(reciteGap([5], 1, 1)(BODY, 5)).toBe(estimateDurationMs(BODY, 1));
 	});
 
 	it('says nothing about an offset that is not a body', () => {
-		expect(reciteGap([5], 1)(BODY, 0)).toBe(0);
+		expect(reciteGap([5], 1, 1)(BODY, 0)).toBe(0);
 	});
 
 	// The silence is measured in the reader's own reading speed, so slowing the
 	// voice down lengthens the room to recite along with it.
 	it('follows the reading speed', () => {
-		expect(reciteGap([0], 0.5)(BODY, 0)).toBeGreaterThan(reciteGap([0], 1.5)(BODY, 0));
+		expect(reciteGap([0], 0.5, 1)(BODY, 0)).toBeGreaterThan(reciteGap([0], 1.5, 1)(BODY, 0));
 	});
 
 	it('is nothing at all when no body was marked', () => {
-		expect(reciteGap([], 1)(BODY, 0)).toBe(0);
+		expect(reciteGap([], 1, 1)(BODY, 0)).toBe(0);
+	});
+});
+
+describe('reciteGap scaling', () => {
+	const BODY = '그들에게 율례와 법도를 가르쳐서';
+
+	// The dial on top of the estimate: shorter for a set the reader knows cold,
+	// longer while they are still finding the words.
+	it('multiplies the silence by the chosen scale', () => {
+		expect(reciteGap([0], 1, 0.5)(BODY, 0)).toBe(Math.round(estimateDurationMs(BODY, 1) * 0.5));
+		expect(reciteGap([0], 1, 1.5)(BODY, 0)).toBe(Math.round(estimateDurationMs(BODY, 1) * 1.5));
+	});
+
+	// The shortest step still has to leave a pause; a silence rounded away
+	// would run the citation straight into the verse.
+	it('still leaves a real pause at the shortest step', () => {
+		expect(reciteGap([0], 1, 0.3)(BODY, 0)).toBeGreaterThan(500);
 	});
 });

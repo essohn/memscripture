@@ -16,6 +16,7 @@ import {
 	getSpeakOptions,
 	setSpeakOption,
 	SPEAK_DEFAULTS,
+	type ReciteScale,
 	type SpeakOptionsStored
 } from '$lib/db/viewOptions';
 
@@ -60,7 +61,7 @@ export class PlaylistPlayer {
 	/** 따라 읽기: a silence before each verse, long enough to say it first.
 	 *  Kept on the player because seeking and resuming rebuild the engine and
 	 *  have to rebuild it in the same mode. */
-	#recite = false;
+	#recite = $state(false);
 	#playing = $state(false);
 	/** The device would not speak at all. Kept so the bar can say so instead of
 	 *  sitting there having quietly given up. */
@@ -82,6 +83,14 @@ export class PlaylistPlayer {
 	 *  looking like a player that has stopped. */
 	get waitFraction(): number {
 		return this.#progress.waitFraction;
+	}
+	/** Whether the running list is a 따라 읽기 one. The dial means nothing on a
+	 *  straight 전체 듣기, so the bar only offers it here. */
+	get reciting(): boolean {
+		return this.#recite;
+	}
+	get reciteScale(): ReciteScale {
+		return this.#opts.reciteScale;
 	}
 	get playing(): boolean {
 		return this.#playing;
@@ -218,6 +227,33 @@ export class PlaylistPlayer {
 		return written;
 	}
 
+	/**
+	 * Applies immediately, then persists — same contract as toggleRepeat, and
+	 * for the same reason: the tap must not wait on storage, while a caller
+	 * that needs the write to have landed can await it.
+	 *
+	 * Worth changing mid-list rather than only in 설정, because a silence is
+	 * only too long once you are sitting through one. The engine captured the
+	 * old length when it built the list's gaps, so the playback is restarted
+	 * where it stands — which also rebuilds the runtime the bar counts against,
+	 * and that shifts by minutes across this dial's range.
+	 */
+	setReciteScale(scale: ReciteScale): Promise<void> {
+		this.#version++;
+		this.#opts = { ...this.#opts, reciteScale: scale };
+		const written = setSpeakOption('reciteScale', scale).catch(() => {});
+		// Same end-of-list guard as toggleRepeat: restarting at a fraction of
+		// exactly 1 seeks past the end, where sliceFrom returns nothing and the
+		// list silently fails to start.
+		if (this.#playing && this.#list && this.#recite) {
+			const at = this.#progress.fraction;
+			this.#handle?.stop();
+			this.#handle = null;
+			this.#play(this.#list, at >= 1 ? 0 : at);
+		}
+		return written;
+	}
+
 	close(): void {
 		this.#handle?.stop();
 		this.#handle = null;
@@ -245,7 +281,9 @@ export class PlaylistPlayer {
 			repeat: this.#opts.speakListRepeat,
 			onProgress: (p) => (this.#progress = p),
 			onFailure: () => (this.#failed = true),
-			gapBefore: this.#recite ? reciteGap(list.bodyStarts, this.#opts.speakRate) : undefined,
+			gapBefore: this.#recite
+				? reciteGap(list.bodyStarts, this.#opts.speakRate, this.#opts.reciteScale)
+				: undefined,
 			onEnd: () => {
 				// Reached both when the list finishes and when another playback
 				// relieves this one. Either way the bar stays open, showing where

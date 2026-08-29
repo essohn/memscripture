@@ -98,3 +98,41 @@ describe('PlaylistBar during 따라 읽기\'s silence', () => {
 		expect(screen.queryByTestId('recite-countdown')).toBeNull();
 	});
 });
+
+describe('PlaylistBar recite dial', () => {
+	const reciting = { ...props, reciteScale: 1 as const, onPickReciteScale: () => {} };
+
+	// One button wearing its own value, rather than six chips on a row of their
+	// own: the bar is two lines on a phone and a third would push it over the
+	// tab bar.
+	it('wears the current scale on its face', () => {
+		render(PlaylistBar, { props: { ...reciting, reciteScale: 0.5 as const } });
+		expect(screen.getByRole('button', { name: /따라하기 길이/ })).toHaveTextContent('0.5');
+	});
+
+	// The silence only exists in 따라 읽기, so on a straight 전체 듣기 the dial
+	// would be a control that does nothing.
+	it('is absent on a straight 전체 듣기', () => {
+		render(PlaylistBar, { props });
+		expect(screen.queryByRole('button', { name: /따라하기 길이/ })).toBeNull();
+	});
+
+	it('reports the step that was chosen', async () => {
+		const onPickReciteScale = vi.fn();
+		render(PlaylistBar, { props: { ...reciting, onPickReciteScale } });
+		await fireEvent.click(screen.getByRole('button', { name: /따라하기 길이/ }));
+		await fireEvent.click(screen.getByRole('menuitemradio', { name: '0.3' }));
+		expect(onPickReciteScale).toHaveBeenCalledWith(0.3);
+	});
+
+	// Exactly one of six, so a radio menu rather than six pressed-or-not
+	// buttons — which is what the font-size menu got wrong.
+	it('marks only the current step', async () => {
+		render(PlaylistBar, { props: { ...reciting, reciteScale: 0.8 as const } });
+		await fireEvent.click(screen.getByRole('button', { name: /따라하기 길이/ }));
+		const steps = screen.getAllByRole('menuitemradio');
+		expect(steps).toHaveLength(6);
+		expect(steps.filter((s) => s.getAttribute('aria-checked') === 'true')).toHaveLength(1);
+		expect(screen.getByRole('menuitemradio', { name: '0.8' })).toBeChecked();
+	});
+});

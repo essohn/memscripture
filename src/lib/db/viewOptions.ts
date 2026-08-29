@@ -82,6 +82,12 @@ export async function setVerseFontScale(v: VerseFontScale): Promise<void> {
 export const SPEAK_RATES = [0.6, 0.75, 0.9, 1.0, 1.2] as const;
 export type SpeakRate = (typeof SPEAK_RATES)[number];
 
+/** How long 따라 읽기 waits, against the verse's estimated reading time.
+ *  Reaching further down than up: someone who knows the set cold wants the
+ *  pause out of the way, and 1.5 is already a long silence to sit through. */
+export const RECITE_SCALES = [0.3, 0.5, 0.8, 1, 1.2, 1.5] as const;
+export type ReciteScale = (typeof RECITE_SCALES)[number];
+
 export interface SpeakOptionsStored {
 	/** Read the topical title before the reference. Off by default — it is a
 	 *  label, not scripture. */
@@ -99,6 +105,10 @@ export interface SpeakOptionsStored {
 	speakVoice: string;
 	/** Preferred voice gender. 'auto' takes whichever voice ranks best. */
 	speakGender: 'male' | 'female' | 'auto';
+	/** 따라 읽기's silence, as a multiple of the verse's estimated reading
+	 *  time. 1 leaves the estimate alone, which already runs about 9% over
+	 *  what the voice actually takes. */
+	reciteScale: ReciteScale;
 }
 
 export const SPEAK_DEFAULTS: SpeakOptionsStored = {
@@ -110,12 +120,18 @@ export const SPEAK_DEFAULTS: SpeakOptionsStored = {
 	// Auto, which the quality ranking resolves to the neural voice — 'Google
 	// 한국의' on Chrome. Naming it here instead would go silent on iPhone,
 	// where it does not exist; the ranking degrades to the next best.
-	speakGender: 'auto'
+	speakGender: 'auto',
+	reciteScale: 1
 };
 
 export async function getSpeakOptions(): Promise<SpeakOptionsStored> {
 	const raw = await readRaw();
 	const rate = SPEAK_RATES.find((r) => Math.abs(r - (raw.speakRate as number)) < 0.001);
+	// Matched against the offered steps rather than range-checked, for the same
+	// reason as the rate: a value from an older build, a hand-edited record or
+	// a future one that offered another step must not reach the player as a
+	// multiplier nobody chose.
+	const recite = RECITE_SCALES.find((r) => Math.abs(r - (raw.reciteScale as number)) < 0.001);
 	return {
 		speakTitle: typeof raw.speakTitle === 'boolean' ? raw.speakTitle : SPEAK_DEFAULTS.speakTitle,
 		speakRate: rate ?? SPEAK_DEFAULTS.speakRate,
@@ -129,7 +145,8 @@ export async function getSpeakOptions(): Promise<SpeakOptionsStored> {
 		speakGender:
 			raw.speakGender === 'male' || raw.speakGender === 'female' || raw.speakGender === 'auto'
 				? raw.speakGender
-				: SPEAK_DEFAULTS.speakGender
+				: SPEAK_DEFAULTS.speakGender,
+		reciteScale: recite ?? SPEAK_DEFAULTS.reciteScale
 	};
 }
 

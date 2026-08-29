@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { Pause, Play, Repeat, X } from 'lucide-svelte';
 	import ScrubTrack from './ScrubTrack.svelte';
+	import RecitePicker from './RecitePicker.svelte';
+	import type { ReciteScale } from '$lib/db/viewOptions';
 
 	/**
 	 * The transport for a whole list, docked above the tab bar.
@@ -27,6 +29,11 @@
 		failed?: boolean;
 		/** 0..1 through 따라 읽기's silence. 0 while a verse is being read. */
 		waitFraction?: number;
+		/** The silence's length, as a multiple of the verse's reading time —
+		 *  null on a straight 전체 듣기, where there is no silence for it to
+		 *  describe and the control would do nothing. */
+		reciteScale?: ReciteScale | null;
+		onPickReciteScale?: (scale: ReciteScale) => void;
 		onToggle: () => void;
 		onSeek: (fraction: number) => void;
 		onToggleRepeat: () => void;
@@ -43,6 +50,8 @@
 		repeat,
 		failed = false,
 		waitFraction = 0,
+		reciteScale = null,
+		onPickReciteScale = () => {},
 		onToggle,
 		onSeek,
 		onToggleRepeat,
@@ -111,6 +120,12 @@
 				{index}/{count}
 			</span>
 
+			<!-- Beside the repeat toggle: both say how this list will run rather
+			     than driving it, so they belong together and away from the
+			     transport on the left. -->
+			{#if reciteScale !== null}
+				<RecitePicker value={reciteScale} onpick={onPickReciteScale} />
+			{/if}
 			<button
 				type="button"
 				onclick={onToggleRepeat}

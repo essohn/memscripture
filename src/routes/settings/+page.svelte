@@ -21,9 +21,11 @@
 		type VoiceLike
 	} from '$lib/memorize/speak';
 	import {
+		RECITE_SCALES,
 		SPEAK_RATES,
 		getSpeakOptions,
 		setSpeakOption,
+		type ReciteScale,
 		type SpeakRate
 	} from '$lib/db/viewOptions';
 	import { getGoogleOauthClientId } from '$lib/sync/clientId';
@@ -97,6 +99,7 @@
 	let speakRepeat = $state(false);
 	let speakListRepeat = $state(true);
 	let speakRate = $state<SpeakRate>(0.9);
+	let reciteScale = $state<ReciteScale>(1);
 	let speakVoice = $state('');
 	let speakGender = $state<'male' | 'female' | 'auto'>('auto');
 	const GENDERS = [
@@ -128,6 +131,7 @@
 				speakRepeat = o.speakRepeat;
 				speakListRepeat = o.speakListRepeat;
 				speakRate = o.speakRate;
+				reciteScale = o.reciteScale;
 				speakVoice = o.speakVoice;
 				speakGender = o.speakGender;
 			})
@@ -604,6 +608,37 @@
 					</button>
 				{/each}
 			</div>
+		</div>
+
+		<!-- 따라 읽기 only. Placed under the reading speed because the two
+		     multiply: the silence is measured in the reader's own reading
+		     speed, so slowing the voice already lengthens it and this is the
+		     dial on top of that. Also on the player bar, which is where a
+		     silence is actually felt to be wrong. -->
+		<div class="mt-4">
+			<span class="text-[13px] text-[var(--color-text)]">따라하기 길이</span>
+			<div class="mt-2 flex flex-wrap gap-1.5">
+				{#each RECITE_SCALES as r (r)}
+					<button
+						type="button"
+						aria-pressed={reciteScale === r}
+						onclick={() => {
+							reciteScale = r;
+							setSpeakOption('reciteScale', r);
+						}}
+						class="rounded-full border px-3 py-1 text-[12px] font-medium tabular-nums transition-colors {reciteScale ===
+						r
+							? 'border-transparent bg-[var(--color-accent)] text-white'
+							: 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-elevated)]'}"
+					>
+						{r.toFixed(1)}x
+					</button>
+				{/each}
+			</div>
+			<p class="mt-1.5 text-[11px] text-[var(--color-text-tertiary)]">
+				따라 읽기에서 장절을 읽은 뒤 본문까지 기다리는 시간입니다. 1.0은 그 구절을 소리 내어
+				읽는 데 걸리는 만큼입니다.
+			</p>
 		</div>
 	</section>
 

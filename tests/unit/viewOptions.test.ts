@@ -66,7 +66,8 @@ describe('읽어주기 options', () => {
 			speakRepeat: false,
 			speakListRepeat: true,
 			speakVoice: '',
-			speakGender: 'auto'
+			speakGender: 'auto',
+			reciteScale: 1
 		});
 	});
 
@@ -82,7 +83,8 @@ describe('읽어주기 options', () => {
 			speakRepeat: true,
 			speakListRepeat: true,
 			speakVoice: '',
-			speakGender: 'auto'
+			speakGender: 'auto',
+			reciteScale: 1
 		});
 	});
 
@@ -155,5 +157,27 @@ describe('retired keys', () => {
 
 		expect(await getVerseFontScale()).toBe(1.3);
 		expect(await getShowVerseTextInList()).toBe(false);
+	});
+});
+
+describe('reciteScale', () => {
+	// 따라 읽기's silence is the verse's estimated reading time, and this is the
+	// dial on top of it: half for someone who knows the set cold, half again
+	// for someone still finding the words.
+	it('defaults to leaving the estimate as it is', async () => {
+		expect((await getSpeakOptions()).reciteScale).toBe(1);
+	});
+
+	it('remembers a chosen scale', async () => {
+		await setSpeakOption('reciteScale', 0.5);
+		expect((await getSpeakOptions()).reciteScale).toBe(0.5);
+	});
+
+	// Same guard as speakRate: a value from an older build, a hand-edited
+	// record or a future one that offered another step must not reach the
+	// player as a multiplier nobody chose.
+	it('falls back when the stored value is not one of the steps', async () => {
+		await db.settings.put({ key: 'view_options', value: { reciteScale: 2.7 } });
+		expect((await getSpeakOptions()).reciteScale).toBe(1);
 	});
 });

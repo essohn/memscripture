@@ -163,6 +163,29 @@ describe('PlaylistPlayer', () => {
 		expect(fresh.listRepeat).toBe(false);
 	});
 
+	// The dial is worth changing while listening — a silence is only too long
+	// once you are sitting through it — so it applies to the running list and
+	// persists, the same contract as the repeat toggle.
+	it('applies a new recite scale at once and remembers it', async () => {
+		player.start('event:e1', VERSES, { recite: true });
+		expect(player.reciteScale).toBe(1);
+		await player.setReciteScale(0.5);
+		expect(player.reciteScale).toBe(0.5);
+		expect(player.playing).toBe(true);
+		const fresh = new PlaylistPlayer();
+		await fresh.load();
+		expect(fresh.reciteScale).toBe(0.5);
+	});
+
+	// The dial only means anything in 따라 읽기, so the bar has to be able to
+	// ask whether this list is one.
+	it('says whether the list running is a 따라 읽기 one', () => {
+		player.start('event:e1', VERSES);
+		expect(player.reciting).toBe(false);
+		player.start('event:e1:recite', VERSES, { recite: true });
+		expect(player.reciting).toBe(true);
+	});
+
 	// A card's play button takes the global queue, and it does so by creating
 	// its own player — which is what the ownership registry relieves us
 	// through. The bar must fall back to paused rather than claim to be
