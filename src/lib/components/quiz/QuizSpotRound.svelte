@@ -4,11 +4,10 @@
 	import { findSpotFlaws } from '$lib/quiz/spot';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
 	import ComboMeter from '$lib/components/arcade/ComboMeter.svelte';
-	import AnswerReveal from '$lib/components/arcade/AnswerReveal.svelte';
+	import OutcomeStamp from '$lib/components/arcade/OutcomeStamp.svelte';
 	import { arcade } from '$lib/state/arcade.svelte';
 	import { SPOT_HIT_POINTS, comboLimitMs } from '$lib/arcade/combo';
-	import QuizAnswer from './QuizAnswer.svelte';
-	import QuizVerdict from './QuizVerdict.svelte';
+	import QuizTicker from './QuizTicker.svelte';
 
 	interface Props {
 		item: QuizItem;
@@ -113,14 +112,25 @@
 
 	<ComboMeter {startedAt} {limitMs} {streak} frozen={answered} late={answered && !inTime} />
 
-	<!-- Plain text now, not a strip of targets. The two buttons are the whole
-	     answer, so nothing here needs a role, a tab stop, or a hint line
-	     explaining that the words can be pressed. -->
-	<p class="mt-3 text-[calc(16px*var(--vfs))] leading-[1.9] break-keep">
-		{#each words as word, i (i)}<span
-				class="word"
-				class:wrong={answered && flaws.wrong.includes(i)}>{word}</span
-			>{' '}{/each}
+	<!-- Plain text: the two buttons are the whole answer, so nothing here needs
+	     a role, a tab stop, or a hint line explaining that the words can be
+	     pressed. This sentence is the board, so the stamp lands on it. -->
+	<div class="relative">
+		<p class="mt-3 text-[calc(16px*var(--vfs))] leading-[1.9] break-keep">
+			{#each words as word, i (i)}<span
+					class="word"
+					class:wrong={answered && flaws.wrong.includes(i)}>{word}</span
+				>{' '}{/each}
+		</p>
+		{#if answered}
+			<OutcomeStamp outcome={correct ? 'pass' : 'fail'} />
+		{/if}
+	</div>
+
+	<QuizTicker testid="quiz-answer" label="정답" text={answered ? item.w : ''} />
+
+	<p class="sr-only" role="status" aria-live="polite">
+		{answered ? (correct ? '정답입니다' : '다시 볼 구절입니다') : ''}
 	</p>
 
 	<!-- One control row, in one place: two choices while the round is live, 다음
@@ -136,10 +146,6 @@
 			다음
 		</button>
 
-		<QuizVerdict passed={correct} />
-		<AnswerReveal reveal={answered} outcome={correct ? 'pass' : 'fail'} label="정답">
-			<QuizAnswer w={item.w} />
-		</AnswerReveal>
 
 		{#if showDropped}
 			<!-- Nothing on screen was wrong, so nothing on screen can be marked.

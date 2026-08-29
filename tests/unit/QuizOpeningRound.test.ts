@@ -192,7 +192,9 @@ describe('QuizOpeningRound — the verse itself', () => {
 
 	it('does not give it away while the reader is still typing', () => {
 		setup();
-		expect(screen.queryByTestId('quiz-answer')).toBeNull();
+		// The rail is always in the layout so the round's height never changes;
+		// what must not be there yet is the line in it.
+		expect(screen.queryByTestId('quiz-answer-line')).toBeNull();
 	});
 });
 
@@ -303,17 +305,19 @@ describe('QuizOpeningRound — 콤보 표시', () => {
 });
 
 describe('QuizOpeningRound — 맞고 틀림', () => {
-	it('holds the wall and stamps it when the raider wins', async () => {
+	// The stamp lands on the board now rather than on a wall over 정답: the
+	// answer is a ticker and nothing is hidden for a wall to open.
+	it('stamps the board Wrong when the raider wins', async () => {
 		setup();
 		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
-		expect(screen.getByTestId('answer-wall')).toHaveAttribute('data-outcome', 'fail');
 		expect(screen.getByTestId('wrong-stamp')).toBeInTheDocument();
+		expect(screen.queryByTestId('correct-stamp')).toBeNull();
 	});
 
-	it('breaks the wall, unstamped, on an interception', async () => {
+	it('stamps it Correct on an interception', async () => {
 		setup();
 		await type(OPENING);
-		expect(screen.getByTestId('answer-wall')).toHaveAttribute('data-outcome', 'pass');
+		expect(screen.getByTestId('correct-stamp')).toBeInTheDocument();
 		expect(screen.queryByTestId('wrong-stamp')).toBeNull();
 	});
 
@@ -331,21 +335,22 @@ describe('QuizOpeningRound — 맞고 틀림', () => {
 	it('says nothing about an attempt that was never made', async () => {
 		setup();
 		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
-		expect(screen.queryByTestId('quiz-attempt')).toBeNull();
+		expect(screen.queryByTestId('quiz-attempt-line')).toBeNull();
 	});
 });
 
 describe('QuizOpeningRound — 판정', () => {
-	it('calls an interception 정답', async () => {
+	// The only place the result is spoken, now that the card has gone.
+	it('speaks an interception as 정답', async () => {
 		setup();
 		await type(OPENING);
-		expect(screen.getByTestId('quiz-verdict')).toHaveTextContent('정답!');
+		expect(screen.getByRole('status')).toHaveTextContent('정답입니다');
 	});
 
-	it('sends a round the raider won back to the list', async () => {
+	it('speaks a round the raider won as one to come back to', async () => {
 		setup();
 		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
-		expect(screen.getByTestId('quiz-verdict')).toHaveTextContent('다시 볼 구절');
+		expect(screen.getByRole('status')).toHaveTextContent('다시 볼 구절입니다');
 	});
 });
 

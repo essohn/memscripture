@@ -2,10 +2,8 @@
 	import { accuracyOf, markAttemptWords, markMismatchedWords } from '$lib/memorize/grade';
 	import { submitsOnEnter } from '$lib/memorize/typing';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
-	import QuizAnswer from './QuizAnswer.svelte';
-	import QuizVerdict from './QuizVerdict.svelte';
-	import AnswerReveal from '$lib/components/arcade/AnswerReveal.svelte';
-	import QuizAttempt from './QuizAttempt.svelte';
+	import QuizTicker from './QuizTicker.svelte';
+	import OutcomeStamp from '$lib/components/arcade/OutcomeStamp.svelte';
 	import ComboBadge from '$lib/components/arcade/ComboBadge.svelte';
 	import DefuseStage from '$lib/components/arcade/DefuseStage.svelte';
 	import { remainingMs } from '$lib/arcade/clock';
@@ -145,20 +143,34 @@
 	</div>
 	<p class="mt-0.5 text-[calc(14px*var(--vfs))] text-[var(--color-text-secondary)]">{item.cite}</p>
 
-	<DefuseStage {startedAt} {limitMs} {outcome} />
+	<!-- 정답 above the board and 입력한 내용 below it, each one line high
+	     whatever the verse is. Both rails are always here, empty while the
+	     round runs, so the answer landing changes nothing about the layout. -->
+	<QuizTicker testid="quiz-answer" label="정답" text={verdict === null ? '' : item.w} />
 
-	<!-- The clock in words, for a reader who cannot see the bomb. Polite rather
-	     than assertive: it changes every second, and an assertive region would
-	     talk over their own typing. -->
+	<div class="relative">
+		<DefuseStage {startedAt} {limitMs} {outcome} />
+		{#if verdict !== null}
+			<OutcomeStamp outcome={verdict.passed ? 'pass' : 'fail'} />
+		{/if}
+	</div>
+
+	<QuizTicker testid="quiz-attempt" label="입력한 내용" text={verdict === null ? '' : typed} marks={attemptMarks} />
+
+	<!-- The verdict in words, for a reader who has neither the board nor the
+	     stamp. The only place the result is spoken now that the card has
+	     gone. -->
 	<p class="sr-only" role="status" aria-live="polite">
-		{verdict === null ? `${secondsLeft}초 남았습니다` : ''}
+		{verdict === null
+			? `${secondsLeft}초 남았습니다`
+			: verdict.passed
+				? '정답입니다'
+				: '다시 볼 구절입니다'}
 	</p>
 
-	<!-- The box stays in the layout once the answer is in, hidden and out of the
-	     tab order. Taking it away moved the button up under the thumb that had
-	     just pressed 제출 — and three rows rather than four, because the answer
-	     blocks below are small now and the whole card has to share a phone
-	     screen with a keyboard. -->
+	<!-- The box stays in the layout once the answer is in, hidden and out of
+	     the tab order. Taking it away moved the button up under the thumb that
+	     had just pressed 제출. -->
 	<textarea
 		bind:value={typed}
 		onkeydown={onKeydown}
@@ -183,12 +195,4 @@
 	>
 		{verdict === null ? '제출' : '다음'}
 	</button>
-
-	{#if verdict !== null}
-		<QuizVerdict passed={verdict.passed} />
-		<AnswerReveal reveal={true} outcome={verdict.passed ? 'pass' : 'fail'} label="정답">
-			<QuizAnswer w={item.w} />
-		</AnswerReveal>
-		<QuizAttempt {typed} marks={attemptMarks} />
-	{/if}
 </div>
