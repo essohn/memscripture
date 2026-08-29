@@ -39,8 +39,61 @@
 
 	let infoOpen = $state(false);
 
+	const verseToggleLabel = $derived(
+		verseVisibility.shown ? '성경 구절 가리기' : '성경 구절 보이기'
+	);
+
+	/**
+	 * Matched on the physical key rather than the character it produces: with
+	 * the Hangul IME on — which, for these readers, is most of the time — the
+	 * same key reports 'ㅎ', and a shortcut that dies whenever the keyboard is
+	 * in 한글 is dead exactly where it is wanted.
+	 */
+	function isVerseToggleKey(e: KeyboardEvent): boolean {
+		if (e.code !== 'KeyH') return false;
+		// ⌘H hides the window, Ctrl+H is history. Combinations belong to whoever
+		// owns them already.
+		if (e.metaKey || e.ctrlKey || e.altKey) return false;
+		// A half-composed syllable delivers keydowns of its own; none is a
+		// shortcut.
+		return !e.isComposing;
+	}
+
+	/** Whether the keypress belongs to something the reader is typing into —
+	 *  search, the OYO table, the 점검 answer box. */
+	function isTyping(target: EventTarget | null): boolean {
+		if (!(target instanceof HTMLElement)) return false;
+		// The attribute rather than `isContentEditable`: that property is
+		// browser-only and undefined under jsdom, so the guard would pass its
+		// test and still let a keystroke through in a real editable.
+		return (
+			target.closest(
+				'input, textarea, select, [contenteditable]:not([contenteditable="false"])'
+			) !== null
+		);
+	}
+
+	/**
+	 * Whether a sheet or dialog is currently up. Every modal in the app carries
+	 * aria-modal while open — 점검 and 암송 on the card, the check history, the
+	 * OYO editor, the confirm dialog — so the DOM already holds this state and
+	 * the header needs no prop to learn it.
+	 *
+	 * A modal owns the keyboard while it is open, and the list behind one is
+	 * blurred: toggling there is a change the reader cannot watch happen, and
+	 * only meets when they close the panel.
+	 */
+	function modalIsOpen(): boolean {
+		return document.querySelector('[aria-modal="true"]') !== null;
+	}
+
 	function onWindowKey(e: KeyboardEvent) {
 		if (e.key === 'Escape') infoOpen = false;
+		// The shortcut is the button: it exists on exactly the screens the button
+		// does, and nowhere else.
+		if (showVerseToggle && isVerseToggleKey(e) && !isTyping(e.target) && !modalIsOpen()) {
+			verseVisibility.toggle();
+		}
 	}
 </script>
 
@@ -112,7 +165,8 @@
 					type="button"
 					onclick={() => verseVisibility.toggle()}
 					aria-pressed={verseVisibility.shown}
-					aria-label={verseVisibility.shown ? '성경 구절 가리기' : '성경 구절 보이기'}
+					aria-label={verseToggleLabel}
+					title="{verseToggleLabel} (H)"
 					class="p-2 text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
 				>
 					{#if verseVisibility.shown}
