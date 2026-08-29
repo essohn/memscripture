@@ -15,11 +15,14 @@
 	} from '$lib/db/groups';
 	import {
 		allDeviceVoices,
+		isTtsSupported,
 		koreanVoices,
 		pollForVoices,
+		probeSpeech,
 		speak,
 		speechSegments,
 		voiceGender,
+		type SpeechProbe,
 		type VoiceLike
 	} from '$lib/memorize/speak';
 	import {
@@ -114,6 +117,29 @@
 	/** Every voice the device reports, Korean or not. Offered when nothing here
 	 *  looks Korean — the tagging can be wrong where the voice is fine. */
 	let deviceVoices = $state<VoiceLike[]>([]);
+
+	/*
+	 * The diagnostic's own state.
+	 *
+	 * ttsSupported is read here rather than in the template because it is the
+	 * same question the home card asks before showing its play button — a
+	 * browser that answers 없음 here is one where that button is missing, and
+	 * that is worth being able to check rather than guess at.
+	 */
+	const ttsSupported = isTtsSupported();
+	let probe = $state<SpeechProbe | null>(null);
+	let probing = $state(false);
+	const browser = typeof navigator === 'undefined' ? '' : navigator.userAgent;
+
+	async function runProbe() {
+		probing = true;
+		probe = null;
+		try {
+			probe = await probeSpeech();
+		} finally {
+			probing = false;
+		}
+	}
 
 	// getVoices() is commonly empty on first call and filled asynchronously, so
 	// the list is read again when the browser says it changed — and, because on
@@ -721,6 +747,62 @@
 			<p class="mt-1.5 text-[11px] text-[var(--color-text-tertiary)]">
 				따라 읽기에서 장절을 읽은 뒤 본문까지 기다리는 시간입니다. 1.0은 그 구절을 소리 내어
 				읽는 데 걸리는 만큼입니다.
+			</p>
+		</div>
+
+		<!--
+			A diagnostic, in the app, because the bug it exists for is on a phone
+			that is not here. Every hypothesis about the Android silence so far
+			was argued from a desktop that works; this asks the device and prints
+			the answer where someone can read it out.
+
+			Always shown, not only when something looks wrong: the case that took
+			longest was a browser where nothing looked wrong at all.
+		-->
+		<div class="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-elevated)] px-3 py-2.5">
+			<div class="flex items-center justify-between gap-3">
+				<span class="text-[13px] font-medium text-[var(--color-text)]">소리 진단</span>
+				<button
+					type="button"
+					disabled={probing}
+					onclick={runProbe}
+					class="rounded-full bg-[var(--color-accent)] px-3 py-1 text-[12px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+				>
+					{probing ? '확인 중…' : '테스트'}
+				</button>
+			</div>
+			<dl class="mt-2 space-y-1 text-[11px] leading-[1.7] text-[var(--color-text-secondary)]">
+				<div class="flex gap-2">
+					<dt class="shrink-0 text-[var(--color-text-tertiary)]">음성 기능</dt>
+					<dd class="tabular-nums">{ttsSupported ? '있음' : '없음'}</dd>
+				</div>
+				<div class="flex gap-2">
+					<dt class="shrink-0 text-[var(--color-text-tertiary)]">음성 목록</dt>
+					<dd class="tabular-nums">전체 {deviceVoices.length}개 · 한국어 {voices.length}개</dd>
+				</div>
+				<div class="flex gap-2">
+					<dt class="shrink-0 text-[var(--color-text-tertiary)]">테스트 결과</dt>
+					<dd data-testid="probe-result">
+						{#if probe === null}
+							아직 확인하지 않았습니다
+						{:else if probe.outcome === 'spoke'}
+							소리 남 ({probe.events.join(', ')})
+						{:else if probe.outcome === 'error'}
+							실패 ({probe.events.join(', ')})
+						{:else}
+							소리도 오류도 없음 — 엔진이 받아놓고 아무 응답이 없습니다
+						{/if}
+					</dd>
+				</div>
+				<div class="flex gap-2">
+					<dt class="shrink-0 text-[var(--color-text-tertiary)]">브라우저</dt>
+					<dd class="break-all">{browser}</dd>
+				</div>
+			</dl>
+			<p class="mt-2 text-[11px] leading-[1.7] text-[var(--color-text-tertiary)]">
+				테스트는 음성을 지정하지 않고 한국어로만 말해봅니다. 여기서 소리가 나면 기기는
+				멀쩡하고 앱의 음성 선택이 문제이고, 여기서도 조용하면 앱이 무엇을 골랐든 같았을
+				것입니다.
 			</p>
 		</div>
 	</section>

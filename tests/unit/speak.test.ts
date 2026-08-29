@@ -11,7 +11,8 @@ import {
 	pickKoreanVoice,
 	voiceGender,
 	speechSegments,
-	forgetDeadVoices
+	forgetDeadVoices,
+	probeSpeech
 } from '../../src/lib/memorize/speak';
 
 describe('citeToSpeech', () => {
@@ -311,7 +312,8 @@ class FakeUtterance {
 	voice: unknown = null;
 	onstart: (() => void) | null = null;
 	onend: (() => void) | null = null;
-	onerror: (() => void) | null = null;
+	// Takes the event, because a probe reads the engine's error code off it.
+	onerror: ((e?: { error?: string }) => void) | null = null;
 	onboundary: ((e: { charIndex: number }) => void) | null = null;
 	constructor(text: string) {
 		this.text = text;
@@ -360,6 +362,7 @@ function installFakeSynth() {
  */
 function installVoiceSynth(dead: string[]) {
 	const spoken: FakeUtterance[] = [];
+	lastSpoken = spoken;
 	let current: FakeUtterance | null = null;
 	const voices = [
 		{ name: 'Google 한국의', lang: 'ko-KR', localService: false },
@@ -396,6 +399,10 @@ function installVoiceSynth(dead: string[]) {
 }
 
 const voiceOf = (u: FakeUtterance) => (u.voice as { name: string } | null)?.name ?? null;
+
+/** The last utterance handed to the fake, for tests that drive its events. */
+let lastSpoken: FakeUtterance[] = [];
+const lastUtterance = () => lastSpoken.at(-1);
 
 describe('a voice that takes an utterance and never speaks it', () => {
 	beforeEach(() => vi.useFakeTimers());
@@ -584,6 +591,55 @@ describe('the bar against the segment being spoken', () => {
 		const without = onProgress.mock.calls.at(-1)?.[0].totalMs;
 
 		expect(withGap).toBe(without + 5000);
+	});
+});
+
+describe('probeSpeech', () => {
+	beforeEach(() => vi.useFakeTimers());
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		vi.useRealTimers();
+		forgetDeadVoices();
+	});
+
+	/*
+	 * Two days of this bug came down to not being able to see what the engine
+	 * did on a phone that is not here. The app can ask it directly: say one
+	 * short thing, write down every event with its timing, and put that on a
+	 * screen someone can read out.
+	 *
+	 * Deliberately with no voice set, only `lang` — that is the path a device
+	 * whose getVoices() is empty actually takes, and the one that needs
+	 * proving.
+	 */
+	it('reports a voice that speaks, with its timings', async () => {
+		installVoiceSynth([]);
+		const probe = probeSpeech();
+		await vi.advanceTimersByTimeAsync(0);
+		// The fake fires start on speak(); end is this test's to deliver.
+		lastUtterance()?.onend?.();
+		const result = await probe;
+		expect(result.outcome).toBe('spoke');
+		expect(result.events.join(' ')).toMatch(/start/);
+	});
+
+	it('reports silence when the engine takes the utterance and says nothing', async () => {
+		installVoiceSynth(['']);
+		const probe = probeSpeech({ timeoutMs: 3000 });
+		await vi.advanceTimersByTimeAsync(3100);
+		const result = await probe;
+		expect(result.outcome).toBe('silent');
+		expect(result.events).toEqual([]);
+	});
+
+	it('reports an error with the code the engine gave', async () => {
+		installVoiceSynth(['']);
+		const probe = probeSpeech({ timeoutMs: 3000 });
+		await vi.advanceTimersByTimeAsync(0);
+		lastUtterance()?.onerror?.({ error: 'language-unavailable' });
+		const result = await probe;
+		expect(result.outcome).toBe('error');
+		expect(result.events.join(' ')).toContain('language-unavailable');
 	});
 });
 

@@ -967,3 +967,71 @@ export function pollForVoices(opts: {
 		timer = null;
 	};
 }
+
+/** What one test utterance did, as something a reader can read out loud. */
+export interface SpeechProbe {
+	/** Every event the engine fired, in order, with milliseconds from the call
+	 *  — or empty, which is the finding that matters most. */
+	events: string[];
+	outcome: 'spoke' | 'silent' | 'error';
+}
+
+/** How long a probe waits before calling the engine silent. Longer than the
+ *  player's watchdog: a first utterance can be waiting on an Android TTS
+ *  service that has not started yet, and a diagnostic that times out early
+ *  would report the thing it was built to rule out. */
+export const PROBE_TIMEOUT_MS = 8000;
+
+/**
+ * Says one short thing and writes down exactly what the engine did.
+ *
+ * Built because two days of an Android bug came down to not being able to see
+ * a phone that is not here. Every hypothesis so far — the voice, the audio
+ * session, the utterance length — was argued from a desktop that works. This
+ * asks the device instead, and puts the answer on a screen someone can read
+ * out over a message.
+ *
+ * Deliberately with no `voice` set, only `lang`. That is the path a device
+ * whose getVoices() comes back empty actually takes, and it is the one that
+ * needs proving: if this speaks, the engine is fine and the app's voice
+ * selection is at fault; if it stays silent, nothing the app chooses would
+ * have helped.
+ */
+export function probeSpeech(opts: { timeoutMs?: number } = {}): Promise<SpeechProbe> {
+	if (!isTtsSupported()) {
+		return Promise.resolve({ events: [], outcome: 'silent' });
+	}
+	const synth = window.speechSynthesis;
+	const startedAt = Date.now();
+	const events: string[] = [];
+	const at = () => `${((Date.now() - startedAt) / 1000).toFixed(1)}초`;
+
+	return new Promise((resolve) => {
+		let settled = false;
+		const finish = (outcome: SpeechProbe['outcome']) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timer);
+			resolve({ events, outcome });
+		};
+
+		const u = new SpeechSynthesisUtterance('테스트');
+		u.lang = 'ko-KR';
+		u.onstart = () => events.push(`start ${at()}`);
+		u.onend = () => {
+			events.push(`end ${at()}`);
+			finish('spoke');
+		};
+		u.onerror = (e) => {
+			events.push(`error: ${(e as { error?: string }).error ?? '알 수 없음'} ${at()}`);
+			finish('error');
+		};
+
+		const timer = setTimeout(() => finish('silent'), opts.timeoutMs ?? PROBE_TIMEOUT_MS);
+		// Cleared first: a queue left busy by an earlier attempt would hold this
+		// one behind it and the probe would report a silence that was only a
+		// wait.
+		if (synth.speaking || synth.pending) synth.cancel();
+		synth.speak(u);
+	});
+}
