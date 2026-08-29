@@ -66,6 +66,32 @@ describe('CheckDiagnosis', () => {
 		expect(tierOfWord('하나님이')).toBe('none'); // reached 3, missed 0
 	});
 
+	// A typo in TIER_CLASS would ship an uncoloured heat map while data-tier —
+	// keyed by the same expression — still passed a suite that only checks
+	// data-tier. This is the feature's worst available failure mode, so the
+	// class names themselves have to be checked, not just their proxy.
+	it('keys each tier to a distinct heat-* class, and leaves an untinted word bare', () => {
+		mount([
+			record({ id: 'a', missed: [1, 2, 3] }),
+			record({ id: 'b', missed: [2, 3] }),
+			record({ id: 'c', missed: [3] }),
+			record({ id: 'd', missed: [3] }),
+			record({ id: 'e', missed: [] }),
+			record({ id: 'f', missed: [] })
+		]);
+		const wordEl = (word: string) =>
+			screen.getAllByTestId('heat-word').find((el) => el.textContent === word)!;
+
+		expect(wordEl('사랑하사')).toHaveClass('heat-often'); // reached 6, missed 4 → 2/3
+		expect(wordEl('이처럼')).toHaveClass('heat-sometimes'); // reached 6, missed 2 → 1/3
+		expect(wordEl('세상을')).toHaveClass('heat-rare'); // reached 6, missed 1 → 1/6
+
+		const untinted = wordEl('하나님이'); // reached 6, missed 0
+		expect(untinted).not.toHaveClass('heat-often');
+		expect(untinted).not.toHaveClass('heat-sometimes');
+		expect(untinted).not.toHaveClass('heat-rare');
+	});
+
 	// The paragraph is readable text, not an image: a screen reader should read
 	// a verse as a verse. The tinted words are named once, afterwards.
 	it('names the tinted words in a sentence rather than annotating each one', () => {
@@ -76,6 +102,15 @@ describe('CheckDiagnosis', () => {
 
 	it('drops the heat map when nothing measured word positions', () => {
 		mount([record({ id: 'a', missed: undefined }), record({ id: 'b', missed: undefined })]);
+		expect(screen.getByTestId('check-diagnosis')).toBeInTheDocument();
+		expect(screen.queryByTestId('diagnosis-heatmap')).not.toBeInTheDocument();
+	});
+
+	// Two flawless checks measure word positions fine but tint nothing — the
+	// heat map should disappear along with its legend, not reprint the verse
+	// keyed to three tints that appear nowhere.
+	it('drops the heat map when every check was flawless', () => {
+		mount([record({ id: 'a' }), record({ id: 'b' })]);
 		expect(screen.getByTestId('check-diagnosis')).toBeInTheDocument();
 		expect(screen.queryByTestId('diagnosis-heatmap')).not.toBeInTheDocument();
 	});
@@ -105,5 +140,15 @@ describe('CheckDiagnosis', () => {
 	it('names the accuracy sequence in one label', () => {
 		mount([record({ id: 'a', accuracy: 0.87 }), record({ id: 'b', accuracy: 0.71 })]);
 		expect(screen.getByLabelText('정확도 변화: 71%, 87%')).toBeInTheDocument();
+	});
+
+	// A check that scored nothing did not happen at 12% — it drew nothing.
+	// Only a real, non-zero accuracy gets floored so it stays visible.
+	it('draws no bar at all for a zero-accuracy check, unlike a real 12%-or-lower one', () => {
+		mount([record({ id: 'a', accuracy: 0.05 }), record({ id: 'b', accuracy: 0 })]);
+		const bars = screen.getAllByTestId('accuracy-bar');
+		// accuracySeries reverses the newest-first input to oldest-first: b, a.
+		expect(bars[0]).toHaveStyle({ height: '0%' });
+		expect(bars[1]).toHaveStyle({ height: '12%' });
 	});
 });

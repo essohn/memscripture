@@ -26,12 +26,26 @@
 	const shown = $derived(records.length >= MIN_RECORDS);
 	const effort = $derived(effortTotals(records));
 	const series = $derived(accuracySeries(records));
+	/** `reachOf` (diagnosis.ts) approximates how far an attempt went by
+	 *  counting whitespace-delimited tokens, but `normalizeForGrading`
+	 *  (grade.ts) strips whitespace before comparing — so a correct recital
+	 *  typed with nonstandard 띄어쓰기 grades perfect while under-reporting
+	 *  its own reach, which can hold tail words below `MIN_REACH`. Left alone
+	 *  on purpose: the disagreement only ever erodes toward "no tint", the
+	 *  same honest direction `reachOf` already leans in rather than guessing
+	 *  a surrender reached the end. Making the two agree would mean feeding
+	 *  `reachOf` normalized tokens, at the cost of a word count that no
+	 *  longer matches what the reader actually typed. */
 	const heat = $derived(wordHeat(records, words.length));
 
-	/** Whether any record measured word positions at all. A history written
+	/** Whether the heat map actually has anything to show. A history written
 	 *  entirely before `missed` existed can still speak about effort and
-	 *  difficulty, but has nothing to say about where the verse breaks. */
-	const hasHeat = $derived(heat.some((h) => h.reached > 0));
+	 *  difficulty, but has nothing to say about where the verse breaks — and
+	 *  neither does a run of flawless checks, which measures word positions
+	 *  fine but tints nothing. Printing the verse again, a legend for three
+	 *  tints that appear nowhere, and an empty sr-only sentence would be
+	 *  furniture, not a diagnosis. */
+	const hasHeat = $derived(heat.some((h) => h.tier !== 'none'));
 
 	/** Oldest first, so a row of pips reads the same direction as the bars
 	 *  above it and as time itself. */
@@ -69,13 +83,17 @@
 	 * The ceiling is fixed at 1 rather than the series maximum, unlike
 	 * EventStats: accuracy is already a proportion, and rescaling it to its own
 	 * best value would draw a run of 40/45/50% as a climb to the top of the box.
-	 * The floor is EventStats' idea though — a 4% check rendered true to scale
-	 * is a fraction of a pixel, indistinguishable from a check that never
-	 * happened.
+	 * The floor is EventStats' idea too, and so is the exception to it: a 4%
+	 * check rendered true to scale is a fraction of a pixel, indistinguishable
+	 * from a check that never happened, so it gets floored like `barPx` floors
+	 * anything above zero — but a check that scored *nothing* did happen and
+	 * drew nothing, and flooring it to the same height as a real 12% check
+	 * would be the app inventing a result. Zero draws zero.
 	 */
 	const MIN_BAR_PCT = 12;
 	function barPct(accuracy: number): number {
-		return Math.max(MIN_BAR_PCT, Math.min(1, Math.max(0, accuracy)) * 100);
+		if (accuracy <= 0) return 0;
+		return Math.max(MIN_BAR_PCT, Math.min(1, accuracy) * 100);
 	}
 
 	function durationKo(ms: number): string {
@@ -99,7 +117,7 @@
 	 *
 	 * A role="img" on the paragraph would make its own word labels
 	 * unreachable, and a bare span's aria-label is not reliably announced —
-	 * CheckHistorySheet's pip comment already warns of exactly that. So the
+	 * DifficultyDot's pip comment already warns of exactly that. So the
 	 * verse stays readable text and this sentence carries the diagnosis.
 	 */
 	const heatSummary = $derived(
@@ -130,6 +148,7 @@
 				{#each series as accuracy, i (i)}
 					<span
 						data-testid="accuracy-bar"
+						aria-hidden="true"
 						class="min-w-[3px] flex-1 rounded-sm bg-[var(--color-accent)]"
 						style="height: {barPct(accuracy)}%"
 					></span>
@@ -177,9 +196,13 @@
 			<p class="sr-only">{heatSummary}</p>
 
 			<p class="mt-1.5 text-[10px] text-[var(--color-text-tertiary)]" aria-hidden="true">
-				<span class="heat-often rounded-sm px-1">자주</span>
-				<span class="heat-sometimes rounded-sm px-1">가끔</span>
-				<span class="heat-rare rounded-sm px-1">드물게</span>
+				<!-- The chips are drawn on the tint itself, so they need the same
+				     text colour the heat map paragraph uses, not this line's own
+				     tertiary — tertiary-on-자주 measures ~2.1:1, the exact class of
+				     mistake DIFFICULTY_COLORS' comment already warns against. -->
+				<span class="heat-often rounded-sm px-1 text-[var(--color-text)]">자주</span>
+				<span class="heat-sometimes rounded-sm px-1 text-[var(--color-text)]">가끔</span>
+				<span class="heat-rare rounded-sm px-1 text-[var(--color-text)]">드물게</span>
 				틀린 곳
 			</p>
 		{/if}
