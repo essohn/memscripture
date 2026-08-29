@@ -890,3 +890,67 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		stop
 	};
 }
+
+/**
+ * How many voices this device reports at all, Korean or not.
+ *
+ * Only ever shown as a diagnostic. "No Korean voice" and "no voices at all"
+ * are different faults with different fixes — the first is a missing language
+ * pack, the second is a device whose speech engine never woke up — and the
+ * settings screen cannot tell the reader which one they have without this.
+ */
+export function installedVoiceCount(): number {
+	if (!isTtsSupported()) return 0;
+	return window.speechSynthesis.getVoices().length;
+}
+
+/** How long to keep asking for the voice list before giving up. */
+export const VOICE_POLL_MS = 400;
+export const VOICE_POLL_LIMIT = 10;
+
+/**
+ * Keep asking until the voice list arrives.
+ *
+ * `voiceschanged` is the documented way and is enough on a desktop. On Android
+ * the engine warms up out of band: getVoices() is empty at load, and the event
+ * either fires before anything is listening or does not fire at all — which
+ * leaves the settings screen believing the device has no Korean voice and
+ * hiding the picker, on exactly the devices whose reader has been told to go
+ * and use it.
+ *
+ * Stops at the first non-empty answer, and gives up after a few seconds rather
+ * than polling a device that genuinely has nothing to report.
+ *
+ * The clock and the reader are injected so this can be tested without either.
+ */
+export function pollForVoices(opts: {
+	read: () => VoiceLike[];
+	emit: (voices: VoiceLike[]) => void;
+	schedule: (fn: () => void, ms: number) => number;
+	cancel: (id: number) => void;
+	limit?: number;
+}): () => void {
+	const limit = opts.limit ?? VOICE_POLL_LIMIT;
+	let tries = 0;
+	let timer: number | null = null;
+
+	const tick = () => {
+		timer = null;
+		const voices = opts.read();
+		if (voices.length > 0) {
+			opts.emit(voices);
+			return;
+		}
+		if (++tries >= limit) return;
+		timer = opts.schedule(tick, VOICE_POLL_MS);
+	};
+
+	// The first read is immediate: a desktop has the list already and must not
+	// wait out a poll interval to show it.
+	tick();
+
+	return () => {
+		if (timer !== null) opts.cancel(timer);
+		timer = null;
+	};
+}

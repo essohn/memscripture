@@ -14,7 +14,9 @@
 		type GroupInfo
 	} from '$lib/db/groups';
 	import {
+		installedVoiceCount,
 		koreanVoices,
+		pollForVoices,
 		speak,
 		speechSegments,
 		voiceGender,
@@ -109,14 +111,31 @@
 	] as const;
 	const GENDER_LABEL = { male: '남', female: '여' } as const;
 	let voices = $state<VoiceLike[]>([]);
+	/** Every voice the device reports, Korean or not. Only ever shown when
+	 *  there are no Korean ones, to say which of the two faults this is. */
+	let deviceVoices = $state(0);
 
 	// getVoices() is commonly empty on first call and filled asynchronously, so
-	// the list is read again when the browser says it changed.
+	// the list is read again when the browser says it changed — and, because on
+	// Android that event either fires before anything is listening or not at
+	// all, asked for again on a short timer until it arrives.
 	$effect(() => {
-		const load = () => (voices = koreanVoices());
+		const load = () => {
+			voices = koreanVoices();
+			deviceVoices = installedVoiceCount();
+		};
 		load();
 		speechSynthesis?.addEventListener?.('voiceschanged', load);
-		return () => speechSynthesis?.removeEventListener?.('voiceschanged', load);
+		const stopPolling = pollForVoices({
+			read: koreanVoices,
+			emit: load,
+			schedule: (fn, ms) => setTimeout(fn, ms) as unknown as number,
+			cancel: (id) => clearTimeout(id)
+		});
+		return () => {
+			speechSynthesis?.removeEventListener?.('voiceschanged', load);
+			stopPolling();
+		};
 	});
 	// The switch has to show what is stored, not the optimistic default the
 	// state module starts on. load() is a no-op after the first call, so
@@ -522,7 +541,30 @@
 			/>
 		</label>
 
-		{#if voices.length > 0}
+		{#if voices.length === 0}
+			<!-- The picker used to be hidden whenever this list was empty, which
+			     is exactly the device whose reader has just been told by the
+			     player to come here and choose a different voice. It says what
+			     is actually wrong instead, and the count separates the two
+			     faults: no Korean voice installed, or an engine that reported
+			     nothing at all. -->
+			<div
+				data-testid="no-korean-voice"
+				class="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-elevated)] px-3 py-2.5"
+			>
+				<p class="text-[13px] font-medium text-[var(--color-text)]">
+					이 기기에서 한국어 음성을 찾지 못했습니다
+				</p>
+				<p class="mt-1 text-[11px] leading-[1.7] text-[var(--color-text-secondary)]">
+					{deviceVoices > 0
+						? `기기가 알려준 음성은 ${deviceVoices}개인데, 그중 한국어는 없습니다.`
+						: '기기가 음성을 하나도 알려주지 않았습니다.'}
+					안드로이드는 <b>설정 → 시스템 → 언어 및 입력 → 텍스트 음성 변환 출력</b>에서 엔진의
+					언어 데이터로 한국어를 내려받으면 목록에 나타납니다. 아이폰은
+					<b>설정 → 손쉬운 사용 → 라이브 음성</b>입니다.
+				</p>
+			</div>
+		{:else}
 			<div class="mt-4">
 				<span class="text-[13px] text-[var(--color-text)]">목소리 성별</span>
 				<div class="mt-2 flex flex-wrap gap-1.5">
