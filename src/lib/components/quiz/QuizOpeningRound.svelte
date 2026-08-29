@@ -7,7 +7,8 @@
 	import QuizAnswer from './QuizAnswer.svelte';
 	import RaidStage from '$lib/components/arcade/RaidStage.svelte';
 	import ComboBadge from '$lib/components/arcade/ComboBadge.svelte';
-	import ShatterReveal from '$lib/components/arcade/ShatterReveal.svelte';
+	import AnswerReveal from '$lib/components/arcade/AnswerReveal.svelte';
+	import QuizAttempt from './QuizAttempt.svelte';
 	import { arcade } from '$lib/state/arcade.svelte';
 	import { RAID_LIMIT_MS, raidPhase, raidRemainingMs, raidScore } from '$lib/arcade/raid';
 
@@ -63,6 +64,10 @@
 				// raider having come apart on its own.
 				setTimeout(() => arcade.play('explode'), 90);
 			}
+			// The box is about to be replaced by a record of what was typed in
+			// it, so whatever focus was on stops existing. Hand it to the only
+			// control left rather than letting it fall to <body>.
+			tick().then(() => nextButton?.focus());
 		}
 	});
 
@@ -82,7 +87,6 @@
 				// same verdict, the same revealed opening — so nothing about the
 				// grading has to learn a new outcome.
 				gaveUp = true;
-				tick().then(() => nextButton?.focus());
 				return;
 			}
 			if (raidPhase(elapsedMs, RAID_LIMIT_MS) !== 'alarm') return;
@@ -97,18 +101,6 @@
 
 	const outcome = $derived(done ? (gaveUp ? 'impact' : 'destroyed') : null);
 
-	/** The answer arrives behind a wall, which comes down a beat later. The
-	 *  beat is the point: a wall that is already in pieces on the frame it
-	 *  appears was never a wall. */
-	let revealed = $state(false);
-	$effect(() => {
-		if (!done || revealed) return;
-		const id = setTimeout(() => {
-			revealed = true;
-			arcade.play('shatter');
-		}, 260);
-		return () => clearTimeout(id);
-	});
 	const secondsLeft = $derived(Math.ceil(raidRemainingMs(elapsedMs, RAID_LIMIT_MS) / 1000));
 
 	let inputEl = $state<HTMLInputElement | undefined>();
@@ -124,17 +116,20 @@
 
 	function giveUp() {
 		gaveUp = true;
-		// The press takes away the button it came from, so the browser drops
-		// focus to <body> — the same hole 틀린 곳 찾기 had. Hand it to the only
-		// control left, where Enter and Space still do something.
-		tick().then(() => nextButton?.focus());
+		// Focus is handed over by the effect above, which every route into a
+		// graded round passes through.
 	}
 
 	/** Enter is 다음. Before the opening is produced it is nothing: `next`
 	 *  refuses an ungraded round, and standing in for 모르겠어요 would record a
 	 *  failure the reader never asked for. A composing Enter is ignored the
 	 *  same way the typing round ignores it — Korean input commits syllables
-	 *  with that key. */
+	 *  with that key.
+	 *
+	 *  On window rather than on the box, because once the round is graded the
+	 *  box is gone: what the reader wrote is shown back as a record instead of
+	 *  an editable field, and Enter still has to reach 다음 from wherever
+	 *  focus ended up. */
 	function onKeydown(e: KeyboardEvent) {
 		if (!submitsOnEnter(e)) return;
 		e.preventDefault();
@@ -163,6 +158,8 @@
 	}
 </script>
 
+<svelte:window onkeydown={onKeydown} />
+
 <div class="rounded-2xl bg-[var(--color-card)] p-4 shadow-[var(--shadow-card)]">
 	<div class="flex items-baseline justify-between">
 		<h2 class="text-[calc(16px*var(--vfs))] font-semibold text-[var(--color-text)]">
@@ -185,29 +182,37 @@
 	</p>
 
 	<!-- One line, because the answer is three words. A textarea also spends
-	     Enter on a newline, and here Enter is 다음. -->
-	<input
-		bind:this={inputEl}
-		bind:value={typed}
-		onkeydown={onKeydown}
-		type="text"
-		aria-label="구절 첫머리 입력"
-		enterkeyhint="next"
-		autocomplete="off"
-		autocapitalize="off"
-		spellcheck="false"
-		class="mt-3 w-full rounded-xl bg-[var(--color-elevated)] px-3 py-2.5 text-[calc(16px*var(--vfs))] text-[var(--color-text)]"
-	/>
+	     Enter on a newline, and here Enter is 다음. Gone once the round is
+	     graded: what was typed in it is shown back below as a record, and an
+	     editable box under a verdict invites an edit that changes nothing. -->
+	{#if !done}
+		<input
+			bind:this={inputEl}
+			bind:value={typed}
+			type="text"
+			aria-label="구절 첫머리 입력"
+			enterkeyhint="next"
+			autocomplete="off"
+			autocapitalize="off"
+			spellcheck="false"
+			class="mt-3 w-full rounded-xl bg-[var(--color-elevated)] px-3 py-2.5 text-[calc(16px*var(--vfs))] text-[var(--color-text)]"
+		/>
+	{/if}
 
 	{#if gaveUp}
 		<p class="mt-2 text-[calc(16px*var(--vfs))] font-medium text-[var(--color-text)]">{opening}</p>
 	{/if}
 
 	{#if done}
-		<ShatterReveal broken={revealed} label="정답">
+		<QuizAttempt {typed} />
+		<AnswerReveal reveal={done} outcome={gaveUp ? 'fail' : 'pass'} label="정답">
 			<QuizAnswer w={item.w} />
-		</ShatterReveal>
-		<p class="mt-3 text-[calc(13px*var(--vfs))] font-medium">
+		</AnswerReveal>
+		<p
+			class="mt-3 text-[calc(13px*var(--vfs))] font-medium {gaveUp
+				? 'text-[var(--color-danger)]'
+				: ''}"
+		>
 			{gaveUp ? '다시 볼 구절' : '격추'}
 		</p>
 		<button
