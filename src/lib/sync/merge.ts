@@ -110,12 +110,21 @@ export function mergeSnapshots(local: SyncSnapshot, remote: SyncSnapshot): SyncS
 			(r) => r.updatedAt
 		),
 
-		// An append-only log with an id unique per check. Nothing to resolve:
-		// two devices simply hold different entries, and both count — except
-		// where the reader has said otherwise, which is what the tombstones are.
-		checkHistory: unionById(local.checkHistory, remote.checkHistory, (c) => c.id).filter(
-			(c) => !deleted.has(c.id)
-		),
+		// An append-only log, with one deliberate exception: a 확인 row is keyed
+		// by its day so a second tap restamps it rather than adding one. That
+		// makes a collision possible where none was before — two devices
+		// checking one verse on one day — and unionById resolved it backwards,
+		// keeping whichever copy it happened to write second (the remote)
+		// rather than whichever happened later. The later stamp is the fact.
+		//
+		// Every other id in this table is unique per check, so nothing that
+		// already exists collides and nothing about it changes.
+		checkHistory: mergeById(
+			local.checkHistory,
+			remote.checkHistory,
+			(c) => c.id,
+			(c) => c.checkedAt
+		).filter((c) => !deleted.has(c.id)),
 
 		// The one table that carries deletions, so the union above can be told
 		// about them. Unioned rather than resolved: a tombstone is a fact that

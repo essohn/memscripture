@@ -18,6 +18,91 @@ const snap = (over: Partial<SyncSnapshot> = {}): SyncSnapshot => ({
 	...over
 });
 
+describe('two devices restamping one day', () => {
+	const selfCheck = (checkedAt: number) =>
+		({
+			id: 'x:1:self:2026-08-30',
+			verseKey: 'x:1',
+			packageId: 'x',
+			verseNo: 1,
+			checkedAt,
+			start: 3,
+			full: 3,
+			accuracy: 1,
+			elapsedMs: 0,
+			source: 'self'
+		}) as never;
+
+	// A 확인 row is keyed by its day so a second tap restamps rather than adds.
+	// That makes a collision possible where none was before, and the later
+	// stamp is the true one — the reader really did check it again at 21:00.
+	it('keeps the later stamp', () => {
+		const early = snap({ checkHistory: [selfCheck(100)] });
+		const late = snap({ checkHistory: [selfCheck(900)] });
+
+		const merged = mergeSnapshots(early, late).checkHistory!;
+		expect(merged).toHaveLength(1);
+		expect(merged[0].checkedAt).toBe(900);
+	});
+
+	// And not because of argument order: unionById kept whichever side came
+	// second, which is exactly the bug this replaces.
+	it('keeps it whichever side it arrives from', () => {
+		const early = snap({ checkHistory: [selfCheck(100)] });
+		const late = snap({ checkHistory: [selfCheck(900)] });
+
+		expect(mergeSnapshots(late, early).checkHistory![0].checkedAt).toBe(900);
+	});
+
+	// Every id in the table today is unique per check, so this must remain a
+	// no-op for everything that already exists.
+	it('still unions rows with distinct ids', () => {
+		const a = snap({
+			checkHistory: [
+				{
+					id: 'x:1:100:0',
+					verseKey: 'x:1',
+					packageId: 'x',
+					verseNo: 1,
+					checkedAt: 100,
+					start: 5,
+					full: 5,
+					accuracy: 1,
+					elapsedMs: 1
+				}
+			] as never
+		});
+		const b = snap({
+			checkHistory: [
+				{
+					id: 'x:1:200:0',
+					verseKey: 'x:1',
+					packageId: 'x',
+					verseNo: 1,
+					checkedAt: 200,
+					start: 4,
+					full: 4,
+					accuracy: 0.9,
+					elapsedMs: 1
+				}
+			] as never
+		});
+
+		expect(mergeSnapshots(a, b).checkHistory).toHaveLength(2);
+	});
+
+	// A tombstone still wins over either copy.
+	it('a tombstone still removes the row', () => {
+		const deleted = snap({
+			checkHistory: [selfCheck(100)],
+			checkDeletions: [{ id: 'x:1:self:2026-08-30', deletedAt: 500 }] as never
+		});
+		const stillHasIt = snap({ checkHistory: [selfCheck(900)] });
+
+		expect(mergeSnapshots(deleted, stillHasIt).checkHistory).toEqual([]);
+	});
+});
+
 const rating = (id: string, updatedAt: number, full: number | null = 5) =>
 	({ id, packageId: '900_krv', verseNo: Number(id.split(':')[1]), startDifficulty: 5, fullDifficulty: full, updatedAt }) as never;
 
