@@ -180,6 +180,15 @@ export function wordHeat(records: CheckRecord[], wordCount: number): WordHeat[] 
 	const missed = new Array<number>(Math.max(0, wordCount)).fill(0);
 
 	for (const r of records) {
+		// Assisted checks say nothing about where the verse breaks, for the
+		// reason suggestedMarks gives: a check made with the words on screen is
+		// not evidence that the reader knows the verse, and grade.ts says the
+		// same about difficulty. Two features reading these records with two
+		// different rules about 힌트 would tint one set of words and dot
+		// another. Truthy, so an absent field (predating the feature) and a
+		// zero (힌트 never pressed) both count as unassisted.
+		if (r.hints) continue;
+
 		// Absent is not an empty array: this check predates the field and
 		// measured nothing about positions, so counting its reach would score
 		// every word as a clean run on evidence that does not exist.
