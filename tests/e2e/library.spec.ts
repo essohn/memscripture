@@ -61,3 +61,32 @@ test('a package list offers 전체 듣기 and 따라 읽기', async ({ page }) =
 	await expect(page.getByLabel(/전체 듣기/)).toBeVisible();
 	await expect(page.getByLabel(/따라 읽기/)).toBeVisible();
 });
+
+/*
+ * The toolbar carries four controls on a phone — two listen buttons, 어려운 순
+ * and 선택 — in a row that does not wrap. A control pushed past the edge is
+ * indistinguishable from one that was never added, which is exactly what a
+ * missing 따라 읽기 icon looks like, so the row is measured rather than
+ * assumed. iPhone 14 because that is the narrowest thing this app ships to.
+ */
+test('both listen buttons stay on screen at phone width', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	// 5_krv is the package this suite seeds; 900_krv is not installed here.
+	await page.goto('/library/5_krv');
+	await expect(page.getByTestId('verse-row').first()).toBeVisible();
+
+	for (const name of [/전체 듣기/, /따라 읽기/]) {
+		const button = page.getByLabel(name);
+		await expect(button).toBeVisible();
+		const box = await button.boundingBox();
+		expect(box, 'button has no box').not.toBeNull();
+		expect(box!.x).toBeGreaterThanOrEqual(0);
+		expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+	}
+
+	// And the page itself must not have grown sideways to fit them.
+	const scrolls = await page.evaluate(
+		() => document.documentElement.scrollWidth > document.documentElement.clientWidth
+	);
+	expect(scrolls, 'page scrolls sideways').toBe(false);
+});
