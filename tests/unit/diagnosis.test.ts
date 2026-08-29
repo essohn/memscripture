@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accuracySeries, effortTotals } from '../../src/lib/memorize/diagnosis';
+import { accuracySeries, difficultyTrend, effortTotals, FLAT_SLOPE } from '../../src/lib/memorize/diagnosis';
 import type { CheckRecord } from '../../src/lib/db/local';
 
 /** A 점검 row. Records are newest-first everywhere, the order listChecks
@@ -56,5 +56,57 @@ describe('accuracySeries', () => {
 
 	it('has nothing to plot for no records', () => {
 		expect(accuracySeries([])).toEqual([]);
+	});
+});
+
+/** Ratings given newest-first, as records arrive. */
+const rated = (...full: (number | null)[]) =>
+	full.map((v, i) => record({ id: `r${i}`, full: v, start: v }));
+
+describe('difficultyTrend', () => {
+	// Two points can be drawn through by any line. Three is the least that can
+	// disagree with one.
+	it('declines to call a direction on fewer than three ratings', () => {
+		expect(difficultyTrend(rated(4, 3), 'full')).toBe('unknown');
+		expect(difficultyTrend(rated(4, null, 3), 'full')).toBe('unknown');
+		expect(difficultyTrend([], 'full')).toBe('unknown');
+	});
+
+	// The scale runs 0=Impossible..5=xEasy, so a rising number is a verse
+	// getting EASIER. newest-first input, so this reader went 2 → 3 → 4 → 5.
+	it('calls a rising rating improving, because rising means easier', () => {
+		expect(difficultyTrend(rated(5, 4, 3, 2), 'full')).toBe('improving');
+	});
+
+	it('calls a falling rating worsening', () => {
+		expect(difficultyTrend(rated(2, 3, 4, 5), 'full')).toBe('worsening');
+	});
+
+	it('calls an unchanging rating flat', () => {
+		expect(difficultyTrend(rated(3, 3, 3, 3), 'full')).toBe('flat');
+	});
+
+	// This is why the rule is a slope and not first-versus-last: one better
+	// evening at the end of seven flat checks is not a direction. Slope here
+	// is 3/28 ≈ 0.107, under FLAT_SLOPE.
+	it('does not call a direction on one good evening at the end', () => {
+		expect(FLAT_SLOPE).toBe(0.15);
+		expect(difficultyTrend(rated(4, 3, 3, 3, 3, 3, 3), 'full')).toBe('flat');
+	});
+
+	// 포기 records no level at all. Skipping such a check must not shift the
+	// series — the ratings that exist still happened in the order they did.
+	it('skips unrated checks without disturbing the ones around them', () => {
+		expect(difficultyTrend(rated(5, null, 4, null, 3), 'full')).toBe('improving');
+	});
+
+	it('reads the dimension it was asked for', () => {
+		const records = [
+			record({ id: 'a', start: 5, full: 1 }),
+			record({ id: 'b', start: 4, full: 2 }),
+			record({ id: 'c', start: 3, full: 3 })
+		];
+		expect(difficultyTrend(records, 'start')).toBe('improving');
+		expect(difficultyTrend(records, 'full')).toBe('worsening');
 	});
 });
