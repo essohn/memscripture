@@ -145,6 +145,8 @@ describe('quiz/+page.svelte — session size and order', () => {
 		await waitFor(() => expect(screen.getByText('1 / 10')).toBeInTheDocument());
 	});
 
+	// Under 자주 틀린 순. The picker opens on 오래된 순, where these two were
+	// both checked at the same instant and the failures do not enter into it.
 	it('opens on the verse with the most recent failures', async () => {
 		const now = Date.now();
 		resolveTargetMock.mockResolvedValue({
@@ -159,6 +161,7 @@ describe('quiz/+page.svelte — session size and order', () => {
 
 		render(QuizPage);
 		await waitFor(() => expect(screen.getByRole('button', { name: 'Quiz!' })).not.toBeDisabled());
+		await fireEvent.click(screen.getByRole('radio', { name: '자주 틀린 순' }));
 		await fireEvent.click(screen.getByRole('button', { name: 'Quiz!' }));
 
 		await waitFor(() => expect(screen.getByText('제목 2')).toBeInTheDocument());
@@ -366,5 +369,66 @@ describe('quiz/+page.svelte — 나가기와 다시', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '다시' }));
 		expect(screen.getByText('1 / 1')).toBeInTheDocument();
 		expect(screen.queryByRole('button', { name: 'Quiz!' })).toBeNull();
+	});
+});
+
+describe('quiz/+page.svelte — 오답을 최근에 담기', () => {
+	/** One failed 퍼펙트 게임 round: a wrong answer, submitted, then advanced. */
+	async function failRound() {
+		await fireEvent.input(screen.getByRole('textbox'), { target: { value: '틀린 답' } });
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(await screen.findByRole('button', { name: '다음' }));
+	}
+
+	// The button's whole job is a row in Dexie. Asserting on the label alone
+	// would pass for a button that wrote nothing, which is the failure this
+	// feature is most likely to have.
+	it('writes one 최근 bundle per package the run got wrong', async () => {
+		resolveTargetMock.mockResolvedValue({
+			items: [item('a_krv', 1, '첫째 구절'), item('b_krv', 5, '둘째 구절')],
+			ratings: new Map([
+				['a_krv:1', { start: 2, full: 2 }],
+				['b_krv:5', { start: 2, full: 2 }]
+			]),
+			signals: new Map(),
+			attempts: new Map()
+		});
+
+		render(QuizPage);
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Quiz!' })).not.toBeDisabled());
+		await fireEvent.click(screen.getByRole('button', { name: 'Quiz!' }));
+		await failRound();
+		await failRound();
+
+		await fireEvent.click(await screen.findByRole('button', { name: '최근에 담기' }));
+		await waitFor(async () => expect(await db.recentBundles.count()).toBe(2), { timeout: 5000 });
+
+		const rows = await db.recentBundles.toArray();
+		expect(rows.map((r) => [r.packageId, r.verseNos]).sort()).toEqual([
+			['a_krv', [1]],
+			['b_krv', [5]]
+		]);
+	});
+
+	// A clean run has nothing to file, and a button offering to file nothing
+	// is a button that writes an empty bundle or does nothing at all.
+	it('offers nothing to file after a clean run', async () => {
+		const w = '또 증거는 이것이니 하나님이 우리에게 영생을 주신 것이라';
+		resolveTargetMock.mockResolvedValue({
+			items: [item('a_krv', 1, w)],
+			ratings: HARD,
+			signals: new Map(),
+			attempts: new Map()
+		});
+
+		render(QuizPage);
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Quiz!' })).not.toBeDisabled());
+		await fireEvent.click(screen.getByRole('button', { name: 'Quiz!' }));
+		await fireEvent.input(screen.getByRole('textbox'), { target: { value: w } });
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.click(await screen.findByRole('button', { name: '다음' }));
+
+		await waitFor(() => expect(screen.getByText('다시 하기')).toBeInTheDocument());
+		expect(screen.queryByRole('button', { name: '최근에 담기' })).toBeNull();
 	});
 });

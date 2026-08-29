@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
 	buildQueue,
 	filterByTier,
+	sessionSizeChoices,
 	summarize,
 	type QuizItem,
 	type Tier
@@ -122,13 +123,15 @@ describe('buildQueue', () => {
 		expect(buildQueue(pool, { signals: noSignals, now: NOW })).toHaveLength(SESSION_SIZE);
 	});
 
-	it('puts the verse with recent failures first', () => {
+	// Only under 자주 틀린 순. The default is 오래된 순, where these two were
+	// both checked today and the failures do not enter into it.
+	it('puts the verse with recent failures first, when asked for that order', () => {
 		const pool = [item('a_krv', 1), item('a_krv', 2)];
 		const signals = new Map<string, VerseSignal>([
 			['a_krv:1', { fails: 0, lastAskedAt: NOW }],
 			['a_krv:2', { fails: 3, lastAskedAt: NOW }]
 		]);
-		expect(buildQueue(pool, { signals, now: NOW }).map((i) => i.id)).toEqual([
+		expect(buildQueue(pool, { signals, now: NOW, order: 'fails' }).map((i) => i.id)).toEqual([
 			'a_krv:2',
 			'a_krv:1'
 		]);
@@ -214,5 +217,168 @@ describe('summarize', () => {
 			total: 3,
 			failed: ['a:2', 'b:1']
 		});
+	});
+});
+
+describe('sessionSizeChoices', () => {
+	it('offers nothing to choose from for an empty pool', () => {
+		expect(sessionSizeChoices(0)).toEqual([]);
+	});
+
+	// A pool of three has one honest answer — three. Offering 5 would be a
+	// chip that cannot be told apart from 전체 once pressed.
+	it('offers only the whole pool when the pool is under the first step', () => {
+		expect(sessionSizeChoices(3)).toEqual([3]);
+	});
+
+	// 10 is both a step and the whole pool here, and two chips reading 10
+	// would be one chip too many.
+	it('does not repeat a step that already equals the whole pool', () => {
+		expect(sessionSizeChoices(10)).toEqual([5, 10]);
+	});
+
+	it('drops the steps a pool cannot fill and ends on the pool itself', () => {
+		expect(sessionSizeChoices(48)).toEqual([5, 10, 20, 30, 48]);
+	});
+
+	it('offers every step under a large pool', () => {
+		expect(sessionSizeChoices(149)).toEqual([5, 10, 20, 30, 50, 100, 149]);
+	});
+});
+
+describe('buildQueue — 오래된 순', () => {
+	const stale = { order: 'stale' as const, signals: noSignals, now: NOW };
+
+	it('asks about the least recently checked verse first', () => {
+		const pool = [item('a_krv', 1), item('a_krv', 2), item('a_krv', 3)];
+		const signals = new Map<string, VerseSignal>([
+			['a_krv:1', { fails: 0, lastAskedAt: NOW - 2 * DAY }],
+			['a_krv:2', { fails: 0, lastAskedAt: NOW - 9 * DAY }],
+			['a_krv:3', { fails: 0, lastAskedAt: NOW }]
+		]);
+		expect(buildQueue(pool, { ...stale, signals }).map((i) => i.id)).toEqual([
+			'a_krv:2',
+			'a_krv:1',
+			'a_krv:3'
+		]);
+	});
+
+	// Never checked is the oldest thing there is: the reader has no evidence
+	// about it at all, which is exactly what 오래된 순 exists to surface.
+	it('puts a never-checked verse ahead of every checked one', () => {
+		const pool = [item('a_krv', 1), item('a_krv', 2)];
+		const signals = new Map<string, VerseSignal>([
+			['a_krv:1', { fails: 0, lastAskedAt: NOW - 400 * DAY }]
+		]);
+		expect(buildQueue(pool, { ...stale, signals }).map((i) => i.id)).toEqual([
+			'a_krv:2',
+			'a_krv:1'
+		]);
+	});
+
+	// STALE_CAP flattens everything past 30 days into one score, which is fine
+	// for a weighted total and fatal for an ordering: under the cap these two
+	// tie and fall to the id tie-break, putting the *newer* one first.
+	it('still tells 120일 전 from 45일 전, past the staleness cap', () => {
+		const pool = [item('a_krv', 1), item('a_krv', 2)];
+		const signals = new Map<string, VerseSignal>([
+			['a_krv:1', { fails: 0, lastAskedAt: NOW - 45 * DAY }],
+			['a_krv:2', { fails: 0, lastAskedAt: NOW - 120 * DAY }]
+		]);
+		expect(buildQueue(pool, { ...stale, signals }).map((i) => i.id)).toEqual([
+			'a_krv:2',
+			'a_krv:1'
+		]);
+	});
+
+	it('ignores how often a verse has been failed', () => {
+		const pool = [item('a_krv', 1), item('a_krv', 2)];
+		const signals = new Map<string, VerseSignal>([
+			['a_krv:1', { fails: 0, lastAskedAt: NOW - 9 * DAY }],
+			['a_krv:2', { fails: 5, lastAskedAt: NOW }]
+		]);
+		expect(buildQueue(pool, { ...stale, signals }).map((i) => i.id)).toEqual([
+			'a_krv:1',
+			'a_krv:2'
+		]);
+	});
+
+	it('breaks a same-day tie by id', () => {
+		const pool = [item('a_krv', 3), item('a_krv', 1), item('a_krv', 2)];
+		const signals = new Map<string, VerseSignal>(
+			[1, 2, 3].map((n) => [`a_krv:${n}`, { fails: 0, lastAskedAt: NOW }])
+		);
+		expect(buildQueue(pool, { ...stale, signals }).map((i) => i.id)).toEqual([
+			'a_krv:1',
+			'a_krv:2',
+			'a_krv:3'
+		]);
+	});
+});
+
+describe('buildQueue — 무작위', () => {
+	/** Always picks index 0, which is deterministic and still a real shuffle. */
+	const zero = () => 0;
+	const many = (n: number) => Array.from({ length: n }, (_, i) => item('a_krv', i + 1));
+
+	it('does not hand back the scope in its own order', () => {
+		const pool = many(6);
+		const ids = buildQueue(pool, {
+			signals: noSignals,
+			now: NOW,
+			order: 'random',
+			rng: zero
+		}).map((i) => i.id);
+		expect(ids).not.toEqual(pool.map((i) => i.id));
+	});
+
+	it('loses and duplicates nothing', () => {
+		const pool = many(6);
+		const ids = buildQueue(pool, {
+			signals: noSignals,
+			now: NOW,
+			order: 'random',
+			rng: zero
+		}).map((i) => i.id);
+		expect([...ids].sort()).toEqual(pool.map((i) => i.id).sort());
+	});
+
+	it('draws through the rng it was given rather than its own', () => {
+		const rng = vi.fn(() => 0);
+		buildQueue(many(6), { signals: noSignals, now: NOW, order: 'random', rng });
+		expect(rng).toHaveBeenCalled();
+	});
+
+	// The eligibility filter is not an ordering, it is what the game can ask
+	// about at all — a shuffle that reached past it would open 자주 틀리는 곳
+	// 찾기 on verses with no recorded attempt.
+	it('still draws only from the eligible verses', () => {
+		const eligible = new Set(['a_krv:4', 'a_krv:9']);
+		const ids = buildQueue(many(12), {
+			signals: noSignals,
+			now: NOW,
+			order: 'random',
+			eligible,
+			rng: zero
+		}).map((i) => i.id);
+		expect([...ids].sort()).toEqual(['a_krv:4', 'a_krv:9']);
+	});
+});
+
+describe('buildQueue — 문항 수', () => {
+	const many = (n: number) => Array.from({ length: n }, (_, i) => item('a_krv', i + 1));
+
+	it('takes the size it was asked for instead of SESSION_SIZE', () => {
+		expect(buildQueue(many(40), { signals: noSignals, now: NOW, size: 20 })).toHaveLength(20);
+	});
+
+	it('serves the whole pool when the size covers it', () => {
+		expect(buildQueue(many(7), { signals: noSignals, now: NOW, size: 7 })).toHaveLength(7);
+	});
+
+	it('caps a random draw the same way', () => {
+		expect(
+			buildQueue(many(40), { signals: noSignals, now: NOW, size: 5, order: 'random', rng: () => 0 })
+		).toHaveLength(5);
 	});
 });

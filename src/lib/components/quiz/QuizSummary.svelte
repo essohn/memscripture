@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChevronRight } from 'lucide-svelte';
+	import { ChevronRight, Inbox } from 'lucide-svelte';
 	import type { QuizItem } from '$lib/quiz/session';
 	import { rankOf } from '$lib/arcade/score';
 	import { arcade } from '$lib/state/arcade.svelte';
@@ -19,6 +19,9 @@
 		bestCombo?: number;
 		onAgain: () => void;
 		onClose: () => void;
+		/** Files the missed verses into 최근. Rejects if the write failed —
+		 *  this screen reports that rather than swallowing it. */
+		onSaveRecent: () => Promise<void>;
 	}
 	let {
 		passed,
@@ -28,8 +31,38 @@
 		points = 0,
 		bestCombo = 0,
 		onAgain,
-		onClose
+		onClose,
+		onSaveRecent
 	}: Props = $props();
+
+	/**
+	 * Where the 최근에 담기 press has got to.
+	 *
+	 * 'done' replaces the button rather than disabling it: filing the same
+	 * verses twice only bumps one bundle's timestamp, and a button still
+	 * standing after a successful press is an invitation to find that out.
+	 * 'error' puts it back, because a failed write is worth another try.
+	 */
+	let saveState = $state<'idle' | 'saving' | 'done' | 'error'>('idle');
+
+	const saveMessage = $derived(
+		saveState === 'done'
+			? '최근에 담았습니다'
+			: saveState === 'error'
+				? '최근에 담지 못했습니다'
+				: ''
+	);
+
+	async function saveRecent() {
+		if (saveState === 'saving' || saveState === 'done') return;
+		saveState = 'saving';
+		try {
+			await onSaveRecent();
+			saveState = 'done';
+		} catch {
+			saveState = 'error';
+		}
+	}
 
 	const rank = $derived(rankOf(passed, total));
 
@@ -70,7 +103,33 @@
 
 	{#if failed.length > 0}
 		<div class="text-left">
-			<h2 class="text-[13px] font-semibold text-[var(--color-text-secondary)]">다시 볼 구절</h2>
+			<div class="flex items-center justify-between gap-2">
+				<h2 class="text-[13px] font-semibold text-[var(--color-text-secondary)]">다시 볼 구절</h2>
+				<!-- The list already links each verse; this files the whole set in
+				     one press, so the reader can carry on and find them together on
+				     the home screen instead of chasing citations one at a time. -->
+				{#if saveState !== 'done'}
+					<button
+						type="button"
+						onclick={saveRecent}
+						disabled={saveState === 'saving'}
+						class="inline-flex items-center gap-1 rounded-full border border-[var(--color-border)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-text)] disabled:opacity-50"
+					>
+						<Inbox size={13} strokeWidth={1.75} />
+						{saveState === 'saving' ? '담는 중…' : '최근에 담기'}
+					</button>
+				{/if}
+			</div>
+			<!-- Always rendered: a live region has to exist before its text
+			     changes or the change is never announced. -->
+			<p
+				aria-live="polite"
+				class="text-[12px] {saveState === 'error'
+					? 'text-[var(--color-danger)]'
+					: 'text-[var(--color-accent)]'}"
+			>
+				{saveMessage}
+			</p>
 			<!-- Each one goes to the verse itself. ?v= is the library page's own
 			     deep link — it scrolls the card into view and flashes it — which
 			     is exactly what the reader would otherwise do by hand after

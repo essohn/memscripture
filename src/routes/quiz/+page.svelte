@@ -16,6 +16,8 @@
 	} from '$lib/quiz/games';
 	import { summarize, type ItemRating, type QuizItem, type RoundResult } from '$lib/quiz/session';
 	import { recordCheck } from '$lib/db/checkHistory';
+	import { recordRecentBundle } from '$lib/db/recentBundles';
+	import { bundlesFromItems } from '$lib/quiz/recentFromQuiz';
 	import { NO_COMBO, comboHit, comboMiss, type ComboState } from '$lib/arcade/combo';
 	import { spotShown } from '$lib/quiz/spot';
 	import { arcade } from '$lib/state/arcade.svelte';
@@ -215,6 +217,20 @@
 		index += 1;
 	}
 
+	/**
+	 * File the run's wrong answers into 최근, one bundle per package.
+	 *
+	 * Deliberately not caught: the summary reports the failure on its own
+	 * button, and a swallowed rejection here would show 담았습니다 over a
+	 * write that never landed — which is the exact shape of the storage
+	 * failure `unsaved` exists to stop hiding.
+	 */
+	async function saveRecent(): Promise<void> {
+		for (const b of bundlesFromItems(failedItems)) {
+			await recordRecentBundle(b.packageId, b.verseNos);
+		}
+	}
+
 	function again() {
 		// The same count as the run just played: 다시 하기 is that run again,
 		// not a differently-graded one.
@@ -263,6 +279,7 @@
 			{unsaved}
 			onAgain={again}
 			onClose={close}
+			onSaveRecent={saveRecent}
 		/>
 	{:else}
 		<!-- A run had no way out of it: the only exits were answering every round

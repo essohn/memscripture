@@ -360,6 +360,8 @@ describe('QuizScopePicker — session size', () => {
 		expect(vi.mocked(props.onStart).mock.calls[0]?.[0]).toHaveLength(10);
 	});
 
+	// Under 자주 틀린 순, which is no longer the opening order — 오래된 순 is,
+	// and these two were both checked today.
 	it('puts a verse with recent failures ahead of one passed today', async () => {
 		const now = 1_700_000_000_000;
 		const props = setup({
@@ -372,6 +374,7 @@ describe('QuizScopePicker — session size', () => {
 				['a_krv:2', { fails: 3, lastAskedAt: now }]
 			])
 		});
+		await fireEvent.click(screen.getByRole('radio', { name: '자주 틀린 순' }));
 		await fireEvent.click(goButton());
 		expect(vi.mocked(props.onStart).mock.calls[0]?.[0]?.[0]?.id).toBe('a_krv:2');
 	});
@@ -441,5 +444,130 @@ describe('QuizScopePicker opening word count', () => {
 		await fireEvent.click(screen.getByRole('radio', { name: '5단어' }));
 		await fireEvent.click(goButton());
 		expect(onStart.mock.calls[0][2]).toBe(5);
+	});
+});
+
+describe('QuizScopePicker — 문항 수', () => {
+	const many = (n: number) => Array.from({ length: n }, (_, i) => item(i + 1));
+	const sizes = () => screen.getAllByRole('radio', { name: /구절$/ }).map((r) => r.textContent?.trim());
+	const sizeChip = (name: string) => screen.getByRole('radio', { name });
+
+	it('offers round steps the scope can fill, ending on 전체', () => {
+		setup({ items: many(48), ratings: hard(48), attempts: new Map() });
+		expect(sizes()).toEqual(['5구절', '10구절', '20구절', '30구절', '전체 48구절']);
+	});
+
+	// Ten is what this screen has always asked, so it stays the opening answer
+	// wherever the scope is big enough to give it.
+	it('opens on 10 when the scope is larger than one session', () => {
+		setup({ items: many(48), ratings: hard(48), attempts: new Map() });
+		expect(sizeChip('10구절')).toBeChecked();
+	});
+
+	// Ten is not on offer here, and falling back to the smallest step would
+	// hide three of the seven verses behind a chip the reader never pressed.
+	it('opens on 전체 when the scope is smaller than one session', () => {
+		setup({ items: many(7), ratings: hard(7), attempts: new Map() });
+		expect(sizeChip('전체 7구절')).toBeChecked();
+	});
+
+	// One choice is not a choice, and a radiogroup of one is a control that
+	// cannot be pressed wrong — the same reason a lone 대상 is stated rather
+	// than offered.
+	it('says nothing when the scope leaves only one honest answer', () => {
+		setup();
+		expect(screen.queryByRole('radiogroup', { name: '문항 수' })).toBeNull();
+	});
+
+	it('hands onStart the number of verses that was chosen', async () => {
+		const { onStart } = setup({ items: many(48), ratings: hard(48), attempts: new Map() });
+		await fireEvent.click(sizeChip('20구절'));
+		await fireEvent.click(goButton());
+		expect(onStart.mock.calls[0][0]).toHaveLength(20);
+	});
+
+	it('moves the count line with the chosen size', async () => {
+		setup({ items: many(48), ratings: hard(48), attempts: new Map() });
+		await fireEvent.click(sizeChip('20구절'));
+		expect(screen.getByText('48구절 중 오늘 20구절')).toBeInTheDocument();
+	});
+
+	it('drops the 중 오늘 half once the whole scope is the session', async () => {
+		setup({ items: many(48), ratings: hard(48), attempts: new Map() });
+		await fireEvent.click(sizeChip('전체 48구절'));
+		expect(screen.getByText('48구절')).toBeInTheDocument();
+	});
+
+	// 전체 is a standing answer, not the number it happened to be worth when
+	// it was pressed. A chip that silently fell back to 10 the moment the
+	// reader narrowed the difficulty would be the opposite of what they said.
+	it('keeps 전체 meaning 전체 after the scope shrinks', async () => {
+		setup({
+			items: many(52),
+			ratings: new Map<string, ItemRating>(
+				Array.from({ length: 52 }, (_, i) => [
+					`a_krv:${i + 1}`,
+					i < 40 ? { start: 2, full: 2 } : { start: 1, full: 1 }
+				])
+			),
+			attempts: new Map()
+		});
+		await fireEvent.click(sizeChip('전체 52구절'));
+		await fireEvent.click(chip('시작 난이도', 'xHard'));
+		expect(sizeChip('전체 40구절')).toBeChecked();
+		expect(screen.getByText('40구절')).toBeInTheDocument();
+	});
+});
+
+describe('QuizScopePicker — 출제 순서', () => {
+	const many = (n: number) => Array.from({ length: n }, (_, i) => item(i + 1));
+	const NOW = 1_700_000_000_000;
+	const DAY = 86_400_000;
+
+	/** 1 checked today, 2 checked nine days ago and never failed, 3 checked
+	 *  today and failed three times. One fixture, three different answers. */
+	const signals = new Map<string, VerseSignal>([
+		['a_krv:1', { fails: 0, lastAskedAt: NOW }],
+		['a_krv:2', { fails: 0, lastAskedAt: NOW - 9 * DAY }],
+		['a_krv:3', { fails: 3, lastAskedAt: NOW }]
+	]);
+
+	const three = () =>
+		setup({ items: many(3), ratings: hard(3), attempts: new Map(), now: NOW, signals });
+
+	const started = (props: { onStart: ReturnType<typeof vi.fn> }) =>
+		vi.mocked(props.onStart).mock.calls[0]?.[0]?.map((i: QuizItem) => i.id);
+
+	it('opens on 오래된 순', () => {
+		three();
+		expect(screen.getByRole('radio', { name: '오래된 순' })).toBeChecked();
+	});
+
+	it('asks about the least recently checked verse first', async () => {
+		const props = three();
+		await fireEvent.click(goButton());
+		expect(started(props)?.[0]).toBe('a_krv:2');
+	});
+
+	it('puts the often-failed verse first once 자주 틀린 순 is chosen', async () => {
+		const props = three();
+		await fireEvent.click(screen.getByRole('radio', { name: '자주 틀린 순' }));
+		await fireEvent.click(goButton());
+		expect(started(props)?.[0]).toBe('a_krv:3');
+	});
+
+	it('ignores both signals once 무작위 is chosen', async () => {
+		const draw = vi.spyOn(Math, 'random').mockReturnValue(0);
+		try {
+			const props = three();
+			await fireEvent.click(screen.getByRole('radio', { name: '무작위' }));
+			await fireEvent.click(goButton());
+			const ids = started(props);
+			expect(draw).toHaveBeenCalled();
+			expect([...(ids ?? [])].sort()).toEqual(['a_krv:1', 'a_krv:2', 'a_krv:3']);
+			expect(ids).not.toEqual(['a_krv:2', 'a_krv:1', 'a_krv:3']);
+		} finally {
+			draw.mockRestore();
+		}
 	});
 });

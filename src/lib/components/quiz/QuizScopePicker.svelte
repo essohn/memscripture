@@ -4,12 +4,14 @@
 	import {
 		buildQueue,
 		filterByTier,
+		sessionSizeChoices,
 		type ItemRating,
+		type QueueOrder,
 		type QuizItem,
 		type Tier
 	} from '$lib/quiz/session';
 	import type { Target } from '$lib/quiz/scope';
-	import type { VerseSignal } from '$lib/quiz/priority';
+	import { SESSION_SIZE, type VerseSignal } from '$lib/quiz/priority';
 	import {
 		GAMES,
 		GAME_LABELS,
@@ -79,6 +81,27 @@
 	let startTiers = $state<Set<Tier>>(new Set<Tier>(ALL_TIERS));
 	let fullTiers = $state<Set<Tier>>(new Set<Tier>(ALL_TIERS));
 
+	/**
+	 * Which of the scope's verses the session takes.
+	 *
+	 * 오래된 순 leads because it is the one that walks a library end to end: a
+	 * verse sinks the moment it is asked about, so the next sitting picks up
+	 * where this one stopped and nothing is left behind. The other two are
+	 * answers to different questions — 자주 틀린 순 for a set the reader keeps
+	 * losing, 무작위 for a set they want to meet out of order.
+	 */
+	let order = $state<QueueOrder>('stale');
+
+	/**
+	 * The 문항 수 the reader pressed, or null while they have not.
+	 *
+	 * 전체 is kept as the word rather than the number it was worth when it was
+	 * pressed. Stored as 52, narrowing the scope to 40 would leave the choice
+	 * pointing at a chip that no longer exists and the size would fall back to
+	 * 10 — turning "all of them" into "ten of them" behind the reader's back.
+	 */
+	let chosenSize = $state<number | 'all' | null>(null);
+
 	/** One game for the whole session. 퍼펙트 게임 is the default because it is
 	 *  the one that works on every verse from the first day. */
 	let game = $state<Game>('typing');
@@ -94,7 +117,22 @@
 	 *  for. The other two games ask about anything. */
 	const eligible = $derived(game === 'spot' ? new Set(attempts.keys()) : undefined);
 
-	const queue = $derived(buildQueue(pool, { signals, now, eligible }));
+	const sizeChoices = $derived(sessionSizeChoices(pool.length));
+
+	/** Ten where the scope can give ten, the whole scope where it cannot —
+	 *  falling back to the smallest step would hide most of a seven-verse
+	 *  range behind a chip the reader never pressed. */
+	const size = $derived(
+		chosenSize === 'all'
+			? pool.length
+			: typeof chosenSize === 'number' && sizeChoices.includes(chosenSize)
+				? chosenSize
+				: sizeChoices.includes(SESSION_SIZE)
+					? SESSION_SIZE
+					: pool.length
+	);
+
+	const queue = $derived(buildQueue(pool, { signals, now, eligible, order, size }));
 
 	/** How many of the chosen scope have a sentence to ask about. */
 	const attemptCount = $derived(pool.filter((i) => attempts.has(i.id)).length);
@@ -122,7 +160,12 @@
 					: undefined
 	);
 
-	/** Every chip a row can hold, 미평가 included. */
+	/** In picker order, hardest-working answer first. */
+	const ORDERS = [
+		{ value: 'stale', label: '오래된 순' },
+		{ value: 'fails', label: '자주 틀린 순' },
+		{ value: 'random', label: '무작위' }
+	] as const satisfies readonly { value: QueueOrder; label: string }[];
 
 	function setRow(row: 'start' | 'full', next: Set<Tier>) {
 		if (row === 'start') startTiers = next;
@@ -290,6 +333,72 @@
 		<div class="mt-2 space-y-2.5">
 			{@render tierRow('start', '시작 난이도', 'quiz-start-tier-heading', startTiers)}
 			{@render tierRow('full', '전체 난이도', 'quiz-full-tier-heading', fullTiers)}
+		</div>
+	</div>
+
+	<!-- Only when there is more than one honest answer. A radiogroup of one is
+	     a control that cannot be pressed wrong, the same reason a lone 대상 is
+	     stated rather than offered. -->
+	{#if sizeChoices.length > 1}
+		<div>
+			<h2
+				id="quiz-size-heading"
+				class="text-[13px] font-semibold text-[var(--color-text-secondary)]"
+			>
+				문항 수
+			</h2>
+			<!-- Round steps rather than a slider: the difference between 23 and 24
+			     questions is not a decision anyone makes, and the strip can be read
+			     at a glance where a handle's position has to be measured. It bleeds
+			     to both edges so a scrollable row looks scrollable. -->
+			<div
+				role="radiogroup"
+				aria-labelledby="quiz-size-heading"
+				class="-mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 py-1"
+				style="overscroll-behavior-x: contain;"
+			>
+				{#each sizeChoices as n, i (n)}
+					{@const whole = i === sizeChoices.length - 1}
+					<button
+						type="button"
+						role="radio"
+						aria-checked={size === n}
+						onclick={() => (chosenSize = whole ? 'all' : n)}
+						class="shrink-0 rounded-full border px-3 py-1 text-[12px] font-medium whitespace-nowrap tabular-nums transition-colors {size ===
+						n
+							? 'border-transparent bg-[var(--color-accent)] text-white'
+							: 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-elevated)]'}"
+					>
+						{whole ? `전체 ${n}구절` : `${n}구절`}
+					</button>
+				{/each}
+			</div>
+		</div>
+	{/if}
+
+	<div>
+		<h2 id="quiz-order-heading" class="text-[13px] font-semibold text-[var(--color-text-secondary)]">
+			출제 순서
+		</h2>
+		<div
+			role="radiogroup"
+			aria-labelledby="quiz-order-heading"
+			class="mt-2 flex flex-wrap gap-1.5"
+		>
+			{#each ORDERS as o (o.value)}
+				<button
+					type="button"
+					role="radio"
+					aria-checked={order === o.value}
+					onclick={() => (order = o.value)}
+					class="rounded-full border px-3 py-1 text-[12px] font-medium transition-colors {order ===
+					o.value
+						? 'border-transparent bg-[var(--color-accent)] text-white'
+						: 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-elevated)]'}"
+				>
+					{o.label}
+				</button>
+			{/each}
 		</div>
 	</div>
 

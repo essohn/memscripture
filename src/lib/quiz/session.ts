@@ -81,31 +81,118 @@ export function filterByTier(
 /** A verse nothing is known about — never asked, never failed. */
 const UNPROVEN: VerseSignal = { fails: 0 };
 
+/** How the session decides which of the scope's verses it asks about. */
+export type QueueOrder = 'stale' | 'fails' | 'random';
+
 /**
- * Today's session: the verses that most want asking, capped at SESSION_SIZE.
+ * The 문항 수 chips, before a pool trims them.
  *
- * `eligible`, when given, is applied before the sort rather than after the
- * slice. 틀린 곳 찾기 can only ask about verses it has a recorded attempt
- * for, and the highest-priority ten are quite likely to be ten the reader has
- * never quizzed — filtering afterwards would open a session with no rounds at
- * all.
+ * Round numbers rather than a slider's every integer: the difference between
+ * 23 and 24 questions is not a decision anyone makes, and a strip of chips can
+ * be read at a glance where a handle's position has to be measured.
+ */
+const SIZE_STEPS = [5, 10, 20, 30, 50, 100];
+
+/**
+ * What the 문항 수 strip offers for a scope of this size.
  *
+ * Always ends on the pool itself — 전체 — and never offers a step the pool
+ * cannot fill, because a chip that hands back the same session as the one
+ * beside it is a chip the reader cannot tell they pressed.
+ */
+export function sessionSizeChoices(poolSize: number): number[] {
+	if (poolSize <= 0) return [];
+	return [...SIZE_STEPS.filter((n) => n < poolSize), poolSize];
+}
+
+/**
  * Ties break by id, which is what lets a fresh scope advance: every verse in
- * an untouched package scores the same, so the first session takes the first
+ * an untouched package sorts the same, so the first session takes the first
  * ten — and having been asked, those ten drop to the bottom and the next
  * session takes the next ten. Being asked is itself the rotation, so no
  * shuffle or rotation hash is needed.
  */
+function byId(a: QuizItem, b: QuizItem): number {
+	return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+/**
+ * Fisher–Yates, through an injected rng.
+ *
+ * `rng` is a parameter for the same reason `now` is: a shuffle that reached
+ * for Math.random itself could only be tested by running it many times and
+ * asserting about the distribution, which is a slow test that fails
+ * occasionally for no reason.
+ */
+function shuffled(items: QuizItem[], rng: () => number): QuizItem[] {
+	const out = [...items];
+	for (let i = out.length - 1; i > 0; i--) {
+		const j = Math.floor(rng() * (i + 1));
+		[out[i], out[j]] = [out[j], out[i]];
+	}
+	return out;
+}
+
+/**
+ * Today's session: `size` verses drawn from the scope in the chosen order.
+ *
+ * Three orders, because the reader is not always asking the same question.
+ *
+ * - `stale` — least recently checked first, never-checked ahead of everything.
+ *   The default, and the one that walks a library end to end: a verse sinks
+ *   the moment it is asked about, so the next session takes the next ones.
+ *   Sorted on the real timestamp rather than through priorityOf, whose
+ *   STALE_CAP flattens everything past a month into one score — under the cap
+ *   a verse untouched for four months ties with one untouched for six weeks
+ *   and the id tie-break decides, which is not an ordering by age at all.
+ * - `fails` — the weighted score: failures first, staleness second. What this
+ *   screen used to do unconditionally.
+ * - `random` — a straight draw from the scope, ignoring both signals.
+ *
+ * `eligible`, when given, is applied before the ordering rather than after the
+ * slice. 틀린 곳 찾기 can only ask about verses it has a recorded attempt
+ * for, and the highest-priority ten are quite likely to be ten the reader has
+ * never quizzed — filtering afterwards would open a session with no rounds at
+ * all.
+ */
 export function buildQueue(
 	pool: QuizItem[],
-	opts: { signals: Map<string, VerseSignal>; now: number; eligible?: Set<string> }
+	opts: {
+		signals: Map<string, VerseSignal>;
+		now: number;
+		eligible?: Set<string>;
+		order?: QueueOrder;
+		size?: number;
+		rng?: () => number;
+	}
 ): QuizItem[] {
-	const { signals, now, eligible } = opts;
-	return pool
-		.filter((i) => eligible === undefined || eligible.has(i.id))
-		.map((item) => ({ item, score: priorityOf(signals.get(item.id) ?? UNPROVEN, now) }))
-		.sort((a, b) => b.score - a.score || (a.item.id < b.item.id ? -1 : a.item.id > b.item.id ? 1 : 0))
-		.slice(0, SESSION_SIZE)
+	const {
+		signals,
+		now,
+		eligible,
+		order = 'stale',
+		size = SESSION_SIZE,
+		rng = Math.random
+	} = opts;
+
+	const asked = pool.filter((i) => eligible === undefined || eligible.has(i.id));
+
+	if (order === 'random') return shuffled(asked, rng).slice(0, size);
+
+	if (order === 'fails') {
+		return asked
+			.map((item) => ({ item, score: priorityOf(signals.get(item.id) ?? UNPROVEN, now) }))
+			.sort((a, b) => b.score - a.score || byId(a.item, b.item))
+			.slice(0, size)
+			.map((x) => x.item);
+	}
+
+	// Never checked sorts as infinitely old: the reader has no evidence about
+	// it at all, which is the thing 오래된 순 exists to surface.
+	return asked
+		.map((item) => ({ item, at: signals.get(item.id)?.lastAskedAt ?? -Infinity }))
+		.sort((a, b) => a.at - b.at || byId(a.item, b.item))
+		.slice(0, size)
 		.map((x) => x.item);
 }
 
