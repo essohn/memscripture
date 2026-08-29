@@ -327,3 +327,32 @@ describe('QuizTypingRound — 시한폭탄', () => {
 		}
 	});
 });
+
+// The round is over and the reader is looking at Correct! or Fail. Enter is
+// where their hand already is — they have just used it to submit.
+describe('QuizTypingRound — 엔터로 다음', () => {
+	it('advances once the verdict is up', async () => {
+		const { onDone } = setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.keyDown(window, { key: 'Enter' });
+		expect(onDone).toHaveBeenCalledTimes(1);
+	});
+
+	// Before the answer is in, Enter is 제출's, and the box owns it.
+	it('does not advance while the round is still being answered', async () => {
+		const { onDone } = setup();
+		await type('그들에게');
+		await fireEvent.keyDown(window, { key: 'Enter' });
+		expect(onDone).not.toHaveBeenCalled();
+	});
+
+	// Korean input commits a syllable with Enter.
+	it('ignores the Enter that commits a syllable', async () => {
+		const { onDone } = setup();
+		await type(VERSE);
+		await fireEvent.click(screen.getByRole('button', { name: '제출' }));
+		await fireEvent.keyDown(window, { key: 'Enter', isComposing: true });
+		expect(onDone).not.toHaveBeenCalled();
+	});
+});

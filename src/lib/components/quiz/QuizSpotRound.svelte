@@ -6,6 +6,7 @@
 	import ComboMeter from '$lib/components/arcade/ComboMeter.svelte';
 	import OutcomeStamp from '$lib/components/arcade/OutcomeStamp.svelte';
 	import { arcade } from '$lib/state/arcade.svelte';
+	import { submitsOnEnter } from '$lib/memorize/typing';
 	import { SPOT_HIT_POINTS, comboLimitMs } from '$lib/arcade/combo';
 	import QuizTicker from './QuizTicker.svelte';
 
@@ -83,6 +84,20 @@
 		tick().then(() => nextButton?.focus());
 	}
 
+	/**
+	 * Enter moves on once the verdict is up.
+	 *
+	 * Never before it: this round is answered by choosing between two calls,
+	 * and an Enter that picked one for the reader would record a verdict they
+	 * did not give. A composing Enter is ignored the same way everywhere else
+	 * in the app ignores it.
+	 */
+	function onWindowKeydown(e: KeyboardEvent) {
+		if (!answered || !submitsOnEnter(e)) return;
+		e.preventDefault();
+		next();
+	}
+
 	function next() {
 		if (!answered || reported) return;
 		reported = true;
@@ -100,6 +115,8 @@
 		});
 	}
 </script>
+
+<svelte:window onkeydown={onWindowKeydown} />
 
 <div class="rounded-2xl bg-[var(--color-card)] p-4 shadow-[var(--shadow-card)]">
 	<div class="flex items-baseline justify-between">

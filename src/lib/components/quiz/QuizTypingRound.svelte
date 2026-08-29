@@ -114,6 +114,21 @@
 		submit();
 	}
 
+	/**
+	 * Enter moves on once the verdict is up.
+	 *
+	 * On window rather than on the box, because by then the box is disabled and
+	 * keystrokes never reach it — and because Enter is where the reader's hand
+	 * already is: they have just used it to submit. Only after the verdict, so
+	 * it can never stand in for 제출 twice, and never on a composing Enter,
+	 * which is how Korean input commits a syllable.
+	 */
+	function onWindowKeydown(e: KeyboardEvent) {
+		if (verdict === null || !submitsOnEnter(e)) return;
+		e.preventDefault();
+		next();
+	}
+
 	/** A round reports itself once. The verdict screen stays up until the
 	 *  parent swaps this component out, so 다음 is tappable more than once —
 	 *  and the route advances its index off this call, so a second report
@@ -131,6 +146,8 @@
 	}
 </script>
 
+<svelte:window onkeydown={onWindowKeydown} />
+
 <div class="rounded-2xl bg-[var(--color-card)] p-4 shadow-[var(--shadow-card)]">
 	<div class="flex items-baseline justify-between">
 		<h2 class="text-[calc(16px*var(--vfs))] font-semibold text-[var(--color-text)]">
@@ -143,10 +160,12 @@
 	</div>
 	<p class="mt-0.5 text-[calc(14px*var(--vfs))] text-[var(--color-text-secondary)]">{item.cite}</p>
 
-	<!-- 정답 above the board and 입력한 내용 below it, each one line high
-	     whatever the verse is. Both rails are always here, empty while the
-	     round runs, so the answer landing changes nothing about the layout. -->
-	<QuizTicker testid="quiz-answer" label="정답" text={verdict === null ? '' : item.w} />
+	<!-- Both rails sit under the board, as two lines together: what the verse
+	     says and what the reader wrote, one above the other, which is the
+	     comparison the round exists to make. Above the board the answer was
+	     across the card from the attempt and the two had to be read apart.
+	     Always here, empty while the round runs, so the answer landing changes
+	     nothing about the layout. -->
 
 	<div class="relative">
 		<DefuseStage {startedAt} {limitMs} {outcome} />
@@ -155,6 +174,7 @@
 		{/if}
 	</div>
 
+	<QuizTicker testid="quiz-answer" label="정답" text={verdict === null ? '' : item.w} />
 	<QuizTicker testid="quiz-attempt" label="입력한 내용" text={verdict === null ? '' : typed} marks={attemptMarks} />
 
 	<!-- The verdict in words, for a reader who has neither the board nor the

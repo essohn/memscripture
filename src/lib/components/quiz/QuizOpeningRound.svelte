@@ -171,10 +171,12 @@
 	</div>
 	<p class="mt-0.5 text-[calc(14px*var(--vfs))] text-[var(--color-text-secondary)]">{item.cite}</p>
 
-	<!-- 정답 above the board and 입력한 내용 below it, each one line high
-	     whatever the verse is. Both rails are always here, empty while the
-	     round runs, so the answer landing changes nothing about the layout. -->
-	<QuizTicker testid="quiz-answer" label="정답" text={done ? item.w : ''} />
+	<!-- Both rails sit under the board, as two lines together: what the verse
+	     says and what the reader wrote, one above the other, which is the
+	     comparison the round exists to make. Above the board the answer was
+	     across the card from the attempt and the two had to be read apart.
+	     Always here, empty while the round runs, so the answer landing changes
+	     nothing about the layout. -->
 
 	<div class="relative">
 		<RaidStage {startedAt} {outcome} />
@@ -183,6 +185,7 @@
 		{/if}
 	</div>
 
+	<QuizTicker testid="quiz-answer" label="정답" text={done ? item.w : ''} />
 	<QuizTicker testid="quiz-attempt" label="입력한 내용" text={done ? typed : ''} />
 
 	<!-- The verdict in words. The board and the stamp say it on screen; this is
