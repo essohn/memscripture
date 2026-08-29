@@ -82,4 +82,22 @@ describe('suggestedMarks', () => {
 			new Set([2])
 		);
 	});
+
+	// A 확인 never had positions to record, unlike a pre-feature check that had
+	// them and simply was not asked for them. Five taps must not starve a
+	// suggestion the reader earned — and the reader tapping 확인 five days
+	// running is precisely the one still working on this verse.
+	it('does not let 확인 taps crowd out an earned suggestion', () => {
+		const tap = { missed: undefined, source: 'self' as const };
+		const history = [tap, tap, tap, tap, tap, { missed: [2] }, { missed: [2] }];
+		expect(suggestedMarks(history, 11)).toEqual(new Set([2]));
+	});
+
+	// The exclusion is on the source, not on the missing array: a 점검 whose
+	// positions were never recorded still fills the window, as it always has.
+	it('still lets a pre-feature 점검 fill the window', () => {
+		const old = { missed: undefined };
+		const history = [old, old, old, old, old, { missed: [2] }, { missed: [2] }];
+		expect(suggestedMarks(history, 11)).toEqual(new Set());
+	});
 });
