@@ -51,11 +51,17 @@ export class PlaylistPlayer {
 
 	#openId = $state<string | null>(null);
 	#playing = $state(false);
+	/** The device would not speak at all. Kept so the bar can say so instead of
+	 *  sitting there having quietly given up. */
+	#failed = $state(false);
 	#progress = $state<PlayerProgress>(IDLE);
 	/** Raw: the segment array is long and nothing reads into it reactively. */
 	#list = $state.raw<Playlist | null>(null);
 	#handle: PlayerHandle | null = null;
 
+	get failed(): boolean {
+		return this.#failed;
+	}
 	get playing(): boolean {
 		return this.#playing;
 	}
@@ -206,12 +212,17 @@ export class PlaylistPlayer {
 	}
 
 	#play(list: Playlist, seekTo: number): boolean {
+		// Cleared on every start: a device that would not speak a moment ago may
+		// have had its voice changed in 설정 since, and the notice must not
+		// outlive the problem.
+		this.#failed = false;
 		const handle = createPlayer(list.segments, {
 			rate: this.#opts.speakRate,
 			voice: this.#opts.speakVoice || undefined,
 			gender: this.#opts.speakGender === 'auto' ? undefined : this.#opts.speakGender,
 			repeat: this.#opts.speakListRepeat,
 			onProgress: (p) => (this.#progress = p),
+			onFailure: () => (this.#failed = true),
 			onEnd: () => {
 				// Reached both when the list finishes and when another playback
 				// relieves this one. Either way the bar stays open, showing where

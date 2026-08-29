@@ -22,6 +22,9 @@
 		elapsedMs: number;
 		totalMs: number;
 		repeat: boolean;
+		/** No voice on this device would speak. The bar stops where the sound
+		 *  stopped and says why, rather than filling itself in. */
+		failed?: boolean;
 		onToggle: () => void;
 		onSeek: (fraction: number) => void;
 		onToggleRepeat: () => void;
@@ -36,6 +39,7 @@
 		elapsedMs,
 		totalMs,
 		repeat,
+		failed = false,
 		onToggle,
 		onSeek,
 		onToggleRepeat,
@@ -56,6 +60,15 @@
 	class="playlist-bar fixed inset-x-0 z-40 border-t border-[var(--color-border)] bg-[var(--color-card)]"
 >
 	<div class="mx-auto flex max-w-2xl flex-col gap-1.5 px-5 py-2.5">
+		<!-- Above the controls, not below: it explains why the bar stopped, and
+		     a reader whose sound never came is looking at the top of it. role
+		     status so it is announced — nothing else moves when playback fails
+		     silently, which is the entire problem it exists to name. -->
+		{#if failed}
+			<p role="status" class="text-[12px] text-[var(--color-danger)]">
+				소리를 낼 수 없습니다. 설정에서 다른 음성을 골라보세요.
+			</p>
+		{/if}
 		<div class="flex items-center gap-2.5">
 			<button
 				type="button"

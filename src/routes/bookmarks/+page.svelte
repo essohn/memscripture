@@ -287,6 +287,7 @@
 	{#if player.openId}
 		<PlaylistBar
 			playing={player.playing}
+failed={player.failed}
 			label={player.nowPlaying?.cite ?? ''}
 			index={player.index}
 			count={player.count}

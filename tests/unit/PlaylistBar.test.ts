@@ -65,3 +65,18 @@ describe('PlaylistBar', () => {
 		expect(onClose).toHaveBeenCalledTimes(1);
 	});
 });
+
+describe('PlaylistBar when the device will not speak', () => {
+	// A bar that simply stopped, with no sound and no word, is what sent an
+	// Android reader to the developer instead of to 설정. The message names the
+	// one thing that fixes it.
+	it('says so, and points at the voice setting', () => {
+		render(PlaylistBar, { props: { ...props, failed: true } });
+		expect(screen.getByRole('status')).toHaveTextContent(/음성/);
+	});
+
+	it('stays out of the way while playback is fine', () => {
+		render(PlaylistBar, { props });
+		expect(screen.queryByRole('status')).toBeNull();
+	});
+});

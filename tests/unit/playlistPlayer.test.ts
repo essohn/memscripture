@@ -10,6 +10,7 @@ class FakeUtterance {
 	lang = '';
 	rate = 1;
 	voice: unknown = null;
+	onstart: (() => void) | null = null;
 	onend: (() => void) | null = null;
 	onerror: (() => void) | null = null;
 	onboundary: ((e: { charIndex: number }) => void) | null = null;
@@ -33,6 +34,9 @@ function installFakeSynth() {
 			current = u;
 			spoken.push(u);
 			synth.speaking = true;
+			// A voice that works says so. Silence here would be the failure the
+			// player now watches for, not a working synthesizer.
+			u.onstart?.();
 		},
 		cancel() {
 			const u = current;

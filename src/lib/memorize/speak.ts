@@ -108,6 +108,43 @@ export interface VoiceLike {
  */
 const PREFERRED_VOICES = [/Natural/i, /Neural/i, /SunHi/i, /InJoon/i, /Google/i, /Yuna/i];
 
+/**
+ * Voices that took an utterance and never spoke it, for this page's lifetime.
+ *
+ * The ranking above reaches for network voices first because they sound
+ * markedly better. The cost is that a network voice can fail in the one way
+ * the Web Speech API has no word for: `speak()` is accepted, `speaking` goes
+ * true, and no `start`, `end` or `error` ever arrives. Nothing is thrown and
+ * nothing is spoken.
+ *
+ * A voice that does that once will do it for every verse after it, so the
+ * finding is remembered rather than rediscovered — 149 verses each waiting out
+ * their own timeout is a hang, not playback. Held in memory only: the cause is
+ * usually the network or the engine's mood, and a voice written off today
+ * should get another chance on the next load.
+ */
+const deadVoices = new Set<string>();
+
+/** Testing seam. Nothing in the app clears this — a reload does. */
+export function forgetDeadVoices(): void {
+	deadVoices.clear();
+}
+
+/**
+ * How long a voice gets to make a sound before it is written off.
+ *
+ * Generous on purpose. A network voice has to fetch its audio, and calling a
+ * slow connection dead would cost the reader the better voice for the rest of
+ * the session. Long enough to be sure, short enough that nobody sits through
+ * it twice.
+ */
+const START_TIMEOUT_MS = 3000;
+
+/** How many voices to work through before admitting the device will not speak.
+ *  The last attempt runs with no voice set at all, which is the platform's own
+ *  default and the one thing left to try. */
+const MAX_VOICE_ATTEMPTS = 3;
+
 export type VoiceGender = 'male' | 'female';
 
 /**
@@ -171,9 +208,11 @@ function voiceRank(v: VoiceLike): number {
  */
 export function pickKoreanVoice<T extends VoiceLike>(
 	voices: T[],
-	opts: { wanted?: string; gender?: VoiceGender } = {}
+	opts: { wanted?: string; gender?: VoiceGender; exclude?: ReadonlySet<string> } = {}
 ): T | null {
-	const korean = voices.filter((v) => /^ko/i.test(v.lang));
+	// Excluded before anything else, `wanted` included: a stale explicit choice
+	// must not resurrect a voice already known to be silent.
+	const korean = voices.filter((v) => /^ko/i.test(v.lang) && !opts.exclude?.has(v.name));
 	if (korean.length === 0) return null;
 	if (opts.wanted) {
 		const exact = korean.find((v) => v.name === opts.wanted);
@@ -264,6 +303,13 @@ export function speak(segments: string[], opts: SpeakOptions = {}): SpeakHandle 
 
 	let stopped = false;
 	let keepalive: ReturnType<typeof setInterval> | null = null;
+	let watchdog: ReturnType<typeof setTimeout> | null = null;
+
+	function disarmWatchdog() {
+		if (watchdog === null) return;
+		clearTimeout(watchdog);
+		watchdog = null;
+	}
 
 	// Named rather than inline so it can be handed to claimSynth as this
 	// playback's identity: the next playback relieves it by calling this.
@@ -277,6 +323,7 @@ export function speak(segments: string[], opts: SpeakOptions = {}): SpeakHandle 
 		// stale handle instead of by another playback starting.
 		const wasStopped = stopped;
 		stopped = true;
+		disarmWatchdog();
 		if (keepalive !== null) clearInterval(keepalive);
 		if (wasStopped) return;
 		releaseSynth(stop);
@@ -318,7 +365,7 @@ export function speak(segments: string[], opts: SpeakOptions = {}): SpeakHandle 
 		opts.onEnd?.();
 	}
 
-	function say(index: number) {
+	function say(index: number, attempt = 0) {
 		if (stopped) return;
 		if (index >= segments.length) {
 			if (opts.repeat) {
@@ -334,15 +381,51 @@ export function speak(segments: string[], opts: SpeakOptions = {}): SpeakHandle 
 		// macOS the character voices sort ahead of the narration one.
 		const chosen = pickKoreanVoice(synth.getVoices(), {
 			wanted: opts.voice,
-			gender: opts.gender
+			gender: opts.gender,
+			// The same memo the player writes to. A voice found silent while
+			// reading a list is silent for a single verse too, and a reader who
+			// hits the speaker button next should not wait it out again.
+			exclude: deadVoices
 		});
 		if (chosen) u.voice = chosen as SpeechSynthesisVoice;
 		u.rate = opts.rate ?? 1;
-		u.onend = () => say(index + 1);
+		let started = false;
+		u.onstart = () => {
+			started = true;
+			disarmWatchdog();
+		};
+		u.onend = () => {
+			disarmWatchdog();
+			say(index + 1);
+		};
 		// An error would otherwise leave the caller stuck showing "playing"
 		// forever, the same way dictation did.
-		u.onerror = () => finish();
+		u.onerror = () => {
+			disarmWatchdog();
+			finish();
+		};
+		disarmWatchdog();
 		synth.speak(u);
+		// The failure the API has no event for: accepted, `speaking` true, and
+		// then nothing at all. Without this the button reads as playing forever
+		// and the reader is left wondering whether they pressed it.
+		watchdog = setTimeout(() => {
+			watchdog = null;
+			if (stopped || started) return;
+			if (chosen) deadVoices.add(chosen.name);
+			if (attempt + 1 >= MAX_VOICE_ATTEMPTS) {
+				finish();
+				return;
+			}
+			// Silenced before the cancel. Chrome fires `end` on whatever is
+			// cancelled, and this utterance's own handler would read that as
+			// the verse having been read and move to the next one — turning a
+			// retry into a skip.
+			u.onend = null;
+			u.onerror = null;
+			synth.cancel();
+			say(index, attempt + 1);
+		}, START_TIMEOUT_MS);
 	}
 
 	say(0);
@@ -433,6 +516,9 @@ export interface PlayerHandle {
 
 export interface PlayerOptions extends SpeakOptions {
 	onProgress?: (p: PlayerProgress) => void;
+	/** No voice on this device would speak. Fired instead of a completed run,
+	 *  so the caller can say so rather than showing a finished bar. */
+	onFailure?: () => void;
 }
 
 /**
@@ -459,6 +545,9 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 	let elapsedBefore = 0;
 	let stopped = false;
 	let paused = false;
+	/** Whether the utterance on the queue has actually made a sound. */
+	let speaking = false;
+	let watchdog: ReturnType<typeof setTimeout> | null = null;
 	let ticker: ReturnType<typeof setInterval> | null = null;
 	let keepalive: ReturnType<typeof setInterval> | null = null;
 	let current: SpeechSynthesisUtterance | null = null;
@@ -472,7 +561,13 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		// carries the bar. Whichever is further along is the honest one, since a
 		// missing boundary event never means we went backwards.
 		const byChars = chars > 0 ? (baseOffset + charInUtterance) / chars : 0;
-		const byClock = totalMs > 0 ? elapsed() / totalMs : 0;
+		// Only while something is actually being spoken. The clock is here for
+		// iOS, which fires no boundary events — but it ran just as happily
+		// through an utterance the engine accepted and never voiced, and with
+		// finish() reporting a full bar, a silent failure drew exactly what a
+		// completed playlist draws. That bar is why this went two days
+		// undiagnosed: there was nothing on screen that said "no sound".
+		const byClock = speaking && totalMs > 0 ? elapsed() / totalMs : 0;
 		opts.onProgress?.({
 			fraction: Math.min(1, Math.max(byChars, byClock)),
 			elapsedMs: elapsed(),
@@ -490,12 +585,22 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 	 */
 	function detachCurrent() {
 		if (!current) return;
+		current.onstart = null;
 		current.onend = null;
 		current.onboundary = null;
 		current.onerror = null;
 	}
 
-	function playFrom(offset: number, { chained = false }: { chained?: boolean } = {}) {
+	function disarmWatchdog() {
+		if (watchdog === null) return;
+		clearTimeout(watchdog);
+		watchdog = null;
+	}
+
+	function playFrom(
+		offset: number,
+		{ chained = false, attempt = 0 }: { chained?: boolean; attempt?: number } = {}
+	) {
 		if (stopped) return;
 		const rest = sliceFrom(segments, offset);
 		if (rest.length === 0) {
@@ -525,15 +630,22 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		u.lang = 'ko-KR';
 		const chosen = pickKoreanVoice(synth.getVoices(), {
 			wanted: opts.voice,
-			gender: opts.gender
+			gender: opts.gender,
+			exclude: deadVoices
 		});
 		if (chosen) u.voice = chosen as SpeechSynthesisVoice;
 		u.rate = opts.rate ?? 1;
+		speaking = false;
+		u.onstart = () => {
+			speaking = true;
+			disarmWatchdog();
+		};
 		u.onboundary = (e) => {
 			charInUtterance = e.charIndex ?? 0;
 			report();
 		};
 		u.onend = () => {
+			disarmWatchdog();
 			if (stopped || paused) return;
 			// More script left: straight on to the next verse. Chained rather
 			// than queued for the reason speak() chains — a queue leaves the
@@ -550,8 +662,14 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 			}
 			finish();
 		};
-		u.onerror = () => finish();
+		u.onerror = () => {
+			disarmWatchdog();
+			// Not finish(): an error is not an ending, and reporting one drew a
+			// full bar over a verse nobody heard.
+			giveUp();
+		};
 		detachCurrent();
+		disarmWatchdog();
 		current = u;
 		// Not when chaining. The utterance that just ended left the queue empty,
 		// and a cancel() immediately followed by speak() in the same tick is
@@ -559,11 +677,47 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		// platform that was working before this change.
 		if (!chained && (synth.speaking || synth.pending)) synth.cancel();
 		synth.speak(u);
+		// Armed after speak(), because a voice that works answers within this
+		// window and disarms it. One that does not has taken the utterance and
+		// gone quiet — the failure the API has no event for.
+		watchdog = setTimeout(() => {
+			watchdog = null;
+			if (stopped || paused || speaking) return;
+			if (chosen) deadVoices.add(chosen.name);
+			if (attempt + 1 >= MAX_VOICE_ATTEMPTS) {
+				giveUp();
+				return;
+			}
+			// Not chained: the dead utterance is still on the queue and has to
+			// be cleared before the next voice gets a turn. detachCurrent has
+			// already silenced its handlers, so the cancel cannot be read as a
+			// verse that finished.
+			playFrom(offset, { attempt: attempt + 1 });
+		}, START_TIMEOUT_MS);
+	}
+
+	/**
+	 * Ends the run without claiming it played.
+	 *
+	 * The bar is left where the sound stopped rather than being filled in, and
+	 * onFailure fires so the caller can say what happened. finish() means the
+	 * script was read; this means the device would not read it.
+	 */
+	function giveUp() {
+		if (stopped) return;
+		stopped = true;
+		disarmWatchdog();
+		if (ticker !== null) clearInterval(ticker);
+		if (keepalive !== null) clearInterval(keepalive);
+		releaseSynth(stop);
+		opts.onFailure?.();
+		opts.onEnd?.();
 	}
 
 	function finish() {
 		if (stopped) return;
 		stopped = true;
+		disarmWatchdog();
 		if (ticker !== null) clearInterval(ticker);
 		if (keepalive !== null) clearInterval(keepalive);
 		releaseSynth(stop);
@@ -576,6 +730,7 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 	function stop() {
 		if (stopped) return;
 		stopped = true;
+		disarmWatchdog();
 		if (ticker !== null) clearInterval(ticker);
 		if (keepalive !== null) clearInterval(keepalive);
 		releaseSynth(stop);

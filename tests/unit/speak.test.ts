@@ -10,7 +10,8 @@ import {
 	totalChars,
 	pickKoreanVoice,
 	voiceGender,
-	speechSegments
+	speechSegments,
+	forgetDeadVoices
 } from '../../src/lib/memorize/speak';
 
 describe('citeToSpeech', () => {
@@ -308,6 +309,7 @@ class FakeUtterance {
 	lang = '';
 	rate = 1;
 	voice: unknown = null;
+	onstart: (() => void) | null = null;
 	onend: (() => void) | null = null;
 	onerror: (() => void) | null = null;
 	onboundary: ((e: { charIndex: number }) => void) | null = null;
@@ -328,6 +330,10 @@ function installFakeSynth() {
 			current = u;
 			spoken.push(u);
 			synth.speaking = true;
+			// A working voice says so. Without this the fake is indistinguishable
+			// from one that takes an utterance and never speaks it, which is a
+			// real failure the player now watches for.
+			u.onstart?.();
 		},
 		// Chrome fires the current utterance's `end` on cancel. That is the
 		// behaviour the ownership fix exists for, so the fake reproduces it.
@@ -343,6 +349,138 @@ function installFakeSynth() {
 	vi.stubGlobal('SpeechSynthesisUtterance', FakeUtterance);
 	return { synth, spoken };
 }
+
+/**
+ * A synthesizer where some voices take an utterance and never speak it.
+ *
+ * That is the failure this file could not previously see: no sound, no error,
+ * `speaking` true, and not one event. A fake that always fires `start` models
+ * the API but not the platform, and green-lights code that cannot tell a
+ * working voice from a dead one.
+ */
+function installVoiceSynth(dead: string[]) {
+	const spoken: FakeUtterance[] = [];
+	let current: FakeUtterance | null = null;
+	const voices = [
+		{ name: 'Google 한국의', lang: 'ko-KR', localService: false },
+		{ name: 'Yuna', lang: 'ko-KR', localService: true }
+	];
+	const synth = {
+		speaking: false,
+		pending: false,
+		paused: false,
+		getVoices: () => voices,
+		speak(u: FakeUtterance) {
+			current = u;
+			spoken.push(u);
+			synth.speaking = true;
+			// '' stands for the platform's own default — the last thing the
+			// player tries once every named voice has been written off.
+			const name = (u.voice as { name: string } | null)?.name ?? '';
+			// The whole point: accepted, and then nothing. No start, no end, no
+			// error — exactly what a network voice does when it cannot fetch.
+			if (dead.includes(name)) return;
+			u.onstart?.();
+		},
+		cancel() {
+			const u = current;
+			current = null;
+			synth.speaking = false;
+			u?.onend?.();
+		},
+		resume() {}
+	};
+	vi.stubGlobal('speechSynthesis', synth);
+	vi.stubGlobal('SpeechSynthesisUtterance', FakeUtterance);
+	return { synth, spoken };
+}
+
+const voiceOf = (u: FakeUtterance) => (u.voice as { name: string } | null)?.name ?? null;
+
+describe('a voice that takes an utterance and never speaks it', () => {
+	beforeEach(() => vi.useFakeTimers());
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		vi.useRealTimers();
+		forgetDeadVoices();
+	});
+
+	/*
+	 * `Google 한국의` is a network voice — localService false — and it outranks
+	 * every local one because neural voices sound better. When its fetch fails
+	 * it does not error; it goes quiet. On Android that left 전체 듣기 silent
+	 * with a progress bar running to the end, on a phone whose TTS worked in
+	 * every other app.
+	 */
+	it('stops waiting on it and tries another voice', () => {
+		const { spoken } = installVoiceSynth(['Google 한국의']);
+		createPlayer(['가나다라마바사'], {});
+		expect(spoken.map(voiceOf)).toEqual(['Google 한국의']);
+		vi.advanceTimersByTime(4000);
+		expect(spoken.map(voiceOf)).toEqual(['Google 한국의', 'Yuna']);
+	});
+
+	// Once a voice has proven dead it must not be picked again — 149 verses
+	// each waiting on the same silent voice is not playback, it is a hang.
+	it('does not go back to a voice that already failed', () => {
+		const { spoken } = installVoiceSynth(['Google 한국의']);
+		createPlayer(['가나다라마바사', '아자차카타파하'], {});
+		vi.advanceTimersByTime(4000);
+		spoken.length = 0;
+		createPlayer(['하나둘셋넷'], {});
+		expect(spoken.map(voiceOf)).toEqual(['Yuna']);
+	});
+
+	/*
+	 * The bar was the reason this went two days undiagnosed. `byClock` carries
+	 * it on wall-clock time so that iOS, which fires no boundary events, still
+	 * shows movement — but it ran just as happily when nothing was being
+	 * spoken, and finish() reports a full bar. A silent failure therefore drew
+	 * exactly what a completed playlist draws.
+	 */
+	it('never draws a finished bar for a script that made no sound', () => {
+		// Including '': not one voice on this device speaks, the platform's own
+		// default included, so there is nothing left to fall back to.
+		installVoiceSynth(['Google 한국의', 'Yuna', '']);
+		const onProgress = vi.fn();
+		const onFailure = vi.fn();
+		createPlayer(['가나다라마바사'], { onProgress, onFailure });
+		vi.advanceTimersByTime(30_000);
+		expect(onFailure).toHaveBeenCalled();
+		expect(onProgress.mock.calls.some(([p]) => p.fraction === 1)).toBe(false);
+	});
+
+	it('leaves a voice that actually speaks alone', () => {
+		const { spoken } = installVoiceSynth([]);
+		createPlayer(['가나다라마바사'], {});
+		vi.advanceTimersByTime(30_000);
+		expect(spoken.map(voiceOf)).toEqual(['Google 한국의']);
+	});
+});
+
+describe('pickKoreanVoice exclusions', () => {
+	const VOICES = [
+		{ name: 'Google 한국의', lang: 'ko-KR' },
+		{ name: 'Yuna', lang: 'ko-KR' }
+	];
+
+	it('passes over an excluded voice', () => {
+		expect(pickKoreanVoice(VOICES, { exclude: new Set(['Google 한국의']) })?.name).toBe('Yuna');
+	});
+
+	// A stale explicit choice must not resurrect a voice known to be silent.
+	it('will not honour a wanted voice that is excluded', () => {
+		const picked = pickKoreanVoice(VOICES, {
+			wanted: 'Google 한국의',
+			exclude: new Set(['Google 한국의'])
+		});
+		expect(picked?.name).toBe('Yuna');
+	});
+
+	it('returns null when every Korean voice is excluded', () => {
+		expect(pickKoreanVoice(VOICES, { exclude: new Set(['Google 한국의', 'Yuna']) })).toBeNull();
+	});
+});
 
 describe('global queue ownership', () => {
 	beforeEach(() => installFakeSynth());
