@@ -219,16 +219,18 @@ describe('offerableTargets', () => {
 	const ev = (id: string, label: string) => ({ kind: 'event' as const, id, label, ranges: [] });
 	const pkg = (id: string, label: string) => ({ kind: 'package' as const, id, label });
 
-	// The reader reaches the quiz from a 암송 DAY. Offering every installed
-	// package beside it turns a decision they already made back into a list.
-	it('offers only the 암송 DAYs when there is at least one', () => {
-		const out = offerableTargets([ev('e1', '11월 암송 데이'), pkg('a_krv', 'A구절'), pkg('b_krv', 'B구절')]);
-		expect(out.map((t) => t.id)).toEqual(['e1']);
+	// The DAY led and the packages were hidden behind it, which meant the quiz
+	// could only ask about this month's hundred and fifty verses while every
+	// check recorded against the other nine hundred sat there unusable. It
+	// still leads; it no longer stands alone.
+	it('leads with the 암송 DAYs and keeps the packages behind them', () => {
+		const out = offerableTargets([pkg('a_krv', 'A구절'), ev('e1', '11월 암송 데이'), pkg('b_krv', 'B구절')]);
+		expect(out.map((t) => t.id)).toEqual(['e1', 'a_krv', 'b_krv']);
 	});
 
-	it('keeps every DAY when there are several', () => {
+	it('keeps every DAY, in front of the packages', () => {
 		const out = offerableTargets([ev('e1', '1월'), ev('e2', '2월'), pkg('a_krv', 'A구절')]);
-		expect(out.map((t) => t.id)).toEqual(['e1', 'e2']);
+		expect(out.map((t) => t.id)).toEqual(['e1', 'e2', 'a_krv']);
 	});
 
 	// Without this a reader with no DAY would meet an empty picker and no way

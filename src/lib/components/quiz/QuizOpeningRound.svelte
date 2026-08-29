@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { hasTypedOpening, openingOf } from '$lib/memorize/timing';
-	import { submitsOnEnter } from '$lib/memorize/typing';
+	import { ownsEnter, submitsOnEnter } from '$lib/memorize/typing';
 	import { OPENING_GAME_WORDS } from '$lib/quiz/games';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
 	import QuizTicker from './QuizTicker.svelte';
@@ -154,6 +154,10 @@
 	 *  focus ended up. */
 	function onKeydown(e: KeyboardEvent) {
 		if (!submitsOnEnter(e)) return;
+		// Whatever is focused has already acted on this keystroke. Once the
+		// round is graded the box is disabled and focus is on 다음, which fires
+		// itself — so this handler serves the case where nothing is focused.
+		if (ownsEnter(e.target)) return;
 		e.preventDefault();
 		next();
 	}

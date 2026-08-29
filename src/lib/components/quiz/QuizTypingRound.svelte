@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { accuracyOf, markAttemptWords, markMismatchedWords } from '$lib/memorize/grade';
-	import { submitsOnEnter } from '$lib/memorize/typing';
+	import { ownsEnter, submitsOnEnter } from '$lib/memorize/typing';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
 	import QuizTicker from './QuizTicker.svelte';
 	import OutcomeStamp from '$lib/components/arcade/OutcomeStamp.svelte';
@@ -125,6 +125,16 @@
 	 */
 	function onWindowKeydown(e: KeyboardEvent) {
 		if (verdict === null || !submitsOnEnter(e)) return;
+		// The Enter that submitted must not also move on. It reaches the box
+		// first, sets the verdict there, and then carries on up to here — where
+		// the round it just decided is sitting, decided. One keystroke did both,
+		// and the reader never saw whether they had got it right.
+		//
+		// Checked on the target rather than by stopping propagation in the box:
+		// whatever is focused has already acted on the keystroke — the box
+		// submitted, or a button fired — and this handler is only for the case
+		// where nothing is.
+		if (ownsEnter(e.target)) return;
 		e.preventDefault();
 		next();
 	}

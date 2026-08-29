@@ -52,15 +52,21 @@ export const OPENING_WORD_CHOICES = [2, 3, 4, 5] as const;
 export type OpeningWords = (typeof OPENING_WORD_CHOICES)[number];
 
 /** How close an attempt must land to be worth keeping as a future question. */
-export const RECALLABLE_MIN_ACCURACY = 0.9;
+export const RECALLABLE_MIN_ACCURACY = 0.6;
 
 /**
  * Is this attempt worth keeping as a future 틀린 곳 찾기 question?
  *
- * Near-misses only. A verse abandoned after its opening words is not a
- * spot-the-difference question, and a perfect attempt has nothing wrong in it
- * to find — the point of keeping the sentence is to hand it back later and ask
- * what is wrong with it.
+ * A perfect attempt has nothing wrong in it to find, and a verse abandoned
+ * after its opening words is a different sentence rather than a wrong one —
+ * handing that back and asking what is wrong with it is not a question, it is
+ * a blank.
+ *
+ * Between those, though, the bar was far too high. At 0.9 only the very
+ * nearest misses counted, and a reader who had genuinely got a verse wrong —
+ * the exact case this game exists for — had it thrown away. Every attempt is
+ * stored either way, so lowering this reaches back through the history that is
+ * already there rather than only helping from now on.
  */
 export function isRecallableAttempt(accuracy: number): boolean {
 	return accuracy >= RECALLABLE_MIN_ACCURACY && accuracy < 1;

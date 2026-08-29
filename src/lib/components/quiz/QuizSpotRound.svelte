@@ -6,7 +6,7 @@
 	import ComboMeter from '$lib/components/arcade/ComboMeter.svelte';
 	import OutcomeStamp from '$lib/components/arcade/OutcomeStamp.svelte';
 	import { arcade } from '$lib/state/arcade.svelte';
-	import { submitsOnEnter } from '$lib/memorize/typing';
+	import { ownsEnter, submitsOnEnter } from '$lib/memorize/typing';
 	import { SPOT_HIT_POINTS, comboLimitMs } from '$lib/arcade/combo';
 	import QuizTicker from './QuizTicker.svelte';
 
@@ -94,6 +94,10 @@
 	 */
 	function onWindowKeydown(e: KeyboardEvent) {
 		if (!answered || !submitsOnEnter(e)) return;
+		// A keyboard reader pressing Enter on 이상 있음 fires that button and
+		// the same keystroke carries on up to here, where the round it just
+		// answered is answered. One Enter, one thing.
+		if (ownsEnter(e.target)) return;
 		e.preventDefault();
 		next();
 	}
