@@ -6,6 +6,7 @@
 	import { getGoogleOauthClientId } from '$lib/sync/clientId';
 	import VersionFooter from '$lib/components/feedback/VersionFooter.svelte';
 	import { getJoinedGroups } from '$lib/db/groups';
+	import { dataGeneration } from '$lib/state/dataGeneration.svelte';
 	import { Sparkles, X, Info, ChevronRight } from 'lucide-svelte';
 	import {
 		listRecentBundles,
@@ -46,12 +47,18 @@
 	 */
 	let inATeam = $state<boolean | null>(null);
 	$effect(() => {
+		// Re-read when a sync rewrites the tables underneath. Nothing else
+		// tells this effect its rows changed — the read happens on mount and
+		// there is no live query, so a sync arriving on open would leave the
+		// screen showing what it found before.
+		void dataGeneration.value;
 		getJoinedGroups()
 			.then((g) => (inATeam = g.length > 0))
 			.catch(() => (inATeam = true));
 	});
 
 	$effect(() => {
+		void dataGeneration.value;
 		let active = true;
 		(async () => {
 			const bundles = await listRecentBundles(10);
@@ -108,6 +115,7 @@
 	});
 
 	$effect(() => {
+		void dataGeneration.value;
 		let active = true;
 		buildEventCards(todayLocalKey())
 			.then((cards) => {

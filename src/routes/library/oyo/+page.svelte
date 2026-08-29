@@ -3,6 +3,7 @@
 	import { verseVisibility } from '$lib/state/verseVisibility.svelte';
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
 	import { fontScale } from '$lib/state/fontScale.svelte';
+	import { dataGeneration } from '$lib/state/dataGeneration.svelte';
 	import VerseEditSheet, {
 		type VerseEditValues
 	} from '$lib/components/oyo/VerseEditSheet.svelte';
@@ -46,6 +47,11 @@
 	);
 
 	$effect(() => {
+		// Re-read when a sync rewrites the tables underneath. Nothing else
+		// tells this effect its rows changed — the read happens on mount and
+		// there is no live query, so a sync arriving on open would leave the
+		// screen showing what it found before.
+		void dataGeneration.value;
 		let active = true;
 		(async () => {
 			const list = await listOyoVerses();

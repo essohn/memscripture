@@ -4,6 +4,7 @@
 	import PackageReorderList from '$lib/components/PackageReorderList.svelte';
 	import { listPackages } from '$lib/db/verses';
 	import { getRecentPackageIds } from '$lib/db/recent';
+	import { dataGeneration } from '$lib/state/dataGeneration.svelte';
 	import { setPackageOrder } from '$lib/db/packageOrder';
 	import type { PackageMeta } from '$lib/types';
 
@@ -13,6 +14,11 @@
 	let editMode = $state(false);
 
 	$effect(() => {
+		// Re-read when a sync rewrites the tables underneath. Nothing else
+		// tells this effect its rows changed — the read happens on mount and
+		// there is no live query, so a sync arriving on open would leave the
+		// screen showing what it found before.
+		void dataGeneration.value;
 		listPackages()
 			.then(async (p) => {
 				packages = p;

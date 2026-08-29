@@ -1,4 +1,5 @@
 import { db } from '$lib/db/local';
+import { dataGeneration } from '$lib/state/dataGeneration.svelte';
 import { OYO_PACKAGE_ID } from '$lib/db/oyo';
 import { getDataLastModified } from '$lib/db/touchData';
 import type { Bookmark, DailyActivity, PackageMeta, VerseProgress } from '$lib/types';
@@ -188,4 +189,10 @@ export async function applySyncSnapshot(input: unknown): Promise<void> {
 			if (preserved.length) await db.settings.bulkPut(preserved);
 		}
 	);
+
+	// Announced only after the transaction commits: a screen that re-reads on
+	// the strength of this must find the finished tables, not a half-restored
+	// one. Every screen reading the database in an effect is looking at rows
+	// that no longer exist until it is told to look again.
+	dataGeneration.bump();
 }

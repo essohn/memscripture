@@ -1,6 +1,7 @@
 import { db } from './local';
 import { touchDataModified } from './touchData';
 import { normalizeGroupCode, resolveGroupCode } from '$lib/groups/visibility';
+import { dataGeneration } from '$lib/state/dataGeneration.svelte';
 
 const KEY = 'joined_groups';
 const CATALOG_URL = '/data/groups.json';
@@ -43,6 +44,11 @@ export async function joinGroup(code: string): Promise<GroupInfo | null> {
 		if (current.includes(id)) return;
 		await db.settings.put({ key: KEY, value: [...current, id] });
 		await touchDataModified();
+		// Membership decides which packages and which 암송 DAY a reader is
+		// shown, and the home page reads it once on mount — at the same moment
+		// the layout is handling the invite link. Without this the reader joins
+		// and goes on being told to join until something reloads the page.
+		dataGeneration.bump();
 	});
 	return info;
 }
@@ -54,6 +60,7 @@ export async function leaveGroup(id: string): Promise<void> {
 		if (next.length === current.length) return;
 		await db.settings.put({ key: KEY, value: next });
 		await touchDataModified();
+		dataGeneration.bump();
 	});
 }
 

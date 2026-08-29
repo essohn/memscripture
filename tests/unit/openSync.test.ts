@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetOpenSync, syncOnOpen } from '../../src/lib/sync/openSync';
+import { pulledRemoteRecords, resetOpenSync, syncOnOpen } from '../../src/lib/sync/openSync';
 import { cardActivity } from '../../src/lib/state/cardActivity';
 
 /** A stored auth with an hour still on its token. */
@@ -144,5 +144,34 @@ describe('cardActivity', () => {
 		cardActivity.leave();
 		cardActivity.leave();
 		expect(cardActivity.busy).toBe(false);
+	});
+});
+
+
+// The layout asks this one question of an open-sync outcome: did another
+// device's records just land here? Only then is there anything to refresh a
+// screen for, or anything worth saying out loud.
+describe('pulledRemoteRecords', () => {
+	it('is true when the open sync merged', () => {
+		expect(pulledRemoteRecords({ kind: 'ran', result: { kind: 'merged' } })).toBe(true);
+	});
+
+	it('is false when there was nothing new to take', () => {
+		expect(pulledRemoteRecords({ kind: 'ran', result: { kind: 'remote-equal' } })).toBe(false);
+	});
+
+	// This device wrote the first copy; nothing came back the other way.
+	it('is false when the sync only uploaded', () => {
+		expect(pulledRemoteRecords({ kind: 'ran', result: { kind: 'no-remote-uploaded' } })).toBe(
+			false
+		);
+	});
+
+	it('is false when the sync never ran, and when it failed', () => {
+		expect(pulledRemoteRecords({ kind: 'skipped', why: 'not-connected' })).toBe(false);
+		expect(pulledRemoteRecords({ kind: 'ran', result: { kind: 'deferred' } })).toBe(false);
+		expect(pulledRemoteRecords({ kind: 'ran', result: { kind: 'error', message: 'x' } })).toBe(
+			false
+		);
 	});
 });

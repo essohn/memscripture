@@ -15,6 +15,7 @@ import {
 	setStartDifficulty
 } from '../../src/lib/db/verseRatings';
 import { applySyncSnapshot, buildSyncSnapshot } from '../../src/lib/sync/snapshot';
+import { dataGeneration } from '../../src/lib/state/dataGeneration.svelte';
 
 beforeEach(async () => {
 	await db.delete();
@@ -205,5 +206,36 @@ describe('applySyncSnapshot', () => {
 		// view_options from the snapshot is applied.
 		const viewOpts = await db.settings.get('view_options');
 		expect((viewOpts?.value as { showVerseTextInList: boolean }).showVerseTextInList).toBe(false);
+	});
+});
+
+
+describe('applySyncSnapshot and the screens above it', () => {
+	// Applying rewrites every table, and the screens that read those tables in
+	// an effect read them once on mount. A background sync used to land a
+	// year of records in IndexedDB and leave the page showing the empty state
+	// it had already read — which is indistinguishable from a sync that did
+	// nothing, and was reported as exactly that.
+	it('advances the data generation so a mounted screen reads again', async () => {
+		const before = dataGeneration.value;
+		await applySyncSnapshot(await buildSyncSnapshot());
+		expect(dataGeneration.value).toBeGreaterThan(before);
+	});
+
+	// The undo path restores through the same function, and leaves the screen
+	// just as stale — one signal covers both.
+	it('advances it once per apply', async () => {
+		const snap = await buildSyncSnapshot();
+		const before = dataGeneration.value;
+		await applySyncSnapshot(snap);
+		await applySyncSnapshot(snap);
+		expect(dataGeneration.value).toBe(before + 2);
+	});
+
+	// A snapshot it refuses changed nothing, so nothing should be re-read.
+	it('leaves it alone when the snapshot is rejected', async () => {
+		const before = dataGeneration.value;
+		await expect(applySyncSnapshot({ version: 99 })).rejects.toThrow();
+		expect(dataGeneration.value).toBe(before);
 	});
 });

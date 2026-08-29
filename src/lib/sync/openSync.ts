@@ -23,6 +23,19 @@ export type OpenSyncOutcome =
 	  }
 	| { kind: 'ran'; result: SyncResult };
 
+/**
+ * Whether an open-sync outcome brought another device's records onto this one.
+ *
+ * The only question the layout asks of the outcome. A merge is the one branch
+ * that rewrites the local tables, so it is the one branch that leaves a
+ * mounted screen showing rows that no longer exist — and the only one worth
+ * refreshing for or saying anything about. Uploading, finding nothing new,
+ * deferring and failing all leave this device exactly as the reader left it.
+ */
+export function pulledRemoteRecords(outcome: OpenSyncOutcome): boolean {
+	return outcome.kind === 'ran' && outcome.result.kind === 'merged';
+}
+
 /** One attempt per page load. A client-side navigation is not a new open, and
  *  re-pulling on every route change would be the per-change sync this
  *  deliberately is not. */

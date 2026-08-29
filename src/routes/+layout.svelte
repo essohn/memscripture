@@ -8,7 +8,8 @@
 	import { recentList } from '$lib/state/recentList.svelte';
 	import { joinGroup } from '$lib/db/groups';
 	import Toast from '$lib/components/feedback/Toast.svelte';
-	import { syncOnOpen } from '$lib/sync/openSync';
+	import { invalidateAll } from '$app/navigation';
+	import { pulledRemoteRecords, syncOnOpen } from '$lib/sync/openSync';
 	import { getGoogleOauthClientId } from '$lib/sync/clientId';
 
 	let { children } = $props();
@@ -44,13 +45,32 @@
 	 * Pull the other devices' records once, on open.
 	 *
 	 * Here rather than on the home page because this layout mounts once per
-	 * full load and a client-side route change is not a new open. Not awaited
-	 * and not reported: it must never hold up the first paint, and opening the
-	 * app offline is ordinary rather than something to announce.
+	 * full load and a client-side route change is not a new open. Not awaited:
+	 * it must never hold up the first paint.
+	 *
+	 * Silent unless something arrives. Opening the app offline is ordinary
+	 * rather than something to announce, and a sync that found nothing new has
+	 * nothing to say — but one that rewrote every table has left whatever is on
+	 * screen showing rows that are no longer there. Two people reported that as
+	 * "동기화했는데 아무것도 안 넘어왔다", which is what an unannounced,
+	 * unrepainted success looks like from the outside.
+	 *
+	 * `invalidateAll` re-runs the `+page.ts` loads; the screens that read the
+	 * database directly watch `dataGeneration`, which applySyncSnapshot moves.
+	 * Between them every route re-reads. The line of text is for the reader:
+	 * without it the page simply changes on its own.
 	 */
 	$effect(() => {
-		void syncOnOpen({ clientId: getGoogleOauthClientId() });
+		syncOnOpen({ clientId: getGoogleOauthClientId() })
+			.then(async (outcome) => {
+				if (!pulledRemoteRecords(outcome)) return;
+				await invalidateAll();
+				syncToast = '다른 기기의 기록을 가져왔습니다';
+			})
+			.catch(() => {});
 	});
+
+	let syncToast = $state<string | null>(null);
 
 	/**
 	 * Remember the list of verses the reader is on, for the Recent tab.
@@ -106,4 +126,8 @@
      confirmation has to be visible wherever it lands. -->
 {#if groupToast}
 	<Toast message={groupToast} onClose={() => (groupToast = null)} />
+{/if}
+
+{#if syncToast}
+	<Toast message={syncToast} onClose={() => (syncToast = null)} />
 {/if}

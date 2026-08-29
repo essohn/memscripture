@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { db } from '../../src/lib/db/local';
+import { dataGeneration } from '../../src/lib/state/dataGeneration.svelte';
 import {
 	_resetGroupCatalogCache,
 	getJoinedGroups,
@@ -84,5 +85,33 @@ describe('an unreachable catalog', () => {
 			})
 		);
 		expect(await joinGroup('cdm-b')).toBeNull();
+	});
+});
+
+
+// The home page reads membership once, on mount, and the invite link is
+// handled by the layout at the same moment — so a reader arriving through
+// /?team=cdm-b joined successfully and went on being told to join, until they
+// happened to reload. Membership decides which packages and which 암송 DAY
+// they are shown, so the screen has to hear about it.
+describe('joining and the screens above it', () => {
+	it('advances the data generation on a join', async () => {
+		const before = dataGeneration.value;
+		await joinGroup('cdm-b');
+		expect(dataGeneration.value).toBeGreaterThan(before);
+	});
+
+	it('advances it on leaving too', async () => {
+		await joinGroup('cdm-b');
+		const before = dataGeneration.value;
+		await leaveGroup('cdm-b');
+		expect(dataGeneration.value).toBeGreaterThan(before);
+	});
+
+	// A code that matched nothing changed nothing.
+	it('leaves it alone when the code is unknown', async () => {
+		const before = dataGeneration.value;
+		await joinGroup('no-such-team');
+		expect(dataGeneration.value).toBe(before);
 	});
 });
