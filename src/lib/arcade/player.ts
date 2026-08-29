@@ -12,6 +12,17 @@ import { planVoice, type ScheduledTone, type Tone } from './sfx';
 
 let ctx: AudioContext | null = null;
 let noise: AudioBuffer | null = null;
+let releaseTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * How long after the last tone the session is handed back.
+ *
+ * The tones are scheduled on the audio clock and this runs on the page's, so
+ * the two are not the same instant; a margin keeps the release from clipping
+ * the tail of a sound. Long enough to be safe, short enough that a reader who
+ * leaves the quiz is not still holding the speaker a second later.
+ */
+const RELEASE_MS = 250;
 
 /** One second of white noise, reused by every explosion. Built once because
  *  filling a buffer per shot is the only expensive thing here. */
@@ -73,6 +84,34 @@ function playTone(ac: AudioContext, t: ScheduledTone, master: GainNode): void {
 }
 
 /**
+ * Hands the device's audio back once the sound has finished.
+ *
+ * A running AudioContext holds the phone's audio output for as long as it
+ * lives, and this one is module-level: built on the quiz's first sound and,
+ * before this, never released. On Android that was enough to silence
+ * speechSynthesis — a reader who played a round and went back to 전체 듣기 got
+ * no sound at all, on a phone whose TTS worked in every other app. Desktop
+ * shows nothing, which is why it shipped.
+ *
+ * Suspended rather than closed: the context is reusable, and playTones takes
+ * it back on the next sound. Rescheduled rather than stacked, so overlapping
+ * sounds — a shot landing while a combo still rings — release once, after the
+ * last of them.
+ */
+function releaseAfter(ac: AudioContext, endAt: number): void {
+	if (releaseTimer !== null) clearTimeout(releaseTimer);
+	releaseTimer = setTimeout(
+		() => {
+			releaseTimer = null;
+			// Not when something started again in the meantime, and not on a
+			// context that is already down.
+			if (ac.state === 'running') void ac.suspend();
+		},
+		Math.max(0, (endAt - ac.currentTime) * 1000) + RELEASE_MS
+	);
+}
+
+/**
  * Play one voice now. Never throws: a failed sound must not fail a round.
  */
 export function playTones(tones: Tone[]): void {
@@ -87,7 +126,12 @@ export function playTones(tones: Tone[]): void {
 		master.connect(ac.destination);
 		// A hair ahead of the clock: scheduling at currentTime exactly can land
 		// in the past by the time the node is wired up, which drops the note.
-		for (const t of planVoice(tones, ac.currentTime + 0.02)) playTone(ac, t, master);
+		const plan = planVoice(tones, ac.currentTime + 0.02);
+		for (const t of plan) playTone(ac, t, master);
+		releaseAfter(
+			ac,
+			plan.reduce((last, t) => Math.max(last, t.endAt), ac.currentTime)
+		);
 	} catch {
 		// Audio is decoration. Losing it is not worth a broken round.
 	}
