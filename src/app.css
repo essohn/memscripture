@@ -108,6 +108,22 @@
 	--color-ribbon-green: #6b8e5a;
 	--color-ribbon-blue: #6a8aa8;
 	--color-ribbon-purple: #9a7aa8;
+
+	/**
+	 * Word-heat tints for the 점검 diagnosis. Alpha over whatever sits behind
+	 * them rather than opaque fills, so three values serve both themes and the
+	 * text stays --color-text in each. Measured against --color-canvas: the
+	 * strongest reads 7.3:1 on light (#fbf7f1 under #3a2e25) and 7.7:1 on dark
+	 * (#1a1612 under #f0e6d2).
+	 *
+	 * Here rather than in @theme for the reason the ribbon palette gives
+	 * above — a token the Tailwind scanner cannot see gets shaken out of the
+	 * production build, and a heat map that renders in dev and colourlessly in
+	 * production is the worst failure this feature has available to it.
+	 */
+	--color-heat-often: rgba(181, 101, 78, 0.42);
+	--color-heat-sometimes: rgba(181, 101, 78, 0.24);
+	--color-heat-rare: rgba(181, 101, 78, 0.12);
 }
 
 /* Base reset & ergonomics */
