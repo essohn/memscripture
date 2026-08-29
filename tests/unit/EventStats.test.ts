@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
 import EventStats from '../../src/lib/components/home/EventStats.svelte';
-import type { EventStats as Stats } from '../../src/lib/db/events';
+import { statsListHeading, type EventStats as Stats } from '../../src/lib/db/events';
 import { DIFFICULTY_LEVELS, DIFFICULTY_SHORT } from '../../src/lib/db/verseRatings';
 
 /** Mirrors the component's plot geometry; the bars are sized in px so the
@@ -56,8 +56,20 @@ describe('EventStats', () => {
 	it('reads as one sentence', () => {
 		render(EventStats, { eventId: 'e1', stats: stats({ total: 149, perfect: 137 }) });
 		expect(screen.getByTestId('headline').textContent?.replace(/\s+/g, ' ').trim()).toMatch(
-			/^완벽\s*137\s*,\s*미완벽\s*12\s*\/\s*149\s*구절$/
+			/^완벽\s*137\s*,\s*Not완벽\s*12\s*\/\s*149\s*구절$/
 		);
+	});
+
+	/*
+	 * The chip and the heading of the list it opens are the same two words, and
+	 * they lived as two separate string literals — the exact shape that made
+	 * DIMENSION_LABELS necessary when '시작'/'전체' drifted. Renaming one of them
+	 * is when that bites, so the two are pinned together here.
+	 */
+	it('labels the chips with the same words as the lists they open', () => {
+		render(EventStats, { eventId: 'e1', stats: stats({ total: 149, perfect: 137 }) });
+		expect(screen.getByText(statsListHeading('perfect', null, true))).toBeInTheDocument();
+		expect(screen.getByText(statsListHeading('perfect', null, false))).toBeInTheDocument();
 	});
 
 	it('calls the flawless count 완벽', () => {

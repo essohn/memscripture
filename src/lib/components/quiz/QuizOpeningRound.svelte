@@ -5,6 +5,8 @@
 	import { OPENING_GAME_WORDS } from '$lib/quiz/games';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
 	import QuizTicker from './QuizTicker.svelte';
+	import QuizRatingDrop from './QuizRatingDrop.svelte';
+	import type { DifficultyLevel } from '$lib/db/verseRatings';
 	import RaidStage from '$lib/components/arcade/RaidStage.svelte';
 	import ComboBadge from '$lib/components/arcade/ComboBadge.svelte';
 	import OutcomeStamp from '$lib/components/arcade/OutcomeStamp.svelte';
@@ -18,6 +20,9 @@
 		total: number;
 		/** The chain the session is carrying into this round. */
 		streak?: number;
+		/** This verse's rating in the dimension this game tests, before the
+		 *  round. A miss takes it down a step; the page does the writing. */
+		rating?: DifficultyLevel | null;
 		/** How many opening words count as having started the verse. The
 		 *  reader's choice, made on the start screen — a round cannot change it
 		 *  under itself, or the bar would move mid-answer. */
@@ -25,7 +30,7 @@
 		/** Fired once, when the reader leaves this round. */
 		onDone: (result: RoundResult) => void;
 	}
-	let { item, index, total, streak = 0, words = OPENING_GAME_WORDS, onDone }: Props = $props();
+	let { item, index, total, streak = 0, rating = null, words = OPENING_GAME_WORDS, onDone }: Props = $props();
 
 	let typed = $state('');
 	/** Set by 모르겠어요. A revealed opening is a failure however the reader
@@ -218,6 +223,10 @@
 
 	<QuizTicker testid="quiz-answer" label="정답" text={done ? item.w : ''} />
 	<QuizTicker testid="quiz-attempt" label="입력한 내용" text={done ? typed : ''} />
+
+	{#if done && gaveUp}
+		<QuizRatingDrop label="첫 시작 난이도" from={rating} />
+	{/if}
 
 	<!-- The verdict in words. The board and the stamp say it on screen; this is
 	     for a reader who has neither, and it is the only place the result is

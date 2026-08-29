@@ -8,6 +8,7 @@
 	} from '$lib/db/verseRatings';
 	import {
 		DIMENSION_LABELS,
+		PERFECTION_LABELS,
 		hasEventStats,
 		statsPerfectHref,
 		statsVersesHref,
@@ -95,7 +96,7 @@
 					? 'transition-colors hover:bg-[var(--color-elevated)]'
 					: ''}"
 			>
-				<span class="text-[12px] text-[var(--color-text-secondary)]">완벽</span>
+				<span class="text-[12px] text-[var(--color-text-secondary)]">{PERFECTION_LABELS.perfect}</span>
 				<span
 					data-testid="perfect-count"
 					class="text-[12px] font-semibold tabular-nums text-[var(--color-text)]"
@@ -111,7 +112,7 @@
 					? 'transition-colors hover:bg-[var(--color-elevated)]'
 					: ''}"
 			>
-				<span class="text-[12px] text-[var(--color-text-secondary)]">미완벽</span>
+				<span class="text-[12px] text-[var(--color-text-secondary)]">{PERFECTION_LABELS.imperfect}</span>
 				<span
 					data-testid="imperfect-count"
 					class="text-[12px] font-semibold tabular-nums text-[var(--color-text)]"

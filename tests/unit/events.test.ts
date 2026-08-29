@@ -685,7 +685,7 @@ describe('statsListHeading', () => {
 
 	it('names the flawless list and its remainder', () => {
 		expect(statsListHeading('perfect', null, true)).toBe('완벽');
-		expect(statsListHeading('perfect', null, false)).toBe('미완벽');
+		expect(statsListHeading('perfect', null, false)).toBe('Not완벽');
 	});
 
 	// The labels carry the word 난이도 themselves now, so a heading that still
