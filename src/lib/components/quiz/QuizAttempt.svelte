@@ -27,7 +27,7 @@
 	</p>
 	<p
 		data-testid="quiz-attempt"
-		class="mt-1 text-[calc(14px*var(--vfs))] leading-[1.7] break-keep italic"
+		class="mt-1 text-[calc(12px*var(--vfs))] leading-[1.55] break-keep italic"
 	>
 		{#if marks}
 			{#each marks as m, i (i)}<span class={m.ok ? '' : 'wrong'}>{m.word}</span>{' '}{/each}

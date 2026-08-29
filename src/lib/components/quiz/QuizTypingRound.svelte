@@ -154,34 +154,41 @@
 		{verdict === null ? `${secondsLeft}초 남았습니다` : ''}
 	</p>
 
-	{#if verdict === null}
-		<textarea
-			bind:value={typed}
-			onkeydown={onKeydown}
-			aria-label="암송 구절 입력"
-			rows="4"
-			class="mt-3 w-full resize-none rounded-xl bg-[var(--color-elevated)] p-3 text-[calc(16px*var(--vfs))] leading-[1.8] text-[var(--color-text)]"
-		></textarea>
-		<button
-			type="button"
-			onclick={() => submit()}
-			disabled={typed.trim().length === 0}
-			class="mt-3 w-full rounded-xl bg-[var(--color-accent)] py-2.5 font-medium text-white disabled:opacity-40"
-		>
-			제출
-		</button>
-	{:else}
-		<AnswerReveal reveal={verdict !== null} outcome={verdict.passed ? 'pass' : 'fail'} label="정답">
+	<!-- The box stays in the layout once the answer is in, hidden and out of the
+	     tab order. Taking it away moved the button up under the thumb that had
+	     just pressed 제출 — and three rows rather than four, because the answer
+	     blocks below are small now and the whole card has to share a phone
+	     screen with a keyboard. -->
+	<textarea
+		bind:value={typed}
+		onkeydown={onKeydown}
+		disabled={verdict !== null}
+		aria-hidden={verdict !== null}
+		aria-label="암송 구절 입력"
+		rows="3"
+		class="mt-3 w-full resize-none rounded-xl bg-[var(--color-elevated)] p-3 text-[calc(16px*var(--vfs))] leading-[1.8] text-[var(--color-text)] {verdict !==
+		null
+			? 'invisible'
+			: ''}"
+	></textarea>
+
+	<!-- One control, in one place. -->
+	<button
+		type="button"
+		onclick={() => (verdict === null ? submit() : next())}
+		disabled={verdict === null && typed.trim().length === 0}
+		class="mt-3 w-full rounded-xl py-2.5 font-medium disabled:opacity-40 {verdict === null
+			? 'bg-[var(--color-accent)] text-white'
+			: 'bg-[var(--color-elevated)] text-[var(--color-text)]'}"
+	>
+		{verdict === null ? '제출' : '다음'}
+	</button>
+
+	{#if verdict !== null}
+		<QuizVerdict passed={verdict.passed} />
+		<AnswerReveal reveal={true} outcome={verdict.passed ? 'pass' : 'fail'} label="정답">
 			<QuizAnswer w={item.w} />
 		</AnswerReveal>
 		<QuizAttempt {typed} marks={attemptMarks} />
-		<QuizVerdict passed={verdict.passed} />
-		<button
-			type="button"
-			onclick={next}
-			class="mt-2 w-full rounded-xl bg-[var(--color-elevated)] py-2.5 font-medium text-[var(--color-text)]"
-		>
-			다음
-		</button>
 	{/if}
 </div>

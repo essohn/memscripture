@@ -23,16 +23,33 @@
 	 * falling object would have to fall for two minutes. Same grammar, opposite
 	 * posture.
 	 */
+	/**
+	 * The bomb, as a bitmap, with a hole in the middle for its clock.
+	 *
+	 * 시작 3단어's bomb falls and is shot down; this one sits on the desk and
+	 * counts, because the round it belongs to asks for a whole verse and a
+	 * falling object would have to fall for two minutes. Same grammar, opposite
+	 * posture.
+	 *
+	 * Four characters rather than one, because a silhouette at this size is a
+	 * blob: B is the casing, H the light coming off its shoulder, C the collar
+	 * the fuse screws into, F the fuse and S its spark. The detail is what
+	 * makes it a bomb rather than a circle with a stick.
+	 */
 	const TIMEBOMB = [
-		'.....X.....',
-		'....XX.....',
-		'...XXXXX...',
-		'..XXXXXXX..',
-		'.XX.....XX.',
-		'.XX.....XX.',
-		'..XXXXXXX..',
-		'...XXXXX...',
-		'....XXX....'
+		'.....S.......',
+		'......F......',
+		'.....F.......',
+		'.....F.......',
+		'....CCCCC....',
+		'...BBBBBBB...',
+		'..BHBBBBBBB..',
+		'.BHBBBBBBBBB.',
+		'.BB.......BB.',
+		'.BB.......BB.',
+		'.BBBBBBBBBBB.',
+		'..BBBBBBBBB..',
+		'...BBBBBBB...'
 	];
 	/**
 	 * The rows the sprite leaves empty for the clock.
@@ -41,7 +58,7 @@
 	 * and putting the digits at the sprite's centre drew them a whole block
 	 * above the hole, over the body, where they were unreadable.
 	 */
-	const WINDOW_ROWS = [4, 5] as const;
+	const WINDOW_ROWS = [8, 9] as const;
 
 	/** Set the frame the round is decided, so the blast can be drawn for a
 	 *  moment after the answer has already landed. */
@@ -99,6 +116,9 @@
 		const hot = () => css('--color-ribbon-red', '#b5654e');
 		const ember = () => css('--color-ribbon-amber', '#d4a55a');
 		const safe = () => css('--color-ribbon-green', '#6b8e5a');
+		/** Half way between two of the palette's colours, for the parts of the
+		 *  sprite that catch the light. */
+		const mix = (a: string, b: string) => `color-mix(in srgb, ${a} 55%, ${b})`;
 
 		let raf = 0;
 		const frame = (now: number) => {
@@ -126,13 +146,27 @@
 				ctx.globalAlpha = 1;
 			}
 
-			const px = Math.max(4, Math.floor(Math.min(w, h) / 16));
+			const px = Math.max(3, Math.floor(Math.min(w, h) / 18));
 			const cx = w / 2;
 			const cy = ground - (TIMEBOMB.length * px) / 2 - px;
 
 			if (outcome !== 'blown') {
 				const body = outcome === 'defused' ? safe() : ink();
-				drawSprite(ctx, TIMEBOMB, px, cx, cy, body);
+				// The spark is the one part that lives: it flickers while the
+				// clock runs and goes out the moment the bomb is safe.
+				const spark =
+					outcome === 'defused'
+						? safe()
+						: Math.sin(now / 70) > -0.2
+							? ember()
+							: hot();
+				drawSprite(ctx, TIMEBOMB, px, cx, cy, {
+					B: body,
+					H: mix(body, sky()),
+					C: mix(body, sky()),
+					F: outcome === 'defused' ? safe() : mix(body, sky()),
+					S: outcome === 'defused' ? safe() : spark
+				});
 
 				// The clock, in the window the sprite leaves for it — a dark panel
 				// with lit digits, because that is what a readout is. Ink on the
@@ -210,7 +244,7 @@
 		aria-hidden="true"
 		data-testid="defuse-stage"
 		data-outcome={outcome ?? 'live'}
-		class="mx-auto aspect-square w-full max-w-[300px] rounded-xl border-2 border-[var(--color-text)]/15"
+		class="mx-auto aspect-[4/3] w-full max-w-[300px] rounded-xl border-2 border-[var(--color-text)]/15"
 	></canvas>
 	{#if outcome === 'blown'}
 		<!-- DOM rather than painted into the fire: crisp at any text size, and

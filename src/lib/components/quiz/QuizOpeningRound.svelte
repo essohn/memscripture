@@ -183,48 +183,59 @@
 	</p>
 
 	<!-- One line, because the answer is three words. A textarea also spends
-	     Enter on a newline, and here Enter is 다음. Gone once the round is
-	     graded: what was typed in it is shown back below as a record, and an
+	     Enter on a newline, and here Enter is 다음.
+	     Kept in the layout once the round is graded rather than removed: the
+	     button under it is where the reader's thumb already is, and taking the
+	     box away moved that button up under their finger. Hidden, disabled and
+	     out of the tab order — what was typed in it is shown back below, and an
 	     editable box under a verdict invites an edit that changes nothing. -->
-	{#if !done}
-		<input
-			bind:this={inputEl}
-			bind:value={typed}
-			type="text"
-			aria-label="구절 첫머리 입력"
-			enterkeyhint="next"
-			autocomplete="off"
-			autocapitalize="off"
-			spellcheck="false"
-			class="mt-3 w-full rounded-xl bg-[var(--color-elevated)] px-3 py-2.5 text-[calc(16px*var(--vfs))] text-[var(--color-text)]"
-		/>
-	{/if}
+	<input
+		bind:this={inputEl}
+		bind:value={typed}
+		disabled={done}
+		aria-hidden={done}
+		type="text"
+		aria-label="구절 첫머리 입력"
+		enterkeyhint="next"
+		autocomplete="off"
+		autocapitalize="off"
+		spellcheck="false"
+		class="mt-3 w-full rounded-xl bg-[var(--color-elevated)] px-3 py-2.5 text-[calc(16px*var(--vfs))] text-[var(--color-text)] {done
+				? 'invisible'
+			: ''}"
+	/>
 
-	{#if gaveUp}
-		<p class="mt-2 text-[calc(16px*var(--vfs))] font-medium text-[var(--color-text)]">{opening}</p>
-	{/if}
+	<!-- One control, in one place. Two buttons swapped in and out were the same
+	     size but not the same element, and everything the answer added pushed
+	     the second one down the card. -->
+	<button
+		bind:this={nextButton}
+		type="button"
+		onclick={done ? next : giveUp}
+		class="mt-3 w-full rounded-xl py-2.5 font-medium {done
+			? 'bg-[var(--color-accent)] text-white'
+			: 'bg-[var(--color-elevated)] text-[var(--color-text)]'}"
+	>
+		{done ? '다음' : '모르겠어요'}
+	</button>
 
 	{#if done}
+		<QuizVerdict passed={!gaveUp} />
+		{#if gaveUp}
+			<!-- The three words the round actually asked for. 정답 below has the
+			     whole verse, which is more than the question was. -->
+			<p
+				class="mt-3 text-[10.5px] font-medium tracking-[0.16em] text-[var(--color-text-tertiary)] uppercase"
+			>
+				첫 세 단어
+			</p>
+			<p class="mt-1 text-[calc(13px*var(--vfs))] font-medium text-[var(--color-text)]">
+				{opening}
+			</p>
+		{/if}
 		<AnswerReveal reveal={done} outcome={gaveUp ? 'fail' : 'pass'} label="정답">
 			<QuizAnswer w={item.w} />
 		</AnswerReveal>
 		<QuizAttempt {typed} />
-		<QuizVerdict passed={!gaveUp} />
-		<button
-			bind:this={nextButton}
-			type="button"
-			onclick={next}
-			class="mt-2 w-full rounded-xl bg-[var(--color-accent)] py-2.5 font-medium text-white"
-		>
-			다음
-		</button>
-	{:else}
-		<button
-			type="button"
-			onclick={giveUp}
-			class="mt-3 w-full rounded-xl bg-[var(--color-elevated)] py-2.5 font-medium text-[var(--color-text)]"
-		>
-			모르겠어요
-		</button>
 	{/if}
 </div>

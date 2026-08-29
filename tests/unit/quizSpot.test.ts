@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findSpotFlaws } from '../../src/lib/quiz/spot';
+import { SPOT_CLEAN_SHARE, findSpotFlaws, spotShown } from '../../src/lib/quiz/spot';
 
 // 그들에게(0) 율례와(1) 법도를(2) 가르쳐서(3) …
 const VERSE = '그들에게 율례와 법도를 가르쳐서 마땅히 갈 길과 할 일을 그들에게 보이고';
@@ -55,5 +55,37 @@ describe('findSpotFlaws', () => {
 
 	it('treats an empty sentence as missing everything', () => {
 		expect(findSpotFlaws('', VERSE).flawed).toBe(true);
+	});
+});
+
+describe('spotShown', () => {
+	const VERSE_2 = '또 증거는 이것이니 하나님이 우리에게 영생을 주신 것이라';
+	const ATTEMPT = VERSE_2.replace('영생을', '생명을');
+
+	// The queue only picks verses it has an attempt for, so every round showed a
+	// flawed sentence and 이상 있음 was right every time. A game with one right
+	// answer is not a game.
+	// The draw runs against SPOT_CLEAN_SHARE, so under it is the clean verse
+	// and over it is the sentence the reader once wrote.
+	it('sometimes shows the verse as it really is', () => {
+		expect(spotShown(VERSE_2, ATTEMPT, () => 0.01)).toBe(VERSE_2);
+	});
+
+	it('sometimes shows the attempt', () => {
+		expect(spotShown(VERSE_2, ATTEMPT, () => 0.99)).toBe(ATTEMPT);
+	});
+
+	// Both answers have to be worth guessing. Anything much off a half turns
+	// the round back into a coin the reader knows the weight of.
+	it('splits the two near enough evenly to be worth guessing', () => {
+		expect(SPOT_CLEAN_SHARE).toBeGreaterThanOrEqual(0.4);
+		expect(SPOT_CLEAN_SHARE).toBeLessThanOrEqual(0.6);
+	});
+
+	// Nothing recorded means there is nothing to plant, and the verse is the
+	// only sentence there is.
+	it('shows the verse when there is no attempt to show', () => {
+		expect(spotShown(VERSE_2, undefined, () => 0)).toBe(VERSE_2);
+		expect(spotShown(VERSE_2, '', () => 0)).toBe(VERSE_2);
 	});
 });

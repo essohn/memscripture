@@ -195,7 +195,7 @@
 		aria-hidden="true"
 		data-testid="raid-stage"
 		data-outcome={outcome ?? 'live'}
-		class="mx-auto aspect-square w-full max-w-[300px] rounded-xl border-2 border-[var(--color-text)]/15"
+		class="mx-auto aspect-[4/3] w-full max-w-[300px] rounded-xl border-2 border-[var(--color-text)]/15"
 	></canvas>
 	{#if outcome === 'impact'}
 		<!-- Drawn as DOM rather than into the fire, so it stays crisp at any

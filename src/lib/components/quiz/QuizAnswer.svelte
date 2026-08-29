@@ -26,7 +26,7 @@
 </p>
 <p
 	data-testid="quiz-answer"
-	class="mt-1 rounded-xl bg-[var(--color-elevated)] px-3 py-2.5 text-[calc(15px*var(--vfs))] leading-[1.8] break-keep text-[var(--color-text)]"
+	class="mt-1 rounded-xl bg-[var(--color-elevated)] px-2.5 py-2 text-[calc(12px*var(--vfs))] leading-[1.55] break-keep text-[var(--color-text)]"
 >
 	{w}
 </p>
