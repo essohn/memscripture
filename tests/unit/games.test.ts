@@ -5,7 +5,6 @@ import {
 	OPENING_GAME_WORDS,
 	OPENING_WORD_CHOICES,
 	GAME_SOURCE,
-	RECALLABLE_MIN_ACCURACY,
 	isRecallableAttempt
 } from '../../src/lib/quiz/games';
 
@@ -33,21 +32,17 @@ describe('games', () => {
 });
 
 describe('isRecallableAttempt', () => {
-	// A verse abandoned after two words is not a question anybody can answer.
-	it('rejects an attempt that collapsed', () => {
-		expect(isRecallableAttempt(0)).toBe(false);
-		expect(isRecallableAttempt(0.5)).toBe(false);
+	// Anything the confetti did not fire on. There was a floor here — 0.9, then
+	// 0.6 — and it was being paid for with the game: twenty-one recorded checks
+	// yielded two questions.
+	it('accepts every attempt that fell short', () => {
+		for (const accuracy of [0, 0.01, 0.2, 0.5, 0.6, 0.9, 0.99]) {
+			expect(isRecallableAttempt(accuracy), String(accuracy)).toBe(true);
+		}
 	});
 
-	it('accepts an attempt at the threshold', () => {
-		expect(isRecallableAttempt(RECALLABLE_MIN_ACCURACY)).toBe(true);
-	});
-
-	it('rejects the value just below the threshold', () => {
-		expect(isRecallableAttempt(RECALLABLE_MIN_ACCURACY - 0.01)).toBe(false);
-	});
-
-	// A perfect attempt has nothing wrong to find, so it is not a question.
+	// A perfect attempt has nothing wrong to find, so it is not a question —
+	// and it is the only thing left out.
 	it('rejects a perfect attempt', () => {
 		expect(isRecallableAttempt(1)).toBe(false);
 	});

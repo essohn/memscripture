@@ -210,8 +210,11 @@ describe('newestAttempt', () => {
 		expect(newestAttempt([{ typed: '완벽한 문장', accuracy: 1 }])).toBeUndefined();
 	});
 
-	it('does not offer a collapsed attempt as a question', () => {
-		expect(newestAttempt([{ typed: '앞부분만', accuracy: 0.3 }])).toBeUndefined();
+	// It used to refuse this. Every check the confetti did not fire on is
+	// material now: the sentence is the reader's either way, and a thin
+	// question beats a game with nothing in it.
+	it('offers a collapsed attempt as a question', () => {
+		expect(newestAttempt([{ typed: '앞부분만', accuracy: 0.3 }])).toBe('앞부분만');
 	});
 });
 
@@ -242,5 +245,34 @@ describe('offerableTargets', () => {
 
 	it('has nothing to offer from nothing', () => {
 		expect(offerableTargets([])).toEqual([]);
+	});
+});
+
+describe('newestAttempt — 빈 답안', () => {
+	// 포기 without typing leaves an empty string. It is scored as a miss like
+	// any other, and now that every miss is a question the emptiness is the
+	// only thing standing between it and being asked about.
+	it('passes over an attempt with nothing in it', () => {
+		expect(newestAttempt([{ typed: '', accuracy: 0 }])).toBeUndefined();
+		expect(newestAttempt([{ typed: '   ', accuracy: 0 }])).toBeUndefined();
+	});
+
+	it('takes the newest one that has something in it', () => {
+		expect(
+			newestAttempt([
+				{ typed: '', accuracy: 0 },
+				{ typed: '그들에게 율례와', accuracy: 0.2 }
+			])
+		).toBe('그들에게 율례와');
+	});
+
+	// The floor is gone: a collapse is a question now, because a thin question
+	// beats a game with nothing in it.
+	it('keeps an attempt that collapsed', () => {
+		expect(newestAttempt([{ typed: '그', accuracy: 0.02 }])).toBe('그');
+	});
+
+	it('still passes over a flawless one', () => {
+		expect(newestAttempt([{ typed: '온전히 맞은 문장', accuracy: 1 }])).toBeUndefined();
 	});
 });
