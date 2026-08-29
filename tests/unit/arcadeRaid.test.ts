@@ -5,7 +5,10 @@ import {
 	raidApproach,
 	raidPhase,
 	raidRemainingMs,
-	raidScore
+	raidScore,
+	raidLane,
+	RAID_LANE_MIN,
+	RAID_LANE_MAX
 } from '../../src/lib/arcade/raid';
 
 describe('raidApproach', () => {
@@ -78,5 +81,34 @@ describe('raidScore', () => {
 	// says it went.
 	it('never pays for a limit of zero', () => {
 		expect(raidScore(0, 0)).toBeGreaterThan(0);
+	});
+});
+
+describe('raidLane', () => {
+	// The bomb used to come down the middle every round, which made the second
+	// one look like a replay of the first.
+	it('varies with the draw', () => {
+		expect(raidLane(() => 0)).not.toBe(raidLane(() => 1));
+	});
+
+	// Never against an edge: half a sprite would hang off the board, and the
+	// beam fired at it would have nowhere to be drawn.
+	it('keeps clear of both edges', () => {
+		for (const draw of [0, 0.001, 0.5, 0.999, 1]) {
+			const lane = raidLane(() => draw);
+			expect(lane).toBeGreaterThanOrEqual(RAID_LANE_MIN);
+			expect(lane).toBeLessThanOrEqual(RAID_LANE_MAX);
+		}
+	});
+
+	it('spans its whole band', () => {
+		expect(raidLane(() => 0)).toBeCloseTo(RAID_LANE_MIN);
+		expect(raidLane(() => 1)).toBeCloseTo(RAID_LANE_MAX);
+	});
+
+	// A band narrow enough to be pointless would be worse than no randomness:
+	// it would look like a rendering wobble rather than a different round.
+	it('is wide enough to read as a different round', () => {
+		expect(RAID_LANE_MAX - RAID_LANE_MIN).toBeGreaterThanOrEqual(0.4);
 	});
 });

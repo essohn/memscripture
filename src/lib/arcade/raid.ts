@@ -62,3 +62,19 @@ export function raidScore(remainingMs: number, limitMs: number): number {
 	const share = Math.min(1, Math.max(0, remainingMs / limitMs));
 	return RAID_HIT_POINTS + Math.round(RAID_SPEED_POINTS * share);
 }
+
+/**
+ * The band the bomb may come down in, as fractions of the board's width.
+ *
+ * Kept off both edges: half a sprite would hang off the board, and the beam
+ * fired up at it would have nowhere to be drawn. Wide enough that two rounds
+ * running look like two rounds rather than one rendering wobble.
+ */
+export const RAID_LANE_MIN = 0.25;
+export const RAID_LANE_MAX = 0.75;
+
+/** Where this round's bomb comes down. Drawn once per round, not per frame. */
+export function raidLane(rng: () => number = Math.random): number {
+	const draw = Math.min(1, Math.max(0, rng()));
+	return RAID_LANE_MIN + draw * (RAID_LANE_MAX - RAID_LANE_MIN);
+}
