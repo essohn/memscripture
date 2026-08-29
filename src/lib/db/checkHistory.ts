@@ -36,7 +36,7 @@ export async function recordCheck(
 		elapsedMs: number;
 		hints?: number;
 		missed?: number[];
-		source?: 'quiz' | 'quiz-opening' | 'quiz-spot';
+		source?: CheckRecord['source'];
 		typed?: string;
 	},
 	checkedAt: number = Date.now()
@@ -220,16 +220,31 @@ export async function listRecentChecks(
 }
 
 /**
+ * Is this a check the reader performed on this verse, typed or not?
+ *
+ * Distinct from countsAsRecall, which asks whether a row is evidence of
+ * recall — a quiz round is evidence, and it is not a 점검. This asks whether
+ * the reader sat down with the verse and said how it went, which is what the
+ * card's 최근 점검 line reports and what the history sheet lists.
+ *
+ * Not a new concept: the same rule was already spelled out inline in three
+ * places, three different ways, before it had a name.
+ */
+export function countsAsCheck(r: Pick<CheckRecord, 'source'>): boolean {
+	return r.source === undefined || r.source === 'self';
+}
+
+/**
  * Does this record say something about recall?
  *
- * 점검 and the quiz's full typing round do: the reader produced the verse
- * from memory. The opening game proves only that they can start it, and the
- * spot game proves they can recognise a mistake — neither is evidence that
- * the verse was recited, so neither may move the underline suggestions or the
- * 만점 badge.
+ * Every check does, and so does the quiz's full typing round — the same act
+ * without the rating. The opening game proves only that the reader can start
+ * the verse, and the spot game proves they can recognise a mistake; neither
+ * is evidence that the verse was recited, so neither may move the underline
+ * suggestions or the 만점 badge.
  */
 export function countsAsRecall(r: Pick<CheckRecord, 'source'>): boolean {
-	return r.source === undefined || r.source === 'quiz';
+	return countsAsCheck(r) || r.source === 'quiz';
 }
 
 /**
@@ -241,10 +256,10 @@ export function countsAsRecall(r: Pick<CheckRecord, 'source'>): boolean {
  * listPerfectVerseNos uses.
  *
  * Stricter than countsAsRecall, deliberately: that asks whether a row is
- * evidence of recall, and a full quiz round is. This asks what the card's line
- * may report, and the line says 최근 점검 and opens a sheet built around a
- * difficulty no quiz round carries — so any `source` at all disqualifies a row
- * here, including 'quiz'.
+ * evidence of recall, and a full quiz round is. This asks what the card's
+ * line may report, and the line says 최근 점검 and opens a sheet built around
+ * a difficulty no quiz round carries — so countsAsCheck is the rule here,
+ * which admits 확인 and refuses every quiz source.
  *
  * `packageId` is optional because 북마크 and 통계 list verses from several
  * packages at once. Given one, the scan rides the verseKey index, which is
@@ -257,7 +272,7 @@ export async function listLastCheckedAt(packageId?: string): Promise<Map<string,
 
 	const latest = new Map<string, number>();
 	for (const r of rows) {
-		if (r.source) continue;
+		if (!countsAsCheck(r)) continue;
 		// Rows arrive in index order, not chronological order, so the newest has
 		// to be chosen by comparison rather than by whichever landed last.
 		const seen = latest.get(r.verseKey);

@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { db } from '../../src/lib/db/local';
 import {
 	HISTORY_LIMIT,
+	countsAsCheck,
 	countsAsRecall,
 	listChecks,
 	listLastCheckedAt,
@@ -469,5 +470,54 @@ describe('deleting a check', () => {
 		await deleteCheck(newest.id);
 
 		expect(await listPerfectVerseNos('900_krv')).toEqual(new Set([1]));
+	});
+});
+
+describe('countsAsCheck', () => {
+	// 점검 and 확인 are both the reader sitting down with the verse and saying
+	// how it went. A quiz round is not — it is the app asking.
+	it('counts 점검 and 확인, and nothing else', () => {
+		expect(countsAsCheck({ source: undefined })).toBe(true);
+		expect(countsAsCheck({ source: 'self' })).toBe(true);
+		expect(countsAsCheck({ source: 'quiz' })).toBe(false);
+		expect(countsAsCheck({ source: 'quiz-opening' })).toBe(false);
+		expect(countsAsCheck({ source: 'quiz-spot' })).toBe(false);
+	});
+});
+
+describe('countsAsRecall after 확인', () => {
+	// Recall is the wider circle: it adds the quiz's full typing round, which
+	// is the same act as 점검 without the rating.
+	it('is every check plus the quiz typing round', () => {
+		expect(countsAsRecall({ source: undefined })).toBe(true);
+		expect(countsAsRecall({ source: 'self' })).toBe(true);
+		expect(countsAsRecall({ source: 'quiz' })).toBe(true);
+		expect(countsAsRecall({ source: 'quiz-opening' })).toBe(false);
+		expect(countsAsRecall({ source: 'quiz-spot' })).toBe(false);
+	});
+});
+
+describe('listLastCheckedAt with 확인', () => {
+	// The whole point of the feature: the card's 최근 점검 line has to move.
+	it('reports a 확인 as the verse\'s last check', async () => {
+		await recordCheck(
+			'900_krv',
+			1,
+			{ start: 3, full: 3, accuracy: 1, elapsedMs: 0, source: 'self' },
+			5000
+		);
+		expect((await listLastCheckedAt('900_krv')).get('900_krv:1')).toBe(5000);
+	});
+
+	// Still not a quiz round: that line reports 점검, and opens a sheet built
+	// around a difficulty no quiz round carries.
+	it('still ignores a quiz round', async () => {
+		await recordCheck(
+			'900_krv',
+			2,
+			{ start: 3, full: 3, accuracy: 1, elapsedMs: 0, source: 'quiz' },
+			5000
+		);
+		expect((await listLastCheckedAt('900_krv')).has('900_krv:2')).toBe(false);
 	});
 });

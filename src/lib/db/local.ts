@@ -64,8 +64,13 @@ export interface CheckRecord {
 	missed?: number[];
 	/** What produced this record. Absent means 점검 — every record written
 	 *  before this field existed was one, and it is the app's primary act, so
-	 *  the default already says the true thing about old rows. */
-	source?: 'quiz' | 'quiz-opening' | 'quiz-spot';
+	 *  the default already says the true thing about old rows.
+	 *
+	 *  'self' is a check the reader made in their head and reported with the
+	 *  확인 button. No attempt was typed, so it carries no `missed` and no
+	 *  `typed` — but the reader said it went fine, so it counts as a pass and
+	 *  therefore as recall. */
+	source?: 'quiz' | 'quiz-opening' | 'quiz-spot' | 'self';
 	/** What the reader actually typed, truncated at TYPED_LIMIT.
 	 *
 	 *  Kept for every check, and filtered where it is read rather than where it
