@@ -19,13 +19,19 @@
 	let { passed }: Props = $props();
 </script>
 
-<!-- Announced politely: it appears at the same moment as the answer and the
+<!-- Square corners, and taller than a control. Rounded to the same radius as
+     the 다음 button under it, this read as a second button — the eye sorts a
+     card from a control by its corners long before it reads either. The right
+     angles are also the more arcade of the two, which is where this screen
+     lives now.
+
+     Announced politely: it appears at the same moment as the answer and the
      stamp, and an assertive region would cut across the reader taking those
      in. -->
 <p
 	data-testid="quiz-verdict"
 	role="status"
-	class="mt-3 rounded-xl border-2 py-3 text-center text-[calc(19px*var(--vfs))] font-bold {passed
+	class="mt-3 border-2 py-4 text-center text-[calc(19px*var(--vfs))] font-bold {passed
 		? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
 		: 'border-[var(--color-danger)] text-[var(--color-danger)]'}"
 >
