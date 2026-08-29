@@ -2,32 +2,70 @@ import { render, screen } from '@testing-library/svelte';
 import { describe, it, expect } from 'vitest';
 import TabBar from '../../src/lib/components/nav/TabBar.svelte';
 
+const withRecent = { current: 'home' as const, recentHref: '/stats/verses?event=e1&dim=start&level=4' };
+
 describe('TabBar', () => {
-	it('renders four tabs (Home / Library / Marks / Stats)', () => {
-		render(TabBar, { props: { current: 'home' } });
+	it('renders four tabs (Home / Recent / Library / Marks)', () => {
+		render(TabBar, { props: withRecent });
 		expect(screen.getByRole('link', { name: /home/i })).toBeInTheDocument();
+		expect(screen.getByRole('link', { name: /recent/i })).toBeInTheDocument();
 		expect(screen.getByRole('link', { name: /library/i })).toBeInTheDocument();
 		expect(screen.getByRole('link', { name: /marks/i })).toBeInTheDocument();
-		expect(screen.getByRole('link', { name: /stats/i })).toBeInTheDocument();
-		// Today tab is intentionally absent.
+	});
+
+	// Stats was a "Phase 6에서 추가됩니다" stub. Today tab remains absent too.
+	it('offers no tab for screens that do nothing yet', () => {
+		render(TabBar, { props: withRecent });
+		expect(screen.queryByRole('link', { name: /stats/i })).toBeNull();
 		expect(screen.queryByRole('link', { name: /today/i })).toBeNull();
 	});
 
+	it('puts Recent directly after Home', () => {
+		render(TabBar, { props: withRecent });
+		const labels = screen.getAllByRole('listitem').map((li) => li.textContent?.trim());
+		expect(labels).toEqual(['Home', 'Recent', 'Library', 'Marks']);
+	});
+
+	it('points Recent at the remembered list', () => {
+		render(TabBar, { props: withRecent });
+		expect(screen.getByRole('link', { name: /recent/i })).toHaveAttribute(
+			'href',
+			'/stats/verses?event=e1&dim=start&level=4'
+		);
+	});
+
+	// Nothing remembered yet: a control that cannot go anywhere should not be
+	// offered as one. A link with no href would still be announced as a link.
+	it('offers no link when there is no remembered list', () => {
+		render(TabBar, { props: { current: 'home', recentHref: null } });
+		expect(screen.queryByRole('link', { name: /recent/i })).toBeNull();
+		expect(screen.getByText('Recent')).toBeInTheDocument();
+	});
+
+	it('marks the dimmed Recent tab as disabled', () => {
+		render(TabBar, { props: { current: 'home', recentHref: null } });
+		const item = screen.getAllByRole('listitem').find((li) => li.textContent?.trim() === 'Recent');
+		expect(item).toBeDefined();
+		expect(item!.querySelector('[aria-disabled="true"]')).not.toBeNull();
+	});
+
 	it('marks Home tab as active when current=home', () => {
-		render(TabBar, { props: { current: 'home' } });
-		const home = screen.getByRole('link', { name: /home/i });
-		expect(home).toHaveAttribute('aria-current', 'page');
+		render(TabBar, { props: withRecent });
+		expect(screen.getByRole('link', { name: /home/i })).toHaveAttribute('aria-current', 'page');
 	});
 
 	it('marks current tab as active via aria-current', () => {
-		render(TabBar, { props: { current: 'library' } });
-		const lib = screen.getByRole('link', { name: /library/i });
-		expect(lib).toHaveAttribute('aria-current', 'page');
+		render(TabBar, { props: { ...withRecent, current: 'library' } });
+		expect(screen.getByRole('link', { name: /library/i })).toHaveAttribute('aria-current', 'page');
 	});
 
 	it('marks bookmarks tab as active when current=bookmarks', () => {
-		render(TabBar, { props: { current: 'bookmarks' } });
-		const marks = screen.getByRole('link', { name: /marks/i });
-		expect(marks).toHaveAttribute('aria-current', 'page');
+		render(TabBar, { props: { ...withRecent, current: 'bookmarks' } });
+		expect(screen.getByRole('link', { name: /marks/i })).toHaveAttribute('aria-current', 'page');
+	});
+
+	it('marks recent tab as active when current=recent', () => {
+		render(TabBar, { props: { ...withRecent, current: 'recent' } });
+		expect(screen.getByRole('link', { name: /recent/i })).toHaveAttribute('aria-current', 'page');
 	});
 });

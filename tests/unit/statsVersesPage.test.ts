@@ -3,6 +3,8 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
 import Page from '../../src/routes/stats/verses/+page.svelte';
 import type { StatsVersesLoadData } from '../../src/routes/stats/verses/+page';
+import { recentList } from '../../src/lib/state/recentList.svelte';
+import { tick } from 'svelte';
 
 const verse = { i: 1, no: 1, package_id: '5_krv', title: '제목', cite: '요한복음 1 : 1', w: '태초에 말씀이 계시니라' };
 
@@ -75,5 +77,50 @@ describe('stats verse list playback', () => {
 	it('offers nothing to play when the list is empty', () => {
 		render(Page, { data: data({ rows: [] }) });
 		expect(screen.queryByLabelText(/전체 듣기/)).toBeNull();
+	});
+});
+
+/*
+ * The Recent tab can hold a link to this page for weeks. Meanwhile the event
+ * behind it can be dropped from events.json, or its package uninstalled — and
+ * then +page.ts finds no card and returns an empty eventTitle. Leaving Recent
+ * lit over that would offer the reader a door onto nothing.
+ */
+describe('stats verse list as a Recent target', () => {
+	beforeEach(() => {
+		localStorage.clear();
+	});
+
+	it('forgets the remembered list when its event is gone', async () => {
+		const dead = '/stats/verses?event=deleted&dim=full&level=2';
+		history.replaceState({}, '', dead);
+		recentList.remember(dead);
+		expect(recentList.href).toBe(dead);
+
+		render(Page, { data: data({ eventTitle: '', rows: [] }) });
+
+		await vi.waitFor(() => expect(recentList.href).toBeNull());
+	});
+
+	it('keeps the memory when the event resolved but the bucket is empty', async () => {
+		const live = '/stats/verses?event=live-empty&dim=full&level=2';
+		history.replaceState({}, '', live);
+		recentList.remember(live);
+
+		render(Page, { data: data({ rows: [] }) });
+
+		await tick();
+		expect(recentList.href).toBe(live);
+	});
+
+	it('keeps the memory for a list that resolved', async () => {
+		const live = '/stats/verses?event=live&dim=start&level=2';
+		history.replaceState({}, '', live);
+		recentList.remember(live);
+
+		render(Page, { data: data() });
+
+		await tick();
+		expect(recentList.href).toBe(live);
 	});
 });

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import Header from '$lib/components/nav/Header.svelte';
 	import ListenBar from '$lib/components/player/ListenBar.svelte';
 	import ListenButtons from '$lib/components/player/ListenButtons.svelte';
@@ -18,6 +19,7 @@
 	import { toggleVerseMark } from '$lib/db/verseMarks';
 	import type { BookmarkColor } from '$lib/types';
 	import type { StoredMark } from '$lib/memorize/marks';
+	import { recentList } from '$lib/state/recentList.svelte';
 	import type { StatsVersesLoadData } from './+page';
 
 	let { data }: { data: StatsVersesLoadData } = $props();
@@ -31,6 +33,20 @@
 	let lastCheckedByKey = $state<Map<string, number>>(new Map());
 
 	const heading = $derived(statsListHeading(data.dim, data.level, data.perfect));
+
+	/*
+	 * The Recent tab can point here for weeks, and an event can be dropped from
+	 * events.json or have its package uninstalled in between. +page.ts resolves
+	 * no card for one of those and returns an empty eventTitle — distinct from
+	 * a live event whose bucket simply holds no verses, which keeps its title.
+	 *
+	 * Naming the URL rather than clearing blindly: the layout records this same
+	 * navigation from its own effect, and a URL reported dead is refused for the
+	 * session, so the tab dims whichever effect runs first.
+	 */
+	$effect(() => {
+		if (data.eventTitle === '') recentList.forget(page.url.pathname + page.url.search);
+	});
 
 	/*
 	 * This list is already the answer to a question the reader asked from the

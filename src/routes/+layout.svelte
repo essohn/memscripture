@@ -4,7 +4,8 @@
 	import TabBar from '$lib/components/nav/TabBar.svelte';
 	import UpdateBanner from '$lib/components/feedback/UpdateBanner.svelte';
 	import Splash from '$lib/components/feedback/Splash.svelte';
-	import { currentTab, isContentPage } from '$lib/utils/route';
+	import { currentTab, isContentPage, isVerseList } from '$lib/utils/route';
+	import { recentList } from '$lib/state/recentList.svelte';
 	import { joinGroup } from '$lib/db/groups';
 	import Toast from '$lib/components/feedback/Toast.svelte';
 	import { syncOnOpen } from '$lib/sync/openSync';
@@ -51,6 +52,20 @@
 		void syncOnOpen({ clientId: getGoogleOauthClientId() });
 	});
 
+	/**
+	 * Remember the list of verses the reader is on, for the Recent tab.
+	 *
+	 * Here rather than in the four list pages because this layout already sees
+	 * every navigation, and a list that forgot to record itself would be a
+	 * silent gap the reader could only discover by not finding it again. The
+	 * search is stored with the path: the whole question a list answers lives
+	 * in its query string.
+	 */
+	$effect(() => {
+		const url = page.url;
+		if (isVerseList(url.pathname)) recentList.remember(url.pathname + url.search);
+	});
+
 	let groupToast = $state<string | null>(null);
 	$effect(() => {
 		const code = page.url.searchParams.get('team');
@@ -76,7 +91,7 @@
 </div>
 
 {#if chrome}
-	<TabBar current={tab} />
+	<TabBar current={tab} recentHref={recentList.href} />
 
 	<!-- Inside the chrome block: the screens without it are the ones a reader
 	     is passing through, and a banner over a sign-in redirect is noise. -->
