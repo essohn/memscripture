@@ -13,7 +13,8 @@ import {
 	deleteCheck,
 	restoreCheck,
 	listCheckDeletions,
-	TYPED_LIMIT
+	TYPED_LIMIT,
+	recordSelfCheck
 } from '../../src/lib/db/checkHistory';
 import { suggestedMarks } from '../../src/lib/memorize/missStats';
 
@@ -519,5 +520,78 @@ describe('listLastCheckedAt with 확인', () => {
 			5000
 		);
 		expect((await listLastCheckedAt('900_krv')).has('900_krv:2')).toBe(false);
+	});
+});
+
+describe('recordSelfCheck', () => {
+	// Nothing was measured, so nothing is claimed. Absence is asserted with
+	// `in`, not falsiness: 0 and '' are things this must not write.
+	it('records a pass with nothing measured', async () => {
+		await recordSelfCheck('900_krv', 1, { start: 3, full: 4 }, 1000, '2026-08-30');
+		const [row] = await listChecks('900_krv', 1);
+
+		expect(row).toMatchObject({
+			source: 'self',
+			accuracy: 1,
+			elapsedMs: 0,
+			start: 3,
+			full: 4
+		});
+		expect('hints' in row).toBe(false);
+		expect('missed' in row).toBe(false);
+		expect('typed' in row).toBe(false);
+	});
+
+	it('keys the row by its day', async () => {
+		await recordSelfCheck('900_krv', 1, { start: 3, full: 3 }, 1000, '2026-08-30');
+		expect((await listChecks('900_krv', 1))[0].id).toBe('900_krv:1:self:2026-08-30');
+	});
+
+	// A second 확인 the same day is the same fact, restamped — not a second one.
+	it('restamps rather than adding when 확인 is tapped again the same day', async () => {
+		await recordSelfCheck('900_krv', 1, { start: 3, full: 3 }, 1000, '2026-08-30');
+		await recordSelfCheck('900_krv', 1, { start: 4, full: 5 }, 5000, '2026-08-30');
+
+		const rows = await listChecks('900_krv', 1);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({ checkedAt: 5000, start: 4, full: 5 });
+	});
+
+	it('adds a row on the next day', async () => {
+		await recordSelfCheck('900_krv', 1, { start: 3, full: 3 }, 1000, '2026-08-30');
+		await recordSelfCheck('900_krv', 1, { start: 3, full: 3 }, 90_000_000, '2026-08-31');
+		expect(await listChecks('900_krv', 1)).toHaveLength(2);
+	});
+
+	// Deleting a check leaves a tombstone keyed by its id, and mergeSnapshots
+	// subtracts those from the union. A derived id means recording again today
+	// writes the very id the tombstone names — so without lifting it, the next
+	// sync would delete the row the reader just asked for.
+	it('lifts a tombstone left by deleting the same day', async () => {
+		await recordSelfCheck('900_krv', 1, { start: 3, full: 3 }, 1000, '2026-08-30');
+		await deleteCheck('900_krv:1:self:2026-08-30');
+		expect(await listCheckDeletions()).toHaveLength(1);
+
+		await recordSelfCheck('900_krv', 1, { start: 3, full: 3 }, 2000, '2026-08-30');
+		expect(await listChecks('900_krv', 1)).toHaveLength(1);
+		expect(await listCheckDeletions()).toEqual([]);
+	});
+
+	it('becomes the verse\'s last check', async () => {
+		await recordSelfCheck('900_krv', 1, { start: 3, full: 3 }, 1000, '2026-08-30');
+		expect((await listLastCheckedAt('900_krv')).get('900_krv:1')).toBe(1000);
+	});
+
+	// The deliberate part of the design: the reader's word lights the badge.
+	it('lights the 만점 badge', async () => {
+		await recordSelfCheck('900_krv', 1, { start: 3, full: 3 }, 1000, '2026-08-30');
+		expect(await listPerfectVerseNos('900_krv')).toEqual(new Set([1]));
+	});
+
+	// 포기 records no level at all, and neither does an unrated verse checked
+	// in the reader's head. A null must survive as a null.
+	it('stores an unrated verse\'s nulls rather than inventing a level', async () => {
+		await recordSelfCheck('900_krv', 1, { start: null, full: null }, 1000, '2026-08-30');
+		expect((await listChecks('900_krv', 1))[0]).toMatchObject({ start: null, full: null });
 	});
 });

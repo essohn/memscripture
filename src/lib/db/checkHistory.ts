@@ -1,6 +1,7 @@
 import { db, type CheckDeletion, type CheckRecord } from './local';
 import type { DifficultyLevel } from './verseRatings';
 import { touchDataModified } from './touchData';
+import { todayLocalKey } from './activity';
 
 /** Entries kept per verse. Older ones are pruned as new checks land — this is
  *  a "how has it been going" glance, not an audit trail, and 900 verses times
@@ -84,6 +85,59 @@ async function nextSuffix(key: string, checkedAt: number): Promise<number> {
 		.filter((r) => r.checkedAt === checkedAt)
 		.count();
 	return clash;
+}
+
+/**
+ * Records that the reader checked this verse in their head.
+ *
+ * One row per verse per day, because the id is derived from the date rather
+ * than stamped with the clock — so a second 확인 is a plain put at the same
+ * id, with no lookup, no delete, and no branch for whether today's row
+ * already exists.
+ *
+ * A timestamped id would have been a trap. Replacing the day's row would mean
+ * deleting the old one, and checkHistory merges by union: a row deleted
+ * locally without a tombstone comes straight back on the next sync, leaving
+ * the verse with two self checks for one day. Writing a tombstone instead
+ * would leave one behind per verse per day, forever, in a snapshot that is
+ * uploaded whole every time.
+ *
+ * `accuracy: 1` is a mechanism, not a measurement. The reader said it went
+ * fine and the app takes them at their word — that is what lights the 만점
+ * badge, and it is the deliberate trade this feature makes. `hints`, `missed`
+ * and `typed` stay absent: nothing was measured, which is a different thing
+ * from having measured nothing.
+ */
+export async function recordSelfCheck(
+	packageId: string,
+	verseNo: number,
+	rating: { start: DifficultyLevel | null; full: DifficultyLevel | null },
+	now: number = Date.now(),
+	dateKey: string = todayLocalKey()
+): Promise<void> {
+	const key = verseKeyOf(packageId, verseNo);
+	const id = `${key}:self:${dateKey}`;
+
+	await db.checkHistory.put({
+		id,
+		verseKey: key,
+		packageId,
+		verseNo,
+		checkedAt: now,
+		start: rating.start,
+		full: rating.full,
+		accuracy: 1,
+		elapsedMs: 0,
+		source: 'self'
+	});
+
+	// The reader deleting today's check and then deciding to record it again is
+	// an ordinary sequence, and the tombstone that made the delete stick would
+	// otherwise make the new row disappear on the next sync. restoreCheck lifts
+	// it for the same reason.
+	await db.checkDeletions.delete(id);
+	await prune(key);
+	await touchDataModified();
 }
 
 /**
