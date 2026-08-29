@@ -220,6 +220,9 @@ describe('QuizTypingRound — 판정', () => {
 		const verdict = screen.getByTestId('quiz-verdict');
 		expect(verdict).toHaveTextContent('정답!');
 		expect(verdict.className).toContain('text-center');
+		// Square, so it is not mistaken for the button under it: the eye sorts a
+		// card from a control by its corners before it reads either.
+		expect(verdict.className).not.toContain('rounded');
 	});
 
 	it('sends a flawed one back to the list', async () => {
