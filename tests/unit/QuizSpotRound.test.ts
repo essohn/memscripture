@@ -258,3 +258,27 @@ describe('QuizSpotRound — 판정', () => {
 		expect(screen.getByTestId('wrong-stamp')).toBeInTheDocument();
 	});
 });
+
+describe('QuizSpotRound — 엔터로 다음', () => {
+	it('advances once the verdict is up', async () => {
+		const { onDone } = setup(FLAWED);
+		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
+		await fireEvent.keyDown(window, { key: 'Enter' });
+		expect(onDone).toHaveBeenCalledTimes(1);
+	});
+
+	// Enter must not stand in for a call the reader has not made.
+	it('does nothing before the round is answered', async () => {
+		const { onDone } = setup(FLAWED);
+		await fireEvent.keyDown(window, { key: 'Enter' });
+		expect(onDone).not.toHaveBeenCalled();
+		expect(screen.getByRole('button', { name: '이상 있음' })).toBeInTheDocument();
+	});
+
+	it('ignores the Enter that commits a syllable', async () => {
+		const { onDone } = setup(FLAWED);
+		await fireEvent.click(screen.getByRole('button', { name: '이상 있음' }));
+		await fireEvent.keyDown(window, { key: 'Enter', isComposing: true });
+		expect(onDone).not.toHaveBeenCalled();
+	});
+});
