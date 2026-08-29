@@ -456,6 +456,21 @@ export function totalChars(segments: string[]): number {
 	return segments.reduce((n, s) => n + s.length, 0);
 }
 
+/** Every silence the script will sit through, so a runtime can include them. */
+function totalGapMs(
+	segments: string[],
+	gapBefore: ((text: string, offset: number) => number) | undefined
+): number {
+	if (!gapBefore) return 0;
+	let offset = 0;
+	let total = 0;
+	for (const seg of segments) {
+		total += gapBefore(seg, offset);
+		offset += seg.length;
+	}
+	return total;
+}
+
 /**
  * The script from a character offset onward, snapped back to the start of the
  * word the offset lands in.
@@ -548,7 +563,11 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 	const synth = window.speechSynthesis;
 
 	const chars = totalChars(segments);
-	const totalMs = estimateDurationMs(segments.join(' '), opts.rate ?? 1);
+	// The silences are playback too. Left out, the bar counts up past its own
+	// total on every verse of 따라 읽기 — and byClock, which divides by this,
+	// would believe the script twice over by the time it was half read.
+	const totalMs =
+		estimateDurationMs(segments.join(' '), opts.rate ?? 1) + totalGapMs(segments, opts.gapBefore);
 
 	/** Characters completed before the current utterance began. */
 	let baseOffset = 0;
@@ -583,8 +602,13 @@ export function createPlayer(segments: string[], opts: PlayerOptions = {}): Play
 		// completed playlist draws. That bar is why this went two days
 		// undiagnosed: there was nothing on screen that said "no sound".
 		const byClock = speaking && totalMs > 0 ? elapsed() / totalMs : 0;
+		// The clock is an estimate and the segment on the queue is a fact.
+		// Whatever the estimate believes, playback cannot have gone further than
+		// the end of what is being spoken — and when the estimate runs fast, the
+		// title line names a verse ahead of the one in the reader's ears.
+		const reach = chars > 0 ? segmentEnd(segments, baseOffset) / chars : 1;
 		opts.onProgress?.({
-			fraction: Math.min(1, Math.max(byChars, byClock)),
+			fraction: Math.min(reach, Math.max(byChars, byClock)),
 			waiting,
 			elapsedMs: elapsed(),
 			totalMs

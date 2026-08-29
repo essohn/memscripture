@@ -512,6 +512,55 @@ describe('a silence before a segment', () => {
 	});
 });
 
+describe('the bar against the segment being spoken', () => {
+	beforeEach(() => vi.useFakeTimers());
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		vi.useRealTimers();
+		forgetDeadVoices();
+	});
+
+	/*
+	 * byClock exists so iOS, which fires no boundary events, still shows
+	 * movement — it divides wall-clock time by an estimate of the whole script.
+	 * An estimate is all it is, and the moment real time outruns it the bar
+	 * claims ground the voice has not covered: with 따라 읽기's silences the
+	 * clock runs at better than twice the estimate, and the title line was
+	 * naming a verse two or three ahead of the one being read.
+	 *
+	 * Whatever the clock believes, playback cannot be further along than the
+	 * end of the segment on the queue.
+	 */
+	it('never reports past the end of the segment on the queue', () => {
+		installVoiceSynth([]);
+		const onProgress = vi.fn();
+		// Four characters in two segments, so the first ends at exactly half.
+		createPlayer(['장절', '본문'], { onProgress });
+		vi.advanceTimersByTime(60_000);
+		expect(onProgress.mock.calls.at(-1)?.[0].fraction).toBeLessThanOrEqual(0.5);
+	});
+
+	// And the runtime it reports has to include the silences, or the bar counts
+	// up past its own total on every verse.
+	it('counts the silences in the runtime', () => {
+		installVoiceSynth([]);
+		const onProgress = vi.fn();
+		createPlayer(['장절', '본문'], {
+			onProgress,
+			gapBefore: (_text, offset) => (offset === 2 ? 5000 : 0)
+		});
+		vi.advanceTimersByTime(300);
+		const withGap = onProgress.mock.calls.at(-1)?.[0].totalMs;
+
+		onProgress.mockClear();
+		createPlayer(['장절', '본문'], { onProgress });
+		vi.advanceTimersByTime(300);
+		const without = onProgress.mock.calls.at(-1)?.[0].totalMs;
+
+		expect(withGap).toBe(without + 5000);
+	});
+});
+
 describe('pickKoreanVoice exclusions', () => {
 	const VOICES = [
 		{ name: 'Google 한국의', lang: 'ko-KR' },
