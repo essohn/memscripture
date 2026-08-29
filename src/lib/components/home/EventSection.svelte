@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CalendarCheck, CirclePlay, Download, Play, Square } from 'lucide-svelte';
+	import { CalendarCheck, Download, Play } from 'lucide-svelte';
 	import { hasEventStats, type EventCardVM } from '$lib/db/events';
 	import EventExportSheet, { type SheetNotice } from './EventExportSheet.svelte';
 	import EventStats from './EventStats.svelte';
@@ -7,7 +7,8 @@
 	import { exportEventToSheets } from '$lib/export/eventSheetExport';
 	import type { ExportOptions } from '$lib/export/eventWorkbook';
 	import { todayLocalKey } from '$lib/db/activity';
-	import PlaylistBar from '$lib/components/player/PlaylistBar.svelte';
+	import ListenBar from '$lib/components/player/ListenBar.svelte';
+	import ListenButtons from '$lib/components/player/ListenButtons.svelte';
 	import { PlaylistPlayer } from '$lib/state/playlistPlayer.svelte';
 
 	// One session for the whole section. Several events can be on screen; only
@@ -147,70 +148,12 @@
 						{ev.eventTitle}
 					</div>
 					<div class="ml-auto flex items-center gap-1">
-						{#if player.supported && ev.verses.length > 0}
-							{@const open = player.openId === `event:${ev.eventId}`}
-							<!--
-								Stop, not pause, and not a muted speaker: the transport
-								lives in the bar, so this button's whole promise is "start
-								this list / put it away". Same reasoning as VerseCard's
-								speaker chip.
-							-->
-							<button
-								type="button"
-								onclick={() =>
-									open ? player.close() : player.start(`event:${ev.eventId}`, ev.verses)}
-								aria-label="{ev.eventTitle} {open ? '듣기 정지' : '전체 듣기'}"
-								class="inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors {open
-									? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
-									: 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]'}"
-							>
-								{#if open}
-									<Square size={14} strokeWidth={2} fill="currentColor" />
-								{:else}
-									<Play size={15} strokeWidth={1.75} />
-								{/if}
-							</button>
-						{/if}
-						{#if player.supported && ev.verses.length > 0}
-							{@const reciting = player.openId === `event:${ev.eventId}:recite`}
-							<!--
-								따라 읽기: the citation, then a silence long enough to say
-								the verse from memory, then the verse. Its own openId, so
-								the two players show which one is running rather than
-								both lighting up for one list.
-
-								This is where the quiz button used to be. The quiz already
-								has a full-width button under the stats — two ways into the
-								same screen, and the one nobody could name was this one.
-							-->
-							<button
-								type="button"
-								onclick={() =>
-									reciting
-										? player.close()
-										: player.start(`event:${ev.eventId}:recite`, ev.verses, { recite: true })}
-								aria-label="{ev.eventTitle} {reciting ? '따라 읽기 정지' : '따라 읽기'}"
-								class="inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors {reciting
-									? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
-									: 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]'}"
-							>
-								{#if reciting}
-									<Square size={14} strokeWidth={2} fill="currentColor" />
-								{:else}
-									<CirclePlay size={15} strokeWidth={1.75} />
-								{/if}
-							</button>
-						{/if}
-						<!--
-							Both players hang off ev.verses, and buildEventCards clears
-							that list whole when any range's package is not installed:
-							hearing less than the card shows would be worse than not
-							hearing it. Right — but it used to hide two buttons and say
-							nothing, and every browser is its own database, so a reader
-							who opens the app somewhere new finds the icons gone with no
-							idea why. The slot holds the fix instead of a hole: opening
-							the 구절집 once installs it, and the players come back.
-						-->
+						<ListenButtons
+							{player}
+							id="event:{ev.eventId}"
+							title={ev.eventTitle}
+							verses={ev.verses}
+						/>
 						{#if player.supported && ev.verses.length === 0 && ev.ranges.length > 0}
 							<a
 								href={ev.ranges[0].href}
@@ -272,26 +215,7 @@
 				/>
 			{/if}
 		{/each}
-		{#if player.openId}
-			<PlaylistBar
-				playing={player.playing}
-				failed={player.failed}
-				label={player.waiting ? '따라 해보세요' : (player.nowPlaying?.cite ?? '')}
-				waitFraction={player.waitFraction}
-				reciteScale={player.reciting ? player.reciteScale : null}
-				onPickReciteScale={(s) => player.setReciteScale(s)}
-				index={player.index}
-				count={player.count}
-				fraction={player.progress.fraction}
-				elapsedMs={player.progress.elapsedMs}
-				totalMs={player.progress.totalMs}
-				repeat={player.listRepeat}
-				onToggle={() => player.toggle()}
-				onSeek={(f) => player.seek(f)}
-				onToggleRepeat={() => player.toggleRepeat()}
-				onClose={() => player.close()}
-			/>
-		{/if}
+		<ListenBar {player} />
 	</section>
 {/if}
 

@@ -24,6 +24,9 @@
 		type DifficultyLevel
 	} from '$lib/db/verseRatings';
 	import { sortByDifficulty } from '$lib/verses/difficultySort';
+	import ListenBar from '$lib/components/player/ListenBar.svelte';
+	import ListenButtons from '$lib/components/player/ListenButtons.svelte';
+	import { PlaylistPlayer } from '$lib/state/playlistPlayer.svelte';
 	import { BOOKMARK_COLORS, type BookmarkColor } from '$lib/types';
 	import { serializeEventRange } from '$lib/db/events';
 	import type { PageData } from './$types';
@@ -357,6 +360,21 @@
 			: inRange;
 	});
 
+	/*
+	 * Whatever the filters have left on screen is a list, and a list is
+	 * something you can listen to. Reads filteredVerses rather than the whole
+	 * package, so a series, a group, a range or 어려운 순 all narrow what is
+	 * played exactly as they narrow what is read.
+	 */
+	const player = new PlaylistPlayer();
+	$effect(() => {
+		void player.load();
+		return () => player.destroy();
+	});
+	const listenVerses = $derived(
+		filteredVerses.map((v) => ({ title: v.title, cite: v.cite, w: v.w }))
+	);
+
 	// URL mutation helpers
 	function navigateFilter(s: number | null, g: number[]) {
 		const params = new URLSearchParams();
@@ -382,6 +400,8 @@
 
 <Header title={data.pkg.name} onBack={() => goto('/library')} />
 
+<ListenBar {player} />
+
 <main class="mx-auto max-w-2xl px-5 pt-2 {selectionActive ? 'pb-28' : 'pb-8'}">
 	<PackageTabStrip packages={data.allPackages} currentId={packageId} />
 
@@ -406,6 +426,7 @@
 			</button>
 		{/if}
 		<div class="ml-auto flex items-center gap-1">
+			<ListenButtons {player} id="library:{data.pkg.id}" title={data.pkg.name} verses={listenVerses} />
 			<button
 				type="button"
 				onclick={() => (hardestFirst = !hardestFirst)}

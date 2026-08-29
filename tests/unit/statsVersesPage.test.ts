@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
 import Page from '../../src/routes/stats/verses/+page.svelte';
 import type { StatsVersesLoadData } from '../../src/routes/stats/verses/+page';
@@ -33,5 +33,47 @@ describe('stats verse list', () => {
 			}) as StatsVersesLoadData
 		});
 		expect(screen.getByLabelText('완벽하게 암송한 구절')).toBeInTheDocument();
+	});
+});
+
+describe('stats verse list playback', () => {
+	beforeEach(() => {
+		// The buttons only exist where speech does.
+		vi.stubGlobal('speechSynthesis', {
+			speaking: false,
+			pending: false,
+			paused: false,
+			getVoices: () => [],
+			speak() {},
+			cancel() {},
+			resume() {}
+		});
+		vi.stubGlobal(
+			'SpeechSynthesisUtterance',
+			class {
+				text: string;
+				constructor(text: string) {
+					this.text = text;
+				}
+			}
+		);
+	});
+	afterEach(() => vi.unstubAllGlobals());
+
+	/*
+	 * This list is already the answer to a question — 시작 난이도 xHard, 전체
+	 * 일치 Hard — and the useful next move on a set of verses you have just
+	 * called hard is to hear them. The same pair as the 암송 DAY card, because
+	 * a narrowed list is a list.
+	 */
+	it('offers 전체 듣기 and 따라 읽기 for the list it is showing', () => {
+		render(Page, { data: data() });
+		expect(screen.getByLabelText(/전체 듣기/)).toBeInTheDocument();
+		expect(screen.getByLabelText(/따라 읽기/)).toBeInTheDocument();
+	});
+
+	it('offers nothing to play when the list is empty', () => {
+		render(Page, { data: data({ rows: [] }) });
+		expect(screen.queryByLabelText(/전체 듣기/)).toBeNull();
 	});
 });

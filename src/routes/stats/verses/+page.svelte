@@ -1,5 +1,8 @@
 <script lang="ts">
 	import Header from '$lib/components/nav/Header.svelte';
+	import ListenBar from '$lib/components/player/ListenBar.svelte';
+	import ListenButtons from '$lib/components/player/ListenButtons.svelte';
+	import { PlaylistPlayer } from '$lib/state/playlistPlayer.svelte';
 	import VerseCard from '$lib/components/card/VerseCard.svelte';
 	import { verseVisibility } from '$lib/state/verseVisibility.svelte';
 	import { fontScale } from '$lib/state/fontScale.svelte';
@@ -28,6 +31,23 @@
 	let lastCheckedByKey = $state<Map<string, number>>(new Map());
 
 	const heading = $derived(statsListHeading(data.dim, data.level, data.perfect));
+
+	/*
+	 * This list is already the answer to a question the reader asked from the
+	 * home chart — 시작 난이도 xHard, 전체 일치 Hard — and the useful next move
+	 * on a set they have just called hard is to hear it.
+	 *
+	 * Its own player, one per screen: there is one synthesizer, and a page with
+	 * a single list has a single thing to play.
+	 */
+	const player = new PlaylistPlayer();
+	$effect(() => {
+		void player.load();
+		return () => player.destroy();
+	});
+	const listenVerses = $derived(
+		data.rows.map((r) => ({ title: r.verse.title, cite: r.verse.cite, w: r.verse.w }))
+	);
 
 	$effect(() => {
 		const rows = data.rows;
@@ -111,15 +131,22 @@
 
 <Header title={heading} onBack={goBack} />
 
+<ListenBar {player} />
+
 <main class="mx-auto max-w-2xl px-5 pb-24 pt-4">
 	{#if data.rows.length === 0}
 		<p class="pt-12 text-center text-[var(--color-text-tertiary)]">
 			해당하는 구절이 없습니다.
 		</p>
 	{:else}
-		<p class="mb-4 px-1 text-[12px] text-[var(--color-text-secondary)]">
-			{data.eventTitle} · <span class="tabular-nums">{data.rows.length}</span>구절
-		</p>
+		<!-- Beside the count, which is the line that already says what this list
+		     is. The buttons answer "and now?" in the same breath. -->
+		<div class="mb-4 flex items-center gap-2 px-1">
+			<p class="min-w-0 flex-1 text-[12px] text-[var(--color-text-secondary)]">
+				{data.eventTitle} · <span class="tabular-nums">{data.rows.length}</span>구절
+			</p>
+			<ListenButtons {player} id="stats:{data.dim}:{data.level}" title={heading} verses={listenVerses} />
+		</div>
 		<div class="space-y-5">
 			{#each data.rows as row (verseKeyOf(row.packageId, row.verse.no))}
 				<VerseCard

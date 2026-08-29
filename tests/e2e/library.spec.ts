@@ -48,3 +48,16 @@ test('joining a team opens its packages', async ({ page }) => {
 	await expect(page.getByText('무장 900구절')).toBeVisible();
 	await expect(page.getByTestId('package-card')).toHaveCount(8);
 });
+
+/*
+ * A 구절집 narrowed by series, group or range is a list, and the useful next
+ * move on a list is to hear it. Asserted end to end rather than in jsdom
+ * because the buttons only exist where the browser has speech, and jsdom does
+ * not — a unit test would be asserting the stub.
+ */
+test('a package list offers 전체 듣기 and 따라 읽기', async ({ page }) => {
+	await page.goto('/library/5_krv');
+	await expect(page.getByTestId('verse-row')).toHaveCount(5);
+	await expect(page.getByLabel(/전체 듣기/)).toBeVisible();
+	await expect(page.getByLabel(/따라 읽기/)).toBeVisible();
+});
