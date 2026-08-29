@@ -336,8 +336,21 @@ The difficulty dot is the same shape the sheet's rows already draw. The
 component (`DifficultyDot.svelte`), and the sheet's rows switch to it in the
 same change, so both draw from one definition — a summary whose dots
 disagreed in colour with the rows beneath it would read as two different
-scales. The snippet's existing `role="img"` labelling and its dashed
-treatment for `null` move across unchanged.
+scales. The snippet's dashed treatment for `null` moves across unchanged, and
+its `role="img"` labelling becomes **optional**: the sheet's rows pass a
+`label` and keep speaking exactly as they do today, while the summary's rows
+omit it and mark the pips `aria-hidden`, because the group above them already
+names the whole sequence. Without that, ten summary pips and the rows beneath
+them would both answer to `첫 시작 난이도 4` and every existing
+`getByLabelText` assertion in `CheckHistorySheet.test.ts` would start
+matching two elements and throw.
+
+The three tints are named custom properties declared in `src/app.css`
+**beside the ribbon palette, in plain `:root`** — not in `@theme`. That block
+already documents why: tokens the Tailwind v4 scanner cannot see statically
+get shaken out of the production build, and a heat map that renders
+correctly in dev and colourlessly in production is the worst failure this
+feature has available to it.
 
 ### `src/lib/components/card/CheckHistorySheet.svelte` (edit)
 
@@ -354,12 +367,24 @@ split `markMismatchedWords` indexes by. No new computation.
 
 ## Accessibility
 
-- Colour is never the only signal. Each tinted word carries
-  `aria-label="사랑하사, 2회 중 2회 틀림"`, and the legend line names the three
-  strengths in text.
-- The heat map is `role="img"` with an `aria-label` naming the verse, so a
-  screen reader is not made to walk a span per word to learn it is looking at
-  a diagram of one.
+- Colour is never the only signal, and the legend names the three strengths
+  in text.
+- **The heat map is readable text, not an image.** An earlier draft of this
+  section asked for both `role="img"` on the paragraph *and* an
+  `aria-label` per tinted word; those cancel each other out, because a
+  `role="img"` makes its descendants presentational and their labels
+  unreachable. The paragraph therefore stays plain text — a screen reader
+  reads the verse, which is the right thing for a verse — and a
+  **visually-hidden sentence follows it** naming the tinted words by tier:
+  *"자주 틀린 곳: 사랑하사. 가끔 틀린 곳: 믿는, 자마다."* One sentence beats a
+  per-word annotation interrupting every third word of scripture, and it
+  does not depend on a bare `<span>`'s `aria-label` being announced — which
+  `CheckHistorySheet`'s own comment already warns is not guaranteed.
+- The difficulty rows and the accuracy sparkline *are* diagrams, so each is
+  one `role="img"` naming its whole sequence
+  (`첫 시작 난이도 변화: 3, 3, 4, 없음, 5`). Their individual pips and bars are
+  `aria-hidden`. Ten pips walked one at a time teach a screen reader user
+  nothing about a trend.
 - The block is read-only. No word in it is tappable — tapping to mark belongs
   to marking mode, and a word that acts in one place and not another is worse
   than one that never acts.
