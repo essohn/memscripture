@@ -186,6 +186,19 @@ export const DIMENSION_LABELS: Record<StatsDimension, string> = {
 };
 
 /**
+ * 완벽 and its remainder, spelled once.
+ *
+ * The home chart labels two chips with these, and the verse list each chip
+ * opens puts the same word in its heading — the arrangement DIMENSION_LABELS
+ * already exists to keep honest. They were two separate literals until a
+ * rename had to find both.
+ */
+export const PERFECTION_LABELS = {
+	perfect: '완벽',
+	imperfect: 'Not완벽'
+} as const;
+
+/**
  * The heading over a list of verses opened from the chart.
  *
  * Built here rather than in the page because the labels above already contain
@@ -197,7 +210,7 @@ export function statsListHeading(
 	level: DifficultyLevel | null,
 	perfect: boolean
 ): string {
-	if (dim === 'perfect') return perfect ? '완벽' : '미완벽';
+	if (dim === 'perfect') return perfect ? PERFECTION_LABELS.perfect : PERFECTION_LABELS.imperfect;
 	const label = DIMENSION_LABELS[dim];
 	return level === null ? `${label} 미평가` : `${label} ${level} · ${DIFFICULTY_LABELS[level]}`;
 }
