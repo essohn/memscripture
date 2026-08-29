@@ -356,17 +356,17 @@ describe('QuizOpeningRound — 폭탄', () => {
 	it('says Fail on the stage when the bomb lands', async () => {
 		setup();
 		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
-		expect(screen.getByTestId('raid-fail')).toHaveTextContent('Fail');
+		expect(screen.getByTestId('stage-fail')).toHaveTextContent('Fail');
 	});
 
 	it('says nothing on the stage while the bomb is still falling', () => {
 		setup();
-		expect(screen.queryByTestId('raid-fail')).toBeNull();
+		expect(screen.queryByTestId('stage-fail')).toBeNull();
 	});
 
 	it('says nothing on the stage when the bomb is shot down', async () => {
 		setup();
 		await type(OPENING);
-		expect(screen.queryByTestId('raid-fail')).toBeNull();
+		expect(screen.queryByTestId('stage-fail')).toBeNull();
 	});
 });

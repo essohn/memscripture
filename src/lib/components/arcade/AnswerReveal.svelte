@@ -25,13 +25,14 @@
 	const HOLD_MS = 900;
 	const FADE_MS = 260;
 	/**
-	 * How long the wall stands before a right answer breaks it.
+	 * How long the wall stands, stamped Correct!, before it breaks.
 	 *
 	 * The beat is the point: a wall already in pieces on the frame it appears
-	 * was never a wall. A miss gets no such beat — the sign is the verdict and
-	 * a verdict that arrives a quarter second late reads as a stutter.
+	 * was never a wall, and the stamp needs long enough to be read. The chime
+	 * lands with the stamp rather than with the masonry — being right is the
+	 * event; the wall coming down is only how the answer arrives.
 	 */
-	const BREAK_DELAY_MS = 260;
+	const BREAK_DELAY_MS = 520;
 
 	let host = $state<HTMLDivElement | undefined>();
 	let canvas = $state<HTMLCanvasElement | undefined>();
@@ -107,10 +108,9 @@
 			return;
 		}
 		if (outcome !== 'fail') {
-			const go = setTimeout(() => {
-				breaking = true;
-				arcade.play('shatter');
-			}, BREAK_DELAY_MS);
+			stamped = true;
+			arcade.play('correct');
+			const go = setTimeout(() => (breaking = true), BREAK_DELAY_MS);
 			return () => clearTimeout(go);
 		}
 		// The wall holds. Nothing flies; a stamp lands on it and then the whole
@@ -220,11 +220,15 @@
 			class="h-full w-full rounded-xl"
 		></canvas>
 		{#if stamped}
-			<!-- Decoration: the verdict line under this block says the same thing
-			     in words, and reading the stamp aloud after it would be saying
+			<!-- Decoration: the verdict card under this block says the same thing
+			     in Korean, and reading the stamp aloud after it would be saying
 			     it twice. -->
 			<div class="absolute inset-0 flex items-center justify-center" aria-hidden="true">
-				<span data-testid="wrong-stamp" class="stamp">Wrong!</span>
+				{#if outcome === 'fail'}
+					<span data-testid="wrong-stamp" class="stamp wrong">Wrong!</span>
+				{:else}
+					<span data-testid="correct-stamp" class="stamp right">Correct!</span>
+				{/if}
 			</div>
 		{/if}
 	</div>
@@ -239,14 +243,29 @@
 		align-items: center;
 		justify-content: center;
 		padding: 6px 18px;
-		border: 4px solid var(--color-danger);
+		border-width: 4px;
+		border-style: solid;
 		border-radius: 6px;
-		background-color: color-mix(in srgb, var(--color-danger) 14%, var(--color-card));
-		color: var(--color-danger);
 		font-size: 24px;
 		font-weight: 900;
 		letter-spacing: 0.04em;
 		animation: wrong-stamp 220ms steps(4, end) both;
+	}
+
+	.wrong {
+		border-color: var(--color-danger);
+		background-color: color-mix(in srgb, var(--color-danger) 14%, var(--color-card));
+		color: var(--color-danger);
+	}
+
+	/* 연두: the app's ribbon green lifted toward yellow. The ribbon tone is a
+	   quiet olive made to sit under text as a bookmark; a verdict has to carry
+	   the card, and next to the red of Wrong! a muted green reads as grey. */
+	.right {
+		--stamp-green: color-mix(in srgb, var(--color-ribbon-green) 62%, #a8d24e);
+		border-color: var(--stamp-green);
+		background-color: color-mix(in srgb, var(--stamp-green) 16%, var(--color-card));
+		color: color-mix(in srgb, var(--stamp-green) 80%, var(--color-text));
 	}
 
 	/* Down and landing, not outward and scattering: the motion is the opposite

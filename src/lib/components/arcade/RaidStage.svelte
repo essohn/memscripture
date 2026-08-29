@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { arcade } from '$lib/state/arcade.svelte';
 	import { RAID_LIMIT_MS, raidApproach, raidLane, raidPhase } from '$lib/arcade/raid';
+	import { drawFire, drawScanlines, drawSprite } from '$lib/arcade/draw';
 
 	interface Props {
 		/** Date.now() when the round appeared. */
@@ -83,53 +84,11 @@
 		const ember = () => css('--color-ribbon-amber', '#d4a55a');
 		const beam = () => css('--color-accent', '#c9a86a');
 
-		const spriteW = BOMB[0].length * PX;
 		const spriteH = BOMB.length * PX;
 		/** Where the ground is. The bomb falls to it and the fire sits on it. */
 		const ground = () => h - 6;
 
-		function drawBomb(cx: number, cy: number) {
-			ctx.fillStyle = ink();
-			for (let r = 0; r < BOMB.length; r++) {
-				for (let c = 0; c < BOMB[r].length; c++) {
-					if (BOMB[r][c] !== 'X') continue;
-					ctx.fillRect(
-						Math.round(cx - spriteW / 2 + c * PX),
-						Math.round(cy - spriteH / 2 + r * PX),
-						PX,
-						PX
-					);
-				}
-			}
-		}
 
-		/**
-		 * Fire along the ground, filling the width.
-		 *
-		 * Columns of flame whose heights ripple against each other rather than
-		 * one solid block: a wall of colour reads as a bug, and the whole point
-		 * of this frame is that the reader can see the round was lost from
-		 * across the room. Kept to the lower half of the board — on a square
-		 * one, flames up to the top stop reading as ground fire.
-		 */
-		function drawFire(t: number) {
-			const cols = Math.max(8, Math.round(w / 12));
-			const cw = w / cols;
-			const rise = Math.min(1, t / 0.35);
-			for (let i = 0; i < cols; i++) {
-				// Two waves at different speeds, so the crests never line up into
-				// a pattern the eye can follow.
-				const flicker =
-					0.55 + 0.3 * Math.sin(t * 9 + i * 0.9) + 0.15 * Math.sin(t * 17 + i * 2.3);
-				const tall = h * 0.42 * rise * Math.max(0.2, flicker);
-				const x = Math.round(i * cw);
-				const bw = Math.ceil(cw) + 1;
-				ctx.fillStyle = hot();
-				ctx.fillRect(x, Math.round(ground() - tall), bw, Math.ceil(tall) + 6);
-				ctx.fillStyle = ember();
-				ctx.fillRect(x, Math.round(ground() - tall * 0.55), bw, Math.ceil(tall * 0.55) + 6);
-			}
-		}
 
 		let raf = 0;
 		const frame = (now: number) => {
@@ -142,14 +101,12 @@
 			ctx.fillStyle = sky();
 			ctx.fillRect(0, 0, w, h);
 
-			// The ground, and a scanline wash over everything. Two pixels on, two
-			// off — the cheapest honest CRT.
+			// The ground, then a CRT wash over everything.
 			ctx.globalAlpha = 0.5;
 			ctx.fillStyle = ink();
 			ctx.fillRect(0, ground(), w, 1);
-			ctx.globalAlpha = 0.06;
-			for (let y = 0; y < h; y += 4) ctx.fillRect(0, y, w, 2);
 			ctx.globalAlpha = 1;
+			drawScanlines(ctx, w, h, ink());
 
 			// Alarm: the sky pulses as the bomb nears the ground. Kept to the
 			// last stretch so it means something when it starts.
@@ -165,7 +122,7 @@
 			const cy = -spriteH / 2 + (ground() - PX - (-spriteH / 2)) * approach;
 
 			if (outcome === null) {
-				drawBomb(cx, cy);
+				drawSprite(ctx, BOMB, PX, cx, cy, ink());
 			} else if (outcome === 'destroyed') {
 				// The beam first, then the blast: a shot that arrives after the
 				// explosion reads as the bomb having gone off by itself.
@@ -203,7 +160,7 @@
 				}
 			} else {
 				// The bomb landed. Fire fills the ground and the sky goes red.
-				drawFire(since);
+				drawFire(ctx, w, h, { seconds: since, ground: ground(), hot: hot(), ember: ember() });
 				const wash = Math.min(0.42, since * 1.2);
 				ctx.globalAlpha = wash;
 				ctx.fillStyle = hot();
@@ -247,7 +204,7 @@
 		     gets. The verdict card below says it in Korean; this is the
 		     arcade's own word for the same thing. -->
 		<div class="pointer-events-none absolute inset-0 flex items-center justify-center">
-			<span data-testid="raid-fail" class="fail">Fail</span>
+			<span data-testid="stage-fail" class="fail">Fail</span>
 		</div>
 	{/if}
 </div>

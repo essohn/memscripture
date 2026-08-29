@@ -229,6 +229,27 @@
 			onClose={close}
 		/>
 	{:else}
+		<!-- A run had no way out of it: the only exits were answering every round
+		     or leaving the page. Kept small and above the card so they are
+		     reachable without being in the way of the game — 나가기 goes back to
+		     the picker, 다시 starts these same verses over. -->
+		<div class="mb-2 flex justify-end gap-1">
+			<button
+				type="button"
+				onclick={again}
+				class="rounded-lg px-2.5 py-1 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)]"
+			>
+				다시
+			</button>
+			<button
+				type="button"
+				onclick={close}
+				class="rounded-lg px-2.5 py-1 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)]"
+			>
+				나가기
+			</button>
+		</div>
+
 		<!-- One wrapper per round, keyed, so the animation runs on every verse
 		     rather than once for the run. -->
 		{#key `${index}:${queue[index].id}`}

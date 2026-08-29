@@ -38,6 +38,27 @@ describe('VOICES', () => {
 	});
 });
 
+describe('the chime', () => {
+	// 딩동댕: three notes going up, not a thud. It used to be an explosion and
+	// falling masonry, which is a sound for a wall coming down rather than for
+	// an answer being right.
+	it('climbs three steps', () => {
+		const notes = VOICES.correct.filter((t) => t.type === 'square').map((t) => t.from);
+		expect(notes.length).toBeGreaterThanOrEqual(3);
+		for (let i = 1; i < notes.length; i++) {
+			expect(notes[i]).toBeGreaterThan(notes[i - 1]);
+		}
+	});
+
+	// A major triad, which is what makes it read as an answer rather than an
+	// alarm: each step is the interval the one before it was not.
+	it('is a major triad', () => {
+		const [root, third, fifth] = VOICES.correct.filter((t) => t.type === 'square').map((t) => t.from);
+		expect(third / root).toBeCloseTo(1.26, 1);
+		expect(fifth / root).toBeCloseTo(1.5, 1);
+	});
+});
+
 describe('the buzzer', () => {
 	// A wrong answer has to be audible as wrong with the screen unwatched. It
 	// used to be two descending square blips in the same register as the sounds

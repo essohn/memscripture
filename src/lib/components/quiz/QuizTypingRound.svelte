@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { accuracyOf, markMismatchedWords } from '$lib/memorize/grade';
+	import { accuracyOf, markAttemptWords, markMismatchedWords } from '$lib/memorize/grade';
 	import { submitsOnEnter } from '$lib/memorize/typing';
 	import type { QuizItem, RoundResult } from '$lib/quiz/session';
 	import QuizAnswer from './QuizAnswer.svelte';
@@ -7,6 +7,9 @@
 	import AnswerReveal from '$lib/components/arcade/AnswerReveal.svelte';
 	import QuizAttempt from './QuizAttempt.svelte';
 	import ComboBadge from '$lib/components/arcade/ComboBadge.svelte';
+	import DefuseStage from '$lib/components/arcade/DefuseStage.svelte';
+	import { remainingMs } from '$lib/arcade/clock';
+	import { defuseLimitMs, defusePhase } from '$lib/arcade/defuse';
 	import { arcade } from '$lib/state/arcade.svelte';
 	import { PERFECT_POINTS } from '$lib/arcade/combo';
 
@@ -31,10 +34,55 @@
 	 *  the card's check measures it the same way. */
 	const startedAt = Date.now();
 
-	const marks = $derived(verdict ? markMismatchedWords(item.w, typed) : []);
+	/**
+	 * The reader's own words, with the ones the verse cannot account for marked.
+	 *
+	 * markMismatchedWords was rendering here, and it answers a different
+	 * question: whether each *verse* word turns up in the attempt. Its result is
+	 * a list of the verse's words, so this block was showing the reader text
+	 * they never wrote — and, worse, a word they had added was not something it
+	 * could mark at all, while accuracyOf took it off the score. The round
+	 * failed with nothing marked, which is how a verse the reader had plainly
+	 * got right came back wrong.
+	 */
+	const attemptMarks = $derived(verdict ? markAttemptWords(item.w, typed) : []);
 
-	function submit() {
-		if (typed.trim().length === 0 || verdict) return;
+	/** Scaled to the verse: a flat clock is generous for a short one and
+	 *  impossible for a long one. */
+	const limitMs = $derived(defuseLimitMs(item.w.length));
+	/** Read at 10Hz for the alarm and the auto-submit. The board runs its own
+	 *  frame loop off `startedAt` for the drawing. */
+	let elapsedMs = $state(0);
+	/** The last whole second the alarm sounded on, so it beeps once a second
+	 *  rather than ten times. */
+	let beepedAt = -1;
+	$effect(() => {
+		if (verdict) return;
+		const id = setInterval(() => {
+			elapsedMs = Date.now() - startedAt;
+			if (elapsedMs >= limitMs) {
+				// The bomb goes off with whatever is in the box. Grading it as
+				// written is the honest thing and the cheap thing: nothing about
+				// the record has to learn that a clock can mark a verse wrong.
+				submit(true);
+				return;
+			}
+			if (defusePhase(elapsedMs, limitMs) !== 'alarm') return;
+			const second = Math.ceil(remainingMs(elapsedMs, limitMs) / 1000);
+			if (second !== beepedAt) {
+				beepedAt = second;
+				arcade.play('alarm');
+			}
+		}, 100);
+		return () => clearInterval(id);
+	});
+
+	const outcome = $derived(verdict === null ? null : verdict.passed ? 'defused' : 'blown');
+	const secondsLeft = $derived(Math.ceil(remainingMs(elapsedMs, limitMs) / 1000));
+
+	function submit(force = false) {
+		if (verdict) return;
+		if (!force && typed.trim().length === 0) return;
 		const accuracy = accuracyOf(item.w, typed);
 		const passed = accuracy >= 1;
 		verdict = {
@@ -50,7 +98,15 @@
 			// would be measuring thumbs — so a pass always extends the chain.
 			inTime: true
 		};
-		arcade.play(passed ? 'explode' : 'fail');
+		// Only the miss speaks here. Being right is announced by the chime that
+		// lands with the Correct! stamp a moment later — an explosion on top of
+		// it was the '둥' in front of the '딩동댕'.
+		if (!passed) {
+			arcade.play('fail');
+			// The buzzer is the verdict; the blast is the bomb. A beat apart so
+			// they read as two things rather than one noise.
+			setTimeout(() => arcade.play('explode'), 130);
+		}
 	}
 
 
@@ -89,6 +145,15 @@
 	</div>
 	<p class="mt-0.5 text-[calc(14px*var(--vfs))] text-[var(--color-text-secondary)]">{item.cite}</p>
 
+	<DefuseStage {startedAt} {limitMs} {outcome} />
+
+	<!-- The clock in words, for a reader who cannot see the bomb. Polite rather
+	     than assertive: it changes every second, and an assertive region would
+	     talk over their own typing. -->
+	<p class="sr-only" role="status" aria-live="polite">
+		{verdict === null ? `${secondsLeft}초 남았습니다` : ''}
+	</p>
+
 	{#if verdict === null}
 		<textarea
 			bind:value={typed}
@@ -99,17 +164,17 @@
 		></textarea>
 		<button
 			type="button"
-			onclick={submit}
+			onclick={() => submit()}
 			disabled={typed.trim().length === 0}
 			class="mt-3 w-full rounded-xl bg-[var(--color-accent)] py-2.5 font-medium text-white disabled:opacity-40"
 		>
 			제출
 		</button>
 	{:else}
-		<QuizAttempt {typed} {marks} />
 		<AnswerReveal reveal={verdict !== null} outcome={verdict.passed ? 'pass' : 'fail'} label="정답">
 			<QuizAnswer w={item.w} />
 		</AnswerReveal>
+		<QuizAttempt {typed} marks={attemptMarks} />
 		<QuizVerdict passed={verdict.passed} />
 		<button
 			type="button"
