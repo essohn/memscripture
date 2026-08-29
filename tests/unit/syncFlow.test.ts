@@ -91,6 +91,55 @@ describe('performSync', () => {
 		expect(applySyncSnapshot).not.toHaveBeenCalled();
 	});
 
+	// A device that has never recorded a mutation has no stamp to report, and
+	// buildSyncSnapshot renders that absence as ''. Two absences are not two
+	// matching values: this is what stranded a second browser for good — it
+	// held nothing, the remote held a year of records, and both said ''. The
+	// sync returned before reading either, so no reload and no reconnect ever
+	// got past it.
+	it('reads the remote when neither side carries a stamp', async () => {
+		const remote = {
+			...snap(''),
+			verseRatings: [
+				{ id: 'p:1', packageId: 'p', verseNo: 1, startDifficulty: 3, fullDifficulty: 3, updatedAt: 10 }
+			]
+		};
+		vi.mocked(findSyncFile).mockResolvedValue({ id: 'fid', modifiedTime: 'x' });
+		vi.mocked(downloadSyncFile).mockResolvedValue(remote);
+		vi.mocked(buildSyncSnapshot).mockResolvedValue(snap(''));
+		vi.mocked(uploadSyncFile).mockResolvedValue({ id: 'fid' });
+
+		const res = await performSync({}, CLIENT_ID);
+
+		expect(res.kind).toBe('merged');
+		const applied = vi.mocked(applySyncSnapshot).mock.calls[0][0] as {
+			verseRatings: unknown[];
+		};
+		expect(applied.verseRatings).toHaveLength(1);
+	});
+
+	// Same absence, written by a snapshot old enough to have no such field at
+	// all. `undefined === undefined` reads as equal just as readily as ''.
+	it('reads the remote when neither side has the field at all', async () => {
+		const { lastModifiedAt: _r, ...remote } = snap('');
+		const { lastModifiedAt: _l, ...local } = snap('');
+		vi.mocked(findSyncFile).mockResolvedValue({ id: 'fid', modifiedTime: 'x' });
+		vi.mocked(downloadSyncFile).mockResolvedValue({
+			...remote,
+			verseRatings: [
+				{ id: 'p:1', packageId: 'p', verseNo: 1, startDifficulty: 3, fullDifficulty: 3, updatedAt: 10 }
+			]
+		});
+		vi.mocked(buildSyncSnapshot).mockResolvedValue(
+			local as unknown as ReturnType<typeof snap>
+		);
+		vi.mocked(uploadSyncFile).mockResolvedValue({ id: 'fid' });
+
+		const res = await performSync({}, CLIENT_ID);
+
+		expect(res.kind).toBe('merged');
+	});
+
 	it('an existing remote file is merged, applied locally and uploaded back', async () => {
 		vi.mocked(findSyncFile).mockResolvedValue({ id: 'fid', modifiedTime: 'x' });
 		vi.mocked(downloadSyncFile).mockResolvedValue(snap('2026-05-29T09:00:00Z'));

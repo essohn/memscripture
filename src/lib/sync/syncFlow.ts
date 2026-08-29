@@ -75,7 +75,17 @@ export async function performSync(
 		const remoteRaw = await downloadSyncFile(auth.accessToken, found.id);
 		const remoteSnap = remoteRaw as SyncSnapshot;
 
-		if (localSnap.lastModifiedAt === remoteSnap.lastModifiedAt) return { kind: 'remote-equal' };
+		// Both sides must actually carry a stamp before equality means anything.
+		// An empty one says "this device has never recorded a mutation" — an
+		// absence, not a value, and two absences are not a match. Read as one,
+		// it strands a device for good: a browser holding nothing and a remote
+		// holding a year both report '', the sync returns here, and no reload or
+		// reconnect ever gets past it. Unknown falls through to the merge, which
+		// is a union and so costs a rewrite rather than a record.
+		const bothStamped = Boolean(localSnap.lastModifiedAt) && Boolean(remoteSnap.lastModifiedAt);
+		if (bothStamped && localSnap.lastModifiedAt === remoteSnap.lastModifiedAt) {
+			return { kind: 'remote-equal' };
+		}
 
 		const merged = mergeSnapshots(localSnap, remoteSnap);
 
