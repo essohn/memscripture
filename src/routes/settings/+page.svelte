@@ -14,7 +14,7 @@
 		type GroupInfo
 	} from '$lib/db/groups';
 	import {
-		installedVoiceCount,
+		allDeviceVoices,
 		koreanVoices,
 		pollForVoices,
 		speak,
@@ -111,9 +111,9 @@
 	] as const;
 	const GENDER_LABEL = { male: '남', female: '여' } as const;
 	let voices = $state<VoiceLike[]>([]);
-	/** Every voice the device reports, Korean or not. Only ever shown when
-	 *  there are no Korean ones, to say which of the two faults this is. */
-	let deviceVoices = $state(0);
+	/** Every voice the device reports, Korean or not. Offered when nothing here
+	 *  looks Korean — the tagging can be wrong where the voice is fine. */
+	let deviceVoices = $state<VoiceLike[]>([]);
 
 	// getVoices() is commonly empty on first call and filled asynchronously, so
 	// the list is read again when the browser says it changed — and, because on
@@ -122,7 +122,7 @@
 	$effect(() => {
 		const load = () => {
 			voices = koreanVoices();
-			deviceVoices = installedVoiceCount();
+			deviceVoices = allDeviceVoices();
 		};
 		load();
 		speechSynthesis?.addEventListener?.('voiceschanged', load);
@@ -556,14 +556,55 @@
 					이 기기에서 한국어 음성을 찾지 못했습니다
 				</p>
 				<p class="mt-1 text-[11px] leading-[1.7] text-[var(--color-text-secondary)]">
-					{deviceVoices > 0
-						? `기기가 알려준 음성은 ${deviceVoices}개인데, 그중 한국어는 없습니다.`
-						: '기기가 음성을 하나도 알려주지 않았습니다.'}
-					안드로이드는 <b>설정 → 시스템 → 언어 및 입력 → 텍스트 음성 변환 출력</b>에서 엔진의
-					언어 데이터로 한국어를 내려받으면 목록에 나타납니다. 아이폰은
-					<b>설정 → 손쉬운 사용 → 라이브 음성</b>입니다.
+					{#if deviceVoices.length > 0}
+						기기가 알려준 음성은 {deviceVoices.length}개인데, 그중 한국어라고 표시된 것이
+						없습니다. 한국어가 설치되어 있다면 <b>표시가 잘못된 것</b>이므로, 아래에서 직접
+						고르면 그대로 사용합니다.
+					{:else}
+						기기가 음성을 하나도 알려주지 않았습니다. 안드로이드는
+						<b>설정 → 시스템 → 언어 및 입력 → 텍스트 음성 변환 출력</b>에서 엔진의 언어
+						데이터로 한국어를 내려받으면 나타납니다. 아이폰은
+						<b>설정 → 손쉬운 사용 → 라이브 음성</b>입니다.
+					{/if}
 				</p>
 			</div>
+
+			{#if deviceVoices.length > 0}
+				<!-- Every voice the device has, because the one filter that would
+				     have narrowed this is the one that just failed. The reader can
+				     read these names; picking one by hand is honoured verbatim. -->
+				<div class="mt-4">
+					<span class="text-[13px] text-[var(--color-text)]">목소리 직접 고르기</span>
+					<div class="mt-2 flex items-center gap-2">
+						<select
+							bind:value={speakVoice}
+							onchange={() => setSpeakOption('speakVoice', speakVoice)}
+							aria-label="읽어줄 목소리"
+							class="min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-[13px] text-[var(--color-text)]"
+						>
+							<option value="">자동</option>
+							{#each deviceVoices as v (v.name)}
+								<option value={v.name}>{v.name}{v.lang ? ` · ${v.lang}` : ''}</option>
+							{/each}
+						</select>
+						<button
+							type="button"
+							onclick={() =>
+								speak(
+									speechSegments({ cite: '요한복음 3 : 16', w: '하나님이 세상을 이처럼 사랑하사' }),
+									{ rate: speakRate, voice: speakVoice || undefined }
+								)}
+							class="shrink-0 rounded-full border border-[var(--color-border)] px-3 py-2 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)]"
+						>
+							들어보기
+						</button>
+					</div>
+					<p class="mt-1.5 text-[11px] text-[var(--color-text-tertiary)]">
+						하나씩 들어보고 한국어가 나오는 것을 고르세요. 이름 뒤는 기기가 알려준 언어
+						표시입니다.
+					</p>
+				</div>
+			{/if}
 		{:else}
 			<div class="mt-4">
 				<span class="text-[13px] text-[var(--color-text)]">목소리 성별</span>

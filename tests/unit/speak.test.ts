@@ -813,3 +813,45 @@ describe('createPlayer speaks one segment at a time', () => {
 		expect(spoken[spoken.length - 1].text).toBe('라마바');
 	});
 });
+
+// Android ships Korean voices whose lang the app does not always recognise —
+// a reader with 한국어 installed and working in the system settings saw an
+// empty picker and silence. Whatever the tagging, the reader can read the
+// names on their own device, and an explicit choice is an instruction rather
+// than a hint.
+describe('pickKoreanVoice — an explicit choice outranks the sniffing', () => {
+	// An empty lang, which some Android engines report for a voice that is
+	// installed and works. /^ko/ has nothing to match on.
+	const ODD = { name: 'Korean Korea (South) 1', lang: '', localService: true };
+	const KO = { name: 'Yuna', lang: 'ko-KR', localService: true };
+	const EN = { name: 'Daniel', lang: 'en-GB', localService: true };
+
+	it('honours a voice the lang filter would have dropped', () => {
+		expect(pickKoreanVoice([EN, ODD], { wanted: ODD.name })?.name).toBe(ODD.name);
+	});
+
+	it('honours it even when a recognised Korean voice is also installed', () => {
+		expect(pickKoreanVoice([KO, EN], { wanted: EN.name })?.name).toBe(EN.name);
+	});
+
+	// A voice already found silent must not come back, explicit or not.
+	it('still refuses one already known to be silent', () => {
+		const picked = pickKoreanVoice([KO, EN], {
+			wanted: EN.name,
+			exclude: new Set([EN.name])
+		});
+		expect(picked?.name).toBe(KO.name);
+	});
+
+	// A name that is no longer installed falls back to the ranking rather than
+	// to silence — voices come and go with OS updates.
+	it('falls back when the chosen voice has gone', () => {
+		expect(pickKoreanVoice([KO], { wanted: 'Vanished' })?.name).toBe(KO.name);
+	});
+
+	// With nothing chosen it is the same function it always was.
+	it('picks a Korean voice when no choice was made', () => {
+		expect(pickKoreanVoice([EN, KO])?.name).toBe(KO.name);
+		expect(pickKoreanVoice([EN])).toBeNull();
+	});
+});
