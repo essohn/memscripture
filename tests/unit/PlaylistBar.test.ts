@@ -72,7 +72,7 @@ describe('PlaylistBar when the device will not speak', () => {
 	// one thing that fixes it.
 	it('says so, and points at the voice setting', () => {
 		render(PlaylistBar, { props: { ...props, failed: true } });
-		expect(screen.getByRole('status')).toHaveTextContent(/음성/);
+		expect(screen.getByRole('status')).toHaveTextContent(/소리 진단/);
 	});
 
 	it('stays out of the way while playback is fine', () => {

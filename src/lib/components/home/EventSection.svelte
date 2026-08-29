@@ -201,6 +201,26 @@
 								{/if}
 							</button>
 						{/if}
+						<!--
+							Both players hang off ev.verses, and buildEventCards clears
+							that list whole when any range's package is not installed:
+							hearing less than the card shows would be worse than not
+							hearing it. Right — but it used to hide two buttons and say
+							nothing, and every browser is its own database, so a reader
+							who opens the app somewhere new finds the icons gone with no
+							idea why. The slot holds the fix instead of a hole: opening
+							the 구절집 once installs it, and the players come back.
+						-->
+						{#if player.supported && ev.verses.length === 0 && ev.ranges.length > 0}
+							<a
+								href={ev.ranges[0].href}
+								aria-label="{ev.eventTitle} 듣기 — 구절집을 먼저 열어주세요"
+								class="inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
+							>
+								<Play size={13} strokeWidth={1.75} />
+								구절집 열기
+							</a>
+						{/if}
 						<button
 							type="button"
 							onclick={() => openSheet(ev)}

@@ -257,6 +257,25 @@ describe('EventSection header players', () => {
 	});
 	afterEach(() => vi.unstubAllGlobals());
 
+	/*
+	 * Both players hang off the event's verses, and buildEventCards clears that
+	 * list whole when any range's package is not installed — hearing less than
+	 * the card shows would be worse. Right, but it hid two buttons and said
+	 * nothing, and a reader on a second browser (every browser is its own
+	 * database) is left wondering what they broke. The slot now holds a way to
+	 * fix it instead of a hole.
+	 */
+	it('offers a way in when the verses are not on this device yet', () => {
+		render(EventSection, { props: { events: [card] } });
+		const link = screen.getByRole('link', { name: /구절집/ });
+		expect(link).toHaveAttribute('href', card.ranges[0].href);
+	});
+
+	it('drops that once the verses are here', () => {
+		render(EventSection, { props: { events: [withVerses] } });
+		expect(screen.queryByRole('link', { name: /구절집/ })).toBeNull();
+	});
+
 	it('offers 따라 읽기 beside 전체 듣기', () => {
 		render(EventSection, { props: { events: [withVerses] } });
 		expect(screen.getByLabelText(/전체 듣기/)).toBeInTheDocument();

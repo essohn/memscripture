@@ -78,7 +78,7 @@
 		     silently, which is the entire problem it exists to name. -->
 		{#if failed}
 			<p role="status" class="text-[12px] text-[var(--color-danger)]">
-				소리를 낼 수 없습니다. 설정에서 다른 음성을 골라보세요.
+				소리를 낼 수 없습니다. 설정 › 소리 진단에서 원인을 확인해보세요.
 			</p>
 		{/if}
 		<div class="flex items-center gap-2.5">
