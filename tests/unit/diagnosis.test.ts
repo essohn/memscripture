@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accuracySeries, difficultyTrend, effortTotals, FLAT_SLOPE } from '../../src/lib/memorize/diagnosis';
+import { accuracySeries, ASSUME_COMPLETE_MIN_ACCURACY, difficultyTrend, effortTotals, FLAT_SLOPE, MIN_REACH, wordHeat } from '../../src/lib/memorize/diagnosis';
 import type { CheckRecord } from '../../src/lib/db/local';
 
 /** A 점검 row. Records are newest-first everywhere, the order listChecks
@@ -108,5 +108,113 @@ describe('difficultyTrend', () => {
 		];
 		expect(difficultyTrend(records, 'start')).toBe('improving');
 		expect(difficultyTrend(records, 'full')).toBe('worsening');
+	});
+});
+
+/** An eight-word verse, so a give-up has a tail worth protecting. */
+const WORDS = 8;
+const tiers = (records: CheckRecord[]) => wordHeat(records, WORDS).map((h) => h.tier);
+
+describe('wordHeat', () => {
+	// The whole reason this is a rate. markMismatchedWords reports every
+	// unreached word as missed, so a single abandoned attempt would otherwise
+	// dye the tail of the verse red.
+	it('does not let an abandoned attempt paint the words it never reached', () => {
+		const full = (id: string) =>
+			record({ id, typed: '하나 둘 셋 넷 다섯 여섯 일곱 여덟', missed: [3] });
+		const gaveUp = record({
+			id: 'gave-up',
+			typed: '하나 둘 셋',
+			missed: [3, 4, 5, 6, 7],
+			accuracy: 0.3
+		});
+		const heat = wordHeat([full('a'), gaveUp, full('b')], WORDS);
+
+		// Word 3 was genuinely missed by both attempts that reached it.
+		expect(heat[3]).toMatchObject({ reached: 2, missed: 2, rate: 1, tier: 'often' });
+		// Word 5 sits in the abandoned tail. Two attempts reached it, neither
+		// got it wrong, and the surrender says nothing about it.
+		expect(heat[5]).toMatchObject({ reached: 2, missed: 0, rate: 0, tier: 'none' });
+	});
+
+	// A saved-but-empty attempt reached no word, so it is evidence about none.
+	it('gives an empty attempt no say', () => {
+		expect(wordHeat([record({ typed: '', missed: [] })], WORDS)[0]).toMatchObject({
+			reached: 0,
+			rate: null,
+			tier: 'none'
+		});
+	});
+
+	// A check from before `typed` existed cannot report how far it went. A
+	// good score went essentially the whole way; anything else is dropped
+	// rather than guessed at, because guessing that a surrender reached the
+	// end is the exact lie this metric exists to prevent.
+	it('assumes a well-scored check with no saved text went the distance', () => {
+		expect(ASSUME_COMPLETE_MIN_ACCURACY).toBe(0.5);
+		const heat = wordHeat(
+			[
+				record({ id: 'a', typed: undefined, accuracy: 1, missed: [] }),
+				record({ id: 'b', typed: undefined, accuracy: 0.6, missed: [2] })
+			],
+			WORDS
+		);
+		expect(heat[2]).toMatchObject({ reached: 2, missed: 1 });
+	});
+
+	it('drops a badly-scored check with no saved text entirely', () => {
+		const heat = wordHeat([record({ typed: undefined, accuracy: 0.2, missed: [2] })], WORDS);
+		expect(heat[2]).toMatchObject({ reached: 0, missed: 0, rate: null });
+	});
+
+	// Absent is not an empty array. A record written before `missed` existed
+	// measured nothing about positions; letting it contribute reach alone
+	// would score every word as a clean run on evidence that does not exist.
+	it('lets a pre-feature record contribute neither reach nor misses', () => {
+		const heat = wordHeat([record({ missed: undefined, typed: '하나 둘 셋 넷' })], WORDS);
+		expect(heat[0]).toMatchObject({ reached: 0, rate: null });
+	});
+
+	// One incident is an accident, not a diagnosis.
+	it('says nothing about a word only one attempt has reached', () => {
+		expect(MIN_REACH).toBe(2);
+		const heat = wordHeat([record({ typed: '하나 둘 셋 넷 다섯 여섯 일곱 여덟', missed: [1] })], WORDS);
+		expect(heat[1]).toMatchObject({ reached: 1, missed: 1, rate: 1, tier: 'none' });
+	});
+
+	it('tiers at exactly one third and two thirds', () => {
+		const clean = (id: string) => record({ id, typed: '하나 둘 셋 넷 다섯 여섯 일곱 여덟', missed: [] });
+		const missing = (id: string) =>
+			record({ id, typed: '하나 둘 셋 넷 다섯 여섯 일곱 여덟', missed: [1] });
+
+		// 1 of 3 → exactly 1/3
+		expect(tiers([missing('a'), clean('b'), clean('c')])[1]).toBe('sometimes');
+		// 2 of 3 → exactly 2/3
+		expect(tiers([missing('a'), missing('b'), clean('c')])[1]).toBe('often');
+		// 1 of 4 → 0.25
+		expect(tiers([missing('a'), clean('b'), clean('c'), clean('d')])[1]).toBe('rare');
+	});
+
+	// markMismatchedWords returns one entry per position, so a repeat would be
+	// a caller bug — and counting it twice would report a rate above 1.
+	it('counts a repeated index inside one record once', () => {
+		const heat = wordHeat(
+			[
+				record({ id: 'a', typed: '하나 둘 셋 넷 다섯 여섯 일곱 여덟', missed: [4, 4] }),
+				record({ id: 'b', typed: '하나 둘 셋 넷 다섯 여섯 일곱 여덟', missed: [] })
+			],
+			WORDS
+		);
+		expect(heat[4]).toMatchObject({ reached: 2, missed: 1, rate: 0.5, tier: 'sometimes' });
+	});
+
+	// An OYO verse can be edited shorter than the history describing it.
+	it('discards an index past the end of the verse', () => {
+		expect(() => wordHeat([record({ typed: '하나 둘', missed: [9] })], 2)).not.toThrow();
+		expect(wordHeat([record({ typed: '하나 둘', missed: [9] })], 2)).toHaveLength(2);
+	});
+
+	it('has nothing to say about a verse with no words', () => {
+		expect(wordHeat([record({ typed: '하나', missed: [0] })], 0)).toEqual([]);
 	});
 });
