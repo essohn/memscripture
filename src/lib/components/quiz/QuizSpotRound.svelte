@@ -120,6 +120,8 @@
 			elapsedMs: Date.now() - startedAt,
 			// The round's own worth, before the session's chain multiplies it.
 			points: correct ? SPOT_HIT_POINTS : 0,
+			// A miss is this game's evidence that the verse is harder.
+			harder: !correct,
 			inTime
 		});
 	}

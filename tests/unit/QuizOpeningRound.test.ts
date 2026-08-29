@@ -3,7 +3,7 @@ import { tick } from 'svelte';
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import QuizOpeningRound from '../../src/lib/components/quiz/QuizOpeningRound.svelte';
 import type { QuizItem } from '../../src/lib/quiz/session';
-import { RAID_HIT_POINTS, RAID_LIMIT_MS } from '../../src/lib/arcade/raid';
+import { RAID_HIT_POINTS, RAID_LIMIT_MS, raidSlowAfterMs } from '../../src/lib/arcade/raid';
 
 // 그들에게(0) 율례와(1) 법도를(2) — three words is the opening this game asks for.
 const VERSE = '그들에게 율례와 법도를 가르쳐서 마땅히 갈 길과 할 일을 그들에게 보이고';
@@ -466,5 +466,62 @@ describe('QuizOpeningRound — 난이도 하락', () => {
 		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
 		expect(screen.getByTestId('rating-drop')).toHaveTextContent('미평가');
 		expect(screen.getByTestId('rating-drop-to')).toHaveTextContent('2');
+	});
+});
+
+// This game has no wrong answer to give: the reader produces the opening or
+// gives up. So a miss is not the only thing worth recording — how long it took
+// to remember how the verse begins is exactly what 첫 시작 난이도 measures.
+describe('QuizOpeningRound — 느린 시작', () => {
+	async function answerAfter(ms: number) {
+		const { onDone } = setup();
+		await vi.advanceTimersByTimeAsync(ms);
+		await type(OPENING);
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		return onDone;
+	}
+
+	it('counts a slow interception as evidence', async () => {
+		vi.useFakeTimers();
+		try {
+			const onDone = await answerAfter(raidSlowAfterMs() + 1_000);
+			expect(onDone).toHaveBeenCalledWith(
+				expect.objectContaining({ passed: true, harder: true })
+			);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('leaves a prompt one alone', async () => {
+		vi.useFakeTimers();
+		try {
+			const onDone = await answerAfter(2_000);
+			expect(onDone).toHaveBeenCalledWith(
+				expect.objectContaining({ passed: true, harder: false })
+			);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('still counts a round the raider won', async () => {
+		const { onDone } = setup();
+		await fireEvent.click(screen.getByRole('button', { name: '모르겠어요' }));
+		await fireEvent.click(screen.getByRole('button', { name: '다음' }));
+		expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ harder: true }));
+	});
+
+	// The drop is shown for the same reason it is written.
+	it('shows the drop after a slow one', async () => {
+		vi.useFakeTimers();
+		try {
+			render(QuizOpeningRound, { item, index: 0, total: 3, rating: 3, onDone: vi.fn() });
+			await vi.advanceTimersByTimeAsync(raidSlowAfterMs() + 1_000);
+			await type(OPENING);
+			expect(screen.getByTestId('rating-drop')).toBeInTheDocument();
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });
