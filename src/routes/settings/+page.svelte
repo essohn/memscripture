@@ -4,7 +4,7 @@
 	import ConfirmDialog from '$lib/components/feedback/ConfirmDialog.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Cloud, CloudOff, Gamepad2, RotateCcw, Volume2, Users } from 'lucide-svelte';
+	import { CalendarDays, Cloud, CloudOff, Gamepad2, RotateCcw, Volume2, Users } from 'lucide-svelte';
 	import { arcade } from '$lib/state/arcade.svelte';
 	import {
 		getJoinedGroups,
@@ -477,6 +477,26 @@
 		<p class="mt-2 text-[11px] leading-[1.6] text-[var(--color-text-tertiary)]">
 			나가더라도 이미 받은 구절과 암송 기록은 그대로 남습니다.
 		</p>
+	</section>
+
+	<section
+		class="mt-4 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] px-6 py-5"
+	>
+		<h2 class="flex items-center gap-2 text-[15px] font-semibold text-[var(--color-text)]">
+			<CalendarDays size={18} strokeWidth={1.75} />
+			암송 DAY
+		</h2>
+		<p class="mt-2 text-[12px] text-[var(--color-text-secondary)]">
+			끝난 DAY는 홈에서 내려가지만 사라지지는 않습니다. 무엇을 외웠고 얼마나 했는지 여기서 다시
+			볼 수 있습니다.
+		</p>
+		<a
+			href="/events"
+			class="mt-4 flex items-center justify-between gap-3 rounded-xl bg-[var(--color-elevated)] px-4 py-3 text-[13px] font-medium text-[var(--color-text)]"
+		>
+			지난 암송 DAY 보기
+			<span aria-hidden="true">›</span>
+		</a>
 	</section>
 
 	<section

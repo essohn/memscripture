@@ -7,6 +7,7 @@ import { listPerfectVerseNos } from './checkHistory';
 import { DIFFICULTY_LABELS, DIFFICULTY_LEVELS, type DifficultyLevel } from './verseRatings';
 import { getJoinedGroups } from './groups';
 import { visibleTo } from '$lib/groups/visibility';
+import { listUserEvents } from './userEvents';
 
 /** D-day = dueAt 자정 − today 자정, 일 단위. 둘 다 'YYYY-MM-DD' 로컬. */
 export function dDay(dueAt: string, today: string): number {
@@ -82,13 +83,43 @@ export function _resetEventsCache(): void {
 	eventsCache = null;
 }
 
-export async function loadEvents(): Promise<MemEvent[]> {
+/** The published DAYs, fetched once. */
+async function loadShippedEvents(): Promise<MemEvent[]> {
 	if (eventsCache) return eventsCache;
 	const res = await fetch(EVENTS_URL);
 	if (!res.ok) throw new Error(`Failed to load events: ${res.status}`);
 	const data = await res.json();
 	eventsCache = Array.isArray(data) ? (data as MemEvent[]) : [];
 	return eventsCache;
+}
+
+/**
+ * Every 암송 DAY this reader has: the published ones and their own.
+ *
+ * Only the published list is cached. The reader's own are a keyed read from an
+ * indexed table — cheap enough to do on every call, and caching them would
+ * mean every screen that registers or edits a DAY had to remember to clear it.
+ *
+ * A failed read of the reader's own is not a reason to show them nothing: the
+ * published DAYs are still true, and a home screen that emptied itself over a
+ * storage hiccup would be worse than one missing a row.
+ */
+export async function loadEvents(): Promise<MemEvent[]> {
+	const [shipped, mine] = await Promise.all([
+		// Warned about rather than thrown: before the reader could register a
+		// DAY of their own there was nothing to lose by failing here, and now
+		// there is. A network blip must not take away the DAY sitting in their
+		// own storage.
+		loadShippedEvents().catch((e) => {
+			console.warn('[events] published list unavailable; showing only the reader own', e);
+			return [] as MemEvent[];
+		}),
+		listUserEvents().catch((e) => {
+			console.warn('[events] stored list unavailable; showing only the published', e);
+			return [] as MemEvent[];
+		})
+	]);
+	return [...shipped, ...mine];
 }
 
 /** EventRange → 실제 구절번호. verseNos 우선, 없으면 시리즈/그룹 필터로 해석. */
@@ -427,13 +458,28 @@ async function rangeLabel(range: EventRange, verseNos: number[]): Promise<string
 	return data?.verses.find((v) => v.no === verseNos[0])?.title ?? range.packageId;
 }
 
-/** 홈 렌더용 뷰모델 빌드: 활성 이벤트 × 해석 가능한 범위. */
-export async function buildEventCards(today: string): Promise<EventCardVM[]> {
-	// A schedule belongs to whoever it was set for. A reader outside the group
-	// should not be shown another 지구's deadline, and would have nothing to
-	// study for it anyway — its packages are not offered to them either.
+/**
+ * The events this reader may see at all.
+ *
+ * A schedule belongs to whoever it was set for. A reader outside the group
+ * should not be shown another 지구's deadline, and would have nothing to study
+ * for it anyway — its packages are not offered to them either.
+ */
+async function visibleEvents(): Promise<MemEvent[]> {
 	const joined = await getJoinedGroups().catch(() => [] as string[]);
-	const events = activeEvents(visibleTo(await loadEvents(), joined), today);
+	return visibleTo(await loadEvents(), joined);
+}
+
+/**
+ * Cards for exactly the events given, whatever their dates.
+ *
+ * Split out from buildEventCards because a finished DAY still has a card worth
+ * building: the stats list is reached by event id and used to come back empty
+ * for one whose deadline had passed, since the only way in filtered by today
+ * first. What a DAY covered and how much of it was learned does not stop being
+ * true when the date does.
+ */
+async function cardsFor(events: MemEvent[], today: string): Promise<EventCardVM[]> {
 	const cards: EventCardVM[] = [];
 	for (const e of events) {
 		const ranges: RangeCardVM[] = [];
@@ -485,4 +531,32 @@ export async function buildEventCards(today: string): Promise<EventCardVM[]> {
 		}
 	}
 	return cards;
+}
+
+/** 홈 렌더용: 오늘 살아 있는 이벤트만. */
+export async function buildEventCards(today: string): Promise<EventCardVM[]> {
+	return cardsFor(activeEvents(await visibleEvents(), today), today);
+}
+
+/**
+ * Every DAY this reader can see, finished ones included, newest deadline
+ * first.
+ *
+ * The archive's list. Ordered the other way round from the home screen's,
+ * because a list of what is coming reads forwards and a list of what is done
+ * reads backwards.
+ */
+export async function buildAllEventCards(today: string): Promise<EventCardVM[]> {
+	const events = [...(await visibleEvents())].sort((a, b) => (a.dueAt < b.dueAt ? 1 : -1));
+	return cardsFor(events, today);
+}
+
+/** One DAY's card by id, whether or not its deadline has passed. */
+export async function buildEventCardById(
+	eventId: string,
+	today: string
+): Promise<EventCardVM | null> {
+	const event = (await visibleEvents()).find((e) => e.id === eventId);
+	if (!event) return null;
+	return (await cardsFor([event], today))[0] ?? null;
 }
