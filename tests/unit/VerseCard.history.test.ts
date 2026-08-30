@@ -168,3 +168,62 @@ describe('deleting a check from the sheet', () => {
 		await waitFor(() => expect(trigger()).toBeNull());
 	});
 });
+
+describe('확인', () => {
+	const tapConfirm = () => screen.getByRole('button', { name: /확인/ });
+
+	it('records a check without typing anything', async () => {
+		setup({ packageId: '900_krv', startDifficulty: 3, fullDifficulty: 4 });
+		await fireEvent.click(tapConfirm());
+
+		await waitFor(async () => {
+			const rows = await listChecks('900_krv', 127);
+			expect(rows).toHaveLength(1);
+			expect(rows[0]).toMatchObject({ source: 'self', accuracy: 1, start: 3, full: 4 });
+		});
+	});
+
+	// The button carries its state in its name, so the change is not colour
+	// alone and a screen reader hears it.
+	it('says it has been used today', async () => {
+		setup({ packageId: '900_krv' });
+		await fireEvent.click(tapConfirm());
+
+		await waitFor(() => {
+			expect(screen.getByRole('button', { name: /오늘 확인함/ })).toBeInTheDocument();
+		});
+	});
+
+	// A reader who checked at breakfast and again at night did the thing twice.
+	// The button refusing them would be the app arguing.
+	it('records again on a second tap rather than doing nothing', async () => {
+		setup({ packageId: '900_krv' });
+		await fireEvent.click(tapConfirm());
+		await waitFor(() => expect(screen.getByRole('button', { name: /오늘 확인함/ })).toBeInTheDocument());
+
+		const before = (await listChecks('900_krv', 127))[0].checkedAt;
+		await fireEvent.click(screen.getByRole('button', { name: /오늘 확인함/ }));
+
+		await waitFor(async () => {
+			const rows = await listChecks('900_krv', 127);
+			expect(rows).toHaveLength(1);
+			expect(rows[0].checkedAt).toBeGreaterThanOrEqual(before);
+		});
+	});
+
+	it('updates the card\'s 최근 점검 line', async () => {
+		setup({ packageId: '900_krv' });
+		expect(screen.queryByRole('button', { name: /점검 기록 보기/ })).toBeNull();
+
+		await fireEvent.click(tapConfirm());
+		await waitFor(() => {
+			expect(screen.getByRole('button', { name: /점검 기록 보기/ })).toBeInTheDocument();
+		});
+	});
+
+	// A card that cannot be checked cannot be self-checked either.
+	it('is absent where the card is not checkable', () => {
+		setup({ packageId: '900_krv', onPickStartDifficulty: undefined, onPickFullDifficulty: undefined });
+		expect(screen.queryByRole('button', { name: /확인/ })).toBeNull();
+	});
+});

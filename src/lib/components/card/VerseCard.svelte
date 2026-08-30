@@ -23,8 +23,17 @@
 		SPEAK_DEFAULTS,
 		type SpeakOptionsStored
 	} from '$lib/db/viewOptions';
-	import { countsAsRecall, deleteCheck, listChecks, recordCheck, restoreCheck } from '$lib/db/checkHistory';
+	import {
+		countsAsCheck,
+		countsAsRecall,
+		deleteCheck,
+		listChecks,
+		recordCheck,
+		recordSelfCheck,
+		restoreCheck
+	} from '$lib/db/checkHistory';
 	import type { CheckRecord } from '$lib/db/local';
+	import { todayLocalKey } from '$lib/db/activity';
 	import { tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { citeShownSeparately, displayTitle } from '$lib/utils/verseTitle';
@@ -308,10 +317,11 @@
 			.catch(() => {});
 	}
 
-	/** 점검 only. A quiz round is the same act without the rating, so the
-	 *  underline suggestions count it — but anything that shows a difficulty
-	 *  has nothing to show for one. */
-	const checkOnlyHistory = $derived(checkHistory.filter((r) => !r.source));
+	/** 점검 and 확인 — the checks the reader performed, typed or not. A quiz
+	 *  round is the same act without the rating, so the underline suggestions
+	 *  count it, but anything that shows a difficulty has nothing to show for
+	 *  one. */
+	const checkOnlyHistory = $derived(checkHistory.filter(countsAsCheck));
 
 	/**
 	 * Drops one check at the reader's request, and puts it back on undo.
@@ -403,6 +413,37 @@
 	 * wrong.
 	 */
 	let lastCheckPerfect = $state<boolean | null>(null);
+
+	/** Whether today already holds a 확인 for this verse. Read off the loaded
+	 *  history rather than a flag of its own, so it survives the card being
+	 *  scrolled away and rebuilt, and so a check synced in from another device
+	 *  counts. */
+	const selfCheckedToday = $derived(
+		checkOnlyHistory.some((r) => r.source === 'self' && r.id.endsWith(`:self:${todayLocalKey()}`))
+	);
+
+	/**
+	 * 확인: the reader checked this verse in their head.
+	 *
+	 * Mirrors what onGraded does for a typed check — stamp the line, light the
+	 * badge, then write and reload — because the card must respond to the tap
+	 * rather than to the round trip.
+	 */
+	function confirmSelfCheck() {
+		if (!packageId) return;
+		const checkedAt = Date.now();
+		lastCheckedLocal = checkedAt;
+		noChecksLeft = false;
+		lastCheckPerfect = true;
+		recordSelfCheck(
+			packageId,
+			verse.no,
+			{ start: startDifficulty ?? null, full: fullDifficulty ?? null },
+			checkedAt
+		)
+			.then(loadCheckHistory)
+			.catch(() => {});
+	}
 
 	/** The verse has been played aloud since this card was last idle. Hearing
 	 *  it and then reciting it tests recognition, so the grading treats it the
@@ -806,6 +847,18 @@
 							class="rounded-full border border-[var(--color-border)] px-3.5 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
 						>
 							점검
+						</button>
+						<button
+							type="button"
+							onclick={confirmSelfCheck}
+							aria-label={selfCheckedToday
+								? `${heading} 오늘 확인함, 다시 기록`
+								: `${heading} 확인 기록`}
+							class="rounded-full border px-3.5 py-1 text-[11px] font-semibold transition-colors {selfCheckedToday
+								? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+								: 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]'}"
+						>
+							{selfCheckedToday ? '확인함' : '확인'}
 						</button>
 					{/if}
 					{#if editingEnabled}
