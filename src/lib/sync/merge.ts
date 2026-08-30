@@ -123,6 +123,10 @@ export function mergeSnapshots(local: SyncSnapshot, remote: SyncSnapshot): SyncS
 		// They travel so that a device syncing later learns about a deletion it
 		// never saw, instead of re-offering the row forever.
 		checkDeletions: deletions,
+		// The reader's own 암송 DAYs. Union by id, with the later snapshot's
+		// copy winning a DAY both devices edited — the stamp on the row is
+		// what makes that comparable at all.
+		events: unionById(older.events, newer.events, (e) => e.id),
 
 		verseMarks: mergeById(
 			local.verseMarks,

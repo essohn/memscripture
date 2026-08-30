@@ -4,13 +4,15 @@ import {
 	dDay, activeEvents, isMemorized, rangeHref, serializeEventRange,
 	loadEvents, resolveRangeVerseNos, rangeProgress, buildEventCards, _resetEventsCache,
 	eventStats, versesAtLevel, versesByPerfection, statsVersesHref, statsPerfectHref,
-	hasEventStats, DIMENSION_LABELS, statsListHeading, parseStatsLevel, type RangeCardVM
+	hasEventStats, DIMENSION_LABELS, statsListHeading, parseStatsLevel,
+	buildEventCardById, buildAllEventCards, type RangeCardVM
 } from '../../src/lib/db/events';
 import { recordCheck } from '../../src/lib/db/checkHistory';
 import { db } from '../../src/lib/db/local';
 import { listPackages, installPackage, isPackageInstalled } from '../../src/lib/db/verses';
 import { upsertProgress } from '../../src/lib/db/progress';
 import { setStartDifficulty, setFullDifficulty, DIFFICULTY_LEVELS } from '../../src/lib/db/verseRatings';
+import { saveUserEvent } from '../../src/lib/db/userEvents';
 import type { MemEvent, VerseProgress } from '../../src/lib/types';
 
 const ev = (over: Partial<MemEvent> = {}): MemEvent => ({
@@ -743,5 +745,45 @@ describe('parseStatsLevel', () => {
 	it('round-trips the unrated remainder through its own link', () => {
 		const url = new URL(statsVersesHref('e1', 'start', null), 'https://example.com');
 		expect(parseStatsLevel(url.searchParams.get('level'))).toBeNull();
+	});
+});
+
+describe('buildEventCardById', () => {
+	const past = ev({ id: 'done', title: '지난 DAY', dueAt: '2020-01-01', ranges: [{ packageId: 'a_krv', verseNos: [1] }] });
+
+	beforeEach(async () => {
+		_resetEventsCache();
+		await db.events.clear();
+	});
+
+	// The stats list is reached by event id, and the only way in filtered by
+	// today first — so every link into a DAY whose deadline had passed came
+	// back empty. What a DAY covered does not stop being true when the date
+	// does.
+	it('builds a card for a DAY whose deadline has passed', async () => {
+		await saveUserEvent(past);
+		const card = await buildEventCardById('done', '2026-08-31');
+		expect(card?.eventTitle).toBe('지난 DAY');
+		expect(card?.dueAt).toBe('2020-01-01');
+	});
+
+	it('has nothing to say about an id it cannot see', async () => {
+		expect(await buildEventCardById('no-such-day', '2026-08-31')).toBeNull();
+	});
+
+	// The home screen keeps its own rule: a finished DAY is off it.
+	it('leaves the home list to the active ones', async () => {
+		await saveUserEvent(past);
+		const home = await buildEventCards('2026-08-31');
+		expect(home.map((c) => c.eventId)).not.toContain('done');
+	});
+
+	// The archive reads backwards: what is done, most recent first.
+	it('lists every DAY for the archive, newest deadline first', async () => {
+		await saveUserEvent(past);
+		await saveUserEvent(ev({ id: 'later', title: '나중 DAY', dueAt: '2026-12-25', ranges: [{ packageId: 'a_krv', verseNos: [1] }] }));
+		const all = await buildAllEventCards('2026-08-31');
+		const mine = all.filter((c) => ['done', 'later'].includes(c.eventId));
+		expect(mine.map((c) => c.eventId)).toEqual(['later', 'done']);
 	});
 });
