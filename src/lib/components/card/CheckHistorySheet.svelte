@@ -146,33 +146,44 @@
 					</span>
 				</div>
 
-				<div
-					class="mt-1.5 flex flex-wrap gap-x-2 text-[11px] tabular-nums text-[var(--color-text-tertiary)]"
-				>
-					<span>정확도 {Math.round(h.accuracy * 100)}%</span>
-					<!-- A 5 reached with eight nudges is not the same 5 as one reached
-					     cold, and only this line can say so. Absent hints predate the
-					     field and zero is a check that spent none — neither is worth
-					     a "힌트 0" taking up the row. -->
-					{#if h.hints}<span>· 힌트 {h.hints}</span>{/if}
-				</div>
-
-				<!-- The attempt, printed as it was written. Three states, not two:
-				     text, an attempt saved with nothing in it, and a check from
-				     before the field existed. Collapsing the last two would put
-				     words in the mouth of every check the reader made last year. -->
-				{#if h.typed}
-					<p
-						class="mt-2 whitespace-pre-line break-keep border-t border-[var(--color-border)] pt-2 text-[13px] leading-[1.55] text-[var(--color-text)]"
-					>{h.typed}</p>
-				{:else if h.typed === ''}
-					<p class="mt-2 text-[12px] italic text-[var(--color-text-tertiary)]">
-						입력한 내용 없이 저장했습니다
+				{#if h.source === 'self'}
+					<!-- No attempt was typed and no accuracy measured, so neither is
+					     reported. The 1 this row stores is the mechanism that lights
+					     the 만점 badge, not a score to show the reader — printing it
+					     would be the app claiming to have watched something it did
+					     not. -->
+					<p class="mt-1.5 text-[11px] text-[var(--color-text-tertiary)]">
+						머릿속으로 확인했습니다
 					</p>
 				{:else}
-					<p class="mt-2 text-[12px] italic text-[var(--color-text-tertiary)]">
-						입력 본문이 기록되기 전의 점검입니다
-					</p>
+					<div
+						class="mt-1.5 flex flex-wrap gap-x-2 text-[11px] tabular-nums text-[var(--color-text-tertiary)]"
+					>
+						<span>정확도 {Math.round(h.accuracy * 100)}%</span>
+						<!-- A 5 reached with eight nudges is not the same 5 as one reached
+						     cold, and only this line can say so. Absent hints predate the
+						     field and zero is a check that spent none — neither is worth
+						     a "힌트 0" taking up the row. -->
+						{#if h.hints}<span>· 힌트 {h.hints}</span>{/if}
+					</div>
+
+					<!-- The attempt, printed as it was written. Three states, not two:
+					     text, an attempt saved with nothing in it, and a check from
+					     before the field existed. Collapsing the last two would put
+					     words in the mouth of every check the reader made last year. -->
+					{#if h.typed}
+						<p
+							class="mt-2 whitespace-pre-line break-keep border-t border-[var(--color-border)] pt-2 text-[13px] leading-[1.55] text-[var(--color-text)]"
+						>{h.typed}</p>
+					{:else if h.typed === ''}
+						<p class="mt-2 text-[12px] italic text-[var(--color-text-tertiary)]">
+							입력한 내용 없이 저장했습니다
+						</p>
+					{:else}
+						<p class="mt-2 text-[12px] italic text-[var(--color-text-tertiary)]">
+							입력 본문이 기록되기 전의 점검입니다
+						</p>
+					{/if}
 				{/if}
 
 				{#if onDelete}

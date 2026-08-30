@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/svelte';
+import { render, screen, fireEvent, within } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import CheckHistorySheet from '../../src/lib/components/card/CheckHistorySheet.svelte';
 import type { CheckRecord } from '../../src/lib/db/local';
@@ -218,5 +218,41 @@ describe('deleting a record', () => {
 		await fireEvent.click(screen.getAllByRole('button', { name: '실행 취소' })[0]);
 
 		expect(screen.getAllByRole('button', { name: '실행 취소' })).toHaveLength(1);
+	});
+});
+
+describe('a 확인 row', () => {
+	// `id` defaults to a fixed string in `record()`, and a second selfCheck()
+	// with no override would collide with the first under the list's keyed
+	// {#each} — the two rows would not really render as two. Callers that
+	// need a second row pass a distinct id.
+	const selfCheck = (over: Partial<CheckRecord> = {}) =>
+		record({ id: 'self', source: 'self', accuracy: 1, elapsedMs: 0, start: 4, full: 4, ...over });
+
+	it('says what it is', () => {
+		mount([selfCheck(), record({ id: 'typed', checkedAt: NOW - 2 * DAY })]);
+		expect(screen.getByText('머릿속으로 확인했습니다')).toBeInTheDocument();
+	});
+
+	// It never had an attempt to print, so it must not borrow the sentence for
+	// a 점검 that predates the field — that one would be a lie about it.
+	it('does not claim to predate the attempt field', () => {
+		mount([selfCheck(), selfCheck({ id: 'self-2', checkedAt: NOW - 2 * DAY })]);
+		expect(screen.queryByText('입력 본문이 기록되기 전의 점검입니다')).toBeNull();
+	});
+
+	// No accuracy was measured, so none is reported — the 1 it stores is a
+	// mechanism for the badge, not a score to show the reader.
+	it('reports no accuracy', () => {
+		mount([selfCheck(), selfCheck({ id: 'self-2', checkedAt: NOW - 2 * DAY })]);
+		const row = screen.getAllByTestId('check-history-row')[0];
+		expect(within(row).queryByText(/정확도/)).toBeNull();
+	});
+
+	// The rating it was made at is still worth showing: it is what the
+	// difficulty trend above reads.
+	it('still shows the difficulty it was made at', () => {
+		mount([selfCheck()]);
+		expect(screen.getByLabelText('첫 시작 난이도 4')).toBeInTheDocument();
 	});
 });
