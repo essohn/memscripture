@@ -282,6 +282,24 @@
 								CSV · 엑셀 붙여넣기
 							</span>
 						</a>
+						<!--
+							The way in for a reader whose link cannot reach this app on
+							its own — every home-screen web app on iOS owns its storage,
+							so a link followed anywhere else saves out of sight. They
+							arrive here with the link on the clipboard instead.
+						-->
+						<a
+							role="menuitem"
+							href="/oyo/import"
+							class="block border-t border-[var(--color-border)] px-3 py-2.5 text-left transition-colors hover:bg-[var(--color-elevated)]"
+						>
+							<span class="block text-[13px] font-medium text-[var(--color-text)]">
+								링크 붙여넣기
+							</span>
+							<span class="block text-[11px] text-[var(--color-text-tertiary)]">
+								성경 앱에서 복사한 주소
+							</span>
+						</a>
 						<button
 							type="button"
 							role="menuitem"

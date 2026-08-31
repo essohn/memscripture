@@ -28,6 +28,18 @@ describe('나의 구절 — 가져오기 menu', () => {
 		expect(screen.getByRole('menuitem', { name: /백업에서 복원/ })).toBeInTheDocument();
 	});
 
+	// The door a reader needs on iOS, where a link cannot reach this app at all:
+	// every home-screen web app owns its storage, so they arrive carrying the
+	// link on the clipboard instead of following it.
+	it('points the link door at the deeplink import route', async () => {
+		render(OyoPage);
+		await fireEvent.click(screen.getByRole('button', { name: '가져오기' }));
+		expect(screen.getByRole('menuitem', { name: /링크 붙여넣기/ })).toHaveAttribute(
+			'href',
+			'/oyo/import'
+		);
+	});
+
 	it('points the table door at its route', async () => {
 		render(OyoPage);
 		await fireEvent.click(screen.getByRole('button', { name: '가져오기' }));
@@ -66,6 +78,10 @@ describe('나의 구절 — 가져오기 menu', () => {
 		render(OyoPage);
 		await fireEvent.click(screen.getByRole('button', { name: '가져오기' }));
 		const menu = screen.getByRole('menu', { name: '가져오기 방법' });
+		await fireEvent.keyDown(menu, { key: 'ArrowDown' });
+		expect(document.activeElement).toBe(
+			screen.getByRole('menuitem', { name: /링크 붙여넣기/ })
+		);
 		await fireEvent.keyDown(menu, { key: 'ArrowDown' });
 		expect(document.activeElement).toBe(
 			screen.getByRole('menuitem', { name: /백업에서 복원/ })

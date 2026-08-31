@@ -2,7 +2,7 @@
 // db/viewOptions and opens Dexie.
 import 'fake-indexeddb/auto';
 import { render, screen, fireEvent } from '@testing-library/svelte';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import DeeplinkImportPage from '../../src/routes/oyo/import/+page.svelte';
 import { buildImportLink } from '../../src/lib/oyo/importLink';
 
@@ -89,5 +89,102 @@ describe('deeplink import screen', () => {
 
 		expect(deleted).toEqual([]);
 		expect(screen.getByText('1개 구절을 나의 구절에 담았습니다')).toBeInTheDocument();
+	});
+});
+
+/**
+ * iOS gives every home-screen web app its own storage container, so an import
+ * link followed anywhere else saves into a database the installed copy cannot
+ * read. These tests cover the two halves of the way around it: the screen says
+ * so and hands over the link, and it accepts that link back as a paste.
+ */
+describe('the way across storage containers', () => {
+	const realUserAgent = Object.getOwnPropertyDescriptor(
+		Object.getPrototypeOf(navigator),
+		'userAgent'
+	);
+
+	function pretendIPhoneBrowser() {
+		Object.defineProperty(navigator, 'userAgent', {
+			configurable: true,
+			value:
+				'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
+		});
+		Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, value: 5 });
+	}
+
+	afterEach(() => {
+		delete (navigator as unknown as Record<string, unknown>).userAgent;
+		delete (navigator as unknown as Record<string, unknown>).maxTouchPoints;
+		if (realUserAgent) {
+			Object.defineProperty(Object.getPrototypeOf(navigator), 'userAgent', realUserAgent);
+		}
+	});
+
+	it('warns an iPhone reader that a save here will not reach their installed app', async () => {
+		pretendIPhoneBrowser();
+		arriveWith([{ cite: '요 3:16', w: '하나님이 세상을 이처럼 사랑하사' }]);
+		render(DeeplinkImportPage);
+		expect(await screen.findByText('홈 화면 앱에는 담기지 않습니다')).toBeInTheDocument();
+	});
+
+	// The banner is a warning, not a gate: the app cannot see whether a
+	// home-screen copy exists, and a reader without one is saving in the right
+	// place already.
+	it('still lets the iPhone reader save', async () => {
+		pretendIPhoneBrowser();
+		arriveWith([{ cite: '요 3:16', w: '하나님이 세상을 이처럼 사랑하사' }]);
+		render(DeeplinkImportPage);
+		await fireEvent.click(await screen.findByRole('button', { name: /나의 구절에 담기/ }));
+		expect(await screen.findByText('1개 구절을 나의 구절에 담았습니다')).toBeInTheDocument();
+		expect(created).toHaveLength(1);
+	});
+
+	it('says nothing on a platform whose tabs and installed app share storage', async () => {
+		arriveWith([{ cite: '요 3:16', w: '하나님이 세상을 이처럼 사랑하사' }]);
+		render(DeeplinkImportPage);
+		expect(await screen.findByText('구절 1개')).toBeInTheDocument();
+		expect(screen.queryByText('홈 화면 앱에는 담기지 않습니다')).toBeNull();
+	});
+
+	it('hands the reader the link that carried the verses', async () => {
+		pretendIPhoneBrowser();
+		const written: string[] = [];
+		Object.defineProperty(navigator, 'clipboard', {
+			configurable: true,
+			value: { writeText: async (t: string) => void written.push(t) }
+		});
+		arriveWith([{ cite: '요 3:16', w: '하나님이 세상을 이처럼 사랑하사' }]);
+		render(DeeplinkImportPage);
+		await fireEvent.click(await screen.findByRole('button', { name: '링크 복사' }));
+		expect(await screen.findByRole('button', { name: '복사됨' })).toBeInTheDocument();
+		expect(written).toHaveLength(1);
+		expect(written[0]).toContain('#v=');
+	});
+
+	it('offers a paste box instead of an error when the address carries no payload', async () => {
+		render(DeeplinkImportPage);
+		expect(await screen.findByRole('button', { name: /링크에서 가져오기/ })).toBeInTheDocument();
+	});
+
+	it('imports the whole link the reader pasted', async () => {
+		const link = buildImportLink('https://mem.lifescripture.org', {
+			source: 'bible.lifescripture.org',
+			verses: [{ cite: '창 12:1', w: '여호와께서 아브람에게 이르시되', title: null }]
+		});
+		render(DeeplinkImportPage);
+		const box = await screen.findByPlaceholderText(/oyo\/import/);
+		await fireEvent.input(box, { target: { value: link } });
+		await fireEvent.click(screen.getByRole('button', { name: /링크에서 가져오기/ }));
+		expect(await screen.findByText('구절 1개')).toBeInTheDocument();
+		expect(screen.getByText('창세기 12 : 1')).toBeInTheDocument();
+	});
+
+	it('explains a paste that is not an import link', async () => {
+		render(DeeplinkImportPage);
+		const box = await screen.findByPlaceholderText(/oyo\/import/);
+		await fireEvent.input(box, { target: { value: 'https://bible.lifescripture.org/bible/krv/john/3' } });
+		await fireEvent.click(screen.getByRole('button', { name: /링크에서 가져오기/ }));
+		expect(await screen.findByText(/가져오기 링크가 아닙니다/)).toBeInTheDocument();
 	});
 });
