@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 
 /*
- * The Recent tab remembers one thing — the last list of verses the reader was
+ * The Last Read tab remembers one thing — the last list of verses the reader was
  * on — and every part of that lives outside any single component: the layout
  * notices the navigation, localStorage carries it across a reload, and the bar
  * renders it. The unit tests cover each piece; only a real browser proves the
  * three are actually wired to each other.
  */
-test.describe('Recent tab', () => {
+test.describe('Last Read tab', () => {
 	test('starts dimmed, then goes back to the list that was opened', async ({ page }) => {
 		await page.goto('/');
 
@@ -15,8 +15,8 @@ test.describe('Recent tab', () => {
 		await expect(bar).toBeVisible();
 
 		// Nothing opened yet: the tab is there, but not as something to follow.
-		await expect(bar.getByText('Recent')).toBeVisible();
-		await expect(bar.getByRole('link', { name: 'Recent' })).toHaveCount(0);
+		await expect(bar.getByText('Last Read')).toBeVisible();
+		await expect(bar.getByRole('link', { name: 'Last Read' })).toHaveCount(0);
 
 		// The placeholder Stats tab is gone for good.
 		await expect(bar.getByText('Stats')).toHaveCount(0);
@@ -27,7 +27,7 @@ test.describe('Recent tab', () => {
 		await bar.getByRole('link', { name: 'Home' }).click();
 		await expect(page).toHaveURL('/');
 
-		const recent = bar.getByRole('link', { name: 'Recent' });
+		const recent = bar.getByRole('link', { name: 'Last Read' });
 		await expect(recent).toBeVisible();
 		await recent.click();
 		await expect(page).toHaveURL('/library/60_krv');
@@ -50,7 +50,7 @@ test.describe('Recent tab', () => {
 		await bar.getByRole('link', { name: 'Home' }).click();
 		await expect(page).toHaveURL('/');
 
-		await bar.getByRole('link', { name: 'Recent' }).click();
+		await bar.getByRole('link', { name: 'Last Read' }).click();
 		await expect(page).toHaveURL(filtered);
 	});
 
@@ -67,11 +67,11 @@ test.describe('Recent tab', () => {
 		await page.goto('/');
 		await page.reload();
 
-		await expect(bar.getByRole('link', { name: 'Recent' })).toHaveAttribute('href', '/bookmarks');
+		await expect(bar.getByRole('link', { name: 'Last Read' })).toHaveAttribute('href', '/bookmarks');
 	});
 
 	// Browsing the package index is not opening a list of verses, and a screen
-	// that is only ever passed through should not evict what Recent holds.
+	// that is only ever passed through should not evict what Last Read holds.
 	test('is not overwritten by the library index', async ({ page }) => {
 		await page.goto('/library/60_krv');
 		await expect(page.getByTestId('verse-row').first()).toBeVisible();
@@ -80,7 +80,7 @@ test.describe('Recent tab', () => {
 		await bar.getByRole('link', { name: 'Library' }).click();
 		await expect(page).toHaveURL('/library');
 
-		await expect(bar.getByRole('link', { name: 'Recent' })).toHaveAttribute(
+		await expect(bar.getByRole('link', { name: 'Last Read' })).toHaveAttribute(
 			'href',
 			'/library/60_krv'
 		);

@@ -5,10 +5,10 @@ import TabBar from '../../src/lib/components/nav/TabBar.svelte';
 const withRecent = { current: 'home' as const, recentHref: '/stats/verses?event=e1&dim=start&level=4' };
 
 describe('TabBar', () => {
-	it('renders four tabs (Home / Recent / Library / Marks)', () => {
+	it('renders four tabs (Home / Last Read / Library / Marks)', () => {
 		render(TabBar, { props: withRecent });
 		expect(screen.getByRole('link', { name: /home/i })).toBeInTheDocument();
-		expect(screen.getByRole('link', { name: /recent/i })).toBeInTheDocument();
+		expect(screen.getByRole('link', { name: /last read/i })).toBeInTheDocument();
 		expect(screen.getByRole('link', { name: /library/i })).toBeInTheDocument();
 		expect(screen.getByRole('link', { name: /marks/i })).toBeInTheDocument();
 	});
@@ -20,15 +20,15 @@ describe('TabBar', () => {
 		expect(screen.queryByRole('link', { name: /today/i })).toBeNull();
 	});
 
-	it('puts Recent directly after Home', () => {
+	it('puts Last Read directly after Home', () => {
 		render(TabBar, { props: withRecent });
 		const labels = screen.getAllByRole('listitem').map((li) => li.textContent?.trim());
-		expect(labels).toEqual(['Home', 'Recent', 'Library', 'Marks']);
+		expect(labels).toEqual(['Home', 'Last Read', 'Library', 'Marks']);
 	});
 
-	it('points Recent at the remembered list', () => {
+	it('points Last Read at the remembered list', () => {
 		render(TabBar, { props: withRecent });
-		expect(screen.getByRole('link', { name: /recent/i })).toHaveAttribute(
+		expect(screen.getByRole('link', { name: /last read/i })).toHaveAttribute(
 			'href',
 			'/stats/verses?event=e1&dim=start&level=4'
 		);
@@ -38,13 +38,13 @@ describe('TabBar', () => {
 	// offered as one. A link with no href would still be announced as a link.
 	it('offers no link when there is no remembered list', () => {
 		render(TabBar, { props: { current: 'home', recentHref: null } });
-		expect(screen.queryByRole('link', { name: /recent/i })).toBeNull();
-		expect(screen.getByText('Recent')).toBeInTheDocument();
+		expect(screen.queryByRole('link', { name: /last read/i })).toBeNull();
+		expect(screen.getByText('Last Read')).toBeInTheDocument();
 	});
 
-	it('marks the dimmed Recent tab as disabled', () => {
+	it('marks the dimmed Last Read tab as disabled', () => {
 		render(TabBar, { props: { current: 'home', recentHref: null } });
-		const item = screen.getAllByRole('listitem').find((li) => li.textContent?.trim() === 'Recent');
+		const item = screen.getAllByRole('listitem').find((li) => li.textContent?.trim() === 'Last Read');
 		expect(item).toBeDefined();
 		expect(item!.querySelector('[aria-disabled="true"]')).not.toBeNull();
 	});
@@ -64,8 +64,13 @@ describe('TabBar', () => {
 		expect(screen.getByRole('link', { name: /marks/i })).toHaveAttribute('aria-current', 'page');
 	});
 
-	it('marks recent tab as active when current=recent', () => {
+	// The tab's id stays `recent` — it is internal, and the route helpers are
+	// keyed on it. Only what the reader sees changed.
+	it('marks the Last Read tab as active when current=recent', () => {
 		render(TabBar, { props: { ...withRecent, current: 'recent' } });
-		expect(screen.getByRole('link', { name: /recent/i })).toHaveAttribute('aria-current', 'page');
+		expect(screen.getByRole('link', { name: /last read/i })).toHaveAttribute(
+			'aria-current',
+			'page'
+		);
 	});
 });

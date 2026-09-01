@@ -5,9 +5,9 @@
 	interface Props {
 		current: Tab;
 		/**
-		 * The list Recent goes back to, or null when the reader has not opened
-		 * one. Passed in rather than read here so the bar stays presentational —
-		 * the layout owns the memory, this owns how it looks.
+		 * The list Last Read goes back to, or null when the reader has not
+		 * opened one. Passed in rather than read here so the bar stays
+		 * presentational — the layout owns the memory, this owns how it looks.
 		 */
 		recentHref: string | null;
 	}
@@ -16,10 +16,20 @@
 	// "Home" leads to the dashboard (recent verses) at /. "Today" (SRS daily
 	// review) remains disabled — see plan notes if re-enabling is desired.
 	// "Stats" is gone: /stats was a placeholder, and the difficulty lists under
-	// it are reached through Recent now.
+	// it are reached through Last Read now.
+	//
+	// The label used to be "Recent", which collided with the 최근 section on
+	// the home screen — that one is a shelf of verse bundles the reader
+	// gathered, this is a shortcut back to the single list they were last in.
+	// Two different things cannot both be the recent one. "Last" alone was
+	// considered and dropped: the other three labels are nouns, and an
+	// adjective with its noun missing reads as "the final one" — worst of all
+	// on the dimmed tab, where there is nothing else on screen to complete it.
+	// The id stays `recent`: it is not user-facing, and renaming it would
+	// churn the route helpers for nothing.
 	const tabs = $derived([
 		{ id: 'home', href: '/', label: 'Home', icon: Home },
-		{ id: 'recent', href: recentHref, label: 'Recent', icon: History },
+		{ id: 'recent', href: recentHref, label: 'Last Read', icon: History },
 		{ id: 'library', href: '/library', label: 'Library', icon: Library },
 		{ id: 'bookmarks', href: '/bookmarks', label: 'Marks', icon: Bookmark }
 	] satisfies { id: Tab; href: string | null; label: string; icon: unknown }[]);
