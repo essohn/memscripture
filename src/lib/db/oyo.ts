@@ -61,12 +61,22 @@ async function nextVerseNo(): Promise<number> {
 	return maxNo + 1;
 }
 
-// Keep the count badge on the library OYO card honest. PackageMeta.verse_number
-// is what PackageCard renders, so mutations have to nudge it alongside the
-// verses table. Recompute from a live count rather than mutating a stored
-// counter — cheaper to reason about and a hole-allowed delete sequence won't
-// drift from reality.
-async function syncOyoVerseCount(): Promise<void> {
+/**
+ * Keep the count badge on the library OYO card honest.
+ *
+ * PackageMeta.verse_number is what PackageCard renders, so anything that adds
+ * or removes an OYO verse has to nudge it alongside the verses table.
+ * Recomputed from a live count rather than incremented — cheaper to reason
+ * about, and a hole-allowed delete sequence won't drift from reality.
+ *
+ * Exported because this module is not the only writer of OYO verse rows: the
+ * sync restore bulkPuts them straight into Dexie. A counter maintained by one
+ * module and written by two is a counter that drifts, and once drifted nothing
+ * here ever looked at it again — the reader who reported "구절이 2개 있는데
+ * 0구절로 뜬다" had exactly that, permanently. listPackages now reconciles on
+ * every read, so an install already carrying a wrong number repairs itself.
+ */
+export async function syncOyoVerseCount(): Promise<void> {
 	const count = await db.verses.where('package_id').equals(OYO_PACKAGE_ID).count();
 	const pkg = await db.packages.get(OYO_PACKAGE_ID);
 	if (!pkg || pkg.verse_number === count) return;

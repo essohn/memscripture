@@ -1,6 +1,6 @@
 import { db } from '$lib/db/local';
 import { dataGeneration } from '$lib/state/dataGeneration.svelte';
-import { OYO_PACKAGE_ID } from '$lib/db/oyo';
+import { OYO_PACKAGE_ID, syncOyoVerseCount } from '$lib/db/oyo';
 import { getDataLastModified } from '$lib/db/touchData';
 import type { Bookmark, DailyActivity, PackageMeta, VerseProgress } from '$lib/types';
 import type {
@@ -168,6 +168,12 @@ export async function applySyncSnapshot(input: unknown): Promise<void> {
 			// Restore. Order matters only for read paths that join — none here.
 			if (snap.oyo.package) await db.packages.put(snap.oyo.package);
 			if (snap.oyo.verses?.length) await db.verses.bulkPut(snap.oyo.verses);
+			// The rows are the truth; the package row's verse_number is a stored
+			// counter that db/oyo maintains and this path writes around. A
+			// snapshot can disagree with itself — an undercounting package row,
+			// or verses with no package row at all — and without this the wrong
+			// number would be what the next snapshot built here hands back out.
+			await syncOyoVerseCount();
 			if (snap.bookmarks?.length) await db.bookmarks.bulkPut(snap.bookmarks);
 			if (snap.progress?.length) await db.progress.bulkPut(snap.progress);
 			if (snap.activity?.length) await db.activity.bulkPut(snap.activity);

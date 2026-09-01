@@ -1,5 +1,5 @@
 import { db, type StoredVerse } from './local';
-import { seedOyoPackageIfMissing } from './oyo';
+import { seedOyoPackageIfMissing, syncOyoVerseCount } from './oyo';
 import { getPackageOrder } from './packageOrder';
 import { getJoinedGroups } from './groups';
 import { visiblePackages } from '$lib/groups/visibility';
@@ -88,6 +88,13 @@ export async function listPackages(): Promise<PackageMeta[]> {
 	// this is the right chokepoint — avoids the layout-effect / page-effect
 	// race where the library could render without the OYO card on a fresh IDB.
 	await seedOyoPackageIfMissing();
+	// And reconcile its count against the rows that are actually there. OYO is
+	// the one package whose verses the user adds and the sync restore writes,
+	// while verse_number is a stored counter — so it is the one that can say 0
+	// over two real verses, which is what a reader found. Curated packages are
+	// left alone: their count comes from the registry they were installed
+	// from, and recounting them would fight their own installer.
+	await syncOyoVerseCount();
 
 	// Group-scoped packages are withheld from readers outside the group — but
 	// never from one who has worked in them. Filtered on read rather than

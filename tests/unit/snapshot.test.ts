@@ -210,6 +210,63 @@ describe('applySyncSnapshot', () => {
 });
 
 
+// The restore is the second writer of OYO verse rows, and it does not go
+// through db/oyo — it bulkPuts them. A snapshot whose package row disagrees
+// with its verses therefore landed a count nothing here corrected, and the
+// next snapshot built from this device carried the wrong number back out.
+describe('applySyncSnapshot — the OYO count follows the rows it restored', () => {
+	/** A snapshot carrying two verses under a package row that claims none —
+	 *  the shape that produced "구절이 2개 있는데 0구절로 뜬다". */
+	function snapshotWithStaleCount(storedCount: number | undefined) {
+		const verses = [1, 2].map((no) => ({
+			package_id: OYO_PACKAGE_ID,
+			no,
+			i: no,
+			title: `제목 ${no}`,
+			cite: `시편 118 : ${no}`,
+			w: `본문 ${no}`
+		}));
+		return {
+			version: 1,
+			oyo: {
+				package:
+					storedCount === undefined
+						? undefined
+						: {
+								id: OYO_PACKAGE_ID,
+								name: '나의 구절(OYO)',
+								abbreviation: 'OYO',
+								verse_number: storedCount,
+								translation: 'krv',
+								translation_name: '사용자',
+								language: 'kor',
+								copyright: '',
+								copyright_text: '',
+								version: 1,
+								source: '',
+								default: false,
+								kind: 'user'
+							},
+				verses
+			}
+		} as never;
+	}
+
+	it('corrects a package row that undercounts the verses beside it', async () => {
+		await seedOyoPackageIfMissing();
+		await applySyncSnapshot(snapshotWithStaleCount(0));
+		expect((await db.packages.get(OYO_PACKAGE_ID))?.verse_number).toBe(2);
+	});
+
+	// An older snapshot may carry verses and no package row at all. The verses
+	// land; without a reconcile the seeded row keeps saying zero.
+	it('counts the restored verses when the snapshot carried no package row', async () => {
+		await seedOyoPackageIfMissing();
+		await applySyncSnapshot(snapshotWithStaleCount(undefined));
+		expect((await db.packages.get(OYO_PACKAGE_ID))?.verse_number).toBe(2);
+	});
+});
+
 describe('applySyncSnapshot and the screens above it', () => {
 	// Applying rewrites every table, and the screens that read those tables in
 	// an effect read them once on mount. A background sync used to land a

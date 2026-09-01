@@ -115,3 +115,77 @@ describe('listGroups', () => {
 		expect(groups).toEqual([]);
 	});
 });
+
+// The reader's report: two 나의 구절 in the library, the card saying 0구절.
+//
+// PackageCard renders PackageMeta.verse_number, a stored counter that only
+// db/oyo's own create/delete/restore maintain. The sync restore is a second
+// writer — it bulkPuts the OYO verse rows straight into Dexie — so a snapshot
+// whose package row disagrees with its verses (or carries no package row at
+// all) lands a count that nothing afterwards ever corrects.
+describe('listPackages — the OYO count is reconciled, not trusted', () => {
+	async function seedOyoRows(count: number, storedCount: number) {
+		mockFetch({ 'packages.json': {} });
+		await db.packages.put({
+			id: 'oyo',
+			name: '나의 구절(OYO)',
+			abbreviation: 'OYO',
+			verse_number: storedCount,
+			translation: 'krv',
+			translation_name: '사용자',
+			language: 'kor',
+			copyright: '',
+			copyright_text: '',
+			version: 1,
+			source: '',
+			default: false,
+			kind: 'user'
+		} as never);
+		await db.verses.bulkPut(
+			Array.from({ length: count }, (_, i) => ({
+				package_id: 'oyo',
+				no: i + 1,
+				i: i + 1,
+				title: `제목 ${i + 1}`,
+				cite: `시편 118 : ${i + 1}`,
+				w: `본문 ${i + 1}`
+			})) as never
+		);
+	}
+
+	it('reports the verses that are actually there, not the stored counter', async () => {
+		await seedOyoRows(2, 0);
+		const oyo = (await listPackages()).find((p) => p.id === 'oyo');
+		expect(oyo?.verse_number).toBe(2);
+	});
+
+	// Read paths must agree with the table, so the correction has to reach
+	// Dexie — otherwise the next snapshot built from this device would carry
+	// the wrong number back out to every other one.
+	it('writes the correction back rather than only dressing up the read', async () => {
+		await seedOyoRows(2, 0);
+		await listPackages();
+		expect((await db.packages.get('oyo'))?.verse_number).toBe(2);
+	});
+
+	it('corrects a counter that overshoots as well as one that lags', async () => {
+		await seedOyoRows(2, 9);
+		const oyo = (await listPackages()).find((p) => p.id === 'oyo');
+		expect(oyo?.verse_number).toBe(2);
+	});
+
+	// An empty OYO is a real state, not a drift to be repaired upward.
+	it('leaves an OYO with no verses at zero', async () => {
+		await seedOyoRows(0, 0);
+		const oyo = (await listPackages()).find((p) => p.id === 'oyo');
+		expect(oyo?.verse_number).toBe(0);
+	});
+
+	// The curated packages carry their count from the registry they were
+	// installed from; recounting them would fight their own installer.
+	it('leaves the curated packages alone', async () => {
+		mockFetch({ 'packages.json': samplePackages });
+		const five = (await listPackages()).find((p) => p.id === '5_krv');
+		expect(five?.verse_number).toBe(5);
+	});
+});
