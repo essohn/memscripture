@@ -8,7 +8,9 @@
 		type VerseEditValues
 	} from '$lib/components/oyo/VerseEditSheet.svelte';
 	import Toast from '$lib/components/feedback/Toast.svelte';
-	import { Plus, FolderInput, FolderOutput, ArrowDownUp } from 'lucide-svelte';
+	import { Plus, FolderInput, FolderOutput, ArrowDownUp, ClipboardPaste } from 'lucide-svelte';
+	import { goto } from '$app/navigation';
+	import { parseImportFragment, readFragmentParam } from '$lib/oyo/importLink';
 		import {
 		createOyoVerse,
 		deleteOyoVerse,
@@ -150,6 +152,41 @@
 		};
 	}
 
+	/**
+	 * The short way in for verses copied in another app.
+	 *
+	 * On iOS the clipboard is not a fallback but the ordinary carrier: every
+	 * home-screen web app owns its storage, so a link followed from the reading
+	 * app saves where this copy cannot read it (see lib/oyo/handoff.ts). That
+	 * makes this the common case, not the recovery case, and three taps through
+	 * a submenu is too long a walk for it.
+	 *
+	 * The read happens inside the tap because it has to: iOS grants clipboard
+	 * access only on a gesture, and puts its own paste confirmation on top.
+	 *
+	 * A refusal is not worth reporting as an error — Firefox gives page scripts
+	 * no readText at all, and a permission can be denied anywhere. Both land on
+	 * the paste screen, which takes the link by hand.
+	 */
+	async function importFromClipboard() {
+		let text: string;
+		try {
+			text = await navigator.clipboard.readText();
+		} catch {
+			void goto('/oyo/import');
+			return;
+		}
+		const result = parseImportFragment(text);
+		if (!result.ok) {
+			toast = { message: '클립보드에 가져오기 링크가 없습니다' };
+			return;
+		}
+		// Handed on as a fragment rather than in memory: the import screen already
+		// reads one, so the review, the duplicate badges and the save are shared
+		// with the followed-link route, and a reload there still works.
+		void goto(`/oyo/import#v=${encodeURIComponent(readFragmentParam(text) ?? '')}`);
+	}
+
 	let importMenuOpen = $state(false);
 
 	function handleImport() {
@@ -224,6 +261,27 @@
 		</div>
 		<div class="flex items-center gap-1">
 			<!--
+				First in the row because on iOS it is the ordinary way verses
+				arrive, not a recovery path — the 가져오기 menu still holds the
+				same door for a clipboard this browser will not read.
+			-->
+			<div class="group relative">
+				<button
+					type="button"
+					onclick={importFromClipboard}
+					aria-label="클립보드에서 가져오기"
+					class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text)]"
+				>
+					<ClipboardPaste size={16} strokeWidth={1.75} />
+				</button>
+				<span
+					role="tooltip"
+					class="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-[var(--color-text)] px-2 py-1 text-[11px] font-medium text-[var(--color-card)] opacity-0 transition-opacity group-hover:opacity-100"
+				>
+					클립보드에서 가져오기
+				</span>
+			</div>
+			<!--
 				FolderOutput / FolderInput show the box-and-arrow shape explicitly
 				so the meaning isn't ambiguous: arrow out of folder = 내보내기,
 				arrow into folder = 가져오기. Hover tooltips reinforce the label
@@ -280,6 +338,24 @@
 							</span>
 							<span class="block text-[11px] text-[var(--color-text-tertiary)]">
 								CSV · 엑셀 붙여넣기
+							</span>
+						</a>
+						<!--
+							The way in for a reader whose link cannot reach this app on
+							its own — every home-screen web app on iOS owns its storage,
+							so a link followed anywhere else saves out of sight. They
+							arrive here with the link on the clipboard instead.
+						-->
+						<a
+							role="menuitem"
+							href="/oyo/import"
+							class="block border-t border-[var(--color-border)] px-3 py-2.5 text-left transition-colors hover:bg-[var(--color-elevated)]"
+						>
+							<span class="block text-[13px] font-medium text-[var(--color-text)]">
+								링크 붙여넣기
+							</span>
+							<span class="block text-[11px] text-[var(--color-text-tertiary)]">
+								성경 앱에서 복사한 주소
 							</span>
 						</a>
 						<button

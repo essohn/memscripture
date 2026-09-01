@@ -31,6 +31,27 @@ describe('readFragmentParam', () => {
 		expect(readFragmentParam('#v=')).toBeNull();
 		expect(readFragmentParam('#other=1')).toBeNull();
 	});
+
+	// A reader on iOS cannot make this link land in their home-screen app: each
+	// installed web app owns its storage container, so a link opened anywhere
+	// else writes where the installed copy cannot read. The way across is the
+	// system clipboard, which means this parser has to accept the whole address
+	// the reader pasted, not just the fragment a navigation hands it.
+	it('reads the payload out of a whole pasted link', () => {
+		expect(readFragmentParam('https://mem.lifescripture.org/oyo/import#v=abc')).toBe('abc');
+	});
+
+	it('ignores a query string on a pasted link', () => {
+		expect(readFragmentParam('https://mem.lifescripture.org/oyo/import?x=1#v=abc')).toBe('abc');
+	});
+
+	it('tolerates the whitespace a paste carries in', () => {
+		expect(readFragmentParam('  https://mem.lifescripture.org/oyo/import#v=abc\n')).toBe('abc');
+	});
+
+	it('is null for a link that carries no payload', () => {
+		expect(readFragmentParam('https://mem.lifescripture.org/oyo/import')).toBeNull();
+	});
 });
 
 describe('parseImportFragment', () => {

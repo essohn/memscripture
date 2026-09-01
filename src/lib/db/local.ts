@@ -1,5 +1,12 @@
 import Dexie, { type Table } from 'dexie';
-import type { Bookmark, PackageMeta, Verse, VerseProgress, DailyActivity } from '$lib/types';
+import type {
+	Bookmark,
+	PackageMeta,
+	Verse,
+	VerseProgress,
+	DailyActivity,
+	MemEvent
+} from '$lib/types';
 
 export type StoredVerse = Verse & { package_id: string; no: number };
 /** A package row, plus the content version actually written to `verses`.
@@ -84,6 +91,18 @@ export interface CheckRecord {
 /** Words the reader underlined on one verse — the places they keep tripping
  *  over. Stored per verse rather than per word so the whole set reads and
  *  writes as a single row. */
+/**
+ * An 암송 DAY the reader registered on this device.
+ *
+ * Shaped as MemEvent plus a stamp, so it can be handed to every reader of
+ * events.json's own rows without translation — the merge needs the stamp
+ * because an event carries no other version of its own, and two devices that
+ * both edited one have to be able to say which edit was later.
+ */
+export interface StoredEvent extends MemEvent {
+	updatedAt: string;
+}
+
 export interface VerseMark {
 	id: string;
 	packageId: string;
@@ -132,6 +151,9 @@ class LocalDB extends Dexie {
 	checkHistory!: Table<CheckRecord, string>;
 	checkDeletions!: Table<CheckDeletion, string>;
 	verseMarks!: Table<VerseMark, string>;
+	/** 암송 DAYs the reader registered. The shipped ones live in
+	 *  static/data/events.json and are not stored here. */
+	events!: Table<StoredEvent, string>;
 
 	constructor() {
 		super('memscripture');
@@ -227,6 +249,25 @@ class LocalDB extends Dexie {
 			checkHistory: '&id, verseKey, checkedAt',
 			verseMarks: '&id, packageId',
 			checkDeletions: '&id, deletedAt'
+		});
+
+		// v10 adds events: 암송 DAYs the reader registered themselves. Additive
+		// like the others, so no data callback — a device upgrading simply has
+		// none yet, which is the truth about it.
+		this.version(10).stores({
+			packages: '&id, name',
+			verses: '[package_id+no], package_id',
+			settings: '&key',
+			progress: '&id, packageId, bucket',
+			activity: '&dateKey',
+			bookmarks: '&id, packageId, color',
+			recentVerses: '&id, viewedAt',
+			recentBundles: '&id, createdAt',
+			verseRatings: '&id, packageId',
+			checkHistory: '&id, verseKey, checkedAt',
+			verseMarks: '&id, packageId',
+			checkDeletions: '&id, deletedAt',
+			events: '&id, dueAt'
 		});
 	}
 }

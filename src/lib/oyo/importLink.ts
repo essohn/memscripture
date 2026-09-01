@@ -8,8 +8,18 @@ import { MAX_IMPORT_VERSES, normalizeCite } from './cite';
  * A link, not a network call, because this app has no server: it is a static
  * SPA whose only store is the IndexedDB on the device. There is nowhere for a
  * POST to land. A link also costs the sender nothing (no CORS, no popup, no
- * handshake), opens the installed PWA on both phone platforms, and works
- * identically on a desktop.
+ * handshake) and works identically on a desktop.
+ *
+ * What a link cannot do is choose which *copy* of this app it reaches. On iOS
+ * every web app added to the home screen gets its own storage container, so a
+ * link followed in Safari — or in the in-app window another installed web app
+ * pushes an out-of-scope address into — lands on the right origin and the
+ * right database name inside the wrong container: the import succeeds and the
+ * reader's installed app shows nothing. Android has no such split; its
+ * installed PWA shares the browser's storage for the origin. The way across on
+ * iOS is the clipboard, which is why readFragmentParam also accepts a whole
+ * pasted link and why the import screen offers to hand one over. See
+ * lib/oyo/handoff.ts.
  *
  * The payload rides in the URL *fragment* rather than the query string. A
  * fragment is never sent to the server, so scripture text does not end up in
@@ -78,10 +88,27 @@ function decodeBase64Utf8(raw: string): string | null {
 	}
 }
 
-/** Pulls the payload parameter out of a location hash. Tolerates the leading
- *  `#`, and a hash carrying more than one parameter. */
+/**
+ * Pulls the payload parameter out of a location hash — or out of a whole link
+ * the reader pasted.
+ *
+ * Both, because on iOS a navigation cannot always deliver this payload to the
+ * copy of the app the reader actually uses. Every home-screen web app there
+ * owns its storage container, so a link followed in a browser tab, or in the
+ * in-app window another installed app pushes it into, writes to an IndexedDB
+ * the installed copy cannot read: the import succeeds and the verses are
+ * nowhere. The only carrier that crosses those containers is the system
+ * clipboard, and what lands on it is the entire address, not a bare fragment.
+ *
+ * Everything before the first `#` is therefore discarded rather than parsed —
+ * a pasted link's own path would otherwise read as a parameter name. Tolerates
+ * the leading `#`, a hash carrying more than one parameter, and the whitespace
+ * a paste drags along.
+ */
 export function readFragmentParam(hash: string): string | null {
-	const params = new URLSearchParams(hash.replace(/^#/, ''));
+	const trimmed = hash.trim();
+	const cut = trimmed.indexOf('#');
+	const params = new URLSearchParams(cut === -1 ? trimmed : trimmed.slice(cut + 1));
 	const v = params.get('v');
 	return v && v.length > 0 ? v : null;
 }

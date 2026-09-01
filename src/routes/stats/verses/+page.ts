@@ -1,5 +1,5 @@
 import {
-	buildEventCards,
+	buildEventCardById,
 	parseStatsLevel,
 	versesAtLevel,
 	versesByPerfection,
@@ -60,11 +60,15 @@ export const load: PageLoad = async ({ url }): Promise<StatsVersesLoadData> => {
 	const perfect = rawLevel === 'yes';
 	const eventId = url.searchParams.get('event') ?? '';
 
-	// Resolved through buildEventCards rather than the raw event so this page
+	// Resolved through the card builder rather than the raw event so this page
 	// sees exactly the ranges the chart was built from — same group visibility,
 	// same dropped-because-uninstalled ranges. A list that disagreed with the
 	// bar it was opened from would be worse than no list.
-	const card = (await buildEventCards(todayLocalKey())).find((c) => c.eventId === eventId);
+	//
+	// By id rather than by filtering today's: this page is also how a finished
+	// 암송 DAY is looked back at, and the old route filtered by date first, so
+	// every link into a DAY whose deadline had passed came back empty.
+	const card = await buildEventCardById(eventId, todayLocalKey());
 	if (!card) return { eventTitle: '', dim, level, perfect, rows: [] };
 
 	const refs: EventVerseRef[] = isPerfect

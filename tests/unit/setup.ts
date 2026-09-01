@@ -55,3 +55,34 @@ if (typeof Element !== 'undefined') {
 		return capturedPointerIds.get(this)?.has(pointerId) ?? false;
 	};
 }
+
+// jsdom implements no Web Animations API, so `element.animate` is undefined and
+// any component carrying a Svelte transition throws the moment it enters —
+// Toast (transition:fly) takes the whole page down with it, which turns "assert
+// the message the reader sees" into an unrunnable test. Guarded like the
+// pointer-capture patch above, for the files that opt into the plain Node
+// environment.
+//
+// Deliberately inert: `onfinish` is never called, so a transition starts and
+// simply never completes. The node is inserted either way — which is all an
+// assertion about rendered text needs — while firing onfinish would run outros
+// to completion and delete elements out from under tests that expect them.
+if (typeof Element !== 'undefined' && !Element.prototype.animate) {
+	Element.prototype.animate = function () {
+		return {
+			currentTime: 0,
+			startTime: 0,
+			playState: 'running',
+			onfinish: null,
+			effect: { getComputedTiming: () => ({ duration: 0 }) },
+			finished: new Promise(() => {}),
+			cancel() {},
+			play() {},
+			pause() {},
+			finish() {},
+			commitStyles() {},
+			addEventListener() {},
+			removeEventListener() {}
+		} as unknown as Animation;
+	};
+}
