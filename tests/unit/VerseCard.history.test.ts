@@ -202,12 +202,13 @@ describe('확인', () => {
 		await waitFor(() => expect(screen.getByRole('button', { name: /오늘 확인함/ })).toBeInTheDocument());
 
 		const before = (await listChecks('900_krv', 127))[0].checkedAt;
+		await new Promise((r) => setTimeout(r, 2));
 		await fireEvent.click(screen.getByRole('button', { name: /오늘 확인함/ }));
 
 		await waitFor(async () => {
 			const rows = await listChecks('900_krv', 127);
 			expect(rows).toHaveLength(1);
-			expect(rows[0].checkedAt).toBeGreaterThanOrEqual(before);
+			expect(rows[0].checkedAt).toBeGreaterThan(before);
 		});
 	});
 

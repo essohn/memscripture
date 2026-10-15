@@ -417,7 +417,11 @@
 	/** Whether today already holds a 확인 for this verse. Read off the loaded
 	 *  history rather than a flag of its own, so it survives the card being
 	 *  scrolled away and rebuilt, and so a check synced in from another device
-	 *  counts. */
+	 *  counts. The `source === 'self'` conjunct is redundant on its own — no
+	 *  점검 id ends in `:self:<date>`, since those suffixes are all numeric —
+	 *  but kept as the same belt-and-suspenders check the rest of this file
+	 *  favors, so a future reader does not have to wonder whether it's load-
+	 *  bearing. */
 	const selfCheckedToday = $derived(
 		checkOnlyHistory.some((r) => r.source === 'self' && r.id.endsWith(`:self:${todayLocalKey()}`))
 	);
@@ -425,9 +429,11 @@
 	/**
 	 * 확인: the reader checked this verse in their head.
 	 *
-	 * Mirrors what onGraded does for a typed check — stamp the line, light the
-	 * badge, then write and reload — because the card must respond to the tap
-	 * rather than to the round trip.
+	 * Stamps the line and lights the badge the way onGraded does for a typed
+	 * check, then writes and reloads, because the card must respond to the
+	 * tap rather than to the round trip. Also lifts `noChecksLeft`, which
+	 * onGraded does not: a self check means the verse has a check again,
+	 * while a typed one only ever runs on a verse that already had one.
 	 */
 	function confirmSelfCheck() {
 		if (!packageId) return;
