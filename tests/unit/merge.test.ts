@@ -94,7 +94,7 @@ describe('append-only collections union', () => {
 	});
 
 	it('keeps verses written on either device', () => {
-		const v = (no: number) => ({ package_id: 'oyo', no, i: no, title: 't', cite: 'c', w: 'w' });
+		const v = (no: number) => ({ package_id: 'oyo', no, i: no, title: 't', cite: `c${no}`, w: 'w' });
 		const a = snap({ oyo: { package: null, verses: [v(1)] as never } });
 		const b = snap({ oyo: { package: null, verses: [v(2)] as never } });
 		expect(mergeSnapshots(a, b).oyo.verses).toHaveLength(2);
@@ -196,5 +196,90 @@ describe('a deleted check stays deleted', () => {
 		delete (old as { checkDeletions?: unknown }).checkDeletions;
 
 		expect(mergeSnapshots(old, snap({})).checkHistory?.map((c) => c.id)).toEqual(['x:1:100:0']);
+	});
+});
+
+describe('OYO verses, whose numbers each device hands out on its own', () => {
+	// createOyoVerse numbers a verse max+1 on whichever device wrote it, so two
+	// devices that each added verses before syncing both hold a verse 1 — and
+	// they are different verses.
+	const v = (no: number, cite: string, w = `${cite} 본문`) => ({
+		package_id: 'oyo',
+		no,
+		i: no,
+		title: '',
+		cite,
+		w
+	});
+	const OLD = '2026-10-01T00:00:00.000Z';
+	const NEW = '2026-10-02T00:00:00.000Z';
+	const pkg = (n: number) => ({ id: 'oyo', verse_number: n }) as never;
+
+	it('keeps both verses when two devices numbered different verses the same', () => {
+		const phone = snap({ lastModifiedAt: OLD, oyo: { package: pkg(2), verses: [v(1, '요 3:16'), v(2, '롬 8:28')] as never } });
+		const pc = snap({ lastModifiedAt: NEW, oyo: { package: pkg(1), verses: [v(1, '시 23:1')] as never } });
+
+		const merged = mergeSnapshots(phone, pc).oyo.verses;
+		expect(merged.map((x) => x.cite).sort()).toEqual(['롬 8:28', '시 23:1', '요 3:16']);
+		expect(new Set(merged.map((x) => x.no)).size).toBe(3);
+		// The later snapshot keeps its numbering; the other side's clash moves.
+		expect(merged.find((x) => x.cite === '시 23:1')?.no).toBe(1);
+	});
+
+	it('moves the renumbered verse’s records along with it', () => {
+		const phone = snap({
+			lastModifiedAt: OLD,
+			oyo: { package: pkg(1), verses: [v(1, '요 3:16')] as never },
+			bookmarks: [{ id: 'oyo:1', packageId: 'oyo', verseNo: 1, color: 'red', createdAt: 5 }],
+			progress: [{ id: 'oyo:1', packageId: 'oyo', verseNo: 1, lastReviewedAt: 5 }] as never,
+			verseRatings: [{ id: 'oyo:1', packageId: 'oyo', verseNo: 1, startDifficulty: 2, fullDifficulty: 3, updatedAt: 5 }],
+			verseMarks: [{ id: 'oyo:1', packageId: 'oyo', verseNo: 1, words: [], updatedAt: 5 }],
+			checkHistory: [{ id: 'oyo:1:5:0', verseKey: 'oyo:1', packageId: 'oyo', verseNo: 1, checkedAt: 5 }] as never
+		});
+		const pc = snap({ lastModifiedAt: NEW, oyo: { package: pkg(1), verses: [v(1, '시 23:1')] as never } });
+
+		const merged = mergeSnapshots(phone, pc);
+		const moved = merged.oyo.verses.find((x) => x.cite === '요 3:16')!.no;
+		expect(moved).not.toBe(1);
+		const key = `oyo:${moved}`;
+		expect(merged.bookmarks.map((b) => [b.id, b.verseNo])).toEqual([[key, moved]]);
+		expect(merged.progress.map((p) => [p.id, p.verseNo])).toEqual([[key, moved]]);
+		expect(merged.verseRatings.map((r) => [r.id, r.verseNo])).toEqual([[key, moved]]);
+		expect(merged.verseMarks?.map((m) => [m.id, m.verseNo])).toEqual([[key, moved]]);
+		expect(merged.checkHistory?.map((c) => [c.id, c.verseKey, c.verseNo])).toEqual([
+			['oyo:1:5:0', key, moved]
+		]);
+	});
+
+	it('leaves records of other packages alone', () => {
+		const phone = snap({
+			lastModifiedAt: OLD,
+			oyo: { package: pkg(1), verses: [v(1, '요 3:16')] as never },
+			bookmarks: [{ id: 'nav60:1', packageId: 'nav60', verseNo: 1, color: 'red', createdAt: 5 }]
+		});
+		const pc = snap({ lastModifiedAt: NEW, oyo: { package: pkg(1), verses: [v(1, '시 23:1')] as never } });
+		expect(mergeSnapshots(phone, pc).bookmarks.map((b) => b.id)).toEqual(['nav60:1']);
+	});
+
+	it('does not duplicate a verse both devices already hold', () => {
+		// Synced once, so both hold the same verse 1; the phone then added 2.
+		const phone = snap({ lastModifiedAt: NEW, oyo: { package: pkg(2), verses: [v(1, '요 3:16'), v(2, '롬 8:28')] as never } });
+		const pc = snap({ lastModifiedAt: OLD, oyo: { package: pkg(1), verses: [v(1, '요 3:16')] as never } });
+		expect(mergeSnapshots(phone, pc).oyo.verses.map((x) => [x.no, x.cite])).toEqual([
+			[1, '요 3:16'],
+			[2, '롬 8:28']
+		]);
+	});
+
+	it('treats the same reference under the same number as one verse edited', () => {
+		const pc = snap({ lastModifiedAt: OLD, oyo: { package: pkg(1), verses: [v(1, '요 3:16', '옛 본문')] as never } });
+		const phone = snap({ lastModifiedAt: NEW, oyo: { package: pkg(1), verses: [v(1, '요 3:16', '고친 본문')] as never } });
+		expect(mergeSnapshots(pc, phone).oyo.verses.map((x) => x.w)).toEqual(['고친 본문']);
+	});
+
+	it('counts the merged verses on the package row', () => {
+		const phone = snap({ lastModifiedAt: OLD, oyo: { package: pkg(2), verses: [v(1, '요 3:16'), v(2, '롬 8:28')] as never } });
+		const pc = snap({ lastModifiedAt: NEW, oyo: { package: pkg(1), verses: [v(1, '시 23:1')] as never } });
+		expect(mergeSnapshots(phone, pc).oyo.package?.verse_number).toBe(3);
 	});
 });

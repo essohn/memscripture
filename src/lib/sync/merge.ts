@@ -1,3 +1,6 @@
+import { OYO_PACKAGE_ID } from '$lib/db/oyo';
+import type { StoredVerse } from '$lib/db/local';
+import type { PackageMeta } from '$lib/types';
 import type { SyncSnapshot } from './snapshot';
 
 /**
@@ -51,6 +54,81 @@ function unionById<T>(a: T[] | undefined, b: T[] | undefined, idOf: (x: T) => st
 	return [...out.values()];
 }
 
+/**
+ * Lines the older side's OYO verses up against the newer side's.
+ *
+ * A verse's number is handed out max+1 by whichever device wrote it, so two
+ * devices that each added verses before syncing both hold a verse 1 — and they
+ * are different verses. Keying the union on the number alone kept one and
+ * silently dropped the other, on both devices once the result was uploaded.
+ *
+ * The newer side keeps its numbering. An older verse is the same verse as a
+ * newer one when the text matches outright, or when it sits under the same
+ * number with the same reference (an edit — the newer copy wins). Anything else
+ * that lands on a taken number is a different verse and moves to a fresh one;
+ * `renumber` says where, so the records pointing at it can follow.
+ */
+function reconcileOyoVerses(
+	newer: StoredVerse[],
+	older: StoredVerse[]
+): { verses: StoredVerse[]; renumber: Map<number, number> } {
+	const contentKey = (v: StoredVerse) => `${v.cite}\u0000${v.w}`;
+	const byNo = new Map(newer.map((v) => [v.no, v]));
+	const byContent = new Map(newer.map((v) => [contentKey(v), v.no]));
+	const renumber = new Map<number, number>();
+	const out = [...newer];
+	let next = Math.max(0, ...newer.map((v) => v.no), ...older.map((v) => v.no)) + 1;
+
+	for (const v of [...older].sort((a, b) => a.no - b.no)) {
+		const twin = byContent.get(contentKey(v));
+		if (twin !== undefined) {
+			if (twin !== v.no) renumber.set(v.no, twin);
+			continue;
+		}
+		const taken = byNo.get(v.no);
+		if (taken && taken.cite === v.cite) continue;
+		const placed = taken ? { ...v, no: next, i: next++ } : v;
+		if (placed.no !== v.no) renumber.set(v.no, placed.no);
+		out.push(placed);
+		byNo.set(placed.no, placed);
+		byContent.set(contentKey(placed), placed.no);
+	}
+	return { verses: out, renumber };
+}
+
+/** Points the older side's OYO records at the numbers their verses ended up
+ *  under. Rows of every other package pass through untouched. */
+function renumberOyo<T extends { packageId: string; verseNo: number }>(
+	rows: T[] | undefined,
+	renumber: Map<number, number>,
+	rekey: (row: T, key: string) => T
+): T[] | undefined {
+	if (!rows || renumber.size === 0) return rows;
+	return rows.map((row) => {
+		const no = row.packageId === OYO_PACKAGE_ID ? renumber.get(row.verseNo) : undefined;
+		return no === undefined ? row : rekey({ ...row, verseNo: no }, `${OYO_PACKAGE_ID}:${no}`);
+	});
+}
+
+function followRenumber(snap: SyncSnapshot, renumber: Map<number, number>): SyncSnapshot {
+	if (renumber.size === 0) return snap;
+	const rekeyId = <T extends { id: string }>(row: T, key: string) => ({ ...row, id: key });
+	return {
+		...snap,
+		bookmarks: renumberOyo(snap.bookmarks, renumber, rekeyId) ?? [],
+		progress: renumberOyo(snap.progress, renumber, rekeyId) ?? [],
+		verseRatings: renumberOyo(snap.verseRatings, renumber, rekeyId) ?? [],
+		verseMarks: renumberOyo(snap.verseMarks, renumber, rekeyId),
+		// A check keeps its own id — it names the check, not the verse — and
+		// only the verse it points at moves.
+		checkHistory: renumberOyo(snap.checkHistory, renumber, (c, key) => ({ ...c, verseKey: key }))
+	};
+}
+
+function withVerseCount(pkg: PackageMeta | null, count: number): PackageMeta | null {
+	return pkg && { ...pkg, verse_number: count };
+}
+
 /** ISO-8601 sorts correctly in plain lexicographic order. */
 function laterOf(a: string, b: string): string {
 	return a > b ? a : b;
@@ -60,7 +138,18 @@ export function mergeSnapshots(local: SyncSnapshot, remote: SyncSnapshot): SyncS
 	// Whichever snapshot was written later wins the few things that have no
 	// per-record version of their own.
 	const newer = (local.lastModifiedAt ?? '') >= (remote.lastModifiedAt ?? '') ? local : remote;
-	const older = newer === local ? remote : local;
+	const newerIsLocal = newer === local;
+
+	// OYO numbers are reconciled before anything else is merged: a verse the
+	// older side had to move takes its bookmark, progress and history with it,
+	// and the per-record merges below must see those under the new number.
+	const oyo = reconcileOyoVerses(
+		newer.oyo?.verses ?? [],
+		(newerIsLocal ? remote : local).oyo?.verses ?? []
+	);
+	const older = followRenumber(newerIsLocal ? remote : local, oyo.renumber);
+	if (newerIsLocal) remote = older;
+	else local = older;
 
 	// Computed before the snapshot rather than inside it: the merged history
 	// has to be filtered by the merged tombstones, and reading a half-built
@@ -76,15 +165,11 @@ export function mergeSnapshots(local: SyncSnapshot, remote: SyncSnapshot): SyncS
 
 		oyo: {
 			// A user-authored package row: no timestamp to compare, so the later
-			// snapshot's wins, falling back to whichever side has one at all.
-			package: newer.oyo?.package ?? older.oyo?.package ?? null,
-			// Verses the reader wrote themselves. Keyed by package and number;
-			// union keeps what each device added.
-			verses: unionById(
-				local.oyo?.verses,
-				remote.oyo?.verses,
-				(v) => `${v.package_id}:${v.no}`
-			)
+			// snapshot's wins, falling back to whichever side has one at all —
+			// except its count, which has to describe the merged verses rather
+			// than either device's own.
+			package: withVerseCount(newer.oyo?.package ?? older.oyo?.package ?? null, oyo.verses.length),
+			verses: oyo.verses
 		},
 
 		// A bookmark is set or cleared as a whole; createdAt stamps the setting.
